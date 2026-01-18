@@ -11,19 +11,17 @@ import Animated, {
   Extrapolation,
 } from 'react-native-reanimated';
 import SwipeCard, { CARD_WIDTH, CARD_HEIGHT } from './SwipeCard';
+import { Card } from '../types';
+import { QUESTION_CLIPS } from '../data/question_clips';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 120;
 const ROTATION_ANGLE = 15;
 
-// Sample data - all cards use the same YouTube video for now
-const CARDS_DATA = [
-  { id: '1', videoUrl: 'https://www.youtube.com/embed/4hGfVk0VAGA?start=210&end=214&controls=0&autoplay=1&mute=1&si=zfeP3T8PfAYJBUk6' },
-  { id: '2', videoUrl: 'https://www.youtube.com/embed/4hGfVk0VAGA?start=210&end=214&controls=0&autoplay=1&mute=1&si=zfeP3T8PfAYJBUk6' },
-  { id: '3', videoUrl: 'https://www.youtube.com/embed/4hGfVk0VAGA?start=210&end=214&controls=0&autoplay=1&mute=1&si=zfeP3T8PfAYJBUk6' },
-  { id: '4', videoUrl: 'https://www.youtube.com/embed/4hGfVk0VAGA?start=210&end=214&controls=0&autoplay=1&mute=1&si=zfeP3T8PfAYJBUk6' },
-  { id: '5', videoUrl: 'https://www.youtube.com/embed/4hGfVk0VAGA?start=210&end=214&controls=0&autoplay=1&mute=1&si=zfeP3T8PfAYJBUk6' },
-];
+const CARDS_DATA: Card[] = QUESTION_CLIPS.map((clip) => ({
+  id: clip.videoId,
+  clip,
+}));
 
 const CardSwiper: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -32,8 +30,7 @@ const CardSwiper: React.FC = () => {
   const translateY = useSharedValue(0);
 
   const handleSwipeComplete = useCallback((direction: 'left' | 'right') => {
-    console.log(`Swiped ${direction}`);
-    setCurrentIndex((prev) => prev + 1);
+    setCurrentIndex((prev) => (prev + 1) % CARDS_DATA.length);
     translateX.value = 0;
     translateY.value = 0;
   }, []);
@@ -73,7 +70,7 @@ const CardSwiper: React.FC = () => {
         { translateX: translateX.value },
         { translateY: translateY.value },
         { rotate: `${rotate}deg` },
-      ],
+      ] as any,
     };
   });
 
@@ -119,21 +116,20 @@ const CardSwiper: React.FC = () => {
     };
   });
 
-  // Get visible cards (current and next two)
-  const visibleCards = CARDS_DATA.slice(currentIndex, currentIndex + 3);
+  const getVisibleCards = () => {
+    const cards = [];
+    for (let i = 0; i < 3; i++) {
+      const index = (currentIndex + i) % CARDS_DATA.length;
+      cards.push(CARDS_DATA[index]);
+    }
+    return cards;
+  };
 
-  if (visibleCards.length === 0) {
-    return (
-      <View style={styles.container}>
-        <Animated.Text style={styles.emptyText}>No more cards!</Animated.Text>
-      </View>
-    );
-  }
+  const visibleCards = getVisibleCards();
 
   return (
     <View style={styles.container}>
       <View style={styles.cardContainer}>
-        {/* Render cards in reverse order so the top card is rendered last (on top) */}
         {visibleCards.slice().reverse().map((card, reversedIndex) => {
           const actualIndex = visibleCards.length - 1 - reversedIndex;
           const isTopCard = actualIndex === 0;
@@ -152,7 +148,7 @@ const CardSwiper: React.FC = () => {
           const cardContent = (
             <SwipeCard
               key={card.id}
-              videoUrl={card.videoUrl}
+              clip={card.clip}
               isActive={isTopCard}
               style={[
                 cardStyle,

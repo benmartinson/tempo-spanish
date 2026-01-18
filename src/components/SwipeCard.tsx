@@ -2,21 +2,22 @@ import React from 'react';
 import { StyleSheet, Dimensions } from 'react-native';
 import Animated, { AnimatedStyle } from 'react-native-reanimated';
 import YouTubePlayer from './YouTubePlayer';
+import { Clip } from '../types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const CARD_WIDTH = SCREEN_WIDTH * 0.9;
 export const CARD_HEIGHT = SCREEN_HEIGHT * 0.65;
 
 interface SwipeCardProps {
-  videoUrl: string;
+  clip: Clip;
   isActive: boolean;
-  style?: AnimatedStyle<any>;
+  style?: any;
 }
 
-const SwipeCard: React.FC<SwipeCardProps> = ({ videoUrl, isActive, style }) => {
+const SwipeCard: React.FC<SwipeCardProps> = ({ clip, isActive, style }) => {
   return (
     <Animated.View style={[styles.card, style]}>
-      <YouTubePlayer videoUrl={videoUrl} autoplay={isActive} />
+      <YouTubePlayer clip={clip} autoplay={isActive} />
     </Animated.View>
   );
 };

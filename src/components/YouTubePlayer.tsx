@@ -1,24 +1,22 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { Clip } from "../types";
 
 interface YouTubePlayerProps {
-  videoUrl: string;
+  clip: Clip;
   autoplay: boolean;
 }
 
-const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl, autoplay }) => {
-  // Build the relay URL with autoplay parameter
-  const getVideoUrl = () => {
-    // Extract video ID from the videoUrl prop if needed
-    // For now, using the relay service with autoplay
+const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay }) => {
+  const getVideoUrl = (clip) => {
     const baseUrl = 'https://yt-relay.vercel.app';
     const params = new URLSearchParams({
-      v: 'aszi6HWOZWo',
+      v: clip.videoId,
       autoplay: autoplay ? '1' : '0',
-      mute: '1', // Required for autoplay in most browsers
-      start: '210',
-      end: '214',
+      mute: '1', 
+      start: clip.start.toString(),
+      end: clip.end.toString(),
       controls: '0',
     });
     return `${baseUrl}?${params.toString()}`;
@@ -60,7 +58,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl, autoplay }) => 
       <body>
         <div class="video-container">
           <iframe
-            src="${getVideoUrl()}"
+            src="${getVideoUrl(clip)}"
             title="YouTube video player"
             frameborder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

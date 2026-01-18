@@ -1,5 +1,1 @@
-
-export const increaseTotalLikes = () => ({
-  type: "INCREASE_TOTAL_LIKES",
-  
-})
+import { DataAction } from '../../types';

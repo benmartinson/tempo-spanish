@@ -1,13 +1,12 @@
-const initialState = {
-  totalLikes: 9,
+import { RootState, DataAction, DataActionTypes } from '../../types';
+
+const initialState: RootState = {
+
 }
 
-const dataReducer = (state = initialState, action) => {
-
+const dataReducer = (state: RootState = initialState, action: DataAction): RootState => {
   switch(action.type) {
-    case "INCREASE_TOTAL_LIKES":
-      return {...state, totalLikes: state.totalLikes + 1}
-    default: 
+    default:
     return state
   }
 }
