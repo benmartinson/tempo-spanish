@@ -31,14 +31,25 @@ DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-# System prompt for Spanish learning assistant
-SPANISH_TUTOR_SYSTEM_PROMPT = """You are a friendly person having a conversation in Spanish. 
+# System prompt for Spanish conversation practice
+SPANISH_CONVERSATION_SYSTEM_PROMPT = """You are a friendly person having a conversation in Spanish.
 
 Guidelines:
 - Respond only in Spanish.
 - Keep responses conversational and somewhat brief, don't be too verbose.
-- Never correct the user's grammar or vocabulary, just respond in Spanish based on the user's message.
+- Never correct the user's grammar or vocabulary, just respond naturally in Spanish.
 - Ask follow-up questions to keep the conversation going
+- Only text, no emojis or other formatting."""
+
+# System prompt for generating initial conversation starters
+INITIAL_PROMPT_SYSTEM_PROMPT = """Generate an engaging, natural conversation starter in Spanish.
+
+Guidelines:
+- Respond only in Spanish.
+- Make it interesting and encourage natural conversation.
+- Keep it to 1-2 sentences.
+- Focus on everyday topics like daily life, hobbies, interests, etc.
+- Be friendly and conversational.
 - Only text, no emojis or other formatting."""
 
 
@@ -225,6 +236,39 @@ async def health():
     }
 
 
+@app.post("/initial-message")
+async def initial_message():
+    """
+    Generate an initial conversation starter message.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    try:
+        messages = [
+            {"role": "system", "content": INITIAL_PROMPT_SYSTEM_PROMPT},
+            {"role": "user", "content": "Generate an engaging conversation starter in Spanish."}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=100,
+            temperature=0.8,  # Slightly higher temperature for more variety
+        )
+
+        initial_message = response.choices[0].message.content
+
+        return {
+            "response": initial_message,
+            "status": "complete"
+        }
+
+    except Exception as e:
+        print(f"Error generating initial message: {e}")
+        return {"error": str(e)}
+
+
 @app.post("/chat")
 async def chat(request: ChatRequest):
     """
@@ -232,15 +276,15 @@ async def chat(request: ChatRequest):
     """
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
-    
+
     try:
         # Build messages array with system prompt and history
-        messages = [{"role": "system", "content": SPANISH_TUTOR_SYSTEM_PROMPT}]
-        
+        messages = [{"role": "system", "content": SPANISH_CONVERSATION_SYSTEM_PROMPT}]
+
         # Add conversation history
         for msg in request.history:
             messages.append({"role": msg.role, "content": msg.content})
-        
+
         # Add the new user message
         messages.append({"role": "user", "content": request.message})
         

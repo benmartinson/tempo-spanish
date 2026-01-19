@@ -31,6 +31,7 @@ const GeneralChat: React.FC = () => {
   // Chat conversation state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
+  const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -42,11 +43,56 @@ const GeneralChat: React.FC = () => {
     // Request microphone permission on mount
     requestPermission();
 
+    // Initialize with an AI-generated engaging prompt
+    initializeWithPrompt();
+
     // Cleanup on unmount
     return () => {
       cleanup();
     };
   }, []);
+
+  const initializeWithPrompt = async () => {
+    setIsLoadingInitialMessage(true);
+    try {
+      // Call the dedicated initial message endpoint
+      const response = await fetch(`${BACKEND_BASE_URL}/initial-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get initial message');
+      }
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Add the AI-generated prompt as the first message
+      if (data.response) {
+        const initialMessage: ChatMessage = {
+          role: 'assistant',
+          content: data.response
+        };
+        setMessages([initialMessage]);
+      }
+    } catch (err) {
+      console.error('Error getting initial prompt:', err);
+      // Fallback to a simple prompt if API fails
+      const fallbackMessage: ChatMessage = {
+        role: 'assistant',
+        content: "¿Qué tal estás hoy? Cuéntame algo interesante sobre ti."
+      };
+      setMessages([fallbackMessage]);
+    } finally {
+      setIsLoadingInitialMessage(false);
+    }
+  };
 
   const requestPermission = async () => {
     try {
@@ -182,10 +228,12 @@ const GeneralChat: React.FC = () => {
     await setAudioModeForRecording(false);
   };
 
-  const clearConversation = () => {
+  const clearConversation = async () => {
     setMessages([]);
     setTranscript('');
     setInterimTranscript('');
+    // Start a new conversation with a fresh AI-generated prompt
+    await initializeWithPrompt();
   };
 
   const sendToChat = async (userMessage: string) => {
@@ -248,11 +296,10 @@ const GeneralChat: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>General Chat</Text>
-        <Text style={styles.subtitle}>Practice Spanish conversation</Text>
+        {/* <Text style={styles.title}>General Chat</Text> */}
         {messages.length > 0 && !isRecording && (
           <TouchableOpacity style={styles.clearAllButton} onPress={clearConversation}>
-            <Text style={styles.clearAllButtonText}>Clear All</Text>
+            <Text style={styles.clearAllButtonText}>Clear Conversation</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -302,14 +349,10 @@ const GeneralChat: React.FC = () => {
           contentContainerStyle={styles.chatContent}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
-          {messages.length === 0 ? (
-            <View style={styles.welcomeContainer}>
-              <Text style={styles.welcomeText}>
-                Tap the microphone and start speaking in Spanish!
-              </Text>
-              <Text style={styles.welcomeSubtext}>
-                Your AI tutor will respond and help you practice.
-              </Text>
+          {messages.length === 0 && isLoadingInitialMessage ? (
+            <View style={styles.loadingContainer}>
+              <LoadingBubble />
+              <Text style={styles.loadingText}>Preparing conversation...</Text>
             </View>
           ) : (
             <>
@@ -412,6 +455,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 16,
   },
   errorContainer: {
     marginHorizontal: 20,
