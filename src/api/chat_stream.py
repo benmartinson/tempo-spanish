@@ -1,5 +1,6 @@
 """
-FastAPI WebSocket server that proxies audio to DeepGram for real-time transcription.
+FastAPI WebSocket server that proxies audio to DeepGram for real-time transcription
+and provides chat functionality with OpenAI.
 
 This server acts as a bridge between the React Native app and DeepGram's ASR service,
 keeping the API key secure on the server side.
@@ -10,11 +11,13 @@ Run with: uvicorn src.api.chat_stream:app --host 0.0.0.0 --port 8000 --reload
 import asyncio
 import json
 import os
-from typing import Optional
+from typing import Optional, List
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
@@ -23,6 +26,30 @@ load_dotenv()
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 # Using v1 API with Nova-3 for Spanish support
 DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen"
+
+# OpenAI configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+# System prompt for Spanish learning assistant
+SPANISH_TUTOR_SYSTEM_PROMPT = """You are a friendly person having a conversation in Spanish. 
+
+Guidelines:
+- Respond only in Spanish.
+- Keep responses conversational and somewhat brief, don't be too verbose.
+- Never correct the user's grammar or vocabulary, just respond in Spanish based on the user's message.
+- Ask follow-up questions to keep the conversation going
+- Only text, no emojis or other formatting."""
+
+
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: List[ChatMessage] = []
 
 app = FastAPI(title="SpeakUp Spanish ASR Proxy")
 
@@ -193,8 +220,48 @@ async def health():
     """Health check endpoint."""
     return {
         "status": "ok",
-        "deepgram_configured": bool(DEEPGRAM_API_KEY)
+        "deepgram_configured": bool(DEEPGRAM_API_KEY),
+        "openai_configured": bool(OPENAI_API_KEY)
     }
+
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    """
+    Chat endpoint that returns responses from GPT-4o-mini.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+    
+    try:
+        # Build messages array with system prompt and history
+        messages = [{"role": "system", "content": SPANISH_TUTOR_SYSTEM_PROMPT}]
+        
+        # Add conversation history
+        for msg in request.history:
+            messages.append({"role": msg.role, "content": msg.content})
+        
+        # Add the new user message
+        messages.append({"role": "user", "content": request.message})
+        
+        # Create completion (non-streaming for React Native compatibility)
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=500,
+            temperature=0.7,
+        )
+        
+        assistant_message = response.choices[0].message.content
+        
+        return {
+            "response": assistant_message,
+            "status": "complete"
+        }
+        
+    except Exception as e:
+        print(f"Error in chat: {e}")
+        return {"error": str(e)}
 
 
 @app.websocket("/ws/transcribe")

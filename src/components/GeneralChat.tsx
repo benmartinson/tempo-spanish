@@ -11,8 +11,9 @@ import {
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 
-// Backend WebSocket URL - connects to the Python FastAPI server
+// Backend URLs - connects to the Python FastAPI server
 // For local development, use your machine's IP address (not localhost) when testing on a physical device
+const BACKEND_BASE_URL = 'http://192.168.1.124:8000';
 const BACKEND_WS_URL = 'ws://192.168.1.124:8000/ws/transcribe';
 
 interface TranscriptWord {
@@ -29,6 +30,11 @@ interface BackendMessage {
   words?: TranscriptWord[];
 }
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 const GeneralChat: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -36,11 +42,17 @@ const GeneralChat: React.FC = () => {
   const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  
+  // Chat conversation state
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoadingResponse, setIsLoadingResponse] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const audioChunksRef = useRef<string[]>([]);
   const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const finalTranscriptRef = useRef<string>('');
 
   useEffect(() => {
     // Request microphone permission on mount
@@ -110,7 +122,11 @@ const GeneralChat: React.FC = () => {
               if (data.transcript) {
                 if (data.is_final) {
                   // Final transcript - append to permanent transcript
-                  setTranscript((prev) => prev + (prev ? ' ' : '') + data.transcript);
+                  setTranscript((prev) => {
+                    const newTranscript = prev + (prev ? ' ' : '') + data.transcript;
+                    finalTranscriptRef.current = newTranscript;
+                    return newTranscript;
+                  });
                   setInterimTranscript('');
                 } else {
                   // Interim result - show as temporary
@@ -162,6 +178,7 @@ const GeneralChat: React.FC = () => {
     setIsConnecting(true);
     setTranscript('');
     setInterimTranscript('');
+    finalTranscriptRef.current = '';
 
     try {
       // Connect to backend server first
@@ -287,11 +304,23 @@ const GeneralChat: React.FC = () => {
     }
 
     // Close WebSocket connection after a short delay to receive final transcripts
+    // Then send the transcript to the chat
     setTimeout(() => {
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
+
+      // Get the final transcript from the ref and send to chat
+      const transcriptToSend = finalTranscriptRef.current.trim();
+      if (transcriptToSend) {
+        sendToChat(transcriptToSend);
+      }
+      
+      // Clear the transcript and ref
+      setTranscript('');
+      setInterimTranscript('');
+      finalTranscriptRef.current = '';
     }, 1500);
 
     // Reset audio mode
@@ -305,25 +334,123 @@ const GeneralChat: React.FC = () => {
     setInterimTranscript('');
   };
 
+  const clearConversation = () => {
+    setMessages([]);
+    setTranscript('');
+    setInterimTranscript('');
+  };
+
+  const sendToChat = async (userMessage: string) => {
+    if (!userMessage.trim()) return;
+
+    // Add user message to conversation
+    const newUserMessage: ChatMessage = { role: 'user', content: userMessage };
+    setMessages((prev) => [...prev, newUserMessage]);
+    setIsLoadingResponse(true);
+
+    try {
+      const response = await fetch(`${BACKEND_BASE_URL}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          history: messages,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response from chat');
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Add assistant message to conversation
+      if (data.response) {
+        const assistantMessage: ChatMessage = { role: 'assistant', content: data.response };
+        setMessages((prev) => [...prev, assistantMessage]);
+        // Auto-scroll to bottom
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }
+    } catch (err) {
+      console.error('Error sending to chat:', err);
+      setError('Failed to get AI response. Please try again.');
+    } finally {
+      setIsLoadingResponse(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Voice Chat</Text>
-        <Text style={styles.subtitle}>Tap the microphone to start speaking</Text>
+        <Text style={styles.subtitle}>Practice Spanish conversation</Text>
+        {messages.length > 0 && (
+          <TouchableOpacity style={styles.clearAllButton} onPress={clearConversation}>
+            <Text style={styles.clearAllButtonText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView style={styles.transcriptContainer} contentContainerStyle={styles.transcriptContent}>
-        {transcript || interimTranscript ? (
-          <Text style={styles.transcriptText}>
-            {transcript}
-            {interimTranscript && (
-              <Text style={styles.interimText}> {interimTranscript}</Text>
-            )}
-          </Text>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.chatContainer} 
+        contentContainerStyle={styles.chatContent}
+        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+      >
+        {messages.length === 0 && !isRecording && !transcript && !interimTranscript ? (
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeText}>
+              Tap the microphone and start speaking in Spanish!
+            </Text>
+            <Text style={styles.welcomeSubtext}>
+              Your AI tutor will respond and help you practice.
+            </Text>
+          </View>
         ) : (
-          <Text style={styles.placeholderText}>
-            Your speech will appear here...
-          </Text>
+          <>
+            {/* Render conversation messages */}
+            {messages.map((msg, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.messageBubble,
+                  msg.role === 'user' ? styles.userBubble : styles.assistantBubble,
+                ]}
+              >
+                <Text style={[
+                  styles.messageText,
+                  msg.role === 'user' ? styles.userMessageText : styles.assistantMessageText,
+                ]}>
+                  {msg.content}
+                </Text>
+              </View>
+            ))}
+
+            {/* Show loading indicator while waiting for response */}
+            {isLoadingResponse && (
+              <View style={[styles.messageBubble, styles.assistantBubble]}>
+                <ActivityIndicator color="#4a69bd" size="small" />
+              </View>
+            )}
+
+            {/* Show current transcript while recording */}
+            {(transcript || interimTranscript) && (
+              <View style={[styles.messageBubble, styles.userBubble, styles.transcriptBubble]}>
+                <Text style={[styles.messageText, styles.userMessageText]}>
+                  {transcript}
+                  {interimTranscript && (
+                    <Text style={styles.interimText}> {interimTranscript}</Text>
+                  )}
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -334,20 +461,15 @@ const GeneralChat: React.FC = () => {
       )}
 
       <View style={styles.controlsContainer}>
-        {transcript && (
-          <TouchableOpacity style={styles.clearButton} onPress={clearTranscript}>
-            <Text style={styles.clearButtonText}>Clear</Text>
-          </TouchableOpacity>
-        )}
-
         <TouchableOpacity
           style={[
             styles.recordButton,
             isRecording && styles.recordingButton,
             isConnecting && styles.connectingButton,
+            isLoadingResponse && styles.disabledButton,
           ]}
           onPress={isRecording ? stopRecording : startRecording}
-          disabled={isConnecting || hasPermission === false}
+          disabled={isConnecting || hasPermission === false || isLoadingResponse}
         >
           {isConnecting ? (
             <ActivityIndicator color="#fff" size="large" />
@@ -361,6 +483,8 @@ const GeneralChat: React.FC = () => {
             ? 'Connecting...'
             : isRecording
             ? 'Listening...'
+            : isLoadingResponse
+            ? 'AI is responding...'
             : 'Tap to speak'}
         </Text>
       </View>
@@ -377,44 +501,99 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingHorizontal: 20,
     paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#fff',
     textAlign: 'center',
+    width: '100%',
   },
   subtitle: {
     fontSize: 14,
     color: '#888',
     textAlign: 'center',
     marginTop: 5,
+    width: '100%',
   },
-  transcriptContainer: {
-    flex: 1,
-    marginHorizontal: 20,
-    marginVertical: 20,
-    backgroundColor: '#16213e',
+  clearAllButton: {
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: '#333',
     borderRadius: 16,
-    padding: 16,
   },
-  transcriptContent: {
+  clearAllButtonText: {
+    color: '#888',
+    fontSize: 12,
+  },
+  chatContainer: {
+    flex: 1,
+    marginHorizontal: 12,
+    marginVertical: 10,
+  },
+  chatContent: {
     flexGrow: 1,
+    paddingVertical: 10,
   },
-  transcriptText: {
+  welcomeContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  welcomeText: {
     fontSize: 18,
     color: '#fff',
-    lineHeight: 28,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  welcomeSubtext: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginVertical: 4,
+  },
+  userBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#4a69bd',
+    borderBottomRightRadius: 4,
+  },
+  assistantBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#16213e',
+    borderBottomLeftRadius: 4,
+  },
+  transcriptBubble: {
+    opacity: 0.8,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: '#4a69bd',
+    backgroundColor: 'transparent',
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  userMessageText: {
+    color: '#fff',
+  },
+  assistantMessageText: {
+    color: '#e0e0e0',
   },
   interimText: {
-    color: '#888',
+    color: 'rgba(255, 255, 255, 0.6)',
     fontStyle: 'italic',
-  },
-  placeholderText: {
-    fontSize: 16,
-    color: '#555',
-    textAlign: 'center',
-    marginTop: 20,
   },
   errorContainer: {
     marginHorizontal: 20,
@@ -431,17 +610,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 40,
     paddingTop: 20,
-  },
-  clearButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: '#333',
-    borderRadius: 20,
-    marginBottom: 20,
-  },
-  clearButtonText: {
-    color: '#fff',
-    fontSize: 14,
   },
   recordButton: {
     width: 80,
@@ -463,6 +631,11 @@ const styles = StyleSheet.create({
   connectingButton: {
     backgroundColor: '#888',
     shadowColor: '#888',
+  },
+  disabledButton: {
+    backgroundColor: '#555',
+    shadowColor: '#555',
+    opacity: 0.7,
   },
   micIcon: {
     width: 24,
