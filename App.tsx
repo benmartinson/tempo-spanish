@@ -1,7 +1,7 @@
 import * as React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import HomeScreen from "./src/components/HomeScreen";
+import GeneralChat from "./src/components/GeneralChat";
 import { Provider } from 'react-redux';
 import store from "./src/store/store";
 
@@ -14,9 +14,9 @@ const App: React.FC = () => {
       <Stack.Navigator
         id="MainStack"
         initialRouteName="Index"
-        screenOptions={{ title: "SpeakUp Spanish" }}
+        screenOptions={{ headerShown: false }}
       >
-          <Stack.Screen name="Index" component={HomeScreen} />
+          <Stack.Screen name="Index" component={GeneralChat} />
         </Stack.Navigator>
       </NavigationContainer>
     </Provider>
