@@ -219,61 +219,58 @@ const GeneralChat: React.FC = () => {
   };
 
   const startAudioStreaming = () => {
-    let lastPosition = 0;
+    let lastBytesSent = 0;
+    const headerSize = 44; // WAV header size
+    // 80ms chunks at 16kHz, 16-bit mono = 2560 bytes (recommended by DeepGram)
+    const chunkSize = 2560;
 
-    // Poll for new audio data every 250ms
+    // Poll for new audio data every 80ms to match chunk size
     streamIntervalRef.current = setInterval(async () => {
       if (!recordingRef.current || !wsRef.current) return;
+      if (wsRef.current.readyState !== WebSocket.OPEN) return;
 
       try {
-        const status = await recordingRef.current.getStatusAsync();
-        
-        if (status.isRecording && status.durationMillis > lastPosition + 200) {
-          // Get the recording URI
-          const uri = recordingRef.current.getURI();
-          
-          if (uri) {
-            // Read the audio file and send new chunks
-            const fileInfo = await FileSystem.getInfoAsync(uri);
-            
-            if (fileInfo.exists && 'size' in fileInfo) {
-              // Read the file as base64
-              const base64Audio = await FileSystem.readAsStringAsync(uri, {
-                encoding: 'base64',
-              });
+        const uri = recordingRef.current.getURI();
+        if (!uri) return;
 
-              // Convert base64 to binary and send to backend
-              if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                // Send the audio data
-                const binaryString = atob(base64Audio);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                  bytes[i] = binaryString.charCodeAt(i);
-                }
-                
-                // Skip WAV header (44 bytes) and send only new audio data
-                const headerSize = 44;
-                if (bytes.length > headerSize + lastPosition) {
-                  const newAudioData = bytes.slice(headerSize + lastPosition);
-                  wsRef.current.send(newAudioData.buffer);
-                  lastPosition = bytes.length - headerSize;
-                }
-              }
-            }
+        // Read the entire file as base64
+        const base64Audio = await FileSystem.readAsStringAsync(uri, {
+          encoding: 'base64',
+        });
+
+        // Convert base64 to binary
+        const binaryString = atob(base64Audio);
+        const totalBytes = binaryString.length;
+        
+        // Calculate how many audio bytes we have (excluding header)
+        const audioDataLength = totalBytes - headerSize;
+        
+        // Only process if we have at least one new chunk worth of data
+        if (audioDataLength >= lastBytesSent + chunkSize) {
+          const bytes = new Uint8Array(totalBytes);
+          for (let i = 0; i < totalBytes; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
           }
           
-          lastPosition = status.durationMillis;
+          // Send complete 80ms chunks
+          while (lastBytesSent + chunkSize <= audioDataLength) {
+            const startOffset = headerSize + lastBytesSent;
+            const chunk = bytes.slice(startOffset, startOffset + chunkSize);
+            wsRef.current.send(chunk.buffer);
+            lastBytesSent += chunkSize;
+          }
         }
       } catch (err) {
-        console.error('Error streaming audio:', err);
+        // Ignore errors during streaming - file might be temporarily locked
+        console.log('Streaming chunk skipped:', err);
       }
-    }, 250);
+    }, 80);
   };
 
   const stopRecording = async () => {
     setIsRecording(false);
 
-    // Stop the streaming interval
+    // Stop the streaming interval first
     if (streamIntervalRef.current) {
       clearInterval(streamIntervalRef.current);
       streamIntervalRef.current = null;
@@ -283,24 +280,6 @@ const GeneralChat: React.FC = () => {
     if (recordingRef.current) {
       try {
         await recordingRef.current.stopAndUnloadAsync();
-        
-        // Send final audio chunk
-        const uri = recordingRef.current.getURI();
-        if (uri && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          const base64Audio = await FileSystem.readAsStringAsync(uri, {
-            encoding: 'base64',
-          });
-          
-          const binaryString = atob(base64Audio);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          
-          // Send remaining audio (skip WAV header)
-          const audioData = bytes.slice(44);
-          wsRef.current.send(audioData.buffer);
-        }
       } catch (err) {
         console.error('Error stopping recording:', err);
       }
@@ -313,7 +292,7 @@ const GeneralChat: React.FC = () => {
         wsRef.current.close();
         wsRef.current = null;
       }
-    }, 1000);
+    }, 1500);
 
     // Reset audio mode
     await Audio.setAudioModeAsync({
