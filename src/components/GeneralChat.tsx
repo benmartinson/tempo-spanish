@@ -6,34 +6,19 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-  ActivityIndicator,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system/legacy';
 
-// Backend URLs - connects to the Python FastAPI server
-// For local development, use your machine's IP address (not localhost) when testing on a physical device
-const BACKEND_BASE_URL = 'http://192.168.1.124:8000';
-const BACKEND_WS_URL = 'ws://192.168.1.124:8000/ws/transcribe';
-
-interface TranscriptWord {
-  word: string;
-  confidence: number;
-}
-
-interface BackendMessage {
-  type: 'ready' | 'connected' | 'transcript' | 'metadata' | 'error';
-  message?: string;
-  transcript?: string;
-  confidence?: number;
-  is_final?: boolean;
-  words?: TranscriptWord[];
-}
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { ChatBubble, TranscriptBubble, LoadingBubble, ChatMessage } from './ChatBubble';
+import { RecordButton, RecordStatus } from './RecordButton';
+import {
+  BACKEND_BASE_URL,
+  connectToBackend,
+  startAudioStreaming,
+  getRecordingConfig,
+  requestMicrophonePermission,
+  setAudioModeForRecording,
+} from './streaming_helpers';
 
 const GeneralChat: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -42,14 +27,13 @@ const GeneralChat: React.FC = () => {
   const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  
+
   // Chat conversation state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const audioChunksRef = useRef<string[]>([]);
   const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const finalTranscriptRef = useRef<string>('');
@@ -66,9 +50,9 @@ const GeneralChat: React.FC = () => {
 
   const requestPermission = async () => {
     try {
-      const { status } = await Audio.requestPermissionsAsync();
-      setHasPermission(status === 'granted');
-      if (status !== 'granted') {
+      const granted = await requestMicrophonePermission();
+      setHasPermission(granted);
+      if (!granted) {
         setError('Microphone permission is required for speech recognition');
       }
     } catch (err) {
@@ -96,76 +80,19 @@ const GeneralChat: React.FC = () => {
     }
   };
 
-  const connectToBackend = (): Promise<WebSocket> => {
-    return new Promise((resolve, reject) => {
-      const ws = new WebSocket(BACKEND_WS_URL);
-
-      ws.onopen = () => {
-        console.log('Connected to backend server');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data: BackendMessage = JSON.parse(event.data);
-          
-          switch (data.type) {
-            case 'ready':
-              console.log('Server ready:', data.message);
-              break;
-            
-            case 'connected':
-              console.log('DeepGram connected via backend');
-              resolve(ws);
-              break;
-            
-            case 'transcript':
-              if (data.transcript) {
-                if (data.is_final) {
-                  // Final transcript - append to permanent transcript
-                  setTranscript((prev) => {
-                    const newTranscript = prev + (prev ? ' ' : '') + data.transcript;
-                    finalTranscriptRef.current = newTranscript;
-                    return newTranscript;
-                  });
-                  setInterimTranscript('');
-                } else {
-                  // Interim result - show as temporary
-                  setInterimTranscript(data.transcript);
-                }
-              }
-              break;
-            
-            case 'error':
-              console.error('Backend error:', data.message);
-              setError(data.message || 'Server error occurred');
-              reject(new Error(data.message || 'Server error'));
-              break;
-            
-            case 'metadata':
-              console.log('Received metadata from DeepGram');
-              break;
-          }
-        } catch (err) {
-          console.error('Error parsing backend message:', err);
-        }
-      };
-
-      ws.onerror = (event) => {
-        console.error('WebSocket error:', event);
-        reject(new Error('Failed to connect to transcription server'));
-      };
-
-      ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
-      };
-
-      // Timeout if we don't get connected within 10 seconds
-      setTimeout(() => {
-        if (ws.readyState !== WebSocket.OPEN) {
-          reject(new Error('Connection timeout'));
-        }
-      }, 10000);
-    });
+  const handleTranscript = (transcriptText: string, isFinal: boolean) => {
+    if (isFinal) {
+      // Final transcript - append to permanent transcript
+      setTranscript((prev) => {
+        const newTranscript = prev + (prev ? ' ' : '') + transcriptText;
+        finalTranscriptRef.current = newTranscript;
+        return newTranscript;
+      });
+      setInterimTranscript('');
+    } else {
+      // Interim result - show as temporary
+      setInterimTranscript(transcriptText);
+    }
   };
 
   const startRecording = async () => {
@@ -182,42 +109,17 @@ const GeneralChat: React.FC = () => {
 
     try {
       // Connect to backend server first
-      wsRef.current = await connectToBackend();
+      wsRef.current = await connectToBackend({
+        onTranscript: handleTranscript,
+        onError: (message) => setError(message),
+      });
 
       // Configure audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+      await setAudioModeForRecording(true);
 
       // Create recording with PCM format
       const recording = new Audio.Recording();
-      
-      await recording.prepareToRecordAsync({
-        android: {
-          extension: '.wav',
-          outputFormat: Audio.AndroidOutputFormat.DEFAULT,
-          audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          bitRate: 256000,
-        },
-        ios: {
-          extension: '.wav',
-          outputFormat: Audio.IOSOutputFormat.LINEARPCM,
-          audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          bitRate: 256000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-        web: {
-          mimeType: 'audio/webm',
-          bitsPerSecond: 128000,
-        },
-      });
+      await recording.prepareToRecordAsync(getRecordingConfig());
 
       recordingRef.current = recording;
       await recording.startAsync();
@@ -225,63 +127,16 @@ const GeneralChat: React.FC = () => {
       setIsConnecting(false);
 
       // Start streaming audio chunks to backend server
-      startAudioStreaming();
-
+      streamIntervalRef.current = startAudioStreaming(
+        () => recordingRef.current,
+        () => wsRef.current
+      );
     } catch (err) {
       console.error('Failed to start recording:', err);
       setError('Failed to start recording. Please try again.');
       setIsConnecting(false);
       cleanup();
     }
-  };
-
-  const startAudioStreaming = () => {
-    let lastBytesSent = 0;
-    const headerSize = 44; // WAV header size
-    // 80ms chunks at 16kHz, 16-bit mono = 2560 bytes (recommended by DeepGram)
-    const chunkSize = 2560;
-
-    // Poll for new audio data every 80ms to match chunk size
-    streamIntervalRef.current = setInterval(async () => {
-      if (!recordingRef.current || !wsRef.current) return;
-      if (wsRef.current.readyState !== WebSocket.OPEN) return;
-
-      try {
-        const uri = recordingRef.current.getURI();
-        if (!uri) return;
-
-        // Read the entire file as base64
-        const base64Audio = await FileSystem.readAsStringAsync(uri, {
-          encoding: 'base64',
-        });
-
-        // Convert base64 to binary
-        const binaryString = atob(base64Audio);
-        const totalBytes = binaryString.length;
-        
-        // Calculate how many audio bytes we have (excluding header)
-        const audioDataLength = totalBytes - headerSize;
-        
-        // Only process if we have at least one new chunk worth of data
-        if (audioDataLength >= lastBytesSent + chunkSize) {
-          const bytes = new Uint8Array(totalBytes);
-          for (let i = 0; i < totalBytes; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          
-          // Send complete 80ms chunks
-          while (lastBytesSent + chunkSize <= audioDataLength) {
-            const startOffset = headerSize + lastBytesSent;
-            const chunk = bytes.slice(startOffset, startOffset + chunkSize);
-            wsRef.current.send(chunk.buffer);
-            lastBytesSent += chunkSize;
-          }
-        }
-      } catch (err) {
-        // Ignore errors during streaming - file might be temporarily locked
-        console.log('Streaming chunk skipped:', err);
-      }
-    }, 80);
   };
 
   const stopRecording = async () => {
@@ -316,7 +171,7 @@ const GeneralChat: React.FC = () => {
       if (transcriptToSend) {
         sendToChat(transcriptToSend);
       }
-      
+
       // Clear the transcript and ref
       setTranscript('');
       setInterimTranscript('');
@@ -324,14 +179,7 @@ const GeneralChat: React.FC = () => {
     }, 1500);
 
     // Reset audio mode
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-    });
-  };
-
-  const clearTranscript = () => {
-    setTranscript('');
-    setInterimTranscript('');
+    await setAudioModeForRecording(false);
   };
 
   const clearConversation = () => {
@@ -365,7 +213,7 @@ const GeneralChat: React.FC = () => {
       }
 
       const data = await response.json();
-      
+
       if (data.error) {
         throw new Error(data.error);
       }
@@ -385,74 +233,97 @@ const GeneralChat: React.FC = () => {
     }
   };
 
+  const handleRecordPress = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  // Hardcoded suggestions and vocab for now
+  const suggestion = 'Pienso que..';
+  const vocabWords = ['interesante', 'además', 'sin embargo', 'por ejemplo', 'me parece'];
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Voice Chat</Text>
+        <Text style={styles.title}>General Chat</Text>
         <Text style={styles.subtitle}>Practice Spanish conversation</Text>
-        {messages.length > 0 && (
+        {messages.length > 0 && !isRecording && (
           <TouchableOpacity style={styles.clearAllButton} onPress={clearConversation}>
             <Text style={styles.clearAllButtonText}>Clear All</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.chatContainer} 
-        contentContainerStyle={styles.chatContent}
-        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-      >
-        {messages.length === 0 && !isRecording && !transcript && !interimTranscript ? (
-          <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeText}>
-              Tap the microphone and start speaking in Spanish!
-            </Text>
-            <Text style={styles.welcomeSubtext}>
-              Your AI tutor will respond and help you practice.
-            </Text>
+      {isRecording || isConnecting ? (
+        /* Recording Overlay */
+        <View style={styles.recordingOverlay}>
+          {/* Transcription Section - Largest */}
+          <View style={styles.transcriptionSection}>
+            <Text style={styles.sectionLabel}>What you're saying:</Text>
+            <ScrollView style={styles.transcriptionScroll}>
+              <Text style={styles.transcriptionText}>
+                {transcript}
+                {interimTranscript && (
+                  <Text style={styles.interimText}> {interimTranscript}</Text>
+                )}
+                {!transcript && !interimTranscript && (
+                  <Text style={styles.placeholderText}>Start speaking...</Text>
+                )}
+              </Text>
+            </ScrollView>
           </View>
-        ) : (
-          <>
-            {/* Render conversation messages */}
-            {messages.map((msg, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.messageBubble,
-                  msg.role === 'user' ? styles.userBubble : styles.assistantBubble,
-                ]}
-              >
-                <Text style={[
-                  styles.messageText,
-                  msg.role === 'user' ? styles.userMessageText : styles.assistantMessageText,
-                ]}>
-                  {msg.content}
-                </Text>
-              </View>
-            ))}
 
-            {/* Show loading indicator while waiting for response */}
-            {isLoadingResponse && (
-              <View style={[styles.messageBubble, styles.assistantBubble]}>
-                <ActivityIndicator color="#4a69bd" size="small" />
-              </View>
-            )}
+          {/* Suggestion Section - Smaller */}
+          <View style={styles.suggestionSection}>
+            <Text style={styles.sectionLabel}>Try saying:</Text>
+            <Text style={styles.suggestionText}>{suggestion}</Text>
+          </View>
 
-            {/* Show current transcript while recording */}
-            {(transcript || interimTranscript) && (
-              <View style={[styles.messageBubble, styles.userBubble, styles.transcriptBubble]}>
-                <Text style={[styles.messageText, styles.userMessageText]}>
-                  {transcript}
-                  {interimTranscript && (
-                    <Text style={styles.interimText}> {interimTranscript}</Text>
-                  )}
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-      </ScrollView>
+          {/* Vocab Words Section */}
+          <View style={styles.vocabSection}>
+            <Text style={styles.sectionLabel}>Vocabulary to use:</Text>
+            <View style={styles.vocabList}>
+              {vocabWords.map((word, index) => (
+                <View key={index} style={styles.vocabChip}>
+                  <Text style={styles.vocabChipText}>{word}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      ) : (
+        /* Normal Chat View */
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.chatContainer}
+          contentContainerStyle={styles.chatContent}
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        >
+          {messages.length === 0 ? (
+            <View style={styles.welcomeContainer}>
+              <Text style={styles.welcomeText}>
+                Tap the microphone and start speaking in Spanish!
+              </Text>
+              <Text style={styles.welcomeSubtext}>
+                Your AI tutor will respond and help you practice.
+              </Text>
+            </View>
+          ) : (
+            <>
+              {/* Render conversation messages */}
+              {messages.map((msg, index) => (
+                <ChatBubble key={index} message={msg} />
+              ))}
+
+              {/* Show loading indicator while waiting for response */}
+              {isLoadingResponse && <LoadingBubble />}
+            </>
+          )}
+        </ScrollView>
+      )}
 
       {error && (
         <View style={styles.errorContainer}>
@@ -461,32 +332,17 @@ const GeneralChat: React.FC = () => {
       )}
 
       <View style={styles.controlsContainer}>
-        <TouchableOpacity
-          style={[
-            styles.recordButton,
-            isRecording && styles.recordingButton,
-            isConnecting && styles.connectingButton,
-            isLoadingResponse && styles.disabledButton,
-          ]}
-          onPress={isRecording ? stopRecording : startRecording}
-          disabled={isConnecting || hasPermission === false || isLoadingResponse}
-        >
-          {isConnecting ? (
-            <ActivityIndicator color="#fff" size="large" />
-          ) : (
-            <View style={[styles.micIcon, isRecording && styles.stopIcon]} />
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.statusText}>
-          {isConnecting
-            ? 'Connecting...'
-            : isRecording
-            ? 'Listening...'
-            : isLoadingResponse
-            ? 'AI is responding...'
-            : 'Tap to speak'}
-        </Text>
+        <RecordButton
+          isRecording={isRecording}
+          isConnecting={isConnecting}
+          isDisabled={hasPermission === false || isLoadingResponse}
+          onPress={handleRecordPress}
+        />
+        <RecordStatus
+          isConnecting={isConnecting}
+          isRecording={isRecording}
+          isLoadingResponse={isLoadingResponse}
+        />
       </View>
     </SafeAreaView>
   );
@@ -557,44 +413,6 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
   },
-  messageBubble: {
-    maxWidth: '80%',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
-    marginVertical: 4,
-  },
-  userBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#4a69bd',
-    borderBottomRightRadius: 4,
-  },
-  assistantBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#16213e',
-    borderBottomLeftRadius: 4,
-  },
-  transcriptBubble: {
-    opacity: 0.8,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: '#4a69bd',
-    backgroundColor: 'transparent',
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  userMessageText: {
-    color: '#fff',
-  },
-  assistantMessageText: {
-    color: '#e0e0e0',
-  },
-  interimText: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontStyle: 'italic',
-  },
   errorContainer: {
     marginHorizontal: 20,
     padding: 12,
@@ -611,46 +429,75 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     paddingTop: 20,
   },
-  recordButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#4a69bd',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#4a69bd',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 8,
+  // Recording Overlay Styles
+  recordingOverlay: {
+    flex: 1,
+    marginHorizontal: 12,
+    marginVertical: 10,
+    gap: 12,
   },
-  recordingButton: {
-    backgroundColor: '#ff4757',
-    shadowColor: '#ff4757',
-  },
-  connectingButton: {
-    backgroundColor: '#888',
-    shadowColor: '#888',
-  },
-  disabledButton: {
-    backgroundColor: '#555',
-    shadowColor: '#555',
-    opacity: 0.7,
-  },
-  micIcon: {
-    width: 24,
-    height: 30,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-  },
-  stopIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-  },
-  statusText: {
-    marginTop: 15,
+  sectionLabel: {
+    fontSize: 12,
     color: '#888',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  // Transcription Section - Largest
+  transcriptionSection: {
+    flex: 3,
+    backgroundColor: '#252542',
+    borderRadius: 16,
+    padding: 16,
+  },
+  transcriptionScroll: {
+    flex: 1,
+  },
+  transcriptionText: {
+    fontSize: 20,
+    color: '#fff',
+    lineHeight: 28,
+  },
+  interimText: {
+    color: '#888',
+    fontStyle: 'italic',
+  },
+  placeholderText: {
+    color: '#555',
+    fontStyle: 'italic',
+  },
+  // Suggestion Section - Smaller
+  suggestionSection: {
+    flex: 1,
+    backgroundColor: '#2d4a3e',
+    borderRadius: 16,
+    padding: 16,
+  },
+  suggestionText: {
+    fontSize: 18,
+    color: '#7dd3a8',
+    fontStyle: 'italic',
+  },
+  // Vocab Section
+  vocabSection: {
+    flex: 1.2,
+    backgroundColor: '#3d3a52',
+    borderRadius: 16,
+    padding: 16,
+  },
+  vocabList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  vocabChip: {
+    backgroundColor: '#5a5680',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  vocabChipText: {
+    color: '#e0d9ff',
     fontSize: 14,
   },
 });
