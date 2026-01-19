@@ -21,6 +21,7 @@ load_dotenv()
 
 # DeepGram configuration
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
+# Using v1 API with Nova-3 for Spanish support
 DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen"
 
 app = FastAPI(title="SpeakUp Spanish ASR Proxy")
@@ -54,15 +55,14 @@ class DeepgramProxy:
             })
             return False
         
-        # Build DeepGram WebSocket URL with parameters
+        # Build DeepGram WebSocket URL with parameters for Nova-3 Spanish
         params = (
-            f"?model=nova-2"
-            f"&language=en"
-            f"&smart_format=true"
-            f"&interim_results=true"
+            f"?model=nova-3"
+            f"&language=es"
             f"&encoding=linear16"
             f"&sample_rate=16000"
-            f"&channels=1"
+            f"&punctuate=true"
+            f"&interim_results=true"
         )
         
         url = f"{DEEPGRAM_WS_URL}{params}"
@@ -115,9 +115,31 @@ class DeepgramProxy:
                 if isinstance(message, str):
                     # Parse and forward transcript to client
                     data = json.loads(message)
+                    msg_type = data.get("type", "")
                     
-                    # Extract transcript from DeepGram response
-                    if "channel" in data:
+                    # V2/Flux API: transcript and words are directly on the message
+                    if "transcript" in data and data["transcript"]:
+                        transcript = data.get("transcript", "")
+                        words = data.get("words", [])
+                        is_final = data.get("is_final", True)  # Flux results are typically final
+                        
+                        # Calculate average confidence from words
+                        confidence = 0
+                        if words:
+                            confidence = sum(w.get("confidence", 0) for w in words) / len(words)
+                        
+                        # Send formatted response to client
+                        await self.client_ws.send_json({
+                            "type": "transcript",
+                            "transcript": transcript,
+                            "confidence": confidence,
+                            "is_final": is_final,
+                            "words": words,
+                        })
+                        print(f"Transcript: {transcript}")
+                    
+                    # V1 API fallback: transcript nested under channel.alternatives
+                    elif "channel" in data:
                         alternatives = data.get("channel", {}).get("alternatives", [])
                         if alternatives:
                             transcript = alternatives[0].get("transcript", "")
@@ -125,15 +147,16 @@ class DeepgramProxy:
                             words = alternatives[0].get("words", [])
                             is_final = data.get("is_final", False)
                             
-                            # Send formatted response to client
-                            await self.client_ws.send_json({
-                                "type": "transcript",
-                                "transcript": transcript,
-                                "confidence": confidence,
-                                "is_final": is_final,
-                                "words": words,
-                            })
-                    elif data.get("type") == "Metadata":
+                            if transcript:
+                                await self.client_ws.send_json({
+                                    "type": "transcript",
+                                    "transcript": transcript,
+                                    "confidence": confidence,
+                                    "is_final": is_final,
+                                    "words": words,
+                                })
+                    
+                    elif msg_type == "Metadata" or msg_type == "Connected":
                         # Forward metadata
                         await self.client_ws.send_json({
                             "type": "metadata",
