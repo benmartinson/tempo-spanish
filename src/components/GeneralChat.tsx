@@ -11,6 +11,8 @@ import { Audio } from 'expo-av';
 
 import { ChatBubble, TranscriptBubble, LoadingBubble, ChatMessage } from './ChatBubble';
 import { RecordButton, RecordStatus } from './RecordButton';
+import { useAutocorrect } from './useAutocorrect';
+import { SuggestionBox } from './SuggestionBox';
 import {
   BACKEND_BASE_URL,
   connectToBackend,
@@ -39,6 +41,12 @@ const GeneralChat: React.FC = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const finalTranscriptRef = useRef<string>('');
 
+  // Autocorrect hook for real-time transcript corrections
+  const autocorrect = useAutocorrect({
+    setTranscript,
+    finalTranscriptRef,
+  });
+
   useEffect(() => {
     // Request microphone permission on mount
     requestPermission();
@@ -51,6 +59,16 @@ const GeneralChat: React.FC = () => {
       cleanup();
     };
   }, []);
+
+  // Auto-scroll the transcription box when transcript changes
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      // Small delay to ensure the content has been rendered
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+    }
+  }, [transcript, interimTranscript]);
 
   const initializeWithPrompt = async () => {
     setIsLoadingInitialMessage(true);
@@ -112,6 +130,8 @@ const GeneralChat: React.FC = () => {
       clearInterval(streamIntervalRef.current);
       streamIntervalRef.current = null;
     }
+    // Stop autocorrect
+    autocorrect.stop();
     if (recordingRef.current) {
       try {
         await recordingRef.current.stopAndUnloadAsync();
@@ -172,6 +192,9 @@ const GeneralChat: React.FC = () => {
       setIsRecording(true);
       setIsConnecting(false);
 
+      // Start autocorrect interval
+      autocorrect.start();
+
       // Start streaming audio chunks to backend server
       streamIntervalRef.current = startAudioStreaming(
         () => recordingRef.current,
@@ -193,6 +216,9 @@ const GeneralChat: React.FC = () => {
       clearInterval(streamIntervalRef.current);
       streamIntervalRef.current = null;
     }
+
+    // Stop autocorrect
+    autocorrect.stop();
 
     // Stop recording
     if (recordingRef.current) {
@@ -289,8 +315,7 @@ const GeneralChat: React.FC = () => {
     }
   };
 
-  // Hardcoded suggestions and vocab for now
-  const suggestion = 'Pienso que..';
+  // Hardcoded vocab words for now
   const vocabWords = ['interesante', 'además', 'sin embargo', 'por ejemplo', 'me parece'];
 
   return (
@@ -310,7 +335,7 @@ const GeneralChat: React.FC = () => {
           {/* Transcription Section - Largest */}
           <View style={styles.transcriptionSection}>
             <Text style={styles.sectionLabel}>What you're saying:</Text>
-            <ScrollView style={styles.transcriptionScroll}>
+            <ScrollView ref={scrollViewRef} style={styles.transcriptionScroll}>
               <Text style={styles.transcriptionText}>
                 {transcript}
                 {interimTranscript && (
@@ -323,11 +348,13 @@ const GeneralChat: React.FC = () => {
             </ScrollView>
           </View>
 
-          {/* Suggestion Section - Smaller */}
-          <View style={styles.suggestionSection}>
-            <Text style={styles.sectionLabel}>Try saying:</Text>
-            <Text style={styles.suggestionText}>{suggestion}</Text>
-          </View>
+          {/* Suggestion Section */}
+          <SuggestionBox
+            transcript={transcript}
+            interimTranscript={interimTranscript}
+            messages={messages}
+            isRecording={isRecording}
+          />
 
           {/* Vocab Words Section */}
           <View style={styles.vocabSection}>
@@ -519,18 +546,6 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: '#555',
-    fontStyle: 'italic',
-  },
-  // Suggestion Section - Smaller
-  suggestionSection: {
-    flex: 1,
-    backgroundColor: '#2d4a3e',
-    borderRadius: 16,
-    padding: 16,
-  },
-  suggestionText: {
-    fontSize: 18,
-    color: '#7dd3a8',
     fontStyle: 'italic',
   },
   // Vocab Section

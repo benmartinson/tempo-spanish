@@ -1,31 +1,27 @@
 """
-FastAPI WebSocket server that proxies audio to DeepGram for real-time transcription
-and provides chat functionality with OpenAI.
+FastAPI server for Spanish language learning with chat functionality and real-time transcription.
 
-This server acts as a bridge between the React Native app and DeepGram's ASR service,
-keeping the API key secure on the server side.
+This server provides:
+- Chat endpoints using OpenAI for conversation practice
+- Real-time transcription via Soniox (in soniox_transcription.py)
 
 Run with: uvicorn src.api.chat_stream:app --host 0.0.0.0 --port 8000 --reload
 """
 
-import asyncio
-import json
 import os
-from typing import Optional, List
+from typing import List
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
 
+# Import the transcription router
+from src.api.soniox_transcription import router as transcription_router
+
 # Load environment variables
 load_dotenv()
-
-# DeepGram configuration
-DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
-# Using v1 API with Nova-3 for Spanish support
-DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen"
 
 # OpenAI configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -52,6 +48,29 @@ Guidelines:
 - Be friendly and conversational.
 - Only text, no emojis or other formatting."""
 
+# System prompt for generating sentence continuation suggestions
+SUGGESTION_SYSTEM_PROMPT = """You are helping a Spanish language learner continue their sentence.
+Given their partial sentence and conversation context, suggest the next 2-3 words in Spanish.
+
+Rules:
+- Return ONLY 3-4 Spanish words that naturally continue their sentence
+- No punctuation, no explanation, just the continuation words
+- Match the tone and topic of the conversation
+- If the partial sentence is empty or very short, suggest a conversation starter phrase"""
+
+# System prompt for autocorrecting transcript errors
+AUTOCORRECT_SYSTEM_PROMPT = """You are a transcript correction assistant for Spanish speech.
+Fix only clear errors in the transcript:
+- Spelling mistakes
+- Missing or incorrect punctuation
+- Words that obviously don't fit the sentence context (likely misheard)
+
+Rules:
+- Return ONLY the corrected text, nothing else
+- Keep the same meaning and structure
+- Don't change words unless they are clearly wrong
+- If the transcript is fine, return it unchanged"""
+
 
 class ChatMessage(BaseModel):
     role: str  # "user" or "assistant"
@@ -62,7 +81,17 @@ class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
 
-app = FastAPI(title="SpeakUp Spanish ASR Proxy")
+
+class SuggestionRequest(BaseModel):
+    partial_transcript: str
+    history: List[ChatMessage] = []
+
+
+class AutocorrectRequest(BaseModel):
+    transcript: str
+
+
+app = FastAPI(title="SpeakUp Spanish API")
 
 # Enable CORS for all origins (configure appropriately for production)
 app.add_middleware(
@@ -73,165 +102,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-class DeepgramProxy:
-    """Manages the bidirectional WebSocket connection between client and DeepGram."""
-    
-    def __init__(self, client_ws: WebSocket):
-        self.client_ws = client_ws
-        self.deepgram_ws: Optional[asyncio.StreamWriter] = None
-        self._closed = False
-    
-    async def connect_to_deepgram(self) -> bool:
-        """Establish WebSocket connection to DeepGram."""
-        import websockets
-        
-        if not DEEPGRAM_API_KEY:
-            await self.client_ws.send_json({
-                "type": "error",
-                "message": "DeepGram API key not configured on server"
-            })
-            return False
-        
-        # Build DeepGram WebSocket URL with parameters for Nova-3 Spanish
-        params = (
-            f"?model=nova-3"
-            f"&language=es"
-            f"&encoding=linear16"
-            f"&sample_rate=16000"
-            f"&punctuate=true"
-            f"&interim_results=true"
-        )
-        
-        url = f"{DEEPGRAM_WS_URL}{params}"
-        headers = {"Authorization": f"Token {DEEPGRAM_API_KEY}"}
-        
-        try:
-            self.deepgram_ws = await websockets.connect(url, additional_headers=headers)
-            print("Connected to DeepGram")
-            return True
-        except Exception as e:
-            print(f"Failed to connect to DeepGram: {e}")
-            await self.client_ws.send_json({
-                "type": "error",
-                "message": f"Failed to connect to DeepGram: {str(e)}"
-            })
-            return False
-    
-    async def forward_audio_to_deepgram(self):
-        """Receive audio from client and forward to DeepGram."""
-        try:
-            while not self._closed:
-                # Receive binary audio data from client
-                data = await self.client_ws.receive()
-                
-                if data["type"] == "websocket.disconnect":
-                    break
-                
-                if "bytes" in data:
-                    # Forward audio bytes to DeepGram
-                    if self.deepgram_ws and not self._closed:
-                        await self.deepgram_ws.send(data["bytes"])
-                elif "text" in data:
-                    # Handle text messages (like control messages)
-                    message = json.loads(data["text"])
-                    if message.get("type") == "stop":
-                        break
-        except WebSocketDisconnect:
-            print("Client disconnected")
-        except Exception as e:
-            print(f"Error forwarding audio: {e}")
-        finally:
-            await self.close()
-    
-    async def forward_transcripts_to_client(self):
-        """Receive transcripts from DeepGram and forward to client."""
-        try:
-            while not self._closed and self.deepgram_ws:
-                message = await self.deepgram_ws.recv()
-                
-                if isinstance(message, str):
-                    # Parse and forward transcript to client
-                    data = json.loads(message)
-                    msg_type = data.get("type", "")
-                    
-                    # V2/Flux API: transcript and words are directly on the message
-                    if "transcript" in data and data["transcript"]:
-                        transcript = data.get("transcript", "")
-                        words = data.get("words", [])
-                        is_final = data.get("is_final", True)  # Flux results are typically final
-                        
-                        # Calculate average confidence from words
-                        confidence = 0
-                        if words:
-                            confidence = sum(w.get("confidence", 0) for w in words) / len(words)
-                        
-                        # Send formatted response to client
-                        await self.client_ws.send_json({
-                            "type": "transcript",
-                            "transcript": transcript,
-                            "confidence": confidence,
-                            "is_final": is_final,
-                            "words": words,
-                        })
-                        print(f"Transcript: {transcript}")
-                    
-                    # V1 API fallback: transcript nested under channel.alternatives
-                    elif "channel" in data:
-                        alternatives = data.get("channel", {}).get("alternatives", [])
-                        if alternatives:
-                            transcript = alternatives[0].get("transcript", "")
-                            confidence = alternatives[0].get("confidence", 0)
-                            words = alternatives[0].get("words", [])
-                            is_final = data.get("is_final", False)
-                            
-                            if transcript:
-                                await self.client_ws.send_json({
-                                    "type": "transcript",
-                                    "transcript": transcript,
-                                    "confidence": confidence,
-                                    "is_final": is_final,
-                                    "words": words,
-                                })
-                    
-                    elif msg_type == "Metadata" or msg_type == "Connected":
-                        # Forward metadata
-                        await self.client_ws.send_json({
-                            "type": "metadata",
-                            "data": data
-                        })
-        except Exception as e:
-            if not self._closed:
-                print(f"Error receiving transcripts: {e}")
-        finally:
-            await self.close()
-    
-    async def close(self):
-        """Close all connections."""
-        if self._closed:
-            return
-        self._closed = True
-        
-        if self.deepgram_ws:
-            try:
-                await self.deepgram_ws.close()
-            except:
-                pass
-            self.deepgram_ws = None
+# Include the transcription router (provides /ws/transcribe endpoint)
+app.include_router(transcription_router)
 
 
 @app.get("/")
 async def root():
     """Health check endpoint."""
-    return {"status": "ok", "service": "SpeakUp Spanish ASR Proxy"}
+    return {"status": "ok", "service": "SpeakUp Spanish API"}
 
 
 @app.get("/health")
 async def health():
     """Health check endpoint."""
+    from src.api.soniox_transcription import SONIOX_API_KEY
     return {
         "status": "ok",
-        "deepgram_configured": bool(DEEPGRAM_API_KEY),
+        "soniox_configured": bool(SONIOX_API_KEY),
         "openai_configured": bool(OPENAI_API_KEY)
     }
 
@@ -308,52 +195,97 @@ async def chat(request: ChatRequest):
         return {"error": str(e)}
 
 
-@app.websocket("/ws/transcribe")
-async def websocket_transcribe(websocket: WebSocket):
+@app.post("/suggestion")
+async def suggestion(request: SuggestionRequest):
     """
-    WebSocket endpoint for real-time audio transcription.
-    
-    Client sends: Binary audio data (linear16 PCM, 16kHz, mono)
-    Server sends: JSON transcript messages
+    Generate a 2-3 word suggestion to continue the user's sentence.
     """
-    await websocket.accept()
-    print("Client connected")
-    
-    # Send ready message
-    await websocket.send_json({
-        "type": "ready",
-        "message": "Connected to transcription server"
-    })
-    
-    proxy = DeepgramProxy(websocket)
-    
-    # Connect to DeepGram
-    if not await proxy.connect_to_deepgram():
-        await websocket.close()
-        return
-    
-    # Notify client that DeepGram is connected
-    await websocket.send_json({
-        "type": "connected",
-        "message": "Connected to DeepGram"
-    })
-    
-    # Run both directions concurrently
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
     try:
-        await asyncio.gather(
-            proxy.forward_audio_to_deepgram(),
-            proxy.forward_transcripts_to_client(),
+        # Build context from conversation history
+        context_messages = []
+        for msg in request.history:
+            context_messages.append(f"{msg.role}: {msg.content}")
+        
+        conversation_context = "\n".join(context_messages) if context_messages else "No previous conversation"
+        
+        # Build the prompt for the suggestion
+        user_prompt = f"""Conversation context:
+{conversation_context}
+
+The user is currently saying: "{request.partial_transcript}"
+
+Suggest 2-3 words to continue their sentence."""
+
+        messages = [
+            {"role": "system", "content": SUGGESTION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=80,  # Keep it short for quick suggestions
+            temperature=0.7,
         )
+
+        suggestion_text = " ".join(response.choices[0].message.content.strip().split()[:5]) + '...'
+
+        return {
+            "suggestion": suggestion_text,
+            "status": "complete"
+        }
+
     except Exception as e:
-        print(f"Error in proxy: {e}")
-    finally:
-        await proxy.close()
-        try:
-            await websocket.close()
-        except:
-            pass
-    
-    print("Client session ended")
+        print(f"Error generating suggestion: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/autocorrect")
+async def autocorrect(request: AutocorrectRequest):
+    """
+    Autocorrect the user's transcript for spelling, punctuation, and obvious word errors.
+    Simplified endpoint - no conversation history needed for basic corrections.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    # Don't process empty transcripts
+    if not request.transcript.strip():
+        return {"corrected": "", "status": "complete"}
+
+    try:
+        # Simple prompt - just correct the transcript
+        user_prompt = f'Correct this Spanish transcript: "{request.transcript}"'
+
+        messages = [
+            {"role": "system", "content": AUTOCORRECT_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=200,
+            temperature=0.3,  # Lower temperature for more consistent corrections
+        )
+
+        corrected_text = response.choices[0].message.content.strip()
+        
+        # Remove any surrounding quotes the model might add
+        if corrected_text.startswith('"') and corrected_text.endswith('"'):
+            corrected_text = corrected_text[1:-1]
+
+        return {
+            "corrected": corrected_text,
+            "status": "complete"
+        }
+
+    except Exception as e:
+        print(f"Error autocorrecting transcript: {e}")
+        return {"error": str(e)}
 
 
 if __name__ == "__main__":
