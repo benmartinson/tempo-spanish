@@ -9,6 +9,7 @@ Run with: uvicorn src.api.chat_stream:app --host 0.0.0.0 --port 8000 --reload
 """
 
 import os
+import base64
 from typing import List
 
 from dotenv import load_dotenv
@@ -16,6 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
+from elevenlabs.client import ElevenLabs
 
 # Import the transcription router
 from soniox_transcription import router as transcription_router
@@ -26,6 +28,28 @@ load_dotenv()
 # OpenAI configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+# ElevenLabs configuration
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY) if ELEVENLABS_API_KEY else None
+
+
+def generate_tts_audio(text: str) -> str | None:
+    """Generate TTS audio and return as base64-encoded MP3."""
+    if not elevenlabs_client:
+        return None
+    try:
+        audio_generator = elevenlabs_client.text_to_speech.convert(
+            text=text,
+            voice_id="jBlmi27XRORxjPquUeCh",
+            model_id="eleven_multilingual_v2",
+            output_format="mp3_44100_128",
+        )
+        audio_bytes = b"".join(audio_generator)
+        return base64.b64encode(audio_bytes).decode("utf-8")
+    except Exception as e:
+        print(f"Error generating TTS audio: {e}")
+        return None
 
 # System prompt for Spanish conversation practice
 SPANISH_CONVERSATION_SYSTEM_PROMPT = """You are a friendly person having a conversation in Spanish.
@@ -98,8 +122,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*", "OPTIONS"],  # Explicitly include OPTIONS for preflight
+    allow_headers=["*", "Upgrade", "Connection", "Sec-WebSocket-Key", "Sec-WebSocket-Version"],
 )
 
 # Include the transcription router (provides /ws/transcribe endpoint)
@@ -119,14 +143,15 @@ async def health():
     return {
         "status": "ok",
         "soniox_configured": bool(SONIOX_API_KEY),
-        "openai_configured": bool(OPENAI_API_KEY)
+        "openai_configured": bool(OPENAI_API_KEY),
+        "elevenlabs_configured": bool(ELEVENLABS_API_KEY)
     }
 
 
 @app.post("/initial-message")
 async def initial_message():
     """
-    Generate an initial conversation starter message.
+    Generate an initial conversation starter message with TTS audio.
     """
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
@@ -145,9 +170,13 @@ async def initial_message():
         )
 
         initial_message = response.choices[0].message.content
+        
+        # Generate TTS audio for the initial message
+        audio_base64 = generate_tts_audio(initial_message)
 
         return {
             "response": initial_message,
+            "audio": audio_base64,
             "status": "complete"
         }
 
@@ -159,7 +188,7 @@ async def initial_message():
 @app.post("/chat")
 async def chat(request: ChatRequest):
     """
-    Chat endpoint that returns responses from GPT-4o-mini.
+    Chat endpoint that returns responses from GPT-4o-mini with TTS audio.
     """
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
@@ -185,8 +214,12 @@ async def chat(request: ChatRequest):
         
         assistant_message = response.choices[0].message.content
         
+        # Generate TTS audio for the response
+        audio_base64 = generate_tts_audio(assistant_message)
+        
         return {
             "response": assistant_message,
+            "audio": audio_base64,
             "status": "complete"
         }
         

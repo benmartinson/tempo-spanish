@@ -70,6 +70,23 @@ const GeneralChat: React.FC = () => {
     }
   }, [transcript, interimTranscript]);
 
+  const playAudio = async (audioBase64: string) => {
+    try {
+      const { sound } = await Audio.Sound.createAsync({
+        uri: `data:audio/mp3;base64,${audioBase64}`,
+      });
+      await sound.playAsync();
+      // Unload sound when finished to free memory
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (err) {
+      console.error('Error playing audio:', err);
+    }
+  };
+
   const initializeWithPrompt = async () => {
     setIsLoadingInitialMessage(true);
     try {
@@ -98,6 +115,11 @@ const GeneralChat: React.FC = () => {
           content: data.response
         };
         setMessages([initialMessage]);
+        
+        // Play audio if available
+        if (data.audio) {
+          await playAudio(data.audio);
+        }
       }
     } catch (err) {
       console.error('Error getting initial prompt:', err);
@@ -298,6 +320,11 @@ const GeneralChat: React.FC = () => {
         setMessages((prev) => [...prev, assistantMessage]);
         // Auto-scroll to bottom
         scrollViewRef.current?.scrollToEnd({ animated: true });
+        
+        // Play audio if available
+        if (data.audio) {
+          await playAudio(data.audio);
+        }
       }
     } catch (err) {
       console.error('Error sending to chat:', err);

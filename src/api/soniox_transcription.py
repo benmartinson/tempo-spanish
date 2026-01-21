@@ -12,7 +12,8 @@ import json
 import os
 from typing import Optional
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -243,6 +244,12 @@ class SonioxProxy:
             self.soniox_ws = None
 
 
+@router.get("/ws/transcribe")
+async def websocket_test():
+    """Test endpoint to verify the route is accessible via HTTP."""
+    return {"status": "ok", "message": "WebSocket endpoint is available. Connect via wss:// protocol."}
+
+
 @router.websocket("/ws/transcribe")
 async def websocket_transcribe(websocket: WebSocket):
     """
@@ -260,6 +267,10 @@ async def websocket_transcribe(websocket: WebSocket):
         "words": [{"word": "hello", "start": 0.0, "end": 0.5, "confidence": 0.95}, ...]
     }
     """
+    print(f"WebSocket connection attempt from: {websocket.client}")
+    print(f"WebSocket headers: {websocket.headers}")
+    
+    # Accept the WebSocket connection with any subprotocol
     await websocket.accept()
     print("Client connected")
     
