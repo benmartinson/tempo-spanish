@@ -307,6 +307,23 @@ const GeneralChat: React.FC = () => {
     }
   };
 
+  const restartRecording = async () => {
+    // Clear current transcript
+    setTranscript('');
+    setInterimTranscript('');
+    finalTranscriptRef.current = '';
+
+    // If currently recording, stop first
+    if (isRecording) {
+      await stopRecording();
+    }
+
+    // Small delay to ensure cleanup is complete, then start recording
+    setTimeout(() => {
+      startRecording();
+    }, 100);
+  };
+
   const handleRecordPress = () => {
     if (isRecording) {
       stopRecording();
@@ -402,12 +419,23 @@ const GeneralChat: React.FC = () => {
       )}
 
       <View style={styles.controlsContainer}>
-        <RecordButton
-          isRecording={isRecording}
-          isConnecting={isConnecting}
-          isDisabled={hasPermission === false || isLoadingResponse}
-          onPress={handleRecordPress}
-        />
+        <View style={styles.buttonRow}>
+          <RecordButton
+            isRecording={isRecording}
+            isConnecting={isConnecting}
+            isDisabled={hasPermission === false || isLoadingResponse}
+            onPress={handleRecordPress}
+          />
+          {isRecording && (
+            <TouchableOpacity
+              style={styles.restartButton}
+              onPress={restartRecording}
+              disabled={isConnecting || hasPermission === false}
+            >
+              <Text style={styles.restartButtonText}>⟲</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <RecordStatus
           isConnecting={isConnecting}
           isRecording={isRecording}
@@ -510,6 +538,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 40,
     paddingTop: 20,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  restartButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#ffa726',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#ffa726',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  restartButtonText: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   // Recording Overlay Styles
   recordingOverlay: {

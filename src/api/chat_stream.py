@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from openai import OpenAI
 
 # Import the transcription router
-from src.api.soniox_transcription import router as transcription_router
+from soniox_transcription import router as transcription_router
 
 # Load environment variables
 load_dotenv()
@@ -115,7 +115,7 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check endpoint."""
-    from src.api.soniox_transcription import SONIOX_API_KEY
+    from soniox_transcription import SONIOX_API_KEY
     return {
         "status": "ok",
         "soniox_configured": bool(SONIOX_API_KEY),

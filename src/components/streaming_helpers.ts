@@ -1,10 +1,15 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
+import Constants from 'expo-constants';
 
-// Backend URLs - connects to the Python FastAPI server
-// For local development, use your machine's IP address (not localhost) when testing on a physical device
-export const BACKEND_BASE_URL = 'http://192.168.1.124:8000';
-export const BACKEND_WS_URL = 'ws://192.168.1.124:8000/ws/transcribe';
+// Backend URLs - all configured in app.config.js
+const config = Constants.expoConfig?.extra;
+
+export const BACKEND_BASE_URL = __DEV__ ? config?.devBaseUrl : config?.productionBaseUrl;
+export const BACKEND_WS_URL = __DEV__ ? config?.devWsUrl : config?.productionWsUrl;
+
+// Debug: uncomment to verify which URLs are being used
+// console.log('Environment:', __DEV__ ? 'DEV' : 'PROD', 'Backend:', BACKEND_BASE_URL);
 
 export interface TranscriptWord {
   word: string;
@@ -50,7 +55,6 @@ export const connectToBackend = (callbacks: TranscriptCallbacks): Promise<WebSoc
             break;
 
           case 'connected':
-            console.log('DeepGram connected via backend');
             callbacks.onConnected?.();
             resolve(ws);
             break;

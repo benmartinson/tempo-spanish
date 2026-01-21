@@ -12,7 +12,11 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "PRODUCTION_BASE_URL": "https://your-api.example.com",
+        "PRODUCTION_WS_URL": "wss://your-api.example.com/ws/transcribe"
+      }
     }
   },
   "submit": {
