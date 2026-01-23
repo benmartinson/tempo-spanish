@@ -1,16 +1,73 @@
 import * as React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import GeneralChat from "./src/components/protected/GeneralChat";
 import SignInScreen from "./src/components/SignInScreen";
 import SignUpScreen from "./src/components/SignUpScreen";
+import HomeTab from "./src/components/tabs/HomeTab";
+import YouTab from "./src/components/tabs/YouTab";
 import { Provider } from 'react-redux';
 import store from "./src/store/store";
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo'
 import { tokenCache } from '@clerk/clerk-expo/token-cache'
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import TabIcon from "./src/components/tabs/TabIcon";
+import WatchTab from "./src/components/tabs/WatchTab";
 
 const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
+
+// Main tabs for authenticated users
+const MainTabs: React.FC = () => {
+  return (
+    <Tab.Navigator
+      id="MainTabs"
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: '#1a1a2e',
+          borderTopColor: '#2a2a4a',
+          borderTopWidth: 1,
+          height: 80,
+          paddingBottom: 20,
+          paddingTop: 10,
+        },
+        tabBarShowLabel: false,
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={HomeTab}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon icon="home-outline" label="Home" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="Watch"
+        component={WatchTab}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon icon="video-outline" label="Watch" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="Discuss"
+        component={GeneralChat}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon icon="chat-outline" label="Discuss" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="Repeat"
+        component={YouTab}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon icon="cycle" label="Repeat" focused={focused} />,
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
 
 // Separate component that uses auth hooks (must be inside ClerkProvider)
 const AppNavigator: React.FC = () => {
@@ -19,8 +76,8 @@ const AppNavigator: React.FC = () => {
   // Show loading spinner while Clerk initializes
   if (!isLoaded) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' }}>
+        <ActivityIndicator size="large" color="#5a5680" />
       </View>
     );
   }
@@ -31,8 +88,8 @@ const AppNavigator: React.FC = () => {
       screenOptions={{ headerShown: false }}
     >
       {isSignedIn ? (
-        // Protected screens
-        <Stack.Screen name="GeneralChat" component={GeneralChat} />
+        // Protected screens - now using tab navigator
+        <Stack.Screen name="MainTabs" component={MainTabs} />
       ) : (
         // Auth screens
         <>
@@ -55,5 +112,6 @@ const App: React.FC = () => {
     </ClerkProvider>
   );
 }
+
 
 export default App;

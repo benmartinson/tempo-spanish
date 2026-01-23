@@ -13,7 +13,6 @@ import { ChatBubble, TranscriptBubble, LoadingBubble, ChatMessage } from '../Cha
 import { RecordButton, RecordStatus } from '../RecordButton';
 import { useAutocorrect } from '../useAutocorrect';
 import { SuggestionBox } from '../SuggestionBox';
-import UserMenu from '../UserMenu';
 import {
   BACKEND_BASE_URL,
   connectToBackend,
@@ -366,7 +365,6 @@ const GeneralChat: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <UserMenu />
         {/* <Text style={styles.title}>General Chat</Text> */}
         {messages.length > 0 && !isRecording && (
           <TouchableOpacity style={styles.clearAllButton} onPress={clearConversation}>
@@ -488,7 +486,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    minHeight: 60,
   },
   title: {
     fontSize: 28,
