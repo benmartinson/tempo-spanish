@@ -9,10 +9,11 @@ import {
 } from 'react-native';
 import { Audio } from 'expo-av';
 
-import { ChatBubble, TranscriptBubble, LoadingBubble, ChatMessage } from './ChatBubble';
-import { RecordButton, RecordStatus } from './RecordButton';
-import { useAutocorrect } from './useAutocorrect';
-import { SuggestionBox } from './SuggestionBox';
+import { ChatBubble, TranscriptBubble, LoadingBubble, ChatMessage } from '../ChatBubble';
+import { RecordButton, RecordStatus } from '../RecordButton';
+import { useAutocorrect } from '../useAutocorrect';
+import { SuggestionBox } from '../SuggestionBox';
+import UserMenu from '../UserMenu';
 import {
   BACKEND_BASE_URL,
   connectToBackend,
@@ -20,7 +21,7 @@ import {
   getRecordingConfig,
   requestMicrophonePermission,
   setAudioModeForRecording,
-} from './streaming_helpers';
+} from '../streaming_helpers';
 
 const GeneralChat: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -365,6 +366,7 @@ const GeneralChat: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <UserMenu />
         {/* <Text style={styles.title}>General Chat</Text> */}
         {messages.length > 0 && !isRecording && (
           <TouchableOpacity style={styles.clearAllButton} onPress={clearConversation}>
@@ -486,6 +488,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexWrap: 'wrap',
+    minHeight: 60,
   },
   title: {
     fontSize: 28,
