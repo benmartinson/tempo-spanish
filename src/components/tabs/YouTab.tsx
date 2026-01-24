@@ -4,7 +4,8 @@ import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
+  ScrollView,
+  Animated,
 } from 'react-native';
 import { useClerk, useUser } from '@clerk/clerk-expo';
 
@@ -17,10 +18,13 @@ const YouTab: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+      >
         <Text style={styles.title}>Profile</Text>
-        
+
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>👤</Text>
@@ -38,8 +42,8 @@ const YouTab: React.FC = () => {
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </SafeAreaView>
+      </Animated.ScrollView>
+    </View>
   );
 };
 
@@ -48,10 +52,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e',
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 32,

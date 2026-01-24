@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -26,7 +25,6 @@ const CARDS_DATA: Card[] = QUESTION_CLIPS.map((clip) => ({
 
 const CardSwiper: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const insets = useSafeAreaInsets();
   
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -130,7 +128,7 @@ const CardSwiper: React.FC = () => {
   const visibleCards = getVisibleCards();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <View style={styles.cardContainer}>
         {visibleCards.slice().reverse().map((card, reversedIndex) => {
           const actualIndex = visibleCards.length - 1 - reversedIndex;
@@ -177,12 +175,13 @@ const CardSwiper: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#1a1a2e', // Match app's dark theme
   },
   cardContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center', // Center cards vertically
+    paddingVertical: 16,
   },
 });
 

@@ -14,7 +14,8 @@ import { tokenCache } from '@clerk/clerk-expo/token-cache'
 import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TabIcon from "./src/components/tabs/TabIcon";
-import WatchTab from "./src/components/tabs/WatchTab";
+import WatchTab from "./src/components/watch/WatchTab";
+import TopNavBar from "./src/components/TopNavBar";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -69,6 +70,16 @@ const MainTabs: React.FC = () => {
   );
 };
 
+// Wrapper component that includes TopNavBar and MainTabs
+const AuthenticatedApp: React.FC = () => {
+  return (
+    <View style={{ flex: 1 }}>
+      <TopNavBar />
+      <MainTabs />
+    </View>
+  );
+};
+
 // Separate component that uses auth hooks (must be inside ClerkProvider)
 const AppNavigator: React.FC = () => {
   const { isSignedIn, isLoaded } = useAuth();
@@ -88,8 +99,8 @@ const AppNavigator: React.FC = () => {
       screenOptions={{ headerShown: false }}
     >
       {isSignedIn ? (
-        // Protected screens - now using tab navigator
-        <Stack.Screen name="MainTabs" component={MainTabs} />
+        // Protected screens - now using tab navigator with TopNavBar
+        <Stack.Screen name="AuthenticatedApp" component={AuthenticatedApp} />
       ) : (
         // Auth screens
         <>

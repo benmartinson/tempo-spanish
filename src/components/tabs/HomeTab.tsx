@@ -5,6 +5,8 @@ import {
   Text,
   TouchableOpacity,
   SafeAreaView,
+  ScrollView,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
@@ -22,23 +24,26 @@ const HomeTab: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+      >
         <TouchableOpacity
             style={styles.chatButton}
             onPress={handleWatchPress}
           >
             <Text style={styles.chatButtonIcon}>🎥</Text>
             <Text style={styles.chatButtonText}>Watch and Discuss</Text>
-            <Text style={styles.chatButtonSubtext}>Watch YouTube videos and discuss content</Text>
-        </TouchableOpacity> 
+            <Text style={styles.chatButtonSubtext}>Watch YouTube Videos and Discuss Content</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.chatButton}
           onPress={handleGeneralChatPress}
         >
           <Text style={styles.chatButtonIcon}>💬</Text>
           <Text style={styles.chatButtonText}>General Chat</Text>
-          <Text style={styles.chatButtonSubtext}>Practice conversation in topics you choose</Text>
+          <Text style={styles.chatButtonSubtext}>Make Conversation in Topics You Choose</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.chatButton}
@@ -46,10 +51,34 @@ const HomeTab: React.FC = () => {
         >
           <Text style={styles.chatButtonIcon}>🔁</Text>
           <Text style={styles.chatButtonText}>Repeat Phrases</Text>
-          <Text style={styles.chatButtonSubtext}>Practice pronunciation of challenging phrases</Text>
+          <Text style={styles.chatButtonSubtext}>Practice Pronunciation, Speed, and Accuracy</Text>
         </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        <TouchableOpacity
+            style={styles.chatButton}
+            onPress={handleWatchPress}
+          >
+            <Text style={styles.chatButtonIcon}>🎥</Text>
+            <Text style={styles.chatButtonText}>Watch and Discuss</Text>
+            <Text style={styles.chatButtonSubtext}>Watch YouTube Videos and Discuss Content</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.chatButton}
+          onPress={handleGeneralChatPress}
+        >
+          <Text style={styles.chatButtonIcon}>💬</Text>
+          <Text style={styles.chatButtonText}>General Chat</Text>
+          <Text style={styles.chatButtonSubtext}>Make Conversation in Topics You Choose</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.chatButton}
+          onPress={handleGeneralChatPress}
+        >
+          <Text style={styles.chatButtonIcon}>🔁</Text>
+          <Text style={styles.chatButtonText}>Repeat Phrases</Text>
+          <Text style={styles.chatButtonSubtext}>Practice Pronunciation, Speed, and Accuracy</Text>
+        </TouchableOpacity>
+      </Animated.ScrollView>
+    </View>
   );
 };
 
@@ -58,10 +87,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e',
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 32,

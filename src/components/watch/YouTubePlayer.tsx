@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { Clip } from "../types";
+import { Clip } from "../../types";
 
 interface YouTubePlayerProps {
   clip: Clip;
@@ -17,7 +17,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay }) => {
       mute: '1', 
       start: clip.start.toString(),
       end: clip.end.toString(),
-      controls: '0',
+      controls: '1',
     });
     return `${baseUrl}?${params.toString()}`;
   };

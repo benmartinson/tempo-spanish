@@ -1,12 +1,12 @@
 import React from 'react';
 import { StyleSheet, Dimensions, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import YouTubePlayer from './YouTubePlayer';
+import YouTubePlayer from './watch/YouTubePlayer';
 import { Clip } from '../types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-export const CARD_WIDTH = SCREEN_WIDTH;
-export const CARD_HEIGHT = SCREEN_HEIGHT;
+export const CARD_WIDTH = SCREEN_WIDTH - 32; // Add some horizontal margin
+export const CARD_HEIGHT = SCREEN_HEIGHT - 280; // Leave room for TopNav (~95) + BottomTab (~80) + padding
 
 interface SwipeCardProps {
   clip: Clip;
@@ -31,7 +31,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#252542',
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   videoContainer: {
     height: 220,

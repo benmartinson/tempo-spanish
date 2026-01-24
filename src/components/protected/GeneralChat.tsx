@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  Animated,
 } from 'react-native';
 import { Audio } from 'expo-av';
 
@@ -363,7 +364,7 @@ const GeneralChat: React.FC = () => {
   const vocabWords = ['interesante', 'además', 'sin embargo', 'por ejemplo', 'me parece'];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         {/* <Text style={styles.title}>General Chat</Text> */}
         {messages.length > 0 && !isRecording && (
@@ -414,7 +415,7 @@ const GeneralChat: React.FC = () => {
         </View>
       ) : (
         /* Normal Chat View */
-        <ScrollView
+        <Animated.ScrollView
           ref={scrollViewRef}
           style={styles.chatContainer}
           contentContainerStyle={styles.chatContent}
@@ -436,7 +437,7 @@ const GeneralChat: React.FC = () => {
               {isLoadingResponse && <LoadingBubble />}
             </>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       )}
 
       {error && (
@@ -469,7 +470,7 @@ const GeneralChat: React.FC = () => {
           isLoadingResponse={isLoadingResponse}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
