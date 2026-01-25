@@ -1,13 +1,25 @@
 import { RootState, DataAction, DataActionTypes } from '../../types';
+import { WATCH_CLIPS } from '../../data/question_clips';
 
 const initialState: RootState = {
-
+  currentVideo: WATCH_CLIPS[0],
+  currentChatType: null,
 }
 
 const dataReducer = (state: RootState = initialState, action: DataAction): RootState => {
   switch(action.type) {
+    case 'SET_CURRENT_VIDEO':
+      return {
+        ...state,
+        currentVideo: action.payload,
+      };
+    case 'SET_CURRENT_CHAT_TYPE':
+      return {
+        ...state,
+        currentChatType: action.payload,
+      };
     default:
-    return state
+      return state;
   }
 }
 

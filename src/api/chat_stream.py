@@ -101,6 +101,9 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class VideoBasedQuestionRequest(BaseModel):
+    videoId: str
+
 class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
@@ -147,6 +150,19 @@ async def health():
         "elevenlabs_configured": bool(ELEVENLABS_API_KEY)
     }
 
+
+@app.post("/video-based-question")
+async def video_based_question(request: VideoBasedQuestionRequest):
+    """
+    Generate a video-based question with TTS audio.
+    """
+    try:
+        question = "Que mal fue Adolf Hitler?"
+        audio_base64 = generate_tts_audio(question)
+        return {"question": question, "audio": audio_base64, "status": "complete"}
+    except Exception as e:
+        print(f"Error generating video-based question: {e}")
+        return {"error": str(e)}
 
 @app.post("/initial-message")
 async def initial_message():

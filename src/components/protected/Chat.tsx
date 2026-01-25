@@ -9,11 +9,13 @@ import {
   Animated,
 } from 'react-native';
 import { Audio } from 'expo-av';
+import { useSelector } from 'react-redux';
 
 import { ChatBubble, TranscriptBubble, LoadingBubble, ChatMessage } from '../ChatBubble';
 import { RecordButton, RecordStatus } from '../RecordButton';
 import { useAutocorrect } from '../useAutocorrect';
 import { SuggestionBox } from '../SuggestionBox';
+import { RootState } from '../../types';
 import {
   BACKEND_BASE_URL,
   connectToBackend,
@@ -21,9 +23,16 @@ import {
   getRecordingConfig,
   requestMicrophonePermission,
   setAudioModeForRecording,
+  playAudio,
 } from '../streaming_helpers';
+import ChatSelection from '../discuss/ChatSelection';
+import { getVideoTitle } from '../../data/question_clips';
 
-const GeneralChat: React.FC = () => {
+interface ChatProps {
+  chatType?: "general" | "video-based" | null;
+}
+
+const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -35,6 +44,10 @@ const GeneralChat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
+
+  // Chat type selection state
+  const currentChatType = useSelector((state: RootState) => state.currentChatType);
+  const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -53,7 +66,11 @@ const GeneralChat: React.FC = () => {
     requestPermission();
 
     // Initialize with an AI-generated engaging prompt
-    initializeWithPrompt();
+    if (currentChatType === 'general') {
+      initializeWithPrompt();
+    } else {
+      generateVideoBasedQuestion();
+    }
 
     // Cleanup on unmount
     return () => {
@@ -71,22 +88,31 @@ const GeneralChat: React.FC = () => {
     }
   }, [transcript, interimTranscript]);
 
-  const playAudio = async (audioBase64: string) => {
-    try {
-      const { sound } = await Audio.Sound.createAsync({
-        uri: `data:audio/mp3;base64,${audioBase64}`,
-      });
-      await sound.playAsync();
-      // Unload sound when finished to free memory
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
-    } catch (err) {
-      console.error('Error playing audio:', err);
+  const generateVideoBasedQuestion = async () => {
+    const response = await fetch(`${BACKEND_BASE_URL}/video-based-question`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        videoId: currentVideo?.videoId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate video-based question');
+    }
+
+    const data = await response.json();
+    setMessages([{ role: 'assistant', content: data.question }]);
+
+    // Play audio if available
+    if (data.audio) {
+      await playAudio(data.audio);
     }
   };
+
+
 
   const initializeWithPrompt = async () => {
     setIsLoadingInitialMessage(true);
@@ -363,10 +389,11 @@ const GeneralChat: React.FC = () => {
   // Hardcoded vocab words for now
   const vocabWords = ['interesante', 'además', 'sin embargo', 'por ejemplo', 'me parece'];
 
+  // Chat interface
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        {/* <Text style={styles.title}>General Chat</Text> */}
+        <Text style={styles.title}>{currentChatType === 'general' ? 'General Chat' : `Discuss ${getVideoTitle(currentVideo?.videoId)}`}</Text>
         {messages.length > 0 && !isRecording && (
           <TouchableOpacity style={styles.clearAllButton} onPress={clearConversation}>
             <Text style={styles.clearAllButtonText}>Clear Conversation</Text>
@@ -649,6 +676,24 @@ const styles = StyleSheet.create({
     color: '#e0d9ff',
     fontSize: 14,
   },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  backButton: {
+    backgroundColor: '#3d3a52',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#5a5680',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
 
-export default GeneralChat;
+export default Chat;

@@ -4,12 +4,15 @@ export interface Card {
 }
 
 export interface RootState {
+  currentVideo: Clip | null;
+  currentChatType: "general" | "video-based" | null;
 }
 
-export type DataActionTypes = '';
+export type DataActionTypes = 'SET_CURRENT_VIDEO' | 'SET_CURRENT_CHAT_TYPE';
 
-export interface DataAction {
+export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
+  payload?: any;
 }
 
 

@@ -2,7 +2,7 @@ import * as React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import GeneralChat from "./src/components/protected/GeneralChat";
+import Chat from "./src/components/protected/Chat";
 import SignInScreen from "./src/components/SignInScreen";
 import SignUpScreen from "./src/components/SignUpScreen";
 import HomeTab from "./src/components/tabs/HomeTab";
@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import TabIcon from "./src/components/tabs/TabIcon";
 import WatchTab from "./src/components/watch/WatchTab";
 import TopNavBar from "./src/components/TopNavBar";
+import DiscussTab from "./src/components/discuss/DiscussTab";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -54,7 +55,7 @@ const MainTabs: React.FC = () => {
       />
       <Tab.Screen
         name="Discuss"
-        component={GeneralChat}
+        component={DiscussTab}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon icon="chat-outline" label="Discuss" focused={focused} />,
         }}

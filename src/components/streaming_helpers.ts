@@ -33,6 +33,23 @@ export interface TranscriptCallbacks {
   onMetadata?: () => void;
 }
 
+export const playAudio = async (audioBase64: string) => {
+  try {
+    const { sound } = await Audio.Sound.createAsync({
+      uri: `data:audio/mp3;base64,${audioBase64}`,
+    });
+    await sound.playAsync();
+    // Unload sound when finished to free memory
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        sound.unloadAsync();
+      }
+    });
+  } catch (err) {
+    console.error('Error playing audio:', err);
+  }
+};
+
 /**
  * Connect to the backend WebSocket server for transcription
  */

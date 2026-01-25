@@ -9,17 +9,22 @@ import {
   Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { setCurrentChatType } from '../../store/actions/dataActions';
+import { useDispatch } from 'react-redux';
 
 const HomeTab: React.FC = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
 
-  const handleGeneralChatPress = () => {
+  const handleChatPress = () => {
     // Navigate to Discuss tab
+    dispatch(setCurrentChatType('general'));
     navigation.navigate('Discuss' as never);
   };
 
   const handleWatchPress = () => {
     // Navigate to Watch tab
+    dispatch(setCurrentChatType('video-based'));
     navigation.navigate('Watch' as never);
   };
 
@@ -39,7 +44,7 @@ const HomeTab: React.FC = () => {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.chatButton}
-          onPress={handleGeneralChatPress}
+          onPress={handleChatPress}
         >
           <Text style={styles.chatButtonIcon}>💬</Text>
           <Text style={styles.chatButtonText}>General Chat</Text>
@@ -47,31 +52,7 @@ const HomeTab: React.FC = () => {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.chatButton}
-          onPress={handleGeneralChatPress}
-        >
-          <Text style={styles.chatButtonIcon}>🔁</Text>
-          <Text style={styles.chatButtonText}>Repeat Phrases</Text>
-          <Text style={styles.chatButtonSubtext}>Practice Pronunciation, Speed, and Accuracy</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-            style={styles.chatButton}
-            onPress={handleWatchPress}
-          >
-            <Text style={styles.chatButtonIcon}>🎥</Text>
-            <Text style={styles.chatButtonText}>Watch and Discuss</Text>
-            <Text style={styles.chatButtonSubtext}>Watch YouTube Videos and Discuss Content</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.chatButton}
-          onPress={handleGeneralChatPress}
-        >
-          <Text style={styles.chatButtonIcon}>💬</Text>
-          <Text style={styles.chatButtonText}>General Chat</Text>
-          <Text style={styles.chatButtonSubtext}>Make Conversation in Topics You Choose</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.chatButton}
-          onPress={handleGeneralChatPress}
+          onPress={handleChatPress}
         >
           <Text style={styles.chatButtonIcon}>🔁</Text>
           <Text style={styles.chatButtonText}>Repeat Phrases</Text>
