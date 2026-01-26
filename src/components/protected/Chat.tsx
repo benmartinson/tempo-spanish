@@ -9,13 +9,14 @@ import {
   Animated,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 
 import { ChatBubble, TranscriptBubble, LoadingBubble, ChatMessage } from '../ChatBubble';
 import { RecordButton, RecordStatus } from '../RecordButton';
 import { useAutocorrect } from '../useAutocorrect';
 import { SuggestionBox } from '../SuggestionBox';
-import { RootState } from '../../types';
+import { RootState, Clip } from '../../types';
+import { setCurrentVideo } from '../../store/actions/dataActions';
 import {
   BACKEND_BASE_URL,
   connectToBackend,
@@ -27,12 +28,14 @@ import {
 } from '../streaming_helpers';
 import ChatSelection from '../discuss/ChatSelection';
 import { getVideoTitle } from '../../data/question_clips';
+import { useNavigation } from '@react-navigation/native';
 
 interface ChatProps {
   chatType?: "general" | "video-based" | null;
 }
 
 const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
+  const navigation = useNavigation();
   const [isRecording, setIsRecording] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -44,8 +47,10 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
+  const [currentQuestionContextTimes, setCurrentQuestionContextTimes] = useState<number[]>([]);
 
   // Chat type selection state
+  const dispatch = useDispatch();
   const currentChatType = useSelector((state: RootState) => state.currentChatType);
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
@@ -54,6 +59,20 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const finalTranscriptRef = useRef<string>('');
+
+  // Format seconds to video timestamp (MM:SS or HH:MM:SS)
+  const formatVideoTimestamp = (seconds: number): string => {
+    const totalSeconds = Math.floor(seconds);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secondsPart = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secondsPart.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes.toString().padStart(2, '0')}:${secondsPart.toString().padStart(2, '0')}`;
+    }
+  };
 
   // Autocorrect hook for real-time transcript corrections
   const autocorrect = useAutocorrect({
@@ -105,6 +124,9 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
 
     const data = await response.json();
     setMessages([{ role: 'assistant', content: data.question }]);
+    const contextStart = data.segment.start - 3;
+    const contextEnd = data.segment.end;
+    setCurrentQuestionContextTimes([contextStart, contextEnd]);
 
     // Play audio if available
     if (data.audio) {
@@ -459,6 +481,22 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
               {messages.map((msg, index) => (
                 <ChatBubble key={index} message={msg} />
               ))}
+              {currentQuestionContextTimes.length > 0 && (
+                <View style={styles.questionContextContainer}>
+                  <TouchableOpacity style={styles.questionContextButton} onPress={() => {
+                    // Create a clip with the specific start/end times for context
+                    const contextClip: Clip = {
+                      videoId: currentVideo?.videoId || '',
+                      start: currentQuestionContextTimes[0],
+                      end: currentQuestionContextTimes[1],
+                    };
+                    dispatch(setCurrentVideo(contextClip));
+                    navigation.navigate('Watch' as never);
+                  }}>
+                    <Text style={styles.questionContextText}>Watch Context: {formatVideoTimestamp(currentQuestionContextTimes[0])}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Show loading indicator while waiting for response */}
               {isLoadingResponse && <LoadingBubble />}
@@ -528,6 +566,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 5,
     width: '100%',
+  },
+  questionContextContainer: {
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: '#333',
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  questionContextButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#2a2a4a',
+    borderRadius: 8,
+    marginTop: 5,
+    alignSelf: 'flex-start',
+  },
+  questionContextText: {
+    color: '#888',
+    fontSize: 12,
   },
   clearAllButton: {
     marginTop: 10,

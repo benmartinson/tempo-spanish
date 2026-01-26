@@ -14,6 +14,7 @@ import { setCurrentVideo } from '../../store/actions/dataActions';
 const WatchTab: React.FC = () => {
   const dispatch = useDispatch();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const videoRefreshKey = useSelector((state: RootState) => state.videoRefreshKey);
 
   const handleNextVideo = () => {
     const currentIndex = WATCH_CLIPS.findIndex(clip => clip.videoId === currentVideo?.videoId);
@@ -26,6 +27,7 @@ const WatchTab: React.FC = () => {
       {currentVideo ? (
         <Video
           clip={currentVideo}
+          refreshKey={videoRefreshKey}
           onBackButton={() => dispatch(setCurrentVideo(null))}
           onNextButton={handleNextVideo}
         />

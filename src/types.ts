@@ -6,6 +6,7 @@ export interface Card {
 export interface RootState {
   currentVideo: Clip | null;
   currentChatType: "general" | "video-based" | null;
+  videoRefreshKey: number;
 }
 
 export type DataActionTypes = 'SET_CURRENT_VIDEO' | 'SET_CURRENT_CHAT_TYPE';

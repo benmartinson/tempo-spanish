@@ -4,6 +4,7 @@ import { WATCH_CLIPS } from '../../data/question_clips';
 const initialState: RootState = {
   currentVideo: WATCH_CLIPS[0],
   currentChatType: null,
+  videoRefreshKey: Date.now(),
 }
 
 const dataReducer = (state: RootState = initialState, action: DataAction): RootState => {
@@ -12,6 +13,7 @@ const dataReducer = (state: RootState = initialState, action: DataAction): RootS
       return {
         ...state,
         currentVideo: action.payload,
+        videoRefreshKey: Date.now(),
       };
     case 'SET_CURRENT_CHAT_TYPE':
       return {

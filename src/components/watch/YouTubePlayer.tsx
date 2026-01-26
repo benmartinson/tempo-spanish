@@ -6,9 +6,11 @@ import { Clip } from "../../types";
 interface YouTubePlayerProps {
   clip: Clip;
   autoplay: boolean;
+  refreshKey: number;
 }
 
-const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay }) => {
+const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay, refreshKey }) => {
+
   const getVideoUrl = (clip) => {
     const baseUrl = 'https://yt-relay.vercel.app';
     const params = new URLSearchParams({
@@ -73,6 +75,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay }) => {
   return (
     <View style={styles.container}>
       <WebView
+        key={`${clip.videoId}-${clip.start}-${clip.end}-${refreshKey}`}
         source={{ html }}
         style={styles.webview}
         allowsInlineMediaPlayback={true}

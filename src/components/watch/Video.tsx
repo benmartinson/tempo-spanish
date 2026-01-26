@@ -13,10 +13,11 @@ import { WATCH_CLIPS } from '../../data/question_clips';
 
 interface VideoProps {
   clip: Clip;
+  refreshKey: number;
   onBackButton: () => void;
   onNextButton: () => void;
 }
-const Video: React.FC<VideoProps> = ({ clip, onBackButton, onNextButton }) => {
+const Video: React.FC<VideoProps> = ({ clip, refreshKey, onBackButton, onNextButton }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -28,7 +29,7 @@ const Video: React.FC<VideoProps> = ({ clip, onBackButton, onNextButton }) => {
         </TouchableOpacity>
       </View>
       <View style={styles.videoContainer}>
-        <YouTubePlayer clip={WATCH_CLIPS[0]} autoplay={false} />
+        <YouTubePlayer clip={clip} autoplay={true} refreshKey={refreshKey} />
       </View>
     </View>
   );
