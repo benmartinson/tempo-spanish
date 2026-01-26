@@ -1,26 +1,15 @@
 import React from 'react';
-import {
-  StyleSheet,
-  View,
-  Button,
-} from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../types';
-import { WATCH_CLIPS } from '../../data/question_clips';
 import Video from './Video';
-import VideoList from './VideoList';
 import { setCurrentVideo } from '../../store/actions/dataActions';
+import SelectVideoPrompt from '../common/SelectVideoPrompt';
 
 const WatchTab: React.FC = () => {
   const dispatch = useDispatch();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const videoRefreshKey = useSelector((state: RootState) => state.videoRefreshKey);
-
-  // const handleNextVideo = () => {
-  //   const currentIndex = WATCH_CLIPS.findIndex(clip => clip.videoId === currentVideo?.videoId);
-  //   const nextIndex = (currentIndex + 1) % WATCH_CLIPS.length;
-  //   dispatch(setCurrentVideo(WATCH_CLIPS[nextIndex]));
-  // };
 
   return (
     <View style={styles.container}>
@@ -29,10 +18,9 @@ const WatchTab: React.FC = () => {
           video={currentVideo}
           refreshKey={videoRefreshKey}
           onBackButton={() => dispatch(setCurrentVideo(null))}
-          // onNextButton={handleNextVideo}
         />
       ) : (
-        <VideoList/>
+        <SelectVideoPrompt />
       )}
     </View>
   );
@@ -45,4 +33,4 @@ const styles = StyleSheet.create({
   },
 });
 
-  export default WatchTab;
+export default WatchTab;

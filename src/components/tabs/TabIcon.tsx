@@ -21,6 +21,8 @@ const TabIcon: React.FC<{ icon: string; label: string; focused: boolean }> = ({ 
         return <Entypo name="cycle" size={24} color={iconColor} />;
       case 'video-outline':
         return <SimpleLineIcons name="social-youtube" size={24} color={iconColor} />;
+      case 'video-list':
+        return <Feather name="list" size={24} color={iconColor} />;
       case 'chat-outline':
         return <MaterialCommunityIcons name="chat-outline" size={24} color={iconColor} />;
     }

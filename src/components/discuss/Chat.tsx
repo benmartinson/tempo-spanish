@@ -26,7 +26,7 @@ import {
   setAudioModeForRecording,
   playAudio,
 } from '../streaming_helpers';
-import ChatSelection from '../discuss/ChatSelection';
+import ChatSelection from './ChatSelection';
 import { MultipleChoice } from '../MultipleChoice';
 import { getVideoTitle } from '../../data/question_clips';
 import { useNavigation } from '@react-navigation/native';
@@ -518,7 +518,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
         </View>
       )}
 
-      <View style={styles.controlsContainer}>
+      {/* <View style={styles.controlsContainer}>
         <View style={styles.buttonRow}>
           <RecordButton
             isRecording={isRecording}
@@ -541,7 +541,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
           isRecording={isRecording}
           isLoadingResponse={isLoadingResponse}
         />
-      </View>
+      </View> */}
     </View>
   );
 };

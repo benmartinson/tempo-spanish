@@ -2,11 +2,11 @@ import * as React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import Chat from "./src/components/protected/Chat";
+import Chat from "./src/components/discuss/Chat";
 import SignInScreen from "./src/components/SignInScreen";
 import SignUpScreen from "./src/components/SignUpScreen";
 import HomeTab from "./src/components/tabs/HomeTab";
-import YouTab from "./src/components/tabs/YouTab";
+import VideosTab from "./src/components/tabs/VideosTab";
 import { Provider } from 'react-redux';
 import store from "./src/store/store";
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo'
@@ -47,6 +47,13 @@ const MainTabs: React.FC = () => {
         }}
       />
       <Tab.Screen
+        name="Videos"
+        component={VideosTab}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon icon="video-list" label="Videos" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
         name="Watch"
         component={WatchTab}
         options={{
@@ -58,13 +65,6 @@ const MainTabs: React.FC = () => {
         component={DiscussTab}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon icon="chat-outline" label="Discuss" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Repeat"
-        component={YouTab}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="cycle" label="Repeat" focused={focused} />,
         }}
       />
     </Tab.Navigator>

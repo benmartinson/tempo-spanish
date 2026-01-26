@@ -274,8 +274,8 @@ Generate a comprehension question in Spanish for this video segment transcript.
                         "required": ["question", "answers", "correct_answer"],
                         "properties": {
                             "question": {"type": "string"},
-                            "answers": {"type": "array", "items": {"type": "string"}},
-                            "correct_answer": {"type": "integer"}
+                            "answers": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
+                            "correct_answer": {"type": "integer", "minimum": 0, "maximum": 2}
                         },
                         "additionalProperties": False
                     }

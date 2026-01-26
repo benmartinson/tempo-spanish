@@ -1,28 +1,32 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
-import ChatSelection from './ChatSelection';
+import { View, StyleSheet } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../types';
-import Chat from '../protected/Chat';
+import Chat from './Chat';
+import SelectVideoPrompt from '../common/SelectVideoPrompt';
 
-    interface DiscussTabProps {
-    }
-
-const DiscussTab: React.FC<DiscussTabProps> = () => {
-  const currentChatType = useSelector((state: RootState) => state.currentChatType);
+const DiscussTab: React.FC = () => {
+  const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
   return (
     <View style={styles.container}>
-      {currentChatType === null ? <ChatSelection /> : <Chat />}
+      {currentVideo ? (
+        <Chat />
+      ) : (
+        <SelectVideoPrompt
+          title="No Video Selected"
+          subtitle="Select a video first to start discussing"
+        />
+      )}
     </View>
-  )
+  );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a2e',
   },
-
 });
 
 export default DiscussTab;
