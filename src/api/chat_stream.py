@@ -10,6 +10,7 @@ Run with: uvicorn src.api.chat_stream:app --host 0.0.0.0 --port 8000 --reload
 
 import os
 import base64
+import random
 from typing import List
 
 from dotenv import load_dotenv
@@ -18,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
 from elevenlabs.client import ElevenLabs
+from pinecone import Pinecone
 
 # Import the transcription router
 from soniox_transcription import router as transcription_router
@@ -32,6 +34,10 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 # ElevenLabs configuration
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY) if ELEVENLABS_API_KEY else None
+
+# Pinecone configuration
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+pinecone_client = Pinecone(api_key=PINECONE_API_KEY) if PINECONE_API_KEY else None
 
 
 def generate_tts_audio(text: str) -> str | None:
@@ -95,6 +101,16 @@ Rules:
 - Don't change words unless they are clearly wrong
 - If the transcript is fine, return it unchanged"""
 
+# System prompt for generating video-based comprehension questions
+VIDEO_QUESTION_SYSTEM_PROMPT = """Generate a comprehension question in Spanish based on the provided video transcript segment.
+
+Guidelines:
+- The question should be answerable from the transcript content
+- Keep the question clear and focused on one concept
+- Match the CEFR level if provided
+- Only output the question, nothing else
+- Only text, no emojis"""
+
 
 class ChatMessage(BaseModel):
     role: str  # "user" or "assistant"
@@ -147,7 +163,8 @@ async def health():
         "status": "ok",
         "soniox_configured": bool(SONIOX_API_KEY),
         "openai_configured": bool(OPENAI_API_KEY),
-        "elevenlabs_configured": bool(ELEVENLABS_API_KEY)
+        "elevenlabs_configured": bool(ELEVENLABS_API_KEY),
+        "pinecone_configured": bool(PINECONE_API_KEY)
     }
 
 
@@ -155,11 +172,96 @@ async def health():
 async def video_based_question(request: VideoBasedQuestionRequest):
     """
     Generate a video-based question with TTS audio.
+    Fetches a random segment from Pinecone matching the video_id,
+    then generates a comprehension question based on the segment's resolved_text.
     """
+    if not pinecone_client:
+        return {"error": "Pinecone API key not configured"}
+    
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
     try:
-        question = "Que mal fue Adolf Hitler?"
+        # Query Pinecone for segments matching the video_id
+        index = pinecone_client.Index("spanish-video-transcripts")
+        results = index.query(
+            vector=[0.0] * 1536,  # Dummy vector - we're filtering by metadata only
+            filter={"video_id": {"$eq": request.videoId}},
+            top_k=500,
+            include_metadata=True
+        )
+        
+        if not results.matches:
+            return {"error": f"No segments found for video_id: {request.videoId}"}
+        
+        # Randomly select one segment
+        segment = random.choice(results.matches)
+        segment_metadata = segment.metadata
+        segment_id = int(segment_metadata.get("segment_id", "1"))
+
+        # Find the previous segment if it exists (segment_id > 0)
+        previous_segment = None
+        if segment_id > 0:
+            previous_segment_id = str(segment_id - 1)
+            for match in results.matches:
+                if match.metadata.get("segment_id") == previous_segment_id:
+                    previous_segment = match.metadata
+                    break
+
+        resolved_text = segment_metadata.get("resolved_text", "")
+        cefr_level = segment_metadata.get("cefr_level", "")
+
+        if not resolved_text:
+            return {"error": "Selected segment has no resolved_text"}
+
+        # Generate a comprehension question using OpenAI
+        previous_text = ""
+        if previous_segment and previous_segment.get("resolved_text"):
+            previous_text = f"""Previous segment context: "{previous_segment.get("resolved_text")}"
+"""
+
+        user_prompt = f"""{previous_text}Transcript segment: "{resolved_text}"
+{f'CEFR Level: {cefr_level}' if cefr_level else ''}
+
+Generate a comprehension question in Spanish for this segment."""
+
+        messages = [
+            {"role": "system", "content": VIDEO_QUESTION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=150,
+            temperature=0.7,
+        )
+
+        question = response.choices[0].message.content.strip()
+        
+        # Generate TTS audio for the question
         audio_base64 = generate_tts_audio(question)
-        return {"question": question, "audio": audio_base64, "status": "complete"}
+        
+        response_data = {
+            "question": question,
+            "audio": audio_base64,
+            "segment": {
+                "start": segment_metadata.get("start"),
+                "end": segment_metadata.get("end"),
+                "resolved_text": resolved_text
+            },
+            "status": "complete"
+        }
+
+        # Include previous segment in response if it exists
+        if previous_segment:
+            response_data["previous_segment"] = {
+                "start": previous_segment.get("start"),
+                "end": previous_segment.get("end"),
+                "resolved_text": previous_segment.get("resolved_text")
+            }
+
+        return response_data
     except Exception as e:
         print(f"Error generating video-based question: {e}")
         return {"error": str(e)}
