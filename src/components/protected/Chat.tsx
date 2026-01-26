@@ -15,8 +15,8 @@ import { ChatBubble, TranscriptBubble, LoadingBubble, ChatMessage } from '../Cha
 import { RecordButton, RecordStatus } from '../RecordButton';
 import { useAutocorrect } from '../useAutocorrect';
 import { SuggestionBox } from '../SuggestionBox';
-import { RootState, Clip } from '../../types';
-import { setCurrentVideo } from '../../store/actions/dataActions';
+import { Answer, RootState, VideoContext } from '../../types';
+import { setCurrentVideo, setNextSegment, refreshVideoPlayer } from '../../store/actions/dataActions';
 import {
   BACKEND_BASE_URL,
   connectToBackend,
@@ -27,6 +27,7 @@ import {
   playAudio,
 } from '../streaming_helpers';
 import ChatSelection from '../discuss/ChatSelection';
+import { MultipleChoice } from '../MultipleChoice';
 import { getVideoTitle } from '../../data/question_clips';
 import { useNavigation } from '@react-navigation/native';
 
@@ -42,12 +43,12 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-
+  const [multipleChoiceAnswers, setMultipleChoiceAnswers] = useState<Answer[]>([]);
   // Chat conversation state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
-  const [currentQuestionContextTimes, setCurrentQuestionContextTimes] = useState<number[]>([]);
+
 
   // Chat type selection state
   const dispatch = useDispatch();
@@ -61,18 +62,18 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const finalTranscriptRef = useRef<string>('');
 
   // Format seconds to video timestamp (MM:SS or HH:MM:SS)
-  const formatVideoTimestamp = (seconds: number): string => {
-    const totalSeconds = Math.floor(seconds);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secondsPart = totalSeconds % 60;
+  // const formatVideoTimestamp = (seconds: number): string => {
+  //   const totalSeconds = Math.floor(seconds);
+  //   const hours = Math.floor(totalSeconds / 3600);
+  //   const minutes = Math.floor((totalSeconds % 3600) / 60);
+  //   const secondsPart = totalSeconds % 60;
 
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secondsPart.toString().padStart(2, '0')}`;
-    } else {
-      return `${minutes.toString().padStart(2, '0')}:${secondsPart.toString().padStart(2, '0')}`;
-    }
-  };
+  //   if (hours > 0) {
+  //     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secondsPart.toString().padStart(2, '0')}`;
+  //   } else {
+  //     return `${minutes.toString().padStart(2, '0')}:${secondsPart.toString().padStart(2, '0')}`;
+  //   }
+  // };
 
   // Autocorrect hook for real-time transcript corrections
   const autocorrect = useAutocorrect({
@@ -95,7 +96,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     return () => {
       cleanup();
     };
-  }, []);
+  }, [currentVideo.currentSegment]);
 
   // Auto-scroll the transcription box when transcript changes
   useEffect(() => {
@@ -107,14 +108,26 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     }
   }, [transcript, interimTranscript]);
 
+  const handleCorrectAnswer = () => {
+    setMultipleChoiceAnswers([]);
+    setMessages([]);
+    dispatch(setNextSegment());
+    navigation.navigate('Watch' as never);
+  };
+
   const generateVideoBasedQuestion = async () => {
+    if (!currentVideo) {
+      setError('No video selected');
+      return;
+    }
     const response = await fetch(`${BACKEND_BASE_URL}/video-based-question`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        videoId: currentVideo?.videoId,
+        videoId: currentVideo.videoId,
+        segments: [currentVideo.segments[currentVideo.currentSegment]],
       }),
     });
 
@@ -124,9 +137,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
 
     const data = await response.json();
     setMessages([{ role: 'assistant', content: data.question }]);
-    const contextStart = data.segment.start - 3;
-    const contextEnd = data.segment.end;
-    setCurrentQuestionContextTimes([contextStart, contextEnd]);
+    setMultipleChoiceAnswers(data.answers.map((answer: string, index: number) => ({ answer, correct: index === data.correct_answer })));
 
     // Play audio if available
     if (data.audio) {
@@ -407,21 +418,17 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       startRecording();
     }
   };
-
-  // Hardcoded vocab words for now
-  const vocabWords = ['interesante', 'además', 'sin embargo', 'por ejemplo', 'me parece'];
-
   // Chat interface
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <Text style={styles.title}>{currentChatType === 'general' ? 'General Chat' : `Discuss ${getVideoTitle(currentVideo?.videoId)}`}</Text>
         {messages.length > 0 && !isRecording && (
           <TouchableOpacity style={styles.clearAllButton} onPress={clearConversation}>
             <Text style={styles.clearAllButtonText}>Clear Conversation</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </View> */}
 
       {isRecording || isConnecting ? (
         /* Recording Overlay */
@@ -451,7 +458,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
           />
 
           {/* Vocab Words Section */}
-          <View style={styles.vocabSection}>
+          {/* <View style={styles.vocabSection}>
             <Text style={styles.sectionLabel}>Vocabulary to use:</Text>
             <View style={styles.vocabList}>
               {vocabWords.map((word, index) => (
@@ -460,7 +467,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
                 </View>
               ))}
             </View>
-          </View>
+          </View> */}
         </View>
       ) : (
         /* Normal Chat View */
@@ -481,19 +488,19 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
               {messages.map((msg, index) => (
                 <ChatBubble key={index} message={msg} />
               ))}
-              {currentQuestionContextTimes.length > 0 && (
+
+              {/* Multiple choice answers */}
+              {multipleChoiceAnswers.length > 0 && (
+                <MultipleChoice answers={multipleChoiceAnswers} onCorrectAnswer={handleCorrectAnswer}/>
+              )}
+
+              {currentVideo && (
                 <View style={styles.questionContextContainer}>
                   <TouchableOpacity style={styles.questionContextButton} onPress={() => {
-                    // Create a clip with the specific start/end times for context
-                    const contextClip: Clip = {
-                      videoId: currentVideo?.videoId || '',
-                      start: currentQuestionContextTimes[0],
-                      end: currentQuestionContextTimes[1],
-                    };
-                    dispatch(setCurrentVideo(contextClip));
+                    dispatch(refreshVideoPlayer());
                     navigation.navigate('Watch' as never);
                   }}>
-                    <Text style={styles.questionContextText}>Watch Context: {formatVideoTimestamp(currentQuestionContextTimes[0])}</Text>
+                    <Text style={styles.questionContextText}>Watch Again 🔙</Text>
                   </TouchableOpacity>
                 </View>
               )}

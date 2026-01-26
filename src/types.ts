@@ -4,7 +4,7 @@ export interface RootState {
   videoRefreshKey: number;
 }
 
-export type DataActionTypes = 'SET_CURRENT_VIDEO' | 'SET_CURRENT_CHAT_TYPE';
+export type DataActionTypes = 'SET_CURRENT_VIDEO' | 'SET_CURRENT_CHAT_TYPE' | 'SET_NEXT_SEGMENT' | 'REFRESH_VIDEO_PLAYER';
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -28,4 +28,9 @@ export interface Segment {
   start: number;
   end: number;
   text: string;
+}
+
+export interface Answer {
+  answer: string;
+  correct: boolean;
 }

@@ -15,10 +15,24 @@ const dataReducer = (state: RootState = initialState, action: DataAction): RootS
         currentVideo: action.payload,
         videoRefreshKey: Date.now(),
       };
+    case 'SET_NEXT_SEGMENT':
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          currentSegment: state.currentVideo?.currentSegment + 1,
+        },
+        videoRefreshKey: Date.now(),
+      };
     case 'SET_CURRENT_CHAT_TYPE':
       return {
         ...state,
         currentChatType: action.payload,
+      };
+    case 'REFRESH_VIDEO_PLAYER':
+      return {
+        ...state,
+        videoRefreshKey: Date.now(),
       };
     default:
       return state;

@@ -11,6 +11,7 @@ Run with: uvicorn src.api.chat_stream:app --host 0.0.0.0 --port 8000 --reload
 import os
 import base64
 import random
+import json
 from typing import List
 
 from dotenv import load_dotenv
@@ -238,26 +239,20 @@ async def video_based_question(request: VideoBasedQuestionRequest):
 
     try:
         # Use the first segment as the main segment for the question
-        segment = request.segments[0]
-        resolved_text = segment.resolved_text
-        cefr_level = segment.cefr_level
+        segments = request.segments
+        resolved_text = ""
+        for segment in segments:
+            resolved_text += segment.resolved_text
+        cefr_level = segments[0].cefr_level
 
         if not resolved_text:
             return {"error": "Segment has no resolved_text"}
 
-        # Use the second segment as previous context if provided
-        previous_segment = request.segments[1] if len(request.segments) > 1 else None
-
-        # Generate a comprehension question using OpenAI
-        previous_text = ""
-        if previous_segment and previous_segment.resolved_text:
-            previous_text = f"""Previous segment context: "{previous_segment.resolved_text}"
-"""
-
-        user_prompt = f"""{previous_text}Transcript segment: "{resolved_text}"
+        user_prompt = f"""Transcript segment: "{resolved_text}"
 {f'CEFR Level: {cefr_level}' if cefr_level else ''}
 
-Generate a comprehension question in Spanish for this segment."""
+Generate a comprehension question in Spanish for this video segment transcript.
+ Then generate 3 multiple choice answers to the question. Answer choices should be in Spanish. Provide the correct answer in the response."""
 
         messages = [
             {"role": "system", "content": VIDEO_QUESTION_SYSTEM_PROMPT},
@@ -265,37 +260,41 @@ Generate a comprehension question in Spanish for this segment."""
         ]
 
         response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             messages=messages,
-            max_tokens=150,
+            max_tokens=300,
             temperature=0.7,
+            response_format={
+                "type": "json_schema", 
+                "json_schema": {
+                    "name": "question_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["question", "answers", "correct_answer"],
+                        "properties": {
+                            "question": {"type": "string"},
+                            "answers": {"type": "array", "items": {"type": "string"}},
+                            "correct_answer": {"type": "integer"}
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
         )
 
-        question = response.choices[0].message.content.strip()
-        
+        question_data = json.loads(response.choices[0].message.content.strip())
+
         # Generate TTS audio for the question
-        audio_base64 = generate_tts_audio(question)
-        
+        audio_base64 = generate_tts_audio(question_data["question"])
+
         response_data = {
-            "question": question,
+            "question": question_data["question"],
+            "answers": question_data["answers"],
+            "correct_answer": question_data["correct_answer"],
             "audio": audio_base64,
-            "segment": {
-                "segment_id": segment.segment_id,
-                "start": segment.start,
-                "end": segment.end,
-                "resolved_text": resolved_text
-            },
             "status": "complete"
         }
-
-        # Include previous segment in response if it exists
-        if previous_segment:
-            response_data["previous_segment"] = {
-                "segment_id": previous_segment.segment_id,
-                "start": previous_segment.start,
-                "end": previous_segment.end,
-                "resolved_text": previous_segment.resolved_text
-            }
 
         return response_data
     except Exception as e:

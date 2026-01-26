@@ -10,7 +10,6 @@ interface YouTubePlayerProps {
 }
 
 const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay, refreshKey }) => {
-  console.log(clip);
   const getVideoUrl = (clip) => {
     const baseUrl = 'https://yt-relay.vercel.app';
     const params = new URLSearchParams({
@@ -23,6 +22,8 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay, refreshKe
     });
     return `${baseUrl}?${params.toString()}`;
   };
+
+  console.log({clip, refreshKey})
 
   const html = `
     <!DOCTYPE html>
