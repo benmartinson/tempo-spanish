@@ -5,31 +5,27 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
-import TopNavBar from '../TopNavBar';
-import CardSwiper from '../CardSwiper';
 import YouTubePlayer from './YouTubePlayer';
-import { Clip } from '../../types';
-import { WATCH_CLIPS } from '../../data/question_clips';
+import { VideoContext } from '../../types';
 
 interface VideoProps {
-  clip: Clip;
+  video: VideoContext;
   refreshKey: number;
   onBackButton: () => void;
-  onNextButton: () => void;
+  // onNextButton: () => void;
 }
-const Video: React.FC<VideoProps> = ({ clip, refreshKey, onBackButton, onNextButton }) => {
+const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
+  const clip = video.segments[video.currentSegment];
+  
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.button} onPress={onBackButton}>
           <Text style={styles.buttonText}>See All Videos</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={onNextButton}>
-          <Text style={styles.buttonText}>Next</Text>
-        </TouchableOpacity>
       </View>
       <View style={styles.videoContainer}>
-        <YouTubePlayer clip={clip} autoplay={true} refreshKey={refreshKey} />
+        <YouTubePlayer clip={{...clip, videoId: video.videoId}} autoplay={true} refreshKey={refreshKey} />
       </View>
     </View>
   );

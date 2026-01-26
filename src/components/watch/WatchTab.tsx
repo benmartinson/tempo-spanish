@@ -5,7 +5,7 @@ import {
   Button,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { Clip, RootState } from '../../types';
+import { RootState } from '../../types';
 import { WATCH_CLIPS } from '../../data/question_clips';
 import Video from './Video';
 import VideoList from './VideoList';
@@ -16,20 +16,20 @@ const WatchTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const videoRefreshKey = useSelector((state: RootState) => state.videoRefreshKey);
 
-  const handleNextVideo = () => {
-    const currentIndex = WATCH_CLIPS.findIndex(clip => clip.videoId === currentVideo?.videoId);
-    const nextIndex = (currentIndex + 1) % WATCH_CLIPS.length;
-    dispatch(setCurrentVideo(WATCH_CLIPS[nextIndex]));
-  };
+  // const handleNextVideo = () => {
+  //   const currentIndex = WATCH_CLIPS.findIndex(clip => clip.videoId === currentVideo?.videoId);
+  //   const nextIndex = (currentIndex + 1) % WATCH_CLIPS.length;
+  //   dispatch(setCurrentVideo(WATCH_CLIPS[nextIndex]));
+  // };
 
   return (
     <View style={styles.container}>
       {currentVideo ? (
         <Video
-          clip={currentVideo}
+          video={currentVideo}
           refreshKey={videoRefreshKey}
           onBackButton={() => dispatch(setCurrentVideo(null))}
-          onNextButton={handleNextVideo}
+          // onNextButton={handleNextVideo}
         />
       ) : (
         <VideoList/>

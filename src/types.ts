@@ -1,10 +1,5 @@
-export interface Card {
-  id: string;
-  clip: Clip;
-}
-
 export interface RootState {
-  currentVideo: Clip | null;
+  currentVideo: VideoContext | null;
   currentChatType: "general" | "video-based" | null;
   videoRefreshKey: number;
 }
@@ -23,8 +18,14 @@ export interface ApiResponse<T> {
   statusText: string;
 }
 
-export interface Clip {
+export interface VideoContext {
   videoId: string;
+  currentSegment: number;
+  segments: Segment[];
+}
+
+export interface Segment {
   start: number;
   end: number;
+  text: string;
 }

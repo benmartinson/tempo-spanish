@@ -1,16 +1,16 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { Clip } from "../../types";
+import { Segment } from "../../types";
 
 interface YouTubePlayerProps {
-  clip: Clip;
+  clip: Segment & { videoId: string };
   autoplay: boolean;
   refreshKey: number;
 }
 
 const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay, refreshKey }) => {
-
+  console.log(clip);
   const getVideoUrl = (clip) => {
     const baseUrl = 'https://yt-relay.vercel.app';
     const params = new URLSearchParams({

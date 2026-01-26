@@ -22,7 +22,7 @@ from elevenlabs.client import ElevenLabs
 from pinecone import Pinecone
 
 # Import the transcription router
-from soniox_transcription import router as transcription_router
+from .soniox_transcription import router as transcription_router
 
 # Load environment variables
 load_dotenv()
@@ -117,8 +117,17 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class VideoSegment(BaseModel):
+    segment_id: int
+    start: float
+    end: float
+    resolved_text: str
+    cefr_level: str | None = None
+
+
 class VideoBasedQuestionRequest(BaseModel):
-    videoId: str
+    segments: List[VideoSegment]
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -168,56 +177,81 @@ async def health():
     }
 
 
-@app.post("/video-based-question")
-async def video_based_question(request: VideoBasedQuestionRequest):
+@app.get("/video-segments/{video_id}")
+async def get_video_segments(video_id: str):
     """
-    Generate a video-based question with TTS audio.
-    Fetches a random segment from Pinecone matching the video_id,
-    then generates a comprehension question based on the segment's resolved_text.
+    Fetch all segments for a video from Pinecone.
+    Returns segments sorted by segment_id.
     """
     if not pinecone_client:
         return {"error": "Pinecone API key not configured"}
-    
-    if not openai_client:
-        return {"error": "OpenAI API key not configured"}
 
     try:
-        # Query Pinecone for segments matching the video_id
         index = pinecone_client.Index("spanish-video-transcripts")
         results = index.query(
             vector=[0.0] * 1536,  # Dummy vector - we're filtering by metadata only
-            filter={"video_id": {"$eq": request.videoId}},
+            filter={"video_id": {"$eq": video_id}},
             top_k=500,
             include_metadata=True
         )
         
         if not results.matches:
-            return {"error": f"No segments found for video_id: {request.videoId}"}
+            return {"error": f"No segments found for video_id: {video_id}", "segments": []}
         
-        # Randomly select one segment
-        segment = random.choice(results.matches)
-        segment_metadata = segment.metadata
-        segment_id = int(segment_metadata.get("segment_id", "1"))
+        # Extract and format segments
+        segments = []
+        for match in results.matches:
+            metadata = match.metadata
+            segments.append({
+                "segment_id": int(metadata.get("segment_id", 0)),
+                "start": metadata.get("start"),
+                "end": metadata.get("end"),
+                "resolved_text": metadata.get("resolved_text", ""),
+                "cefr_level": metadata.get("cefr_level")
+            })
+        
+        # Sort by segment_id
+        segments.sort(key=lambda x: x["segment_id"])
+        
+        return {
+            "video_id": video_id,
+            "segments": segments,
+            "count": len(segments)
+        }
+    except Exception as e:
+        print(f"Error fetching video segments: {e}")
+        return {"error": str(e), "segments": []}
 
-        # Find the previous segment if it exists (segment_id > 0)
-        previous_segment = None
-        if segment_id > 0:
-            previous_segment_id = str(segment_id - 1)
-            for match in results.matches:
-                if match.metadata.get("segment_id") == previous_segment_id:
-                    previous_segment = match.metadata
-                    break
 
-        resolved_text = segment_metadata.get("resolved_text", "")
-        cefr_level = segment_metadata.get("cefr_level", "")
+@app.post("/video-based-question")
+async def video_based_question(request: VideoBasedQuestionRequest):
+    """
+    Generate a video-based question with TTS audio.
+    Expects segments array to be provided in the request.
+    Uses the first segment as the main segment and the second (if provided) as previous context.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    if not request.segments or len(request.segments) == 0:
+        return {"error": "No segments provided"}
+
+    try:
+        # Use the first segment as the main segment for the question
+        segment = request.segments[0]
+        resolved_text = segment.resolved_text
+        cefr_level = segment.cefr_level
 
         if not resolved_text:
-            return {"error": "Selected segment has no resolved_text"}
+            return {"error": "Segment has no resolved_text"}
+
+        # Use the second segment as previous context if provided
+        previous_segment = request.segments[1] if len(request.segments) > 1 else None
 
         # Generate a comprehension question using OpenAI
         previous_text = ""
-        if previous_segment and previous_segment.get("resolved_text"):
-            previous_text = f"""Previous segment context: "{previous_segment.get("resolved_text")}"
+        if previous_segment and previous_segment.resolved_text:
+            previous_text = f"""Previous segment context: "{previous_segment.resolved_text}"
 """
 
         user_prompt = f"""{previous_text}Transcript segment: "{resolved_text}"
@@ -246,8 +280,9 @@ Generate a comprehension question in Spanish for this segment."""
             "question": question,
             "audio": audio_base64,
             "segment": {
-                "start": segment_metadata.get("start"),
-                "end": segment_metadata.get("end"),
+                "segment_id": segment.segment_id,
+                "start": segment.start,
+                "end": segment.end,
                 "resolved_text": resolved_text
             },
             "status": "complete"
@@ -256,9 +291,10 @@ Generate a comprehension question in Spanish for this segment."""
         # Include previous segment in response if it exists
         if previous_segment:
             response_data["previous_segment"] = {
-                "start": previous_segment.get("start"),
-                "end": previous_segment.get("end"),
-                "resolved_text": previous_segment.get("resolved_text")
+                "segment_id": previous_segment.segment_id,
+                "start": previous_segment.start,
+                "end": previous_segment.end,
+                "resolved_text": previous_segment.resolved_text
             }
 
         return response_data

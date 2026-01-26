@@ -2,7 +2,7 @@ import { RootState, DataAction, DataActionTypes } from '../../types';
 import { WATCH_CLIPS } from '../../data/question_clips';
 
 const initialState: RootState = {
-  currentVideo: WATCH_CLIPS[0],
+  currentVideo: null,
   currentChatType: null,
   videoRefreshKey: Date.now(),
 }
