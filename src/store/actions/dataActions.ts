@@ -19,3 +19,8 @@ export const refreshVideoPlayer = (): DataAction => ({
   type: 'REFRESH_VIDEO_PLAYER',
   payload: null,
 });
+
+export const setCurrentTab = (tab: 'home' | 'videos' | 'watch' | 'discuss'): DataAction => ({
+  type: 'SET_CURRENT_TAB',
+  payload: tab,
+});

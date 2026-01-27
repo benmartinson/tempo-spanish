@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -8,6 +8,7 @@ export interface ChatMessage {
 
 interface ChatBubbleProps {
   message: ChatMessage;
+  onPress?: () => void;
 }
 
 interface TranscriptBubbleProps {
@@ -17,10 +18,10 @@ interface TranscriptBubbleProps {
 
 interface LoadingBubbleProps {}
 
-export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
+export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onPress }) => {
   const isUser = message.role === 'user';
 
-  return (
+  const content = (
     <View
       style={[
         styles.messageBubble,
@@ -37,6 +38,16 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
       </Text>
     </View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
 };
 
 export const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({

@@ -5,9 +5,11 @@ import { Answer } from '../types';
 interface MultipleChoiceProps {
   answers: Answer[];
   onCorrectAnswer: () => void;
+  currentlyPlayingIndex?: number | null;
+  onPressAudio?: (index: number) => void;
 }
 
-export const MultipleChoice: React.FC<MultipleChoiceProps> = ({ answers, onCorrectAnswer }) => {
+export const MultipleChoice: React.FC<MultipleChoiceProps> = ({ answers, onCorrectAnswer, currentlyPlayingIndex, onPressAudio }) => {
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [answerFeedback, setAnswerFeedback] = useState<string>('');
   const correctAnswer = answers.find((answer) => answer.correct === true)?.answer;
@@ -27,22 +29,33 @@ export const MultipleChoice: React.FC<MultipleChoiceProps> = ({ answers, onCorre
   return (
     <View style={styles.multipleChoiceContainer}>
       {answers.map((answer, index) => (
-        <TouchableOpacity
-          key={index}
-          style={[
-            styles.multipleChoiceButton,
-            selectedAnswer === answer.answer && selectedAnswer === correctAnswer && styles.correctButton,
-            selectedAnswer === answer.answer && selectedAnswer !== correctAnswer && styles.incorrectButton,
-          ]}
-          onPress={() => handleMultipleChoiceAnswer(answer.answer)}
-        >
-          <Text style={[
-            styles.multipleChoiceButtonText,
-            selectedAnswer === answer.answer && styles.selectedButtonText,
-          ]}>
-            {answer.answer}
-          </Text>
-        </TouchableOpacity>
+        <View key={index} style={styles.answerRow}>
+          <TouchableOpacity
+            style={[
+              styles.multipleChoiceButton,
+              currentlyPlayingIndex === index && styles.playingButton,
+              selectedAnswer === answer.answer && selectedAnswer === correctAnswer && styles.correctButton,
+              selectedAnswer === answer.answer && selectedAnswer !== correctAnswer && styles.incorrectButton,
+            ]}
+            onPress={() => handleMultipleChoiceAnswer(answer.answer)}
+          >
+            <Text style={[
+              styles.multipleChoiceButtonText,
+              currentlyPlayingIndex === index && styles.playingButtonText,
+              selectedAnswer === answer.answer && styles.selectedButtonText,
+            ]}>
+              {answer.answer}
+            </Text>
+          </TouchableOpacity>
+          {onPressAudio && (
+            <TouchableOpacity
+              style={styles.audioButton}
+              onPress={() => onPressAudio(index)}
+            >
+              <Text style={styles.audioButtonText}>🔊</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       ))}
       {answerFeedback !== '' && (
         <Text style={[
@@ -62,13 +75,24 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     gap: 12,
   },
+  answerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   multipleChoiceButton: {
+    flex: 1,
     backgroundColor: '#333',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#555',
+  },
+  playingButton: {
+    backgroundColor: '#1a237e',
+    borderColor: '#3f51b5',
+    borderWidth: 2,
   },
   correctButton: {
     backgroundColor: '#2e7d32',
@@ -82,6 +106,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
+  },
+  playingButtonText: {
+    color: '#90caf9',
+    fontWeight: 'bold',
   },
   selectedButtonText: {
     fontWeight: 'bold',
@@ -101,5 +129,15 @@ const styles = StyleSheet.create({
   incorrectFeedback: {
     color: '#f44336',
     backgroundColor: 'rgba(244, 67, 54, 0.1)',
+  },
+  audioButton: {
+    backgroundColor: '#333',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#555',
+  },
+  audioButtonText: {
+    fontSize: 18,
   },
 });

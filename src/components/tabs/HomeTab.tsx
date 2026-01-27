@@ -9,7 +9,7 @@ import {
   Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { setCurrentChatType } from '../../store/actions/dataActions';
+import { setCurrentChatType, setCurrentTab } from '../../store/actions/dataActions';
 import { useDispatch } from 'react-redux';
 
 const HomeTab: React.FC = () => {
@@ -19,12 +19,14 @@ const HomeTab: React.FC = () => {
   const handleChatPress = () => {
     // Navigate to Discuss tab
     dispatch(setCurrentChatType('general'));
+    dispatch(setCurrentTab('discuss'));
     navigation.navigate('Discuss' as never);
   };
 
   const handleWatchPress = () => {
     // Navigate to Watch tab
     dispatch(setCurrentChatType('video-based'));
+    dispatch(setCurrentTab('watch'));
     navigation.navigate('Watch' as never);
   };
 

@@ -33,20 +33,49 @@ export interface TranscriptCallbacks {
   onMetadata?: () => void;
 }
 
+// Global reference to currently playing sound to prevent overlapping audio
+let currentPlayingSound: Audio.Sound | null = null;
+
 export const playAudio = async (audioBase64: string) => {
   try {
+    // Stop any currently playing audio
+    if (currentPlayingSound) {
+      await currentPlayingSound.stopAsync();
+      await currentPlayingSound.unloadAsync();
+      currentPlayingSound = null;
+    }
+
     const { sound } = await Audio.Sound.createAsync({
       uri: `data:audio/mp3;base64,${audioBase64}`,
     });
+
+    currentPlayingSound = sound;
+
     await sound.playAsync();
     // Unload sound when finished to free memory
     sound.setOnPlaybackStatusUpdate((status) => {
       if (status.isLoaded && status.didJustFinish) {
         sound.unloadAsync();
+        if (currentPlayingSound === sound) {
+          currentPlayingSound = null;
+        }
       }
     });
   } catch (err) {
     console.error('Error playing audio:', err);
+  }
+};
+
+// Function to stop all audio playback
+export const stopAudio = async () => {
+  if (currentPlayingSound) {
+    try {
+      await currentPlayingSound.stopAsync();
+      await currentPlayingSound.unloadAsync();
+      currentPlayingSound = null;
+    } catch (err) {
+      console.error('Error stopping audio:', err);
+    }
   }
 };
 

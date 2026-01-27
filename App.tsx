@@ -7,8 +7,9 @@ import SignInScreen from "./src/components/SignInScreen";
 import SignUpScreen from "./src/components/SignUpScreen";
 import HomeTab from "./src/components/tabs/HomeTab";
 import VideosTab from "./src/components/tabs/VideosTab";
-import { Provider } from 'react-redux';
+import { Provider, useDispatch } from 'react-redux';
 import store from "./src/store/store";
+import { setCurrentTab } from "./src/store/actions/dataActions";
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo'
 import { tokenCache } from '@clerk/clerk-expo/token-cache'
 import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
@@ -23,6 +24,8 @@ const Tab = createBottomTabNavigator();
 
 // Main tabs for authenticated users
 const MainTabs: React.FC = () => {
+  const dispatch = useDispatch();
+
   return (
     <Tab.Navigator
       id="MainTabs"
@@ -42,6 +45,11 @@ const MainTabs: React.FC = () => {
       <Tab.Screen
         name="Home"
         component={HomeTab}
+        listeners={{
+          tabPress: () => {
+            dispatch(setCurrentTab('home'));
+          },
+        }}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon icon="home-outline" label="Home" focused={focused} />,
         }}
@@ -49,6 +57,11 @@ const MainTabs: React.FC = () => {
       <Tab.Screen
         name="Videos"
         component={VideosTab}
+        listeners={{
+          tabPress: () => {
+            dispatch(setCurrentTab('videos'));
+          },
+        }}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon icon="video-list" label="Videos" focused={focused} />,
         }}
@@ -56,6 +69,11 @@ const MainTabs: React.FC = () => {
       <Tab.Screen
         name="Watch"
         component={WatchTab}
+        listeners={{
+          tabPress: () => {
+            dispatch(setCurrentTab('watch'));
+          },
+        }}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon icon="video-outline" label="Watch" focused={focused} />,
         }}
@@ -63,6 +81,11 @@ const MainTabs: React.FC = () => {
       <Tab.Screen
         name="Discuss"
         component={DiscussTab}
+        listeners={{
+          tabPress: () => {
+            dispatch(setCurrentTab('discuss'));
+          },
+        }}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon icon="chat-outline" label="Discuss" focused={focused} />,
         }}

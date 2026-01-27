@@ -2,9 +2,10 @@ export interface RootState {
   currentVideo: VideoContext | null;
   currentChatType: "general" | "video-based" | null;
   videoRefreshKey: number;
+  currentTab: 'home' | 'videos' | 'watch' | 'discuss';
 }
 
-export type DataActionTypes = 'SET_CURRENT_VIDEO' | 'SET_CURRENT_CHAT_TYPE' | 'SET_NEXT_SEGMENT' | 'REFRESH_VIDEO_PLAYER';
+export type DataActionTypes = 'SET_CURRENT_VIDEO' | 'SET_CURRENT_CHAT_TYPE' | 'SET_NEXT_SEGMENT' | 'REFRESH_VIDEO_PLAYER' | 'SET_CURRENT_TAB';
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;

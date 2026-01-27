@@ -23,7 +23,7 @@ from elevenlabs.client import ElevenLabs
 from pinecone import Pinecone
 
 # Import the transcription router
-from .soniox_transcription import router as transcription_router
+from soniox_transcription import router as transcription_router
 
 # Load environment variables
 load_dotenv()
@@ -293,12 +293,14 @@ Generate a comprehension question in Spanish for this video segment transcript.
 
         # Generate TTS audio for the question
         audio_base64 = generate_tts_audio(question_data["question"])
+        audio_base64_answers = [generate_tts_audio(answer) for answer in question_data["answers"]]
 
         response_data = {
             "question": question_data["question"],
             "answers": question_data["answers"],
             "correct_answer": question_data["correct_answer"],
             "audio": audio_base64,
+            "audio_answers": audio_base64_answers,
             "status": "complete"
         }
 
@@ -307,41 +309,41 @@ Generate a comprehension question in Spanish for this video segment transcript.
         print(f"Error generating video-based question: {e}")
         return {"error": str(e)}
 
-@app.post("/initial-message")
-async def initial_message():
-    """
-    Generate an initial conversation starter message with TTS audio.
-    """
-    if not openai_client:
-        return {"error": "OpenAI API key not configured"}
+# @app.post("/initial-message")
+# async def initial_message():
+#     """
+#     Generate an initial conversation starter message with TTS audio.
+#     """
+#     if not openai_client:
+#         return {"error": "OpenAI API key not configured"}
 
-    try:
-        messages = [
-            {"role": "system", "content": INITIAL_PROMPT_SYSTEM_PROMPT},
-            {"role": "user", "content": "Generate an engaging conversation starter in Spanish."}
-        ]
+#     try:
+#         messages = [
+#             {"role": "system", "content": INITIAL_PROMPT_SYSTEM_PROMPT},
+#             {"role": "user", "content": "Generate an engaging conversation starter in Spanish."}
+#         ]
 
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=100,
-            temperature=0.8,  # Slightly higher temperature for more variety
-        )
+#         response = openai_client.chat.completions.create(
+#             model="gpt-4o-mini",
+#             messages=messages,
+#             max_tokens=100,
+#             temperature=0.8,  # Slightly higher temperature for more variety
+#         )
 
-        initial_message = response.choices[0].message.content
+#         initial_message = response.choices[0].message.content
         
-        # Generate TTS audio for the initial message
-        audio_base64 = generate_tts_audio(initial_message)
+#         # Generate TTS audio for the initial message
+#         audio_base64 = generate_tts_audio(initial_message)
 
-        return {
-            "response": initial_message,
-            "audio": audio_base64,
-            "status": "complete"
-        }
+#         return {
+#             "response": initial_message,
+#             "audio": audio_base64,
+#             "status": "complete"
+#         }
 
-    except Exception as e:
-        print(f"Error generating initial message: {e}")
-        return {"error": str(e)}
+#     except Exception as e:
+#         print(f"Error generating initial message: {e}")
+#         return {"error": str(e)}
 
 
 @app.post("/chat")
@@ -387,97 +389,97 @@ async def chat(request: ChatRequest):
         return {"error": str(e)}
 
 
-@app.post("/suggestion")
-async def suggestion(request: SuggestionRequest):
-    """
-    Generate a 2-3 word suggestion to continue the user's sentence.
-    """
-    if not openai_client:
-        return {"error": "OpenAI API key not configured"}
+# @app.post("/suggestion")
+# async def suggestion(request: SuggestionRequest):
+#     """
+#     Generate a 2-3 word suggestion to continue the user's sentence.
+#     """
+#     if not openai_client:
+#         return {"error": "OpenAI API key not configured"}
 
-    try:
-        # Build context from conversation history
-        context_messages = []
-        for msg in request.history:
-            context_messages.append(f"{msg.role}: {msg.content}")
+#     try:
+#         # Build context from conversation history
+#         context_messages = []
+#         for msg in request.history:
+#             context_messages.append(f"{msg.role}: {msg.content}")
         
-        conversation_context = "\n".join(context_messages) if context_messages else "No previous conversation"
+#         conversation_context = "\n".join(context_messages) if context_messages else "No previous conversation"
         
-        # Build the prompt for the suggestion
-        user_prompt = f"""Conversation context:
-{conversation_context}
+#         # Build the prompt for the suggestion
+#         user_prompt = f"""Conversation context:
+# {conversation_context}
 
-The user is currently saying: "{request.partial_transcript}"
+# The user is currently saying: "{request.partial_transcript}"
 
-Suggest 2-3 words to continue their sentence."""
+# Suggest 2-3 words to continue their sentence."""
 
-        messages = [
-            {"role": "system", "content": SUGGESTION_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
-        ]
+#         messages = [
+#             {"role": "system", "content": SUGGESTION_SYSTEM_PROMPT},
+#             {"role": "user", "content": user_prompt}
+#         ]
 
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=80,  # Keep it short for quick suggestions
-            temperature=0.7,
-        )
+#         response = openai_client.chat.completions.create(
+#             model="gpt-4o-mini",
+#             messages=messages,
+#             max_tokens=80,  # Keep it short for quick suggestions
+#             temperature=0.7,
+#         )
 
-        suggestion_text = " ".join(response.choices[0].message.content.strip().split()[:5]) + '...'
+#         suggestion_text = " ".join(response.choices[0].message.content.strip().split()[:5]) + '...'
 
-        return {
-            "suggestion": suggestion_text,
-            "status": "complete"
-        }
+#         return {
+#             "suggestion": suggestion_text,
+#             "status": "complete"
+#         }
 
-    except Exception as e:
-        print(f"Error generating suggestion: {e}")
-        return {"error": str(e)}
+#     except Exception as e:
+#         print(f"Error generating suggestion: {e}")
+#         return {"error": str(e)}
 
 
-@app.post("/autocorrect")
-async def autocorrect(request: AutocorrectRequest):
-    """
-    Autocorrect the user's transcript for spelling, punctuation, and obvious word errors.
-    Simplified endpoint - no conversation history needed for basic corrections.
-    """
-    if not openai_client:
-        return {"error": "OpenAI API key not configured"}
+# @app.post("/autocorrect")
+# async def autocorrect(request: AutocorrectRequest):
+#     """
+#     Autocorrect the user's transcript for spelling, punctuation, and obvious word errors.
+#     Simplified endpoint - no conversation history needed for basic corrections.
+#     """
+#     if not openai_client:
+#         return {"error": "OpenAI API key not configured"}
 
-    # Don't process empty transcripts
-    if not request.transcript.strip():
-        return {"corrected": "", "status": "complete"}
+#     # Don't process empty transcripts
+#     if not request.transcript.strip():
+#         return {"corrected": "", "status": "complete"}
 
-    try:
-        # Simple prompt - just correct the transcript
-        user_prompt = f'Correct this Spanish transcript: "{request.transcript}"'
+#     try:
+#         # Simple prompt - just correct the transcript
+#         user_prompt = f'Correct this Spanish transcript: "{request.transcript}"'
 
-        messages = [
-            {"role": "system", "content": AUTOCORRECT_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
-        ]
+#         messages = [
+#             {"role": "system", "content": AUTOCORRECT_SYSTEM_PROMPT},
+#             {"role": "user", "content": user_prompt}
+#         ]
 
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=200,
-            temperature=0.3,  # Lower temperature for more consistent corrections
-        )
+#         response = openai_client.chat.completions.create(
+#             model="gpt-4o-mini",
+#             messages=messages,
+#             max_tokens=200,
+#             temperature=0.3,  # Lower temperature for more consistent corrections
+#         )
 
-        corrected_text = response.choices[0].message.content.strip()
+#         corrected_text = response.choices[0].message.content.strip()
         
-        # Remove any surrounding quotes the model might add
-        if corrected_text.startswith('"') and corrected_text.endswith('"'):
-            corrected_text = corrected_text[1:-1]
+#         # Remove any surrounding quotes the model might add
+#         if corrected_text.startswith('"') and corrected_text.endswith('"'):
+#             corrected_text = corrected_text[1:-1]
 
-        return {
-            "corrected": corrected_text,
-            "status": "complete"
-        }
+#         return {
+#             "corrected": corrected_text,
+#             "status": "complete"
+#         }
 
-    except Exception as e:
-        print(f"Error autocorrecting transcript: {e}")
-        return {"error": str(e)}
+#     except Exception as e:
+#         print(f"Error autocorrecting transcript: {e}")
+#         return {"error": str(e)}
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ const initialState: RootState = {
   currentVideo: null,
   currentChatType: null,
   videoRefreshKey: Date.now(),
+  currentTab: 'home',
 }
 
 const dataReducer = (state: RootState = initialState, action: DataAction): RootState => {
@@ -33,6 +34,11 @@ const dataReducer = (state: RootState = initialState, action: DataAction): RootS
       return {
         ...state,
         videoRefreshKey: Date.now(),
+      };
+    case 'SET_CURRENT_TAB':
+      return {
+        ...state,
+        currentTab: action.payload,
       };
     default:
       return state;

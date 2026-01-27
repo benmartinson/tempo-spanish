@@ -10,6 +10,8 @@ import {
 import YouTubePlayer from './YouTubePlayer';
 import { KeyVocabulary, VideoContext } from '../../types';
 import { useNavigation } from '@react-navigation/native';
+import { setCurrentTab } from '../../store/actions/dataActions';
+import { useDispatch } from 'react-redux';
 
 interface VideoProps {
   video: VideoContext;
@@ -24,6 +26,7 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
   const [translations, setTranslations] = useState<KeyVocabulary[]>([]);
   const [time, setTime] = useState<number>(0);
   const timeRemaining = Math.floor(Math.max(clip.end - time, 0));
+  const dispatch = useDispatch();
 
   const translateWord = async (word: KeyVocabulary) => {
     const needsRemoval = translations.find(translation => translation.value === word.value);
@@ -36,8 +39,8 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
 
   const handleSetTime = (newTime: number) => {
     const newTimeRemaining = Math.floor(Math.max(clip.end - newTime, 0));
-    console.log({newTimeRemaining, timeRemaining});
     if (newTimeRemaining < 1 && timeRemaining > 0) {
+      dispatch(setCurrentTab('discuss'));
       navigation.navigate('Discuss' as never);
       setTime(newTime);
       return;

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -16,7 +16,7 @@ import { RecordButton, RecordStatus } from '../RecordButton';
 import { useAutocorrect } from '../useAutocorrect';
 import { SuggestionBox } from '../SuggestionBox';
 import { Answer, RootState, VideoContext } from '../../types';
-import { setCurrentVideo, setNextSegment, refreshVideoPlayer } from '../../store/actions/dataActions';
+import { setCurrentVideo, setNextSegment, refreshVideoPlayer, setCurrentTab } from '../../store/actions/dataActions';
 import {
   BACKEND_BASE_URL,
   connectToBackend,
@@ -25,11 +25,12 @@ import {
   requestMicrophonePermission,
   setAudioModeForRecording,
   playAudio,
+  stopAudio,
 } from '../streaming_helpers';
 import ChatSelection from './ChatSelection';
 import { MultipleChoice } from '../MultipleChoice';
 import { getVideoTitle } from '../../data/question_clips';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
 
 interface ChatProps {
   chatType?: "general" | "video-based" | null;
@@ -37,6 +38,7 @@ interface ChatProps {
 
 const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const [isRecording, setIsRecording] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -44,16 +46,18 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [multipleChoiceAnswers, setMultipleChoiceAnswers] = useState<Answer[]>([]);
+  const [currentlyPlayingAnswerIndex, setCurrentlyPlayingAnswerIndex] = useState<number | null>(null);
+  const [questionAudio, setQuestionAudio] = useState<string | null>(null);
+  const [answerAudios, setAnswerAudios] = useState<string[]>([]);
   // Chat conversation state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
 
-
-  // Chat type selection state
   const dispatch = useDispatch();
   const currentChatType = useSelector((state: RootState) => state.currentChatType);
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const currentTab = useSelector((state: RootState) => state.currentTab);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -108,10 +112,33 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     }
   }, [transcript, interimTranscript]);
 
+  // Play question audio when the Discuss tab gains focus
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     if (questionAudio) {
+  //       playAudio(questionAudio);
+  //     }
+  //   }, [questionAudio])
+  // );
+
+  // Stop audio when the Discuss tab loses focus
+  useEffect(() => {
+    console.log({currentTab});
+    if (currentTab === 'discuss') {
+      if (questionAudio) {
+        playAudio(questionAudio);
+      }
+    }
+    if (currentTab !== 'discuss') {
+      stopAudio();
+    }
+  }, [currentTab]);
+
   const handleCorrectAnswer = () => {
     setMultipleChoiceAnswers([]);
     setMessages([]);
     dispatch(setNextSegment());
+    dispatch(setCurrentTab('watch'));
     navigation.navigate('Watch' as never);
   };
 
@@ -147,13 +174,19 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     setMessages([{ role: 'assistant', content: data.question }]);
     setMultipleChoiceAnswers(data.answers.map((answer: string, index: number) => ({ answer, correct: index === data.correct_answer })));
 
-    // Play audio if available
+    // Store audio for replay
     if (data.audio) {
+      setQuestionAudio(data.audio);
+    }
+    if (data.audio_answers) {
+      setAnswerAudios(data.audio_answers);
+    }
+
+    // Play audio if available
+    if (data.audio && currentTab === 'discuss') {
       await playAudio(data.audio);
     }
   };
-
-
 
   const initializeWithPrompt = async () => {
     setIsLoadingInitialMessage(true);
@@ -234,6 +267,8 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       wsRef.current.close();
       wsRef.current = null;
     }
+    // Stop any playing audio
+    await stopAudio();
   };
 
   const handleTranscript = (transcriptText: string, isFinal: boolean) => {
@@ -494,18 +529,28 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
             <>
               {/* Render conversation messages */}
               {messages.map((msg, index) => (
-                <ChatBubble key={index} message={msg} />
+                <ChatBubble 
+                  key={index} 
+                  message={msg} 
+                  onPress={msg.role === 'assistant' && questionAudio ? () => playAudio(questionAudio) : undefined}
+                />
               ))}
 
               {/* Multiple choice answers */}
               {multipleChoiceAnswers.length > 0 && (
-                <MultipleChoice answers={multipleChoiceAnswers} onCorrectAnswer={handleCorrectAnswer}/>
+                <MultipleChoice 
+                  answers={multipleChoiceAnswers} 
+                  onCorrectAnswer={handleCorrectAnswer}
+                  currentlyPlayingIndex={currentlyPlayingAnswerIndex}
+                  onPressAudio={answerAudios.length > 0 ? (index) => playAudio(answerAudios[index]) : undefined}
+                />
               )}
 
               {currentVideo && (
                 <View style={styles.questionContextContainer}>
                   <TouchableOpacity style={styles.questionContextButton} onPress={() => {
                     dispatch(refreshVideoPlayer());
+                    dispatch(setCurrentTab('watch'));
                     navigation.navigate('Watch' as never);
                   }}>
                     <Text style={styles.questionContextText}>Watch Again 🔙</Text>

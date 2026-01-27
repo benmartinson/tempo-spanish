@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Feather from '@expo/vector-icons/Feather';
+import { setCurrentTab } from '../../store/actions/dataActions';
+import { useDispatch } from 'react-redux';
 
 interface SelectVideoPromptProps {
   title?: string;
@@ -13,8 +15,10 @@ const SelectVideoPrompt: React.FC<SelectVideoPromptProps> = ({
   subtitle = 'Choose a video to start watching',
 }) => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
 
   const handleSelectVideo = () => {
+    dispatch(setCurrentTab('videos'));
     navigation.navigate('Videos' as never);
   };
 
