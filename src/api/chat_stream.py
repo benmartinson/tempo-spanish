@@ -236,6 +236,7 @@ async def video_based_question(request: VideoBasedQuestionRequest):
     Expects segments array to be provided in the request.
     Uses the first segment as the main segment and the second (if provided) as previous context.
     """
+    print('here')
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
 

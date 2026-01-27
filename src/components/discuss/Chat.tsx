@@ -120,15 +120,23 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       setError('No video selected');
       return;
     }
+    const segment = currentVideo.segments[currentVideo.currentSegment];
+    const body = JSON.stringify({
+      segments: [{
+        segment_id: currentVideo.currentSegment,
+        start: segment.start,
+        end: segment.end,
+        resolved_text: segment.text,
+        cefr_level: segment.cefr_level,
+      }],
+    })
+    console.log({body})
     const response = await fetch(`${BACKEND_BASE_URL}/video-based-question`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        videoId: currentVideo.videoId,
-        segments: [currentVideo.segments[currentVideo.currentSegment]],
-      }),
+      body,
     });
 
     if (!response.ok) {

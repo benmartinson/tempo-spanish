@@ -26,7 +26,7 @@ const TopNavBar: React.FC = () => {
         <View style={styles.leftSpacer} />
         <View style={styles.titleContainer}>
           <Text style={styles.appName}>Tempo Spanish</Text>
-          <Entypo name="sound" size={24} color="yellow" />
+          <Entypo name="sound" size={24} color="#ffd60a" />
         </View>
         <TouchableOpacity
           style={styles.avatarButton}
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'yellow',
+    color: '#ffd60a',
   },
   avatarButton: {
     width: 40,
