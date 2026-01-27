@@ -23,7 +23,6 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay, refreshKe
     return `${baseUrl}?${params.toString()}`;
   };
 
-  console.log({clip, refreshKey})
 
   const html = `
     <!DOCTYPE html>

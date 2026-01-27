@@ -28,6 +28,13 @@ export interface Segment {
   start: number;
   end: number;
   text: string;
+  cefr_level: string;
+  key_vocabulary: KeyVocabulary[];
+}
+
+export interface KeyVocabulary {
+  value: string;
+  translation: string;
 }
 
 export interface Answer {

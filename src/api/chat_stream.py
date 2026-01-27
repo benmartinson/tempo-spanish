@@ -203,12 +203,17 @@ async def get_video_segments(video_id: str):
         segments = []
         for match in results.matches:
             metadata = match.metadata
+            vocab_map = [
+                {"value": value, "translation": translation}
+                for value, translation in zip(metadata.get("key_vocabulary"), metadata.get("translated_key_vocabulary"))
+            ]
             segments.append({
                 "segment_id": int(metadata.get("segment_id", 0)),
                 "start": metadata.get("start"),
                 "end": metadata.get("end"),
-                "resolved_text": metadata.get("resolved_text", ""),
-                "cefr_level": metadata.get("cefr_level")
+                "text": metadata.get("resolved_text", ""),
+                "cefr_level": metadata.get("cefr_level"),
+                "key_vocabulary": vocab_map
             })
         
         # Sort by segment_id
