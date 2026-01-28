@@ -1,6 +1,6 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { WebView } from 'react-native-webview';
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { WebView } from "react-native-webview";
 import { Segment } from "../../types";
 
 interface YouTubePlayerProps {
@@ -10,20 +10,26 @@ interface YouTubePlayerProps {
   setTime: (time: number) => void;
 }
 
-const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay, refreshKey, setTime }) => {
+const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
+  clip,
+  autoplay,
+  refreshKey,
+  setTime,
+}) => {
+  console.log("clip", clip);
   const getVideoUrl = (clip) => {
-    const baseUrl = 'https://yt-relay.vercel.app';
+    const baseUrl = "https://yt-relay.vercel.app";
     const params = new URLSearchParams({
       v: clip.videoId,
-      autoplay: autoplay ? '1' : '0',
-      mute: '1', 
+      autoplay: autoplay ? "1" : "0",
+      mute: "1",
       start: clip.start.toString(),
       end: clip.end.toString(),
-      controls: '1',
+      controls: "1",
     });
     return `${baseUrl}?${params.toString()}`;
   };
-  
+
   return (
     <View style={styles.container}>
       <WebView
@@ -37,7 +43,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay, refreshKe
         scrollEnabled={false}
         onMessage={(e) => {
           const msg = JSON.parse(e.nativeEvent.data);
-          if (msg.type === 'YT_TIME') {
+          if (msg.type === "YT_TIME") {
             setTime(msg.time);
           }
         }}
@@ -49,13 +55,13 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ clip, autoplay, refreshKe
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   webview: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
 });
 

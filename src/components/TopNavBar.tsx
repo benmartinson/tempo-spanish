@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import Entypo from '@expo/vector-icons/Entypo';
 import { useClerk, useUser } from '@clerk/clerk-expo';
+import Ionicons from '@expo/vector-icons/Ionicons';
+
 
 const TopNavBar: React.FC = () => {
   const [profileVisible, setProfileVisible] = useState(false);
@@ -26,13 +28,13 @@ const TopNavBar: React.FC = () => {
         <View style={styles.leftSpacer} />
         <View style={styles.titleContainer}>
           <Text style={styles.appName}>Tempo Spanish</Text>
-          <Entypo name="sound" size={24} color="#ffd60a" />
+          <Entypo name="sound" size={22} color="#1a1a2e" />
         </View>
         <TouchableOpacity
           style={styles.avatarButton}
           onPress={() => setProfileVisible(true)}
         >
-          <Text style={styles.avatarText}>👤</Text>
+          <Ionicons name="person" size={18} color="#dfe2ea" />
         </TouchableOpacity>
       </View>
 
@@ -81,9 +83,9 @@ const TopNavBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a4a',
+    borderBottomColor: 'gray',
     overflow: 'hidden',
   },
   content: {
@@ -104,13 +106,14 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   appName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffd60a',
+    fontSize: 20,
+    fontFamily: 'Helvetica',
+    fontWeight: '500',
+    color: '#1a1a2e',
   },
   avatarButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: 20,
     backgroundColor: '#3d3a52',
     justifyContent: 'center',
@@ -119,7 +122,9 @@ const styles = StyleSheet.create({
     borderColor: '#5a5680',
   },
   avatarText: {
-    fontSize: 20,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#dfe2ea',
   },
   modalContainer: {
     flex: 1,

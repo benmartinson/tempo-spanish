@@ -11,7 +11,7 @@ import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons';
 
 // Tab bar icon component
 const TabIcon: React.FC<{ icon: string; label: string; focused: boolean }> = ({ icon, label, focused }) => {
-  const iconColor = focused ? '#fff' : '#888';
+  const iconColor = focused ? 'black' : '#888';
   
   const iconComponent = (icon: string) => {
     switch (icon) {
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tabLabelFocused: {
-    color: '#fff',
+    color: 'black',
   },
 });
 

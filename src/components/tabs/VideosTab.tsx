@@ -5,7 +5,7 @@ import VideoList from '../watch/VideoList';
 const VideosTab: React.FC = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Videos</Text>
+      {/* <Text style={styles.title}>Videos</Text> */}
       <VideoList />
     </View>
   );

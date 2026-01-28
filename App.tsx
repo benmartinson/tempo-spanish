@@ -18,6 +18,7 @@ import TabIcon from "./src/components/tabs/TabIcon";
 import WatchTab from "./src/components/watch/WatchTab";
 import TopNavBar from "./src/components/TopNavBar";
 import DiscussTab from "./src/components/discuss/DiscussTab";
+import VideoList from "./src/components/watch/VideoList";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -32,8 +33,8 @@ const MainTabs: React.FC = () => {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1a1a2e',
-          borderTopColor: '#2a2a4a',
+          backgroundColor: 'white',
+          borderTopColor: 'gray',
           borderTopWidth: 1,
           height: 80,
           paddingBottom: 20,
@@ -56,7 +57,7 @@ const MainTabs: React.FC = () => {
       />
       <Tab.Screen
         name="Videos"
-        component={VideosTab}
+        component={VideoList}
         listeners={{
           tabPress: () => {
             dispatch(setCurrentTab('videos'));

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import AntDesign from '@expo/vector-icons/AntDesign';
 import { Answer } from '../types';
 
 interface MultipleChoiceProps {
@@ -52,7 +53,7 @@ export const MultipleChoice: React.FC<MultipleChoiceProps> = ({ answers, onCorre
               style={styles.audioButton}
               onPress={() => onPressAudio(index)}
             >
-              <Text style={styles.audioButtonText}>🔊</Text>
+              <AntDesign name="sound" size={24} color="white" />
             </TouchableOpacity>
           )}
         </View>
@@ -105,7 +106,6 @@ const styles = StyleSheet.create({
   multipleChoiceButtonText: {
     color: '#fff',
     fontSize: 16,
-    textAlign: 'center',
   },
   playingButtonText: {
     color: '#90caf9',

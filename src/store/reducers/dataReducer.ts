@@ -6,10 +6,22 @@ const initialState: RootState = {
   currentChatType: null,
   videoRefreshKey: Date.now(),
   currentTab: 'home',
+  allChannels: [],
+  allVideos: [],
 }
 
 const dataReducer = (state: RootState = initialState, action: DataAction): RootState => {
   switch(action.type) {
+    case 'SET_ALL_CHANNELS':
+      return {
+        ...state,
+        allChannels: action.payload,
+      };
+    case 'SET_ALL_VIDEOS':
+      return {
+        ...state,
+        allVideos: action.payload,
+      };
     case 'SET_CURRENT_VIDEO':
       return {
         ...state,

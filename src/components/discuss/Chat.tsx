@@ -31,6 +31,8 @@ import ChatSelection from './ChatSelection';
 import { MultipleChoice } from '../MultipleChoice';
 import { getVideoTitle } from '../../data/question_clips';
 import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
 
 interface ChatProps {
   chatType?: "general" | "video-based" | null;
@@ -547,15 +549,15 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
               )}
 
               {currentVideo && (
-                <View style={styles.questionContextContainer}>
                   <TouchableOpacity style={styles.questionContextButton} onPress={() => {
                     dispatch(refreshVideoPlayer());
                     dispatch(setCurrentTab('watch'));
                     navigation.navigate('Watch' as never);
                   }}>
-                    <Text style={styles.questionContextText}>Watch Again 🔙</Text>
+                    <Text style={styles.questionContextText}>Watch Again 
+                    </Text>
+                    <MaterialIcons name="fast-rewind" size={24} color='#888' />
                   </TouchableOpacity>
-                </View>
               )}
 
               {/* Show loading indicator while waiting for response */}
@@ -629,18 +631,19 @@ const styles = StyleSheet.create({
   },
   questionContextContainer: {
     marginTop: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
     backgroundColor: '#333',
     borderRadius: 16,
     alignSelf: 'flex-start',
   },
   questionContextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: '#2a2a4a',
     borderRadius: 8,
-    marginTop: 5,
+    marginTop: 15,
     alignSelf: 'flex-start',
   },
   questionContextText: {
