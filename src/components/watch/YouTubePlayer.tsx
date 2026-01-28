@@ -16,7 +16,6 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   refreshKey,
   setTime,
 }) => {
-  console.log("clip", clip);
   const getVideoUrl = (clip) => {
     const baseUrl = "https://yt-relay.vercel.app";
     const params = new URLSearchParams({

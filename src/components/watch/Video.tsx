@@ -10,8 +10,16 @@ import {
 import YouTubePlayer from "./YouTubePlayer";
 import { KeyVocabulary, VideoContext } from "../../types";
 import { useNavigation } from "@react-navigation/native";
-import { setCurrentTab } from "../../store/actions/dataActions";
+import {
+  refreshVideoPlayer,
+  setCurrentTab,
+  setNextSegment,
+  setPreviousSegment,
+} from "../../store/actions/dataActions";
 import { useDispatch } from "react-redux";
+import VocabList from "./VocabList";
+import TranscriptBubble from "./TranscriptBubble";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface VideoProps {
   video: VideoContext;
@@ -23,23 +31,9 @@ interface VideoProps {
 const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
   const navigation = useNavigation();
   const clip = video.segments[video.currentSegment];
-  const [translations, setTranslations] = useState<KeyVocabulary[]>([]);
   const [time, setTime] = useState<number>(0);
   const timeRemaining = Math.floor(Math.max(clip.end - time, 0));
   const dispatch = useDispatch();
-
-  const translateWord = async (word: KeyVocabulary) => {
-    const needsRemoval = translations.find(
-      (translation) => translation.value === word.value,
-    );
-    if (needsRemoval) {
-      setTranslations((prev) =>
-        prev.filter((translation) => translation.value !== word.value),
-      );
-    } else {
-      setTranslations((prev) => [...prev, word]);
-    }
-  };
 
   const handleSetTime = (newTime: number) => {
     const newTimeRemaining = Math.max(Math.ceil(clip.end - newTime), 0);
@@ -66,7 +60,7 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
           refreshKey={refreshKey}
           setTime={handleSetTime}
         />
-        {timeRemaining < 10 && timeRemaining > 0 && (
+        {timeRemaining < 5 && timeRemaining > 0 && (
           <View style={styles.countdownContainer}>
             <Text style={styles.countdownText}>
               Segment ends in {timeRemaining}
@@ -75,34 +69,39 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
         )}
       </View>
       <ScrollView>
+        <View style={styles.buttonContainer}>
+          {video.currentSegment > 0 ? (
+            <TouchableOpacity
+              style={styles.questionContextButton}
+              onPress={() => {
+                dispatch(setPreviousSegment());
+              }}
+            >
+              <MaterialIcons name="navigate-before" size={24} color="#888" />
+              <Text style={styles.questionContextText}>Previous Segment</Text>
+            </TouchableOpacity>
+          ) : (
+            <View></View>
+          )}
+          {video.currentSegment < video.segments.length - 1 ? (
+            <TouchableOpacity
+              style={styles.questionContextButton}
+              onPress={() => {
+                dispatch(setNextSegment());
+              }}
+            >
+              <Text style={styles.questionContextText}>Next Segment</Text>
+              <MaterialIcons name="navigate-next" size={24} color="#888" />
+            </TouchableOpacity>
+          ) : (
+            <View></View>
+          )}
+        </View>
+        {clip.words && clip.words.length > 0 && (
+          <TranscriptBubble words={clip.words} time={time} />
+        )}
         {clip.key_vocabulary && clip.key_vocabulary.length > 0 && (
-          <View style={styles.vocabCard}>
-            <Text style={styles.vocabTitle}>Vocab in this segment</Text>
-            <ScrollView style={styles.vocabList}>
-              {clip.key_vocabulary.map((word, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.vocabItem}
-                  onPress={() => translateWord(word)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.vocabWord}>{word.value}</Text>
-                  {translations.find(
-                    (translation) => translation.value === word.value,
-                  ) && (
-                    <Text style={styles.vocabTranslation}>
-                      {" => "}
-                      {
-                        translations.find(
-                          (translation) => translation.value === word.value,
-                        )?.translation
-                      }
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          <VocabList vocab={clip.key_vocabulary} time={time} />
         )}
       </ScrollView>
     </View>
@@ -113,6 +112,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#1a1a2e",
+  },
+  questionContextButton: {
+    flexDirection: "row",
+    alignSelf: "flex-end",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#2a2a4a",
+    borderRadius: 8,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    margin: 16,
+    marginBottom: 0,
+  },
+  questionContextText: {
+    color: "#888",
+    fontSize: 12,
   },
   header: {
     flexDirection: "row",
@@ -153,46 +173,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  vocabCard: {
-    margin: 16,
-    backgroundColor: "#2d2a40",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-    // maxHeight: 200,
-  },
-  vocabTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 12,
-  },
-  vocabList: {
-    flexGrow: 0,
-  },
-  vocabItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#3d3a52",
-    borderRadius: 10,
-    marginBottom: 8,
-  },
-  vocabWord: {
-    color: "#a0a0b0",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  vocabTranslation: {
-    color: "#a0a0b0",
-    fontSize: 15,
-    fontWeight: "500",
-  },
+
   loader: {
     marginLeft: 8,
   },

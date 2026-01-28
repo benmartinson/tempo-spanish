@@ -2,12 +2,20 @@ export interface RootState {
   currentVideo: VideoContext | null;
   currentChatType: "general" | "video-based" | null;
   videoRefreshKey: number;
-  currentTab: 'home' | 'videos' | 'watch' | 'discuss';
+  currentTab: "home" | "videos" | "watch" | "discuss";
   allChannels: Channel[];
   allVideos: Video[];
 }
 
-export type DataActionTypes = 'SET_CURRENT_VIDEO' | 'SET_CURRENT_CHAT_TYPE' | 'SET_NEXT_SEGMENT' | 'REFRESH_VIDEO_PLAYER' | 'SET_CURRENT_TAB' | 'SET_ALL_CHANNELS' | 'SET_ALL_VIDEOS';
+export type DataActionTypes =
+  | "SET_CURRENT_VIDEO"
+  | "SET_CURRENT_CHAT_TYPE"
+  | "SET_NEXT_SEGMENT"
+  | "REFRESH_VIDEO_PLAYER"
+  | "SET_CURRENT_TAB"
+  | "SET_ALL_CHANNELS"
+  | "SET_ALL_VIDEOS"
+  | "SET_PREVIOUS_SEGMENT";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -48,11 +56,20 @@ export interface Segment {
   text: string;
   cefr_level: string;
   key_vocabulary: KeyVocabulary[];
+  words: SegmentWord[];
+}
+
+export interface SegmentWord {
+  word: string;
+  start: number;
+  end: number;
 }
 
 export interface KeyVocabulary {
   value: string;
   translation: string;
+  start: number;
+  end: number;
 }
 
 export interface Answer {

@@ -203,17 +203,53 @@ async def get_video_segments(video_id: str):
         segments = []
         for match in results.matches:
             metadata = match.metadata
-            vocab_map = [
-                {"value": value, "translation": translation}
-                for value, translation in zip(metadata.get("key_vocabulary"), metadata.get("translated_key_vocabulary"))
-            ]
+            words = json.loads(metadata["words"])
+            # if word is in words, add it to the vocab_map with the start and end time
+            key_vocabulary = metadata["key_vocabulary"]
+            translated_key_vocabulary = metadata["translated_key_vocabulary"]
+            vocab_map = []
+
+            # Create a mapping from key_vocabulary to its translation for O(1) lookups
+            vocab_to_translation = dict(zip(key_vocabulary, translated_key_vocabulary))
+
+            # Function to check if consecutive words match a phrase
+            def find_phrase_matches(words_list, phrase):
+                phrase_words = [w.strip(".,!?") for w in phrase.lower().split()]
+                phrase_len = len(phrase_words)
+                # also need to strip punctuation from the words
+                words_list = [{**word, "word": word["word"].strip(".,!?")} for word in words_list]
+
+                for i in range(len(words_list) - phrase_len + 1):
+                    # Check if consecutive words match the phrase
+                    if all(words_list[i + j]["word"].lower() == phrase_words[j]
+                           for j in range(phrase_len)):
+                        # Return the start time of first word and end time of last word
+                        return {
+                            "start": words_list[i]["start"],
+                            "end": words_list[i + phrase_len - 1]["end"],
+                            "matched_words": [w["word"] for w in words_list[i:i + phrase_len]]
+                        }
+                return None
+
+            # Check each phrase in key_vocabulary
+            for phrase in key_vocabulary:
+                match = find_phrase_matches(words, phrase)
+                if match:
+                    vocab_map.append({
+                        "value": phrase.capitalize(),
+                        "translation": vocab_to_translation[phrase].capitalize(),
+                        "start": match["start"],
+                        "end": match["end"],
+                    })
+                    
             segments.append({
                 "segment_id": int(metadata.get("segment_id", 0)),
                 "start": metadata.get("start"),
                 "end": metadata.get("end"),
                 "text": metadata.get("resolved_text", ""),
                 "cefr_level": metadata.get("cefr_level"),
-                "key_vocabulary": vocab_map
+                "key_vocabulary": vocab_map,
+                "words": words,
             })
         
         # Sort by segment_id

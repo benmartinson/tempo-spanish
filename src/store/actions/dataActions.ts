@@ -1,36 +1,45 @@
-import { Channel, DataAction, Segment, Video, VideoContext } from '../../types';
+import { Channel, DataAction, Segment, Video, VideoContext } from "../../types";
 
 export const setCurrentVideo = (video: VideoContext | null): DataAction => ({
-  type: 'SET_CURRENT_VIDEO',
+  type: "SET_CURRENT_VIDEO",
   payload: video,
 });
 
 export const setNextSegment = (): DataAction => ({
-  type: 'SET_NEXT_SEGMENT',
+  type: "SET_NEXT_SEGMENT",
   payload: null,
 });
 
-export const setCurrentChatType = (chatType: "general" | "video-based"): DataAction => ({
-  type: 'SET_CURRENT_CHAT_TYPE',
+export const setPreviousSegment = (): DataAction => ({
+  type: "SET_PREVIOUS_SEGMENT",
+  payload: null,
+});
+
+export const setCurrentChatType = (
+  chatType: "general" | "video-based",
+): DataAction => ({
+  type: "SET_CURRENT_CHAT_TYPE",
   payload: chatType,
 });
 
 export const refreshVideoPlayer = (): DataAction => ({
-  type: 'REFRESH_VIDEO_PLAYER',
+  type: "REFRESH_VIDEO_PLAYER",
   payload: null,
 });
 
-export const setCurrentTab = (tab: 'home' | 'videos' | 'watch' | 'discuss'): DataAction => ({
-  type: 'SET_CURRENT_TAB',
+export const setCurrentTab = (
+  tab: "home" | "videos" | "watch" | "discuss",
+): DataAction => ({
+  type: "SET_CURRENT_TAB",
   payload: tab,
 });
 
 export const setAllChannels = (channels: Channel[]): DataAction => ({
-  type: 'SET_ALL_CHANNELS',
+  type: "SET_ALL_CHANNELS",
   payload: channels,
 });
 
 export const setAllVideos = (videos: Video[]): DataAction => ({
-  type: 'SET_ALL_VIDEOS',
+  type: "SET_ALL_VIDEOS",
   payload: videos,
 });
