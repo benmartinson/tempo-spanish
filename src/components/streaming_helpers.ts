@@ -1,12 +1,16 @@
-import * as FileSystem from 'expo-file-system/legacy';
-import { Audio } from 'expo-av';
-import Constants from 'expo-constants';
+import * as FileSystem from "expo-file-system/legacy";
+import { Audio } from "expo-av";
+import Constants from "expo-constants";
 
 // Backend URLs - all configured in app.config.js
 const config = Constants.expoConfig?.extra;
 
-export const BACKEND_BASE_URL = __DEV__ ? config?.devBaseUrl : config?.productionBaseUrl;
-export const BACKEND_WS_URL = __DEV__ ? config?.devWsUrl : config?.productionWsUrl;
+export const BACKEND_BASE_URL = __DEV__
+  ? config?.devBaseUrl
+  : config?.productionBaseUrl;
+export const BACKEND_WS_URL = __DEV__
+  ? config?.devWsUrl
+  : config?.productionWsUrl;
 
 // Debug: uncomment to verify which URLs are being used
 // console.log('Environment:', __DEV__ ? 'DEV' : 'PROD', 'Backend:', BACKEND_BASE_URL);
@@ -17,7 +21,7 @@ export interface TranscriptWord {
 }
 
 export interface BackendMessage {
-  type: 'ready' | 'connected' | 'transcript' | 'metadata' | 'error';
+  type: "ready" | "connected" | "transcript" | "metadata" | "error";
   message?: string;
   transcript?: string;
   confidence?: number;
@@ -45,6 +49,12 @@ export const playAudio = async (audioBase64: string) => {
       currentPlayingSound = null;
     }
 
+    // Configure audio mode for playback through speakers
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+    });
+
     const { sound } = await Audio.Sound.createAsync({
       uri: `data:audio/mp3;base64,${audioBase64}`,
     });
@@ -62,7 +72,7 @@ export const playAudio = async (audioBase64: string) => {
       }
     });
   } catch (err) {
-    console.error('Error playing audio:', err);
+    console.error("Error playing audio:", err);
   }
 };
 
@@ -74,7 +84,7 @@ export const stopAudio = async () => {
       await currentPlayingSound.unloadAsync();
       currentPlayingSound = null;
     } catch (err) {
-      console.error('Error stopping audio:', err);
+      console.error("Error stopping audio:", err);
     }
   }
 };
@@ -82,12 +92,14 @@ export const stopAudio = async () => {
 /**
  * Connect to the backend WebSocket server for transcription
  */
-export const connectToBackend = (callbacks: TranscriptCallbacks): Promise<WebSocket> => {
+export const connectToBackend = (
+  callbacks: TranscriptCallbacks,
+): Promise<WebSocket> => {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(BACKEND_WS_URL);
 
     ws.onopen = () => {
-      console.log('Connected to backend server');
+      console.log("Connected to backend server");
     };
 
     ws.onmessage = (event) => {
@@ -95,51 +107,51 @@ export const connectToBackend = (callbacks: TranscriptCallbacks): Promise<WebSoc
         const data: BackendMessage = JSON.parse(event.data);
 
         switch (data.type) {
-          case 'ready':
-            console.log('Server ready:', data.message);
-            callbacks.onReady?.(data.message || '');
+          case "ready":
+            console.log("Server ready:", data.message);
+            callbacks.onReady?.(data.message || "");
             break;
 
-          case 'connected':
+          case "connected":
             callbacks.onConnected?.();
             resolve(ws);
             break;
 
-          case 'transcript':
+          case "transcript":
             if (data.transcript) {
               callbacks.onTranscript?.(data.transcript, data.is_final || false);
             }
             break;
 
-          case 'error':
-            console.error('Backend error:', data.message);
-            callbacks.onError?.(data.message || 'Server error occurred');
-            reject(new Error(data.message || 'Server error'));
+          case "error":
+            console.error("Backend error:", data.message);
+            callbacks.onError?.(data.message || "Server error occurred");
+            reject(new Error(data.message || "Server error"));
             break;
 
-          case 'metadata':
-            console.log('Received metadata from DeepGram');
+          case "metadata":
+            console.log("Received metadata from DeepGram");
             callbacks.onMetadata?.();
             break;
         }
       } catch (err) {
-        console.error('Error parsing backend message:', err);
+        console.error("Error parsing backend message:", err);
       }
     };
 
     ws.onerror = (event) => {
-      console.error('WebSocket error:', event);
-      reject(new Error('Failed to connect to transcription server'));
+      console.error("WebSocket error:", event);
+      reject(new Error("Failed to connect to transcription server"));
     };
 
     ws.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason);
+      console.log("WebSocket closed:", event.code, event.reason);
     };
 
     // Timeout if we don't get connected within 10 seconds
     setTimeout(() => {
       if (ws.readyState !== WebSocket.OPEN) {
-        reject(new Error('Connection timeout'));
+        reject(new Error("Connection timeout"));
       }
     }, 10000);
   });
@@ -151,7 +163,7 @@ export const connectToBackend = (callbacks: TranscriptCallbacks): Promise<WebSoc
  */
 export const startAudioStreaming = (
   getRecording: () => Audio.Recording | null,
-  getWebSocket: () => WebSocket | null
+  getWebSocket: () => WebSocket | null,
 ): NodeJS.Timeout => {
   let lastBytesSent = 0;
   const headerSize = 44; // WAV header size
@@ -172,7 +184,7 @@ export const startAudioStreaming = (
 
       // Read the entire file as base64
       const base64Audio = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
+        encoding: "base64",
       });
 
       // Convert base64 to binary
@@ -199,7 +211,7 @@ export const startAudioStreaming = (
       }
     } catch (err) {
       // Ignore errors during streaming - file might be temporarily locked
-      console.log('Streaming chunk skipped:', err);
+      console.log("Streaming chunk skipped:", err);
     }
   }, 80);
 
@@ -211,7 +223,7 @@ export const startAudioStreaming = (
  */
 export const getRecordingConfig = (): Audio.RecordingOptions => ({
   android: {
-    extension: '.wav',
+    extension: ".wav",
     outputFormat: Audio.AndroidOutputFormat.DEFAULT,
     audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
     sampleRate: 16000,
@@ -219,7 +231,7 @@ export const getRecordingConfig = (): Audio.RecordingOptions => ({
     bitRate: 256000,
   },
   ios: {
-    extension: '.wav',
+    extension: ".wav",
     outputFormat: Audio.IOSOutputFormat.LINEARPCM,
     audioQuality: Audio.IOSAudioQuality.HIGH,
     sampleRate: 16000,
@@ -230,7 +242,7 @@ export const getRecordingConfig = (): Audio.RecordingOptions => ({
     linearPCMIsFloat: false,
   },
   web: {
-    mimeType: 'audio/webm',
+    mimeType: "audio/webm",
     bitsPerSecond: 128000,
   },
 });
@@ -240,13 +252,15 @@ export const getRecordingConfig = (): Audio.RecordingOptions => ({
  */
 export const requestMicrophonePermission = async (): Promise<boolean> => {
   const { status } = await Audio.requestPermissionsAsync();
-  return status === 'granted';
+  return status === "granted";
 };
 
 /**
  * Set audio mode for recording
  */
-export const setAudioModeForRecording = async (isRecording: boolean): Promise<void> => {
+export const setAudioModeForRecording = async (
+  isRecording: boolean,
+): Promise<void> => {
   await Audio.setAudioModeAsync({
     allowsRecordingIOS: isRecording,
     playsInSilentModeIOS: isRecording,

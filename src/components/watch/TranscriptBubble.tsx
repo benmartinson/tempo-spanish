@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { SegmentWord } from "../../types";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface TranscriptBubbleProps {
@@ -10,33 +10,54 @@ interface TranscriptBubbleProps {
 
 const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const displayedMaxIndex = useRef(-1);
+  const previousWords = useRef<SegmentWord[]>([]);
+  const previousTime = useRef<number>(0);
 
-  const currentWordIndex = useMemo(() => {
-    // Find the current word: where start <= time and next word's start > time
-    // If no next word, it's the current word if start <= time
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i];
-      const nextWord = words[i + 1];
-      const previousWord = i > 0 ? words[i - 1] : null;
+  // Reset when words array changes (new video/segment)
+  useEffect(() => {
+    displayedMaxIndex.current = -1;
+  }, [words]);
 
-      if (word.start <= time && (!previousWord || previousWord.end <= time)) {
-        // If there's no next word, or next word hasn't started yet
-        if (!nextWord || nextWord.start > time) {
-          return i;
-        }
+  const visibleWords = useMemo(() => {
+    if (time < previousTime.current) {
+      previousWords.current = [];
+      displayedMaxIndex.current = -1;
+    }
+    previousTime.current = time;
+    const timeSpan = 0.5;
+    const startIndex = displayedMaxIndex.current + 1;
+
+    // Nothing left to show
+    if (startIndex >= words.length) {
+      return previousWords.current;
+    }
+
+    // Check if the first unshown word has started
+    if (words[startIndex].start > time) {
+      return previousWords.current; // First unshown word hasn't started yet
+    }
+
+    // Collect words within the timespan
+    const result: SegmentWord[] = [];
+    for (let i = startIndex; i < words.length; i++) {
+      if (words[i].start <= time + timeSpan) {
+        result.push(words[i]);
+      } else {
+        break;
       }
     }
-    // If time is before first word, return -1 (no current word yet)
-    return -1;
-  }, [words, time]);
 
-  const previousWord =
-    currentWordIndex > 0 ? words[currentWordIndex - 1] : null;
-  const currentWord = currentWordIndex >= 0 ? words[currentWordIndex] : null;
-  const nextWord =
-    currentWordIndex >= 0 && currentWordIndex < words.length - 1
-      ? words[currentWordIndex + 1]
-      : null;
+    if (result.length === 0) {
+      return previousWords.current;
+    }
+    // Mark all result words as displayed
+    if (result.length > 0) {
+      displayedMaxIndex.current = startIndex + result.length - 1;
+    }
+    previousWords.current = [...result];
+    return result;
+  }, [words, time]);
 
   return (
     <View style={styles.card}>
@@ -52,13 +73,12 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
       </View>
       {isExpanded && (
         <View style={styles.wordsRow}>
-          <Text style={styles.sideWord}>
-            {previousWord ? previousWord.word : ""}
-          </Text>
-          <Text style={styles.currentWord}>
-            {currentWord ? currentWord.word : ""}
-          </Text>
-          <Text style={styles.sideWord}>{nextWord ? nextWord.word : ""}</Text>
+          {!visibleWords.length && <Text style={styles.visibleWord}></Text>}
+          {visibleWords.map((word, index) => (
+            <Text key={`${word.start}-${index}`} style={styles.visibleWord}>
+              {word.word}
+            </Text>
+          ))}
         </View>
       )}
     </View>
@@ -92,21 +112,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 16,
+    gap: 8,
     paddingTop: 16,
+    flexShrink: 1,
+    flexWrap: "wrap",
   },
-  sideWord: {
-    fontSize: 16,
-    color: "#888",
-    minWidth: 80,
-    textAlign: "center",
-    fontFamily: "Helvetica",
-  },
-  currentWord: {
-    fontSize: 28,
+  visibleWord: {
+    fontSize: 18,
     fontWeight: "600",
     color: "#4ade80",
-    minWidth: 100,
     textAlign: "center",
     fontFamily: "Helvetica",
   },

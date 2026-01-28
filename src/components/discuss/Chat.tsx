@@ -113,7 +113,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
 
   useEffect(() => {
     if (currentTab === "discuss") {
-      if (questionAudio) {
+      if (questionAudio && !isLoadingResponse) {
         playAudio(questionAudio);
       }
     }
@@ -135,6 +135,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       setError("No video selected");
       return;
     }
+    setIsLoadingResponse(true);
     const segment = currentVideo.segments[currentVideo.currentSegment];
     const body = JSON.stringify({
       segments: [
@@ -176,6 +177,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     if (data.audio_answers) {
       setAnswerAudios(data.audio_answers);
     }
+    setIsLoadingResponse(false);
 
     // Play audio if available
     if (data.audio && currentTab === "discuss") {

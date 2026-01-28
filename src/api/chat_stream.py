@@ -264,7 +264,6 @@ async def get_video_segments(video_id: str):
         print(f"Error fetching video segments: {e}")
         return {"error": str(e), "segments": []}
 
-
 @app.post("/video-based-question")
 async def video_based_question(request: VideoBasedQuestionRequest):
     """
@@ -326,6 +325,14 @@ Generate a comprehension question in Spanish for this video segment transcript.
         )
 
         question_data = json.loads(response.choices[0].message.content.strip())
+
+        # Track the correct answer before shuffling
+        correct_answer_text = question_data["answers"][question_data["correct_answer"]]
+
+        random.shuffle(question_data["answers"])
+
+        # Update the correct_answer index after shuffling
+        question_data["correct_answer"] = question_data["answers"].index(correct_answer_text)
 
         # Generate TTS audio for the question
         audio_base64 = generate_tts_audio(question_data["question"])
