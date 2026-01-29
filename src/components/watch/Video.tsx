@@ -57,11 +57,6 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
 
   return (
     <View style={styles.container}>
-      {/* <View style={styles.header}> */}
-      {/* <TouchableOpacity style={styles.button} onPress={onBackButton}> */}
-      {/* <Text style={styles.buttonText}>Back to Videos</Text> */}
-      {/* </TouchableOpacity> */}
-      {/* </View> */}
       <View style={styles.videoContainer}>
         <YouTubePlayer
           // clip={{ ...clip, videoId: video.videoId }}
@@ -183,7 +178,7 @@ const styles = StyleSheet.create({
     height: 230,
     backgroundColor: "#000",
     position: "relative",
-    marginTop: 30,
+    marginTop: 0,
   },
   countdownContainer: {
     position: "absolute",

@@ -40,6 +40,7 @@ import {
 import { MultipleChoice } from "../MultipleChoice";
 import { useNavigation } from "@react-navigation/native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import SelectedVideoBanner from "../common/SelectedVideoBanner";
 
 interface ChatProps {
   chatType?: "general" | "video-based" | null;
@@ -616,8 +617,10 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   // };
   // Chat interface
   return (
-    <View style={styles.container}>
-      {/* <View style={styles.header}>
+    <>
+      <SelectedVideoBanner />
+      <View style={styles.container}>
+        {/* <View style={styles.header}>
         <Text style={styles.title}>{currentChatType === 'general' ? 'General Chat' : `Discuss ${getVideoTitle(currentVideo?.videoId)}`}</Text>
         {messages.length > 0 && !isRecording && (
           <TouchableOpacity style={styles.clearAllButton} onPress={clearConversation}>
@@ -626,35 +629,40 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
         )}
       </View> */}
 
-      {isRecording || isConnecting ? (
-        /* Recording Overlay */
-        <View style={styles.recordingOverlay}>
-          {/* Transcription Section - Largest */}
-          <View style={styles.transcriptionSection}>
-            <Text style={styles.sectionLabel}>What you're saying:</Text>
-            <ScrollView ref={scrollViewRef} style={styles.transcriptionScroll}>
-              <Text style={styles.transcriptionText}>
-                {transcript}
-                {interimTranscript && (
-                  <Text style={styles.interimText}> {interimTranscript}</Text>
-                )}
-                {!transcript && !interimTranscript && (
-                  <Text style={styles.placeholderText}>Start speaking...</Text>
-                )}
-              </Text>
-            </ScrollView>
-          </View>
+        {isRecording || isConnecting ? (
+          /* Recording Overlay */
+          <View style={styles.recordingOverlay}>
+            {/* Transcription Section - Largest */}
+            <View style={styles.transcriptionSection}>
+              <Text style={styles.sectionLabel}>What you're saying:</Text>
+              <ScrollView
+                ref={scrollViewRef}
+                style={styles.transcriptionScroll}
+              >
+                <Text style={styles.transcriptionText}>
+                  {transcript}
+                  {interimTranscript && (
+                    <Text style={styles.interimText}> {interimTranscript}</Text>
+                  )}
+                  {!transcript && !interimTranscript && (
+                    <Text style={styles.placeholderText}>
+                      Start speaking...
+                    </Text>
+                  )}
+                </Text>
+              </ScrollView>
+            </View>
 
-          {/* Suggestion Section */}
-          <SuggestionBox
-            transcript={transcript}
-            interimTranscript={interimTranscript}
-            messages={messages}
-            isRecording={isRecording}
-          />
+            {/* Suggestion Section */}
+            <SuggestionBox
+              transcript={transcript}
+              interimTranscript={interimTranscript}
+              messages={messages}
+              isRecording={isRecording}
+            />
 
-          {/* Vocab Words Section */}
-          {/* <View style={styles.vocabSection}>
+            {/* Vocab Words Section */}
+            {/* <View style={styles.vocabSection}>
             <Text style={styles.sectionLabel}>Vocabulary to use:</Text>
             <View style={styles.vocabList}>
               {vocabWords.map((word, index) => (
@@ -664,79 +672,81 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
               ))}
             </View>
           </View> */}
-        </View>
-      ) : (
-        /* Normal Chat View */
-        <Animated.ScrollView
-          ref={scrollViewRef}
-          style={styles.chatContainer}
-          contentContainerStyle={styles.chatContent}
-          onContentSizeChange={() =>
-            scrollViewRef.current?.scrollToEnd({ animated: true })
-          }
-        >
-          {messages.length === 0 && isLoadingInitialMessage ? (
-            <View style={styles.loadingContainer}>
-              <LoadingBubble />
-              <Text style={styles.loadingText}>Preparing conversation...</Text>
-            </View>
-          ) : (
-            <>
-              {/* Render conversation messages */}
-              {messages.map((msg, index) => (
-                <ChatBubble
-                  key={index}
-                  message={msg}
-                  onPress={
-                    msg.role === "assistant" && questionAudio
-                      ? () => playAudio(questionAudio)
-                      : undefined
-                  }
-                />
-              ))}
+          </View>
+        ) : (
+          /* Normal Chat View */
+          <Animated.ScrollView
+            ref={scrollViewRef}
+            style={styles.chatContainer}
+            contentContainerStyle={styles.chatContent}
+            onContentSizeChange={() =>
+              scrollViewRef.current?.scrollToEnd({ animated: true })
+            }
+          >
+            {messages.length === 0 && isLoadingInitialMessage ? (
+              <View style={styles.loadingContainer}>
+                <LoadingBubble />
+                <Text style={styles.loadingText}>
+                  Preparing conversation...
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Render conversation messages */}
+                {messages.map((msg, index) => (
+                  <ChatBubble
+                    key={index}
+                    message={msg}
+                    onPress={
+                      msg.role === "assistant" && questionAudio
+                        ? () => playAudio(questionAudio)
+                        : undefined
+                    }
+                  />
+                ))}
 
-              {/* Multiple choice answers */}
-              {multipleChoiceAnswers.length > 0 && (
-                <MultipleChoice
-                  answers={multipleChoiceAnswers}
-                  onCorrectAnswer={handleCorrectAnswer}
-                  currentlyPlayingIndex={currentlyPlayingAnswerIndex}
-                  onPressAudio={
-                    answerAudios.length > 0
-                      ? (index) => playAudio(answerAudios[index])
-                      : undefined
-                  }
-                />
-              )}
+                {/* Multiple choice answers */}
+                {multipleChoiceAnswers.length > 0 && (
+                  <MultipleChoice
+                    answers={multipleChoiceAnswers}
+                    onCorrectAnswer={handleCorrectAnswer}
+                    currentlyPlayingIndex={currentlyPlayingAnswerIndex}
+                    onPressAudio={
+                      answerAudios.length > 0
+                        ? (index) => playAudio(answerAudios[index])
+                        : undefined
+                    }
+                  />
+                )}
 
-              {currentVideo && (
-                <TouchableOpacity
-                  style={styles.questionContextButton}
-                  onPress={() => {
-                    dispatch(refreshVideoPlayer());
-                    dispatch(setCurrentTab("watch"));
-                    navigation.navigate("Watch" as never);
-                  }}
-                >
-                  <Text style={styles.questionContextText}>Watch Again</Text>
-                  <MaterialIcons name="fast-rewind" size={24} color="#888" />
-                </TouchableOpacity>
-              )}
+                {currentVideo && (
+                  <TouchableOpacity
+                    style={styles.questionContextButton}
+                    onPress={() => {
+                      dispatch(refreshVideoPlayer());
+                      dispatch(setCurrentTab("watch"));
+                      navigation.navigate("Watch" as never);
+                    }}
+                  >
+                    <Text style={styles.questionContextText}>Watch Again</Text>
+                    <MaterialIcons name="fast-rewind" size={24} color="#888" />
+                  </TouchableOpacity>
+                )}
 
-              {/* Show loading indicator while waiting for response */}
-              {isLoadingResponse && <LoadingBubble />}
-            </>
-          )}
-        </Animated.ScrollView>
-      )}
+                {/* Show loading indicator while waiting for response */}
+                {isLoadingResponse && <LoadingBubble />}
+              </>
+            )}
+          </Animated.ScrollView>
+        )}
 
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
-      {/* <View style={styles.controlsContainer}>
+        {/* <View style={styles.controlsContainer}>
         <View style={styles.buttonRow}>
           <RecordButton
             isRecording={isRecording}
@@ -760,7 +770,8 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
           isLoadingResponse={isLoadingResponse}
         />
       </View> */}
-    </View>
+      </View>
+    </>
   );
 };
 

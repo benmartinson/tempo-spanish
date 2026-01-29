@@ -7,18 +7,19 @@ import SignInScreen from "./src/components/SignInScreen";
 import SignUpScreen from "./src/components/SignUpScreen";
 import HomeTab from "./src/components/tabs/HomeTab";
 import VideosTab from "./src/components/tabs/VideosTab";
-import { Provider, useDispatch } from 'react-redux';
+import { Provider, useDispatch } from "react-redux";
 import store from "./src/store/store";
 import { setCurrentTab } from "./src/store/actions/dataActions";
-import { ClerkProvider, useAuth } from '@clerk/clerk-expo'
-import { tokenCache } from '@clerk/clerk-expo/token-cache'
-import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { tokenCache } from "@clerk/clerk-expo/token-cache";
+import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import TabIcon from "./src/components/tabs/TabIcon";
 import WatchTab from "./src/components/watch/WatchTab";
 import TopNavBar from "./src/components/TopNavBar";
 import DiscussTab from "./src/components/discuss/DiscussTab";
 import VideoList from "./src/components/watch/VideoList";
+import SelectedVideoBanner from "./src/components/common/SelectedVideoBanner";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -33,8 +34,8 @@ const MainTabs: React.FC = () => {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: 'white',
-          borderTopColor: 'gray',
+          backgroundColor: "white",
+          borderTopColor: "gray",
           borderTopWidth: 1,
           height: 80,
           paddingBottom: 20,
@@ -48,11 +49,13 @@ const MainTabs: React.FC = () => {
         component={HomeTab}
         listeners={{
           tabPress: () => {
-            dispatch(setCurrentTab('home'));
+            dispatch(setCurrentTab("home"));
           },
         }}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="home-outline" label="Home" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="home-outline" label="Home" focused={focused} />
+          ),
         }}
       />
       <Tab.Screen
@@ -60,11 +63,13 @@ const MainTabs: React.FC = () => {
         component={VideoList}
         listeners={{
           tabPress: () => {
-            dispatch(setCurrentTab('videos'));
+            dispatch(setCurrentTab("videos"));
           },
         }}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="video-list" label="Videos" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="video-list" label="Videos" focused={focused} />
+          ),
         }}
       />
       <Tab.Screen
@@ -72,11 +77,13 @@ const MainTabs: React.FC = () => {
         component={WatchTab}
         listeners={{
           tabPress: () => {
-            dispatch(setCurrentTab('watch'));
+            dispatch(setCurrentTab("watch"));
           },
         }}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="video-outline" label="Watch" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="video-outline" label="Watch" focused={focused} />
+          ),
         }}
       />
       <Tab.Screen
@@ -84,11 +91,13 @@ const MainTabs: React.FC = () => {
         component={DiscussTab}
         listeners={{
           tabPress: () => {
-            dispatch(setCurrentTab('discuss'));
+            dispatch(setCurrentTab("discuss"));
           },
         }}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="chat-outline" label="Discuss" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="chat-outline" label="Discuss" focused={focused} />
+          ),
         }}
       />
     </Tab.Navigator>
@@ -112,17 +121,21 @@ const AppNavigator: React.FC = () => {
   // Show loading spinner while Clerk initializes
   if (!isLoaded) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#1a1a2e",
+        }}
+      >
         <ActivityIndicator size="large" color="#5a5680" />
       </View>
     );
   }
 
   return (
-    <Stack.Navigator
-      id="MainStack"
-      screenOptions={{ headerShown: false }}
-    >
+    <Stack.Navigator id="MainStack" screenOptions={{ headerShown: false }}>
       {isSignedIn ? (
         // Protected screens - now using tab navigator with TopNavBar
         <Stack.Screen name="AuthenticatedApp" component={AuthenticatedApp} />
@@ -147,7 +160,6 @@ const App: React.FC = () => {
       </Provider>
     </ClerkProvider>
   );
-}
-
+};
 
 export default App;
