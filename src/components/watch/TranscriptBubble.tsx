@@ -1,7 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
 import { SegmentWord } from "../../types";
-import { useEffect, useMemo, useRef, useState } from "react";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 interface TranscriptBubbleProps {
   words: SegmentWord[];
@@ -13,6 +12,26 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
   const displayedMaxIndex = useRef(-1);
   const previousWords = useRef<SegmentWord[]>([]);
   const previousTime = useRef<number>(0);
+  const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
+
+  const handleLongPress = useCallback((word: SegmentWord) => {
+    if (word.translation) {
+      // Strip punctuation for display in tooltip
+      const cleanWord = {
+        ...word,
+        word: word.word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ""),
+        translation: word.translation.replace(
+          /[.,\/#!$%\^&\*;:{}=\-_`~()]/g,
+          "",
+        ),
+      };
+      setTooltipWord(cleanWord);
+    }
+  }, []);
+
+  const hideTooltip = useCallback(() => {
+    setTooltipWord(null);
+  }, []);
 
   // Reset when words array changes (new video/segment)
   useEffect(() => {
@@ -69,25 +88,36 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
 
   return (
     <View style={styles.card}>
-      {/* <View style={styles.header}>
-        <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
-          <MaterialIcons
-            name={isExpanded ? "expand-less" : "expand-more"}
-            size={24}
-            color="#fff"
-          />
-        </TouchableOpacity>
-      </View> */}
       {isExpanded && (
         <View style={styles.wordsRow}>
           {!visibleWords.length && <Text style={styles.visibleWord}></Text>}
           {visibleWords.map((word, index) => (
-            <Text key={`${word.start}-${index}`} style={styles.visibleWord}>
-              {word.word}
-            </Text>
+            <Pressable
+              key={`${word.start}-${index}`}
+              onLongPress={() => handleLongPress(word)}
+              delayLongPress={300}
+            >
+              <Text style={styles.visibleWord}>{word.word}</Text>
+            </Pressable>
           ))}
         </View>
       )}
+
+      <Modal
+        visible={tooltipWord !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={hideTooltip}
+      >
+        <Pressable style={styles.tooltipOverlay} onPress={hideTooltip}>
+          <View style={styles.tooltipContainer}>
+            <Text style={styles.tooltipWord}>{tooltipWord?.word}</Text>
+            <Text style={styles.tooltipTranslation}>
+              {tooltipWord?.translation}
+            </Text>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -95,6 +125,7 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
 const styles = StyleSheet.create({
   card: {
     margin: 16,
+    marginTop: 32,
     marginBottom: 0,
     backgroundColor: "#2d2a40",
     borderRadius: 16,
@@ -129,6 +160,35 @@ const styles = StyleSheet.create({
     color: "#4ade80",
     textAlign: "center",
     fontFamily: "Helvetica",
+  },
+  tooltipOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tooltipContainer: {
+    backgroundColor: "#3d3a50",
+    borderRadius: 12,
+    padding: 16,
+    minWidth: 120,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  tooltipWord: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#4ade80",
+    marginBottom: 8,
+  },
+  tooltipTranslation: {
+    fontSize: 16,
+    color: "#ffffff",
+    textAlign: "center",
   },
 });
 

@@ -1,26 +1,16 @@
 import React, { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  View,
-  TouchableOpacity,
-  Text,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, View, ScrollView } from "react-native";
 import YouTubePlayer from "./YouTubePlayer";
-import { KeyVocabulary, RootState, VideoContext } from "../../types";
+import { RootState, VideoContext } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import {
-  refreshVideoPlayer,
   setCurrentTab,
-  setNextSegment,
-  setPreviousSegment,
   setSegmentByTime,
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
-import VocabList from "./VocabList";
 import TranscriptBubble from "./TranscriptBubble";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import FullSegmentTranscriptBubble from "./FullSegmentTranscriptBubble";
+import TranslationBubble from "./TranslationBubble";
 
 interface VideoProps {
   video: VideoContext;
@@ -38,9 +28,14 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
     (state: RootState) => state.currentVideo?.allWords,
   );
 
+  useEffect(() => {
+    if (clip) {
+      // console.log("clip", clip);
+    }
+  }, [clip]);
+
   const handleSetTime = (newTime: number) => {
     if (newTime >= 1 && (newTime < clip.start || newTime > clip.end)) {
-      console.log("setting segment by time", newTime);
       dispatch(setSegmentByTime(newTime));
       return;
     }
@@ -78,12 +73,13 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
         )} */}
       </View>
       <ScrollView style={styles.transcriptContainer}>
-        {clip.words && clip.words.length > 0 && (
-          <TranscriptBubble
-            words={isClip ? clip.words : allWords}
-            time={time}
-          />
-        )}
+        <TranscriptBubble words={clip?.words || []} time={time} />
+        <FullSegmentTranscriptBubble words={clip?.words || []} time={time} />
+        <TranslationBubble
+          translation={clip?.full_text_translation.split(" ") || []}
+          words={clip?.words || []}
+          time={time}
+        />
         {/* {clip.key_vocabulary && clip.key_vocabulary.length > 0 && (
           <VocabList vocab={clip.key_vocabulary} time={time} />
           )} */}

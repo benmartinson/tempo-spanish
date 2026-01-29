@@ -66,6 +66,7 @@ export interface SegmentWord {
   word: string;
   start: number;
   end: number;
+  translation: string;
 }
 
 export interface KeyVocabulary {

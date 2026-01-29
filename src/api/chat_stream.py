@@ -323,7 +323,7 @@ async def get_video_segments(video_id: str):
 
             vocab_map = []
 
-            usable_words = [word for word in words if not canIgnoreVocab(word["word"].lower()) and not word["word"].lower() == word["translation"].lower() and len(word["word"]) > 3]
+            usable_words = [word.copy() for word in words if not canIgnoreVocab(word["word"].lower()) and not word["word"].lower() == word["translation"].lower() and len(word["word"]) > 3]
             for word in usable_words:
                 word["word"] = word["word"].strip().lower().translate(str.maketrans('', '', string.punctuation))
             
