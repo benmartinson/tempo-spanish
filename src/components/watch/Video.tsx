@@ -11,6 +11,7 @@ import { useDispatch, useSelector } from "react-redux";
 import TranscriptBubble from "./TranscriptBubble";
 import FullSegmentTranscriptBubble from "./FullSegmentTranscriptBubble";
 import TranslationBubble from "./TranslationBubble";
+import BubbleSelector from "./BubbleSelector";
 
 interface VideoProps {
   video: VideoContext;
@@ -27,6 +28,11 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
   const allWords = useSelector(
     (state: RootState) => state.currentVideo?.allWords,
   );
+  const [bubbleSelections, setBubbleSelections] = useState<string[]>([
+    "small",
+    "large",
+    "translation",
+  ]);
 
   useEffect(() => {
     if (clip) {
@@ -73,13 +79,23 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
         )} */}
       </View>
       <ScrollView style={styles.transcriptContainer}>
-        <TranscriptBubble words={clip?.words || []} time={time} />
-        <FullSegmentTranscriptBubble words={clip?.words || []} time={time} />
-        <TranslationBubble
-          translation={clip?.full_text_translation.split(" ") || []}
-          words={clip?.words || []}
-          time={time}
+        <BubbleSelector
+          bubbleSelections={bubbleSelections}
+          setBubbleSelections={setBubbleSelections}
         />
+        {bubbleSelections.includes("small") && (
+          <TranscriptBubble words={clip?.words || []} time={time} />
+        )}
+        {bubbleSelections.includes("large") && (
+          <FullSegmentTranscriptBubble words={clip?.words || []} time={time} />
+        )}
+        {bubbleSelections.includes("translation") && (
+          <TranslationBubble
+            translation={clip?.full_text_translation.split(" ") || []}
+            words={clip?.words || []}
+            time={time}
+          />
+        )}
         {/* {clip.key_vocabulary && clip.key_vocabulary.length > 0 && (
           <VocabList vocab={clip.key_vocabulary} time={time} />
           )} */}

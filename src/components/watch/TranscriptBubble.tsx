@@ -91,15 +91,20 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
       {isExpanded && (
         <View style={styles.wordsRow}>
           {!visibleWords.length && <Text style={styles.visibleWord}></Text>}
-          {visibleWords.map((word, index) => (
-            <Pressable
-              key={`${word.start}-${index}`}
-              onLongPress={() => handleLongPress(word)}
-              delayLongPress={300}
-            >
-              <Text style={styles.visibleWord}>{word.word}</Text>
-            </Pressable>
-          ))}
+          {visibleWords.map((word, index) => {
+            if (index > 5) {
+              return null;
+            }
+            return (
+              <Pressable
+                key={`${word.start}-${index}`}
+                onLongPress={() => handleLongPress(word)}
+                delayLongPress={300}
+              >
+                <Text style={styles.visibleWord}>{word.word}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       )}
 
@@ -125,7 +130,6 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
 const styles = StyleSheet.create({
   card: {
     margin: 16,
-    marginTop: 32,
     marginBottom: 0,
     backgroundColor: "#2d2a40",
     borderRadius: 16,

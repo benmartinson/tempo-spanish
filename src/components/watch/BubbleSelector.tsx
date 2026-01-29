@@ -1,0 +1,91 @@
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+
+interface BubbleSelectorProps {
+  bubbleSelections: string[];
+  setBubbleSelections: (bubbleSelections: string[]) => void;
+}
+
+const BubbleSelector: React.FC<BubbleSelectorProps> = ({
+  bubbleSelections,
+  setBubbleSelections,
+}) => {
+  const handleBubbleSelection = (selection: string) => {
+    if (bubbleSelections.includes(selection)) {
+      setBubbleSelections(bubbleSelections.filter((s) => s !== selection));
+    } else {
+      setBubbleSelections([...bubbleSelections, selection]);
+    }
+  };
+  return (
+    <View style={styles.outerContainer}>
+      <View style={styles.container}>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            bubbleSelections.includes("small") && styles.selectedButton,
+            { borderRightWidth: 1 },
+          ]}
+          onPress={() => handleBubbleSelection("small")}
+        >
+          <Text style={styles.buttonText}>Small</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            bubbleSelections.includes("large") && styles.selectedButton,
+            { borderRightWidth: 1 },
+          ]}
+          onPress={() => handleBubbleSelection("large")}
+        >
+          <Text style={styles.buttonText}>Large</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            bubbleSelections.includes("translation") && styles.selectedButton,
+          ]}
+          onPress={() => handleBubbleSelection("translation")}
+        >
+          <Text style={styles.buttonText}>Translation</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  outerContainer: {
+    paddingHorizontal: 16,
+    width: "100%",
+    marginTop: 16,
+  },
+  container: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "white",
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "black",
+    overflow: "hidden",
+    width: "100%",
+  },
+  button: {
+    width: "33.33%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
+    borderColor: "black",
+    height: 28,
+  },
+  selectedButton: {
+    backgroundColor: "#e0e0e0", // Light grey
+  },
+  buttonText: {
+    color: "black",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+});
+
+export default BubbleSelector;
