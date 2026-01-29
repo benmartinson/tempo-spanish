@@ -40,6 +40,20 @@ const dataReducer = (
         },
         videoRefreshKey: Date.now(),
       };
+    case "SET_SEGMENT_BY_TIME":
+      const index = state.currentVideo?.segments.findIndex(
+        (segment) =>
+          action.payload >= segment.start && action.payload <= segment.end,
+      );
+
+      const currentSegment = index >= 0 ? index : 0;
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          currentSegment: currentSegment,
+        },
+      };
     case "SET_PREVIOUS_SEGMENT":
       return {
         ...state,

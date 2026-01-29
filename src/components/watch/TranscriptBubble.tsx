@@ -20,10 +20,18 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
   }, [words]);
 
   const visibleWords = useMemo(() => {
-    if (time < previousTime.current) {
+    if (time < previousTime.current || time > previousTime.current + 2) {
       previousWords.current = [];
       displayedMaxIndex.current = -1;
+      // find the index of the word that has started the latest
+      const latestStartIndex = words.findIndex(
+        (word) => word.start > time && word,
+      );
+      if (latestStartIndex !== -1) {
+        displayedMaxIndex.current = latestStartIndex;
+      }
     }
+
     previousTime.current = time;
     const timeSpan = 0.5;
     const startIndex = displayedMaxIndex.current + 1;
@@ -56,7 +64,7 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
       displayedMaxIndex.current = startIndex + result.length - 1;
     }
     previousWords.current = [...result];
-    return result;
+    return result.slice(0, 6);
   }, [words, time]);
 
   return (

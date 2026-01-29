@@ -15,6 +15,11 @@ export const setPreviousSegment = (): DataAction => ({
   payload: null,
 });
 
+export const setSegmentByTime = (time: number): DataAction => ({
+  type: "SET_SEGMENT_BY_TIME",
+  payload: time,
+});
+
 export const setCurrentChatType = (
   chatType: "general" | "video-based",
 ): DataAction => ({

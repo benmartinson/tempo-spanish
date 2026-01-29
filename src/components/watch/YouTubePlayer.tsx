@@ -4,26 +4,28 @@ import { WebView } from "react-native-webview";
 import { Segment } from "../../types";
 
 interface YouTubePlayerProps {
-  clip: Segment & { videoId: string };
+  clip?: Segment & { videoId: string };
+  videoId: string;
   autoplay: boolean;
   refreshKey: number;
   setTime: (time: number) => void;
 }
 
 const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
+  videoId,
   clip,
   autoplay,
   refreshKey,
   setTime,
 }) => {
-  const getVideoUrl = (clip) => {
+  const getVideoUrl = (videoId, clip, autoplay) => {
     const baseUrl = "https://yt-relay.vercel.app";
     const params = new URLSearchParams({
-      v: clip.videoId,
+      v: videoId,
       autoplay: autoplay ? "1" : "0",
       mute: "1",
-      start: clip.start.toString(),
-      end: clip.end.toString(),
+      start: clip ? clip.start.toString() : "0",
+      end: clip ? clip.end.toString() : null,
       controls: "1",
     });
     return `${baseUrl}?${params.toString()}`;
@@ -32,8 +34,12 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   return (
     <View style={styles.container}>
       <WebView
-        key={`${clip.videoId}-${clip.start}-${clip.end}-${refreshKey}`}
-        source={{ uri: getVideoUrl(clip) }}
+        key={
+          clip
+            ? `${clip.videoId}-${clip.start}-${clip.end}-${refreshKey}`
+            : `${videoId}`
+        }
+        source={{ uri: getVideoUrl(videoId, clip, autoplay) }}
         style={styles.webview}
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   Modal,
   SafeAreaView,
-} from 'react-native';
-import Entypo from '@expo/vector-icons/Entypo';
-import { useClerk, useUser } from '@clerk/clerk-expo';
-import Ionicons from '@expo/vector-icons/Ionicons';
-
+} from "react-native";
+import Entypo from "@expo/vector-icons/Entypo";
+import { useClerk, useUser } from "@clerk/clerk-expo";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 
 const TopNavBar: React.FC = () => {
   const [profileVisible, setProfileVisible] = useState(false);
@@ -28,7 +29,8 @@ const TopNavBar: React.FC = () => {
         <View style={styles.leftSpacer} />
         <View style={styles.titleContainer}>
           <Text style={styles.appName}>Tempo Spanish</Text>
-          <Entypo name="sound" size={22} color="#1a1a2e" />
+          <MaterialCommunityIcons name="waves" size={26} color="#1a1a2e" />
+          {/* <FontAwesome5 name="wave-square" size={24} color="#1a1a2e" /> */}
         </View>
         <TouchableOpacity
           style={styles.avatarButton}
@@ -62,7 +64,9 @@ const TopNavBar: React.FC = () => {
                 <Text style={styles.profileAvatarText}>👤</Text>
               </View>
               {user?.primaryEmailAddress && (
-                <Text style={styles.email}>{user.primaryEmailAddress.emailAddress}</Text>
+                <Text style={styles.email}>
+                  {user.primaryEmailAddress.emailAddress}
+                </Text>
               )}
             </View>
 
@@ -83,15 +87,15 @@ const TopNavBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: 'gray',
-    overflow: 'hidden',
+    borderBottomColor: "gray",
+    overflow: "hidden",
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 15,
@@ -101,54 +105,54 @@ const styles = StyleSheet.create({
     width: 40,
   },
   titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
   },
   appName: {
     fontSize: 20,
-    fontFamily: 'Helvetica',
-    fontWeight: '500',
-    color: '#1a1a2e',
+    fontFamily: "Helvetica",
+    fontWeight: "500",
+    color: "#1a1a2e",
   },
   avatarButton: {
     width: 36,
     height: 36,
     borderRadius: 20,
-    backgroundColor: '#3d3a52',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#3d3a52",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: '#5a5680',
+    borderColor: "#5a5680",
   },
   avatarText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#dfe2ea',
+    fontWeight: "500",
+    color: "#dfe2ea",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: "#1a1a2e",
   },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a4a',
+    borderBottomColor: "#2a2a4a",
   },
   closeButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
   },
   profileContent: {
     flex: 1,
@@ -156,41 +160,41 @@ const styles = StyleSheet.create({
     paddingTop: 40,
   },
   profileSection: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 40,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#3d3a52',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#3d3a52",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
     borderWidth: 3,
-    borderColor: '#5a5680',
+    borderColor: "#5a5680",
   },
   profileAvatarText: {
     fontSize: 36,
   },
   email: {
     fontSize: 16,
-    color: '#888',
+    color: "#888",
   },
   menuSection: {
     marginTop: 20,
   },
   signOutButton: {
-    backgroundColor: '#3d3a52',
+    backgroundColor: "#3d3a52",
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   signOutText: {
-    color: '#ff6b6b',
+    color: "#ff6b6b",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
 

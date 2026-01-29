@@ -8,15 +8,16 @@ import {
   ActivityIndicator,
 } from "react-native";
 import YouTubePlayer from "./YouTubePlayer";
-import { KeyVocabulary, VideoContext } from "../../types";
+import { KeyVocabulary, RootState, VideoContext } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import {
   refreshVideoPlayer,
   setCurrentTab,
   setNextSegment,
   setPreviousSegment,
+  setSegmentByTime,
 } from "../../store/actions/dataActions";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import VocabList from "./VocabList";
 import TranscriptBubble from "./TranscriptBubble";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -24,24 +25,31 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 interface VideoProps {
   video: VideoContext;
   refreshKey: number;
-  onBackButton: () => void;
-  // onNextButton: () => void;
+  isClip: boolean;
 }
 
-const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
+const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
   const navigation = useNavigation();
   const clip = video.segments[video.currentSegment];
   const [time, setTime] = useState<number>(0);
   const timeRemaining = Math.floor(Math.max(clip.end - time, 0));
   const dispatch = useDispatch();
+  const allWords = useSelector(
+    (state: RootState) => state.currentVideo?.allWords,
+  );
 
   const handleSetTime = (newTime: number) => {
+    if (newTime >= 1 && (newTime < clip.start || newTime > clip.end)) {
+      console.log("setting segment by time", newTime);
+      dispatch(setSegmentByTime(newTime));
+      return;
+    }
     const newTimeRemaining = Math.max(Math.ceil(clip.end - newTime), 0);
     if (newTimeRemaining < 1 && timeRemaining >= 0) {
-      dispatch(setCurrentTab("discuss"));
-      navigation.navigate("Discuss" as never);
-      setTime(newTime);
-      return;
+      if (isClip) {
+        dispatch(setCurrentTab("discuss"));
+        navigation.navigate("Discuss" as never);
+      }
     }
     setTime(newTime);
   };
@@ -55,55 +63,59 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
       {/* </View> */}
       <View style={styles.videoContainer}>
         <YouTubePlayer
-          clip={{ ...clip, videoId: video.videoId }}
+          // clip={{ ...clip, videoId: video.videoId }}
+          videoId={video.videoId}
           autoplay={true}
           refreshKey={refreshKey}
           setTime={handleSetTime}
         />
-        {timeRemaining < 5 && timeRemaining > 0 && (
+        {/* {timeRemaining < 5 && timeRemaining > 0 && (
           <View style={styles.countdownContainer}>
             <Text style={styles.countdownText}>
               Segment ends in {timeRemaining}
             </Text>
           </View>
-        )}
+        )} */}
       </View>
-      <ScrollView>
-        <View style={styles.buttonContainer}>
-          {video.currentSegment > 0 ? (
-            <TouchableOpacity
-              style={styles.questionContextButton}
-              onPress={() => {
-                dispatch(setPreviousSegment());
-              }}
-            >
-              <MaterialIcons name="navigate-before" size={24} color="#888" />
-              <Text style={styles.questionContextText}>Previous Segment</Text>
-            </TouchableOpacity>
-          ) : (
-            <View></View>
-          )}
-          {video.currentSegment < video.segments.length - 1 ? (
-            <TouchableOpacity
-              style={styles.questionContextButton}
-              onPress={() => {
-                dispatch(setNextSegment());
-              }}
-            >
-              <Text style={styles.questionContextText}>Next Segment</Text>
-              <MaterialIcons name="navigate-next" size={24} color="#888" />
-            </TouchableOpacity>
-          ) : (
-            <View></View>
-          )}
-        </View>
+      <ScrollView style={styles.transcriptContainer}>
         {clip.words && clip.words.length > 0 && (
-          <TranscriptBubble words={clip.words} time={time} />
+          <TranscriptBubble
+            words={isClip ? clip.words : allWords}
+            time={time}
+          />
         )}
         {/* {clip.key_vocabulary && clip.key_vocabulary.length > 0 && (
           <VocabList vocab={clip.key_vocabulary} time={time} />
-        )} */}
+          )} */}
       </ScrollView>
+      {/* <View style={styles.buttonContainer}>
+        {video.currentSegment > 0 ? (
+          <TouchableOpacity
+            style={styles.questionContextButton}
+            onPress={() => {
+              dispatch(setPreviousSegment());
+            }}
+          >
+            <MaterialIcons name="navigate-before" size={24} color="#888" />
+            <Text style={styles.questionContextText}>Previous Segment</Text>
+          </TouchableOpacity>
+        ) : (
+          <View></View>
+        )}
+        {video.currentSegment < video.segments.length - 1 ? (
+          <TouchableOpacity
+            style={styles.questionContextButton}
+            onPress={() => {
+              dispatch(setNextSegment());
+            }}
+          >
+            <Text style={styles.questionContextText}>Next Segment</Text>
+            <MaterialIcons name="navigate-next" size={24} color="#888" />
+          </TouchableOpacity>
+        ) : (
+          <View></View>
+        )}
+      </View> */}
     </View>
   );
 };
@@ -111,7 +123,7 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "white",
   },
   questionContextButton: {
     flexDirection: "row",
@@ -128,11 +140,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     margin: 16,
-    marginBottom: 0,
   },
   questionContextText: {
     color: "#888",
     fontSize: 12,
+  },
+  transcriptContainer: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",

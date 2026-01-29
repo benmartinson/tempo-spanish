@@ -15,7 +15,8 @@ export type DataActionTypes =
   | "SET_CURRENT_TAB"
   | "SET_ALL_CHANNELS"
   | "SET_ALL_VIDEOS"
-  | "SET_PREVIOUS_SEGMENT";
+  | "SET_PREVIOUS_SEGMENT"
+  | "SET_SEGMENT_BY_TIME";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -31,6 +32,7 @@ export interface VideoContext {
   videoId: string;
   currentSegment: number;
   segments: Segment[];
+  allWords: SegmentWord[];
 }
 
 export interface Channel {

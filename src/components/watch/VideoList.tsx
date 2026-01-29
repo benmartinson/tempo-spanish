@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -7,14 +7,19 @@ import {
   ScrollView,
   Image,
   Dimensions,
-} from 'react-native';
-import { RootState, VideoContext } from '../../types';
-import { WATCH_CLIPS } from '../../data/question_clips';
-import { setAllChannels, setAllVideos, setCurrentTab, setCurrentVideo } from '../../store/actions/dataActions';
-import { useDispatch, useSelector } from 'react-redux';
-import { BACKEND_BASE_URL } from '../streaming_helpers';
-import { supabase } from '../../../utils/supabase'
-import { useNavigation } from '@react-navigation/native';
+} from "react-native";
+import { RootState, VideoContext, Segment } from "../../types";
+import { WATCH_CLIPS } from "../../data/question_clips";
+import {
+  setAllChannels,
+  setAllVideos,
+  setCurrentTab,
+  setCurrentVideo,
+} from "../../store/actions/dataActions";
+import { useDispatch, useSelector } from "react-redux";
+import { BACKEND_BASE_URL } from "../streaming_helpers";
+import { supabase } from "../../../utils/supabase";
+import { useNavigation } from "@react-navigation/native";
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
@@ -23,32 +28,39 @@ const VideoList: React.FC = () => {
   const allChannels = useSelector((state: RootState) => state.allChannels);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const navigation = useNavigation();
-  
+
   useEffect(() => {
     fetchAllVideos().then(({ channelData, videoData }) => {
       dispatch(setAllChannels(channelData));
       dispatch(setAllVideos(videoData));
-    })
-  }, [])
+    });
+  }, []);
 
   const fetchAllVideos = async () => {
-    const { data: channelData, error: channelError } = await supabase.from('channel').select('*')
-    if (channelError) console.error(channelError)
-    const { data: videoData, error: videoError } = await supabase.from('video').select('*')
-    if (videoError) console.error(videoError)
-    return { channelData, videoData }
-  }
-  
+    const { data: channelData, error: channelError } = await supabase
+      .from("channel")
+      .select("*");
+    if (channelError) console.error(channelError);
+    const { data: videoData, error: videoError } = await supabase
+      .from("video")
+      .select("*");
+    if (videoError) console.error(videoError);
+    return { channelData, videoData };
+  };
+
   const handleWatchPress = async (videoId: string) => {
     setLoadingVideo(true);
-    const response = await fetch(`${BACKEND_BASE_URL}/video-segments/${videoId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      `${BACKEND_BASE_URL}/video-segments/${videoId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
     if (!response.ok) {
-      throw new Error('Failed to get initial message');
+      throw new Error("Failed to get initial message");
     }
     const data = await response.json();
     if (data.error) {
@@ -58,17 +70,20 @@ const VideoList: React.FC = () => {
       videoId: data.video_id,
       currentSegment: 0,
       segments: data.segments,
+      allWords: data.segments.flatMap((s: Segment) => s.words),
     };
     dispatch(setCurrentVideo(video));
-    dispatch(setCurrentTab('watch'));
-    navigation.navigate('Watch' as never);
+    dispatch(setCurrentTab("watch"));
+    navigation.navigate("Watch" as never);
     setLoadingVideo(false);
-  }; 
+  };
 
   return (
     <ScrollView style={styles.container}>
       {allChannels.map((channel) => {
-        const channelVideos = allVideos.filter((video) => video.channel_id === channel.channel_id);
+        const channelVideos = allVideos.filter(
+          (video) => video.channel_id === channel.channel_id,
+        );
         return (
           <View key={channel.channel_id} style={styles.channelContainer}>
             {/* Channel Header */}
@@ -80,9 +95,9 @@ const VideoList: React.FC = () => {
               <View style={styles.channelInfo}>
                 <Text style={styles.channelTitle}>{channel.title}</Text>
                 <View style={styles.channelBadges}>
-                  <Text >{channel.difficulty}</Text>
-                  <Text >{channel.topic}</Text>
-                  <Text >{channelVideos.length} videos available</Text>
+                  <Text>{channel.difficulty}</Text>
+                  <Text>{channel.topic}</Text>
+                  <Text>{channelVideos.length} videos available</Text>
                 </View>
               </View>
             </View>
@@ -108,9 +123,7 @@ const VideoList: React.FC = () => {
                     {video.title}
                   </Text>
                 </TouchableOpacity>
-                
               ))}
-              
             </ScrollView>
           </View>
         );
@@ -119,27 +132,27 @@ const VideoList: React.FC = () => {
   );
 };
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 20,
   },
   channelContainer: {
     marginBottom: 2,
   },
   channelHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
   channelThumbnail: {
@@ -150,12 +163,12 @@ const styles = StyleSheet.create({
   },
   channelTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: 'black',
-    flexShrink: 1
+    fontWeight: "bold",
+    color: "black",
+    flexShrink: 1,
   },
   channelBadges: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     marginTop: 4,
     gap: 2,
   },
@@ -179,8 +192,8 @@ const styles = StyleSheet.create({
   },
   videoTitle: {
     fontSize: 14,
-    color: 'black',
-    textAlign: 'left',
+    color: "black",
+    textAlign: "left",
     lineHeight: 16,
   },
 });
