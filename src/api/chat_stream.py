@@ -114,14 +114,16 @@ Guidelines:
 - Only text, no emojis"""
 
 # System prompt for generating vocab-based questions
-VOCAB_QUESTION_SYSTEM_PROMPT = """Generate vocabulary practice questions in Spanish that incorporate the provided vocabulary words.
+VOCAB_QUESTION_SYSTEM_PROMPT = f"""Generate 1 vocabulary practice questions in English that incorporate the provided 
+spanish vocabulary words, and point to the context of the video segment where the vocabulary words are used.
 
 Guidelines:
-- Create questions that test understanding of the vocabulary in context
-- Questions can be fill-in-the-blank, translation, definition, or usage questions
-- Keep questions clear and focused on testing knowledge of the vocabulary
-- All questions and answers should be in Spanish
-- Only text, no emojis"""
+- Based on the provided vocabulary words, pick 1 of them and generate a multiple choice question for each of them.
+- The question should be in English. It should be like this:
+"What is the translation of the word 'word_from_vocabulary' in the context of this sentence "actual_sentence_from_context_with_the_vocabulary_word_in_it"?
+- The answers are possible translations of the vocabulary word.
+- Make it tricky by including some fake translations that may seem correct but are not.
+- One of the answers NEEDS to be the correct translation of the vocabulary word."""
 
 ignoreVocab = [
   "por",
@@ -462,7 +464,7 @@ async def vocab_based_question(request: VocabBasedQuestionRequest):
         vocab_list = []
         for vocab in request.key_vocabulary:
             correct_translation = vocab.translations[vocab.correct_translation]
-            vocab_list.append(f"- {vocab.value} (meaning: {correct_translation})")
+            vocab_list.append(f"- {vocab.value} (meaning: you decide based on the context)")
         
         vocab_text = "\n".join(vocab_list)
         
@@ -470,21 +472,14 @@ async def vocab_based_question(request: VocabBasedQuestionRequest):
         context_section = ""
         if request.context:
             context_section = f"""
-Video transcript context (use this to make questions more relevant):
+Video transcript context (use this to make translations more relevant):
 "{request.context}"
 
 """
-
         user_prompt = f"""Vocabulary words to incorporate:
 {vocab_text}
-{context_section}
-Generate exactly 3 vocabulary practice questions in Spanish. Each question should:
-1. Test understanding of one or more of the vocabulary words
-2. Have 3 multiple choice answers in Spanish
-3. Be varied in question type (translation, fill-in-blank, definition, or context usage)
-4. When possible, relate the question to the video transcript context
-
-Make sure each question clearly tests the learner's knowledge of the vocabulary."""
+Context of the video segment where the vocabulary words are used:
+{context_section}"""
 
         messages = [
             {"role": "system", "content": VOCAB_QUESTION_SYSTEM_PROMPT},
@@ -517,8 +512,8 @@ Make sure each question clearly tests the learner's knowledge of the vocabulary.
                                     },
                                     "additionalProperties": False
                                 },
-                                "minItems": 3,
-                                "maxItems": 3
+                                "minItems": 1,
+                                "maxItems": 1
                             }
                         },
                         "additionalProperties": False

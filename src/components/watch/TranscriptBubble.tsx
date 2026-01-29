@@ -61,8 +61,7 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
 
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Transcript</Text>
+      {/* <View style={styles.header}>
         <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
           <MaterialIcons
             name={isExpanded ? "expand-less" : "expand-more"}
@@ -70,7 +69,7 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
             color="#fff"
           />
         </TouchableOpacity>
-      </View>
+      </View> */}
       {isExpanded && (
         <View style={styles.wordsRow}>
           {!visibleWords.length && <Text style={styles.visibleWord}></Text>}
@@ -113,7 +112,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingTop: 16,
     flexShrink: 1,
     flexWrap: "wrap",
   },

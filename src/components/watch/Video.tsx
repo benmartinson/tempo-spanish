@@ -48,11 +48,11 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        {/* <TouchableOpacity style={styles.button} onPress={onBackButton}> */}
-        {/* <Text style={styles.buttonText}>Back to Videos</Text> */}
-        {/* </TouchableOpacity> */}
-      </View>
+      {/* <View style={styles.header}> */}
+      {/* <TouchableOpacity style={styles.button} onPress={onBackButton}> */}
+      {/* <Text style={styles.buttonText}>Back to Videos</Text> */}
+      {/* </TouchableOpacity> */}
+      {/* </View> */}
       <View style={styles.videoContainer}>
         <YouTubePlayer
           clip={{ ...clip, videoId: video.videoId }}
@@ -100,9 +100,9 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, onBackButton }) => {
         {clip.words && clip.words.length > 0 && (
           <TranscriptBubble words={clip.words} time={time} />
         )}
-        {clip.key_vocabulary && clip.key_vocabulary.length > 0 && (
+        {/* {clip.key_vocabulary && clip.key_vocabulary.length > 0 && (
           <VocabList vocab={clip.key_vocabulary} time={time} />
-        )}
+        )} */}
       </ScrollView>
     </View>
   );
@@ -139,7 +139,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 15,
   },
   button: {
     backgroundColor: "#3d3a52",
@@ -158,6 +157,7 @@ const styles = StyleSheet.create({
     height: 230,
     backgroundColor: "#000",
     position: "relative",
+    marginTop: 30,
   },
   countdownContainer: {
     position: "absolute",
