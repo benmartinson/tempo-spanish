@@ -37,11 +37,11 @@ const VocabList: React.FC<{
 
   const shouldShowTranslation = (word: KeyVocabulary) => {
     // Show translation if highlighted OR if manually toggled
-    const isHighlighted = shouldHighlight(word);
+    // const isHighlighted = shouldHighlight(word);
     const isManuallyShown = manualTranslations.find(
       (translation) => translation.value === word.value,
     );
-    return isHighlighted || isManuallyShown;
+    return isManuallyShown;
   };
 
   return (
@@ -72,7 +72,7 @@ const VocabList: React.FC<{
               {shouldShowTranslation(word) && (
                 <Text style={styles.vocabTranslation}>
                   {" => "}
-                  {word.translation}
+                  {word.translations[word.correct_translation]}
                 </Text>
               )}
             </TouchableOpacity>

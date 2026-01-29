@@ -64,6 +64,18 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
+  // Vocab test state
+  const [isInVocabTest, setIsInVocabTest] = useState(false);
+  const [vocabQuestionIndex, setVocabQuestionIndex] = useState(0);
+  const [vocabQuestions, setVocabQuestions] = useState<
+    Array<{
+      question: string;
+      answers: string[];
+      correct_answer: number;
+      audio: string | null;
+      audio_answers: string[];
+    }>
+  >([]);
 
   const dispatch = useDispatch();
   const currentChatType = useSelector(
@@ -77,6 +89,9 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const finalTranscriptRef = useRef<string>("");
+  const vocabQuestionsPrefetchRef = useRef<Promise<
+    typeof vocabQuestions
+  > | null>(null);
 
   // Autocorrect hook for real-time transcript corrections
   const autocorrect = useAutocorrect({
@@ -123,8 +138,143 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   }, [currentTab]);
 
   const handleCorrectAnswer = () => {
+    if (isInVocabTest) {
+      // Move to next vocab question or finish
+      handleVocabCorrectAnswer();
+    } else {
+      // Video-based question answered correctly, start vocab test
+      startVocabTest();
+    }
+  };
+
+  const fetchVocabQuestions = async (
+    keyVocabulary: (typeof currentVideo.segments)[0]["key_vocabulary"],
+    segmentText: string,
+  ): Promise<typeof vocabQuestions> => {
+    const response = await fetch(`${BACKEND_BASE_URL}/vocab-based-question`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        key_vocabulary: keyVocabulary,
+        context: segmentText,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to generate vocab-based questions");
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    return data.questions;
+  };
+
+  const prefetchVocabQuestions = () => {
+    const segment = currentVideo?.segments[currentVideo.currentSegment];
+    const keyVocabulary = segment?.key_vocabulary || [];
+    const segmentText = segment?.text || "";
+
+    if (keyVocabulary.length === 0) {
+      vocabQuestionsPrefetchRef.current = null;
+      return;
+    }
+
+    // Start prefetching vocab questions in the background
+    vocabQuestionsPrefetchRef.current = fetchVocabQuestions(
+      keyVocabulary,
+      segmentText,
+    );
+  };
+
+  const startVocabTest = async () => {
+    const segment = currentVideo?.segments[currentVideo.currentSegment];
+    const keyVocabulary = segment?.key_vocabulary || [];
+
+    if (keyVocabulary.length === 0) {
+      // No vocab items, go back to watch
+      finishAndNavigateBack();
+      return;
+    }
+
+    setIsInVocabTest(true);
+    setVocabQuestionIndex(0);
+    setIsLoadingResponse(true);
+
+    try {
+      let questions: typeof vocabQuestions;
+
+      // Use prefetched questions if available, otherwise fetch now
+      if (vocabQuestionsPrefetchRef.current) {
+        questions = await vocabQuestionsPrefetchRef.current;
+        vocabQuestionsPrefetchRef.current = null;
+      } else {
+        const segmentText = segment?.text || "";
+        questions = await fetchVocabQuestions(keyVocabulary, segmentText);
+      }
+
+      setVocabQuestions(questions);
+      displayVocabQuestion(0, questions);
+    } catch (err) {
+      console.error("Error generating vocab questions:", err);
+      setError("Failed to generate vocab questions. Please try again.");
+      finishAndNavigateBack();
+    } finally {
+      setIsLoadingResponse(false);
+    }
+  };
+
+  const displayVocabQuestion = (
+    index: number,
+    questions: typeof vocabQuestions,
+  ) => {
+    const question = questions[index];
+
+    setMessages([{ role: "assistant", content: question.question }]);
+    setMultipleChoiceAnswers(
+      question.answers.map((answer, idx) => ({
+        answer,
+        correct: idx === question.correct_answer,
+      })),
+    );
+
+    // Set audio if available
+    if (question.audio) {
+      setQuestionAudio(question.audio);
+      if (currentTab === "discuss") {
+        playAudio(question.audio);
+      }
+    } else {
+      setQuestionAudio(null);
+    }
+    setAnswerAudios(question.audio_answers || []);
+  };
+
+  const handleVocabCorrectAnswer = () => {
+    const nextIndex = vocabQuestionIndex + 1;
+
+    if (nextIndex < vocabQuestions.length) {
+      // More vocab questions
+      setVocabQuestionIndex(nextIndex);
+      displayVocabQuestion(nextIndex, vocabQuestions);
+    } else {
+      // All vocab questions done (3 questions)
+      finishAndNavigateBack();
+    }
+  };
+
+  const finishAndNavigateBack = () => {
     setMultipleChoiceAnswers([]);
     setMessages([]);
+    setIsInVocabTest(false);
+    setVocabQuestionIndex(0);
+    setVocabQuestions([]);
+    vocabQuestionsPrefetchRef.current = null;
     dispatch(setNextSegment());
     dispatch(setCurrentTab("watch"));
     navigation.navigate("Watch" as never);
@@ -178,6 +328,9 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       setAnswerAudios(data.audio_answers);
     }
     setIsLoadingResponse(false);
+
+    // Start prefetching vocab questions while user answers the video question
+    prefetchVocabQuestions();
 
     // Play audio if available
     if (data.audio && currentTab === "discuss") {

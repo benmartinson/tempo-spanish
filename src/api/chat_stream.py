@@ -12,6 +12,7 @@ import os
 import base64
 import random
 import json
+import string
 from typing import List
 
 from dotenv import load_dotenv
@@ -112,6 +113,63 @@ Guidelines:
 - Only output the question, nothing else
 - Only text, no emojis"""
 
+# System prompt for generating vocab-based questions
+VOCAB_QUESTION_SYSTEM_PROMPT = """Generate vocabulary practice questions in Spanish that incorporate the provided vocabulary words.
+
+Guidelines:
+- Create questions that test understanding of the vocabulary in context
+- Questions can be fill-in-the-blank, translation, definition, or usage questions
+- Keep questions clear and focused on testing knowledge of the vocabulary
+- All questions and answers should be in Spanish
+- Only text, no emojis"""
+
+ignoreVocab = [
+  "por",
+  "la",
+  "los",
+  "las",
+  "el",
+  "un",
+  "una",
+  "para",
+  "unos",
+  "unas",
+  "familia",
+  "de",
+  "se",
+  "y",
+  "en",
+  "con",
+  "quien",
+  "como",
+  "sin",
+  "al",
+  "del",
+  'da',
+  'dame',
+  "a",
+  'si',
+  'no',
+  'les',
+  'nos',
+  'me',
+  'te',
+  'lo',
+];
+
+alreadyKnownVocab: List[str] = [
+  "piso",
+  "bajo",
+  "otro",
+  "automóvil",
+  "nazi",
+  "hombre",
+  "respeto",
+];
+
+def canIgnoreVocab(word: str) -> bool:
+  return word in ignoreVocab or word in alreadyKnownVocab
+
 
 class ChatMessage(BaseModel):
     role: str  # "user" or "assistant"
@@ -128,6 +186,19 @@ class VideoSegment(BaseModel):
 
 class VideoBasedQuestionRequest(BaseModel):
     segments: List[VideoSegment]
+
+
+class VocabItem(BaseModel):
+    value: str
+    translations: List[str]
+    correct_translation: int
+    start: float
+    end: float
+
+
+class VocabBasedQuestionRequest(BaseModel):
+    key_vocabulary: List[VocabItem]
+    context: str | None = None  # The segment text for context
 
 
 class ChatRequest(BaseModel):
@@ -205,48 +276,73 @@ async def get_video_segments(video_id: str):
             metadata = match.metadata
             words = json.loads(metadata["words"])
             # if word is in words, add it to the vocab_map with the start and end time
-            key_vocabulary = metadata["key_vocabulary"]
-            translated_key_vocabulary = metadata["translated_key_vocabulary"]
-            vocab_map = []
+            full_text_translation = metadata.get("full_text_translation", "")
+            # this is an array of objects [{word, translations}]
+            # vocab_map = []
+            # # Function to check if consecutive words match a phrase
+            # def find_phrase_matches(words_list, phrase):
+            #     phrase_words = [w.strip(".,!?") for w in phrase.lower().split()]
+            #     phrase_len = len(phrase_words)
+            #     # also need to strip punctuation from the words
+            #     words_list = [{**word, "word": word["word"].strip(".,!?")} for word in words_list]
 
-            # Create a mapping from key_vocabulary to its translation for O(1) lookups
-            vocab_to_translation = dict(zip(key_vocabulary, translated_key_vocabulary))
-
-            # Function to check if consecutive words match a phrase
-            def find_phrase_matches(words_list, phrase):
-                phrase_words = [w.strip(".,!?") for w in phrase.lower().split()]
-                phrase_len = len(phrase_words)
-                # also need to strip punctuation from the words
-                words_list = [{**word, "word": word["word"].strip(".,!?")} for word in words_list]
-
-                for i in range(len(words_list) - phrase_len + 1):
-                    # Check if consecutive words match the phrase
-                    if all(words_list[i + j]["word"].lower() == phrase_words[j]
-                           for j in range(phrase_len)):
-                        # Return the start time of first word and end time of last word
-                        return {
-                            "start": words_list[i]["start"],
-                            "end": words_list[i + phrase_len - 1]["end"],
-                            "matched_words": [w["word"] for w in words_list[i:i + phrase_len]]
-                        }
-                return None
+            #     for i in range(len(words_list) - phrase_len + 1):
+            #         # Check if consecutive words match the phrase
+            #         if all(words_list[i + j]["word"].lower() == phrase_words[j]
+            #                for j in range(phrase_len)):
+            #             # Return the start time of first word and end time of last word
+            #             return {
+            #                 "start": words_list[i]["start"],
+            #                 "end": words_list[i + phrase_len - 1]["end"],
+            #                 "matched_words": [w["word"] for w in words_list[i:i + phrase_len]]
+            #             }
+            #     return None
 
             # Check each phrase in key_vocabulary
-            for phrase in key_vocabulary:
-                match = find_phrase_matches(words, phrase)
-                if match:
-                    vocab_map.append({
-                        "value": phrase.capitalize(),
-                        "translation": vocab_to_translation[phrase].capitalize(),
-                        "start": match["start"],
-                        "end": match["end"],
-                    })
-                    
+            # for vocab_item in key_vocabulary:
+            #     word = vocab_item["word"]
+            #     translations = vocab_item["translations"]
+            #     # remove repeats from translations
+            #     correct_translation_text = translations[-1]
+            #     random.shuffle(translations)
+            #     correct_translation_index = translations.index(correct_translation_text)
+            #     if (len(translations) == 1):
+            #         continue
+            #     match = find_phrase_matches(words, word)
+
+            #     if match:
+            #         vocab_map.append({
+            #             "value": word.capitalize(),
+            #             "translations": translations,
+            #             "correct_translation": correct_translation_index,
+            #             "start": match["start"],
+            #             "end": match["end"],
+            #         })
+
+            vocab_map = []
+
+            usable_words = [word for word in words if not canIgnoreVocab(word["word"].lower()) and not word["word"].lower() == word["translation"].lower() and len(word["word"]) > 3]
+            for word in usable_words:
+                word["word"] = word["word"].strip().lower().translate(str.maketrans('', '', string.punctuation))
+            
+            num_words = min(len(usable_words), random.randint(4, 6))
+            selected_words = random.sample(usable_words, num_words)
+
+            for word in selected_words:
+                vocab_map.append({
+                    "value": word["word"].capitalize(),
+                    "translations": [word["translation"].capitalize(), 'fake', 'fake'],
+                    "correct_translation": 0,
+                    "start": word["start"],
+                    "end": word["end"],
+                })
+
             segments.append({
                 "segment_id": int(metadata.get("segment_id", 0)),
                 "start": metadata.get("start"),
                 "end": metadata.get("end"),
                 "text": metadata.get("resolved_text", ""),
+                "full_text_translation": full_text_translation,
                 "cefr_level": metadata.get("cefr_level"),
                 "key_vocabulary": vocab_map,
                 "words": words,
@@ -271,7 +367,6 @@ async def video_based_question(request: VideoBasedQuestionRequest):
     Expects segments array to be provided in the request.
     Uses the first segment as the main segment and the second (if provided) as previous context.
     """
-    print('here')
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
 
@@ -328,10 +423,7 @@ Generate a comprehension question in Spanish for this video segment transcript.
 
         # Track the correct answer before shuffling
         correct_answer_text = question_data["answers"][question_data["correct_answer"]]
-
         random.shuffle(question_data["answers"])
-
-        # Update the correct_answer index after shuffling
         question_data["correct_answer"] = question_data["answers"].index(correct_answer_text)
 
         # Generate TTS audio for the question
@@ -351,6 +443,119 @@ Generate a comprehension question in Spanish for this video segment transcript.
     except Exception as e:
         print(f"Error generating video-based question: {e}")
         return {"error": str(e)}
+
+
+@app.post("/vocab-based-question")
+async def vocab_based_question(request: VocabBasedQuestionRequest):
+    """
+    Generate vocab-based questions with TTS audio.
+    Takes key_vocabulary array and generates 3 questions incorporating the vocab words.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    if not request.key_vocabulary or len(request.key_vocabulary) == 0:
+        return {"error": "No vocabulary provided"}
+
+    try:
+        # Format vocabulary for the prompt
+        vocab_list = []
+        for vocab in request.key_vocabulary:
+            correct_translation = vocab.translations[vocab.correct_translation]
+            vocab_list.append(f"- {vocab.value} (meaning: {correct_translation})")
+        
+        vocab_text = "\n".join(vocab_list)
+        
+        # Build context section if provided
+        context_section = ""
+        if request.context:
+            context_section = f"""
+Video transcript context (use this to make questions more relevant):
+"{request.context}"
+
+"""
+
+        user_prompt = f"""Vocabulary words to incorporate:
+{vocab_text}
+{context_section}
+Generate exactly 3 vocabulary practice questions in Spanish. Each question should:
+1. Test understanding of one or more of the vocabulary words
+2. Have 3 multiple choice answers in Spanish
+3. Be varied in question type (translation, fill-in-blank, definition, or context usage)
+4. When possible, relate the question to the video transcript context
+
+Make sure each question clearly tests the learner's knowledge of the vocabulary."""
+
+        messages = [
+            {"role": "system", "content": VOCAB_QUESTION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=800,
+            temperature=0.7,
+            response_format={
+                "type": "json_schema", 
+                "json_schema": {
+                    "name": "vocab_questions_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["questions"],
+                        "properties": {
+                            "questions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["question", "answers", "correct_answer"],
+                                    "properties": {
+                                        "question": {"type": "string"},
+                                        "answers": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
+                                        "correct_answer": {"type": "integer", "minimum": 0, "maximum": 2}
+                                    },
+                                    "additionalProperties": False
+                                },
+                                "minItems": 3,
+                                "maxItems": 3
+                            }
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
+
+        questions_data = json.loads(response.choices[0].message.content.strip())
+
+        # Process each question - shuffle answers and track correct answer
+        processed_questions = []
+        for q in questions_data["questions"]:
+            correct_answer_text = q["answers"][q["correct_answer"]]
+            random.shuffle(q["answers"])
+            q["correct_answer"] = q["answers"].index(correct_answer_text)
+            
+            # Generate TTS audio for question and answers
+            audio_base64 = generate_tts_audio(q["question"])
+            audio_base64_answers = [generate_tts_audio(answer) for answer in q["answers"]]
+            
+            processed_questions.append({
+                "question": q["question"],
+                "answers": q["answers"],
+                "correct_answer": q["correct_answer"],
+                "audio": audio_base64,
+                "audio_answers": audio_base64_answers
+            })
+
+        return {
+            "questions": processed_questions,
+            "status": "complete"
+        }
+    except Exception as e:
+        print(f"Error generating vocab-based questions: {e}")
+        return {"error": str(e)}
+
 
 # @app.post("/initial-message")
 # async def initial_message():

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import AntDesign from '@expo/vector-icons/AntDesign';
-import { Answer } from '../types';
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
+import AntDesign from "@expo/vector-icons/AntDesign";
+import { Answer } from "../types";
 
 interface MultipleChoiceProps {
   answers: Answer[];
@@ -10,20 +10,32 @@ interface MultipleChoiceProps {
   onPressAudio?: (index: number) => void;
 }
 
-export const MultipleChoice: React.FC<MultipleChoiceProps> = ({ answers, onCorrectAnswer, currentlyPlayingIndex, onPressAudio }) => {
-  const [selectedAnswer, setSelectedAnswer] = useState<string>('');
-  const [answerFeedback, setAnswerFeedback] = useState<string>('');
-  const correctAnswer = answers.find((answer) => answer.correct === true)?.answer;
+export const MultipleChoice: React.FC<MultipleChoiceProps> = ({
+  answers,
+  onCorrectAnswer,
+  currentlyPlayingIndex,
+  onPressAudio,
+}) => {
+  const [selectedAnswer, setSelectedAnswer] = useState<string>("");
+  const [answerFeedback, setAnswerFeedback] = useState<string>("");
+  const correctAnswer = answers.find(
+    (answer) => answer.correct === true,
+  )?.answer;
+
+  useEffect(() => {
+    setSelectedAnswer("");
+    setAnswerFeedback("");
+  }, [answers]);
 
   const handleMultipleChoiceAnswer = (answer: string) => {
     setSelectedAnswer(answer);
     if (answer === correctAnswer) {
-      setAnswerFeedback('Correct!');
+      setAnswerFeedback("Correct!");
       setTimeout(() => {
         onCorrectAnswer();
       }, 1000);
     } else {
-      setAnswerFeedback('Not Quite!');
+      setAnswerFeedback("Not Quite!");
     }
   };
 
@@ -35,16 +47,22 @@ export const MultipleChoice: React.FC<MultipleChoiceProps> = ({ answers, onCorre
             style={[
               styles.multipleChoiceButton,
               currentlyPlayingIndex === index && styles.playingButton,
-              selectedAnswer === answer.answer && selectedAnswer === correctAnswer && styles.correctButton,
-              selectedAnswer === answer.answer && selectedAnswer !== correctAnswer && styles.incorrectButton,
+              selectedAnswer === answer.answer &&
+                selectedAnswer === correctAnswer &&
+                styles.correctButton,
+              selectedAnswer === answer.answer &&
+                selectedAnswer !== correctAnswer &&
+                styles.incorrectButton,
             ]}
             onPress={() => handleMultipleChoiceAnswer(answer.answer)}
           >
-            <Text style={[
-              styles.multipleChoiceButtonText,
-              currentlyPlayingIndex === index && styles.playingButtonText,
-              selectedAnswer === answer.answer && styles.selectedButtonText,
-            ]}>
+            <Text
+              style={[
+                styles.multipleChoiceButtonText,
+                currentlyPlayingIndex === index && styles.playingButtonText,
+                selectedAnswer === answer.answer && styles.selectedButtonText,
+              ]}
+            >
               {answer.answer}
             </Text>
           </TouchableOpacity>
@@ -58,11 +76,15 @@ export const MultipleChoice: React.FC<MultipleChoiceProps> = ({ answers, onCorre
           )}
         </View>
       ))}
-      {answerFeedback !== '' && (
-        <Text style={[
-          styles.feedbackText,
-          answerFeedback === 'Correct!' ? styles.correctFeedback : styles.incorrectFeedback
-        ]}>
+      {answerFeedback !== "" && (
+        <Text
+          style={[
+            styles.feedbackText,
+            answerFeedback === "Correct!"
+              ? styles.correctFeedback
+              : styles.incorrectFeedback,
+          ]}
+        >
           {answerFeedback}
         </Text>
       )}
@@ -77,65 +99,65 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   answerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   multipleChoiceButton: {
     flex: 1,
-    backgroundColor: '#333',
+    backgroundColor: "#333",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#555',
+    borderColor: "#555",
   },
   playingButton: {
-    backgroundColor: '#1a237e',
-    borderColor: '#3f51b5',
+    backgroundColor: "#1a237e",
+    borderColor: "#3f51b5",
     borderWidth: 2,
   },
   correctButton: {
-    backgroundColor: '#2e7d32',
-    borderColor: '#4caf50',
+    backgroundColor: "#2e7d32",
+    borderColor: "#4caf50",
   },
   incorrectButton: {
-    backgroundColor: '#c62828',
-    borderColor: '#f44336',
+    backgroundColor: "#c62828",
+    borderColor: "#f44336",
   },
   multipleChoiceButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
   },
   playingButtonText: {
-    color: '#90caf9',
-    fontWeight: 'bold',
+    color: "#90caf9",
+    fontWeight: "bold",
   },
   selectedButtonText: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   feedbackText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     marginTop: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
   correctFeedback: {
-    color: '#4caf50',
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    color: "#4caf50",
+    backgroundColor: "rgba(76, 175, 80, 0.1)",
   },
   incorrectFeedback: {
-    color: '#f44336',
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    color: "#f44336",
+    backgroundColor: "rgba(244, 67, 54, 0.1)",
   },
   audioButton: {
-    backgroundColor: '#333',
+    backgroundColor: "#333",
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#555',
+    borderColor: "#555",
   },
   audioButtonText: {
     fontSize: 18,
