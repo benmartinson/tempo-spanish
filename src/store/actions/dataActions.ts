@@ -33,7 +33,7 @@ export const refreshVideoPlayer = (): DataAction => ({
 });
 
 export const setCurrentTab = (
-  tab: "home" | "videos" | "watch" | "discuss",
+  tab: "home" | "videos" | "watch" | "discuss" | "shadow",
 ): DataAction => ({
   type: "SET_CURRENT_TAB",
   payload: tab,

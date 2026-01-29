@@ -18,8 +18,9 @@ import TabIcon from "./src/components/tabs/TabIcon";
 import WatchTab from "./src/components/watch/WatchTab";
 import TopNavBar from "./src/components/TopNavBar";
 import DiscussTab from "./src/components/discuss/DiscussTab";
-import VideoList from "./src/components/watch/VideoList";
+import VideoList from "./src/components/video-list/VideoList";
 import SelectedVideoBanner from "./src/components/common/SelectedVideoBanner";
+import ShadowTab from "./src/components/shadow/ShadowTab";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -68,7 +69,7 @@ const MainTabs: React.FC = () => {
         }}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="video-list" label="Videos" focused={focused} />
+            <TabIcon icon="video-list" label="Browse" focused={focused} />
           ),
         }}
       />
@@ -83,6 +84,20 @@ const MainTabs: React.FC = () => {
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon icon="video-outline" label="Watch" focused={focused} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Shadow"
+        component={ShadowTab}
+        listeners={{
+          tabPress: () => {
+            dispatch(setCurrentTab("shadow"));
+          },
+        }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon icon="people-outline" label="Shadow" focused={focused} />
           ),
         }}
       />

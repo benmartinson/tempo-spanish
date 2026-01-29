@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, View, ScrollView } from "react-native";
-import YouTubePlayer from "./YouTubePlayer";
+import YouTubePlayer from "../common/YouTubePlayer";
 import { RootState, VideoContext } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import {

@@ -1,57 +1,33 @@
-import SelectVideoPrompt from "../common/SelectVideoPrompt";
-import SelectedVideoBanner from "../common/SelectedVideoBanner";
-import React, { useState, useEffect } from "react";
-import { StyleSheet, View, ScrollView } from "react-native";
-import YouTubePlayer from "../common/YouTubePlayer";
-import { RootState, VideoContext } from "../../types";
-import { useNavigation } from "@react-navigation/native";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../../types";
 import {
   setCurrentTab,
+  setCurrentVideo,
   setSegmentByTime,
 } from "../../store/actions/dataActions";
-import { useDispatch, useSelector } from "react-redux";
-import TranscriptBubble from "./TranscriptBubble";
-import FullSegmentTranscriptBubble from "./FullSegmentTranscriptBubble";
-import TranslationBubble from "./TranslationBubble";
-import BubbleSelector from "./BubbleSelector";
+import SelectVideoPrompt from "../common/SelectVideoPrompt";
+import { useNavigation } from "@react-navigation/native";
+import SelectedVideoBanner from "../common/SelectedVideoBanner";
+import YouTubePlayer from "../common/YouTubePlayer";
+import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 
-const WatchTab: React.FC = () => {
+const ShadowTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const navigation = useNavigation();
   const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
+  const isClip = true;
   const timeRemaining = Math.floor(Math.max(clip.end - time, 0));
-  const dispatch = useDispatch();
-  const isClip = false;
-  // const allWords = useSelector(
-  //   (state: RootState) => state.currentVideo?.allWords,
-  // );
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
   );
-  const [bubbleSelections, setBubbleSelections] = useState<string[]>([
-    "small",
-    "large",
-    "translation",
-  ]);
-
-  useEffect(() => {
-    if (clip) {
-      // console.log("clip", clip);
-    }
-  }, [clip]);
+  const dispatch = useDispatch();
 
   const handleSetTime = (newTime: number) => {
     if (newTime >= 1 && (newTime < clip.start || newTime > clip.end)) {
       dispatch(setSegmentByTime(newTime));
       return;
-    }
-    const newTimeRemaining = Math.max(Math.ceil(clip.end - newTime), 0);
-    if (newTimeRemaining < 1 && timeRemaining >= 0) {
-      if (isClip) {
-        dispatch(setCurrentTab("discuss"));
-        navigation.navigate("Discuss" as never);
-      }
     }
     setTime(newTime);
   };
@@ -59,7 +35,6 @@ const WatchTab: React.FC = () => {
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
-
   return (
     <>
       <SelectedVideoBanner />
@@ -81,29 +56,7 @@ const WatchTab: React.FC = () => {
                 )} */}
         </View>
         <ScrollView style={styles.transcriptContainer}>
-          <BubbleSelector
-            bubbleSelections={bubbleSelections}
-            setBubbleSelections={setBubbleSelections}
-          />
-          {bubbleSelections.includes("small") && (
-            <TranscriptBubble words={clip?.words || []} time={time} />
-          )}
-          {bubbleSelections.includes("large") && (
-            <FullSegmentTranscriptBubble
-              words={clip?.words || []}
-              time={time}
-            />
-          )}
-          {bubbleSelections.includes("translation") && (
-            <TranslationBubble
-              translation={clip?.full_text_translation.split(" ") || []}
-              words={clip?.words || []}
-              time={time}
-            />
-          )}
-          {/* {clip.key_vocabulary && clip.key_vocabulary.length > 0 && (
-                  <VocabList vocab={clip.key_vocabulary} time={time} />
-                  )} */}
+          <FullSegmentTranscriptBubble words={clip?.words || []} time={time} />
         </ScrollView>
       </View>
     </>
@@ -182,5 +135,4 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
-
-export default WatchTab;
+export default ShadowTab;

@@ -1,6 +1,6 @@
-import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
-import VideoList from '../watch/VideoList';
+import React from "react";
+import { StyleSheet, View, Text } from "react-native";
+import VideoList from "../video-list/VideoList";
 
 const VideosTab: React.FC = () => {
   return (
@@ -14,14 +14,14 @@ const VideosTab: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: "#1a1a2e",
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 20,
   },
 });
