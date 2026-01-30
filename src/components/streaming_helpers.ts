@@ -276,16 +276,46 @@ export const setAudioModeForRecording = async (
 };
 
 /**
- * Lenient word matching - returns true if words share at least 25% of characters.
- * This is forgiving to encourage users even with imperfect pronunciation.
- *
- * Example: "intelligente" (12 chars) vs "elegante" (8 chars)
- * - Shared: e, l, e, g, a, n, t, e = 8 characters
- * - Threshold: ceil(12 * 0.25) = 3
- * - 8 >= 3, so it matches
+ * Response from batch transcription endpoint
+ */
+export interface TranscriptionResponse {
+  transcript: string;
+  confidence: number;
+  words: TranscriptWord[];
+}
+
+/**
+ * Accuracy calculation result
+ */
+export interface AccuracyResult {
+  percentage: number;
+  matchedWords: number;
+  totalWords: number;
+  details: {
+    targetWord: string;
+    matched: boolean;
+    spokenWord?: string;
+  }[];
+}
+
+/**
+ * Normalize a string for comparison - lowercase, remove accents and punctuation
+ */
+export const normalize = (s: string): string =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/[^\w\s]/g, "") // punctuation
+    .trim();
+
+/**
+ * Calculate Levenshtein distance between two strings
  */
 function levenshtein(a: string, b: string): number {
-  const matrix = Array.from({ length: b.length + 1 }, (_, i) => [i]);
+  const matrix: number[][] = Array.from({ length: b.length + 1 }, (_, i) => [
+    i,
+  ]);
 
   for (let j = 0; j <= a.length; j++) {
     matrix[0][j] = j;
@@ -308,108 +338,297 @@ function levenshtein(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
+/**
+ * Calculate similarity between two strings (0-1)
+ */
 function similarity(a: string, b: string): number {
+  if (a.length === 0 && b.length === 0) return 1;
+  if (a.length === 0 || b.length === 0) return 0;
   const distance = levenshtein(a, b);
   return 1 - distance / Math.max(a.length, b.length);
 }
-function tokenSimilar(a: string, b: string): boolean {
-  if (a === b) return true;
-  if (a.length < 3 || b.length < 3) return false;
 
-  // allow partial overlap
-  if (a.includes(b) || b.includes(a)) return true;
+/**
+ * Check if two words are similar enough to be considered a match
+ */
+function wordMatches(spoken: string, target: string, threshold = 0.7): boolean {
+  const normalizedSpoken = normalize(spoken);
+  const normalizedTarget = normalize(target);
 
-  return similarity(a, b) >= 0.6;
-}
+  // Exact match
+  if (normalizedSpoken === normalizedTarget) return true;
 
-export const normalize = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip accents
-    .replace(/[^\w\s]/g, "") // punctuation
-    .trim();
-
-export const joinWords = (words: string[]) => normalize(words.join(" "));
-
-export function softMatch(
-  spokenRaw: string,
-  targetRaw: string,
-  threshold = 0.6,
-): boolean {
-  const spoken = normalize(spokenRaw);
-  const target = normalize(targetRaw);
-
-  if (!spoken || !target) return false;
-
-  // 1️⃣ quick win: prefix match (great for streaming)
-  if (target.startsWith(spoken) || spoken.startsWith(target)) {
+  // Partial match (one contains the other)
+  if (
+    normalizedSpoken.includes(normalizedTarget) ||
+    normalizedTarget.includes(normalizedSpoken)
+  ) {
     return true;
   }
 
-  // 2️⃣ token overlap score
-  const spokenTokens = spoken.split(" ");
-  const targetTokens = target.split(" ");
-
-  const overlapCount = spokenTokens.filter((st) =>
-    targetTokens.some((tt) => tokenSimilar(st, tt)),
-  ).length;
-
-  const tokenScore = overlapCount / targetTokens.length;
-
-  // 3️⃣ character similarity (edit distance)
-  const charScore = similarity(spoken, target);
-
-  // Weighted blend
-  const score = tokenScore * 0.6 + charScore * 0.4;
-
-  return score >= threshold;
+  // Fuzzy match using similarity
+  return similarity(normalizedSpoken, normalizedTarget) >= threshold;
 }
 
-const RESTART_WORDS = new Set([
-  "el",
-  "la",
-  "los",
-  "las",
-  "un",
-  "una",
-  "de",
-  "del",
-  "al",
-]);
+/**
+ * Send audio file to backend for batch transcription
+ */
+export const sendAudioForTranscription = async (
+  audioUri: string,
+): Promise<TranscriptionResponse> => {
+  try {
+    // Read the audio file as base64
+    const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
+      encoding: "base64",
+    });
 
-export function collapseChurn(words: string[]): string[] {
-  const result: string[] = [];
+    // Create form data for the request
+    const formData = new FormData();
+    formData.append("file", {
+      uri: audioUri,
+      type: "audio/wav",
+      name: "recording.wav",
+    } as any);
 
-  for (const raw of words) {
-    const word = normalize(raw);
-    const last = result[result.length - 1];
+    console.log(`Sending audio for transcription: ${audioUri}`);
 
-    // 🔁 Detect phrase restart
-    if (
-      RESTART_WORDS.has(word) &&
-      result.length >= 2 &&
-      result.includes(word)
-    ) {
-      // reset phrase
-      result.length = 0;
-      result.push(word);
-      continue;
+    const response = await fetch(`${BACKEND_BASE_URL}/api/transcribe`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Transcription failed: ${response.status} - ${errorText}`,
+      );
     }
 
-    if (!last) {
-      result.push(word);
-      continue;
-    }
+    const result: TranscriptionResponse = await response.json();
+    console.log("Transcription result:", result.transcript);
+    return result;
+  } catch (err) {
+    console.error("Error sending audio for transcription:", err);
+    throw err;
+  }
+};
 
-    // refinement of previous token
-    if (similarity(word, last) > 0.7) {
-      result[result.length - 1] = word;
-      continue;
-    }
-
-    result.push(word);
+/**
+ * Calculate accuracy by comparing spoken words against target words
+ * Uses a greedy matching approach that finds the best match for each target word
+ */
+export const calculateAccuracy = (
+  spokenWords: string[],
+  targetWords: string[],
+): AccuracyResult => {
+  if (targetWords.length === 0) {
+    return {
+      percentage: 100,
+      matchedWords: 0,
+      totalWords: 0,
+      details: [],
+    };
   }
 
-  return result;
-}
+  const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
+  const details: AccuracyResult["details"] = [];
+  let matchedCount = 0;
+
+  // Track which spoken words have been used
+  const usedSpokenIndices = new Set<number>();
+
+  // For each target word, try to find the best matching spoken word
+  for (const targetWord of targetWords) {
+    const normalizedTarget = normalize(targetWord);
+    if (!normalizedTarget) {
+      // Skip empty words (punctuation only)
+      continue;
+    }
+
+    let bestMatchIndex = -1;
+    let bestMatchScore = 0;
+
+    // Find the best unused spoken word that matches this target
+    for (let i = 0; i < normalizedSpoken.length; i++) {
+      if (usedSpokenIndices.has(i)) continue;
+
+      const spokenWord = normalizedSpoken[i];
+      const score = similarity(spokenWord, normalizedTarget);
+
+      if (score > bestMatchScore && score >= 0.6) {
+        bestMatchScore = score;
+        bestMatchIndex = i;
+      }
+    }
+
+    if (bestMatchIndex !== -1) {
+      // Found a match
+      usedSpokenIndices.add(bestMatchIndex);
+      matchedCount++;
+      details.push({
+        targetWord,
+        matched: true,
+        spokenWord: spokenWords[bestMatchIndex],
+      });
+    } else {
+      // No match found
+      details.push({
+        targetWord,
+        matched: false,
+      });
+    }
+  }
+
+  const totalWords = details.length;
+  const percentage =
+    totalWords > 0 ? Math.round((matchedCount / totalWords) * 100) : 0;
+
+  return {
+    percentage,
+    matchedWords: matchedCount,
+    totalWords,
+    details,
+  };
+};
+
+/**
+ * Lenient word matching - returns true if words share at least 25% of characters.
+ * This is forgiving to encourage users even with imperfect pronunciation.
+ *
+ * Example: "intelligente" (12 chars) vs "elegante" (8 chars)
+ * - Shared: e, l, e, g, a, n, t, e = 8 characters
+ * - Threshold: ceil(12 * 0.25) = 3
+ * - 8 >= 3, so it matches
+ */
+// function levenshtein(a: string, b: string): number {
+//   const matrix = Array.from({ length: b.length + 1 }, (_, i) => [i]);
+
+//   for (let j = 0; j <= a.length; j++) {
+//     matrix[0][j] = j;
+//   }
+
+//   for (let i = 1; i <= b.length; i++) {
+//     for (let j = 1; j <= a.length; j++) {
+//       if (b[i - 1] === a[j - 1]) {
+//         matrix[i][j] = matrix[i - 1][j - 1];
+//       } else {
+//         matrix[i][j] = Math.min(
+//           matrix[i - 1][j] + 1,
+//           matrix[i][j - 1] + 1,
+//           matrix[i - 1][j - 1] + 1,
+//         );
+//       }
+//     }
+//   }
+
+//   return matrix[b.length][a.length];
+// }
+
+// function similarity(a: string, b: string): number {
+//   const distance = levenshtein(a, b);
+//   return 1 - distance / Math.max(a.length, b.length);
+// }
+// function tokenSimilar(a: string, b: string): boolean {
+//   if (a === b) return true;
+//   if (a.length < 3 || b.length < 3) return false;
+
+//   // allow partial overlap
+//   if (a.includes(b) || b.includes(a)) return true;
+
+//   return similarity(a, b) >= 0.6;
+// }
+
+// export const normalize = (s: string) =>
+//   s
+//     .toLowerCase()
+//     .normalize("NFD")
+//     .replace(/[\u0300-\u036f]/g, "") // strip accents
+//     .replace(/[^\w\s]/g, "") // punctuation
+//     .trim();
+
+// export const joinWords = (words: string[]) => normalize(words.join(" "));
+
+// export function softMatch(
+//   spokenRaw: string,
+//   targetRaw: string,
+//   threshold = 0.6,
+// ): boolean {
+//   const spoken = normalize(spokenRaw);
+//   const target = normalize(targetRaw);
+
+//   if (!spoken || !target) return false;
+
+//   // 1️⃣ quick win: prefix match (great for streaming)
+//   if (target.startsWith(spoken) || spoken.startsWith(target)) {
+//     return true;
+//   }
+
+//   // 2️⃣ token overlap score
+//   const spokenTokens = spoken.split(" ");
+//   const targetTokens = target.split(" ");
+
+//   const overlapCount = spokenTokens.filter((st) =>
+//     targetTokens.some((tt) => tokenSimilar(st, tt)),
+//   ).length;
+
+//   const tokenScore = overlapCount / targetTokens.length;
+
+//   // 3️⃣ character similarity (edit distance)
+//   const charScore = similarity(spoken, target);
+
+//   // Weighted blend
+//   const score = tokenScore * 0.6 + charScore * 0.4;
+
+//   return score >= threshold;
+// }
+
+// const RESTART_WORDS = new Set([
+//   "el",
+//   "la",
+//   "los",
+//   "las",
+//   "un",
+//   "una",
+//   "de",
+//   "del",
+//   "al",
+// ]);
+
+// export function collapseChurn(words: string[]): string[] {
+//   const result: string[] = [];
+
+//   for (const raw of words) {
+//     const word = normalize(raw);
+//     const last = result[result.length - 1];
+
+//     // 🔁 Detect phrase restart
+//     if (
+//       RESTART_WORDS.has(word) &&
+//       result.length >= 2 &&
+//       result.includes(word)
+//     ) {
+//       // reset phrase
+//       result.length = 0;
+//       result.push(word);
+//       continue;
+//     }
+
+//     if (!last) {
+//       result.push(word);
+//       continue;
+//     }
+
+//     // refinement of previous token
+//     if (similarity(word, last) > 0.7) {
+//       result[result.length - 1] = word;
+//       continue;
+//     }
+
+//     result.push(word);
+//   }
+
+//   return result;
+// }

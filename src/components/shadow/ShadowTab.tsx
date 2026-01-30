@@ -5,26 +5,25 @@ import {
   View,
   Text,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { RootState } from "../../types";
 import {
-  setCurrentTab,
-  setCurrentVideo,
   setSegmentByTime,
+  setNextSegment,
+  refreshVideoPlayer,
 } from "../../store/actions/dataActions";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
-import { useNavigation } from "@react-navigation/native";
 import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import YouTubePlayer from "../common/YouTubePlayer";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
 import {
-  collapseChurn,
-  joinWords,
-  softMatch,
-  TranscriptWord,
+  sendAudioForTranscription,
+  calculateAccuracy,
+  AccuracyResult,
 } from "../streaming_helpers";
 
 const ShadowTab: React.FC = () => {
@@ -36,122 +35,137 @@ const ShadowTab: React.FC = () => {
     (state: RootState) => state.videoRefreshKey,
   );
   const dispatch = useDispatch();
-  const [isUserTurn, setIsUserTurn] = useState<boolean>(false);
-  const [currentTargetIndex, setCurrentTargetIndex] = useState<number>(0);
+
+  // useEffect(() => {
+  //   if (clip) {
+  //     setTime(clip.start);
+  //     dispatch(refreshVideoPlayer());
+  //   }
+  // }, [clip]);
+
+  // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
+    null,
+  );
+  const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
+
+  // Track if recording should auto-stop when segment ends
+  const shouldAutoStopRef = useRef<boolean>(false);
 
   const clipWords = clip?.words || [];
 
-  // Use ref to track currentTargetIndex in callback to avoid stale closures
-  const currentTargetIndexRef = useRef(currentTargetIndex);
-  const pendingMatchCountRef = useRef(0);
-  useEffect(() => {
-    //what does this do? I'll tell you, it's a ref to the currentTargetIndex state,
-    currentTargetIndexRef.current = currentTargetIndex;
-  }, [currentTargetIndex]);
+  // Handle recording completion - send audio for transcription
+  const handleRecordingComplete = useCallback(
+    async (audioUri: string) => {
+      console.log("Recording complete, processing audio...");
+      setIsProcessing(true);
+      setError(null);
 
-  // Accumulate transcript stream text
-  const streamTextRef = useRef<string>("");
+      try {
+        // Send audio to backend for transcription
+        const result = await sendAudioForTranscription(audioUri);
 
-  // Handle incoming transcripts from Soniox
-  const LOOKAHEAD = 4; // how many transcript words we try to match at once
+        // Extract words from transcript
+        const spokenWords = result.transcript.split(/\s+/).filter(Boolean);
 
-  const handleTranscript = useCallback(
-    (transcript: string, isFinal: boolean) => {
-      if (clipWords.length === 0) return;
+        // Get target words from clip
+        const targetWords = clipWords.map((w) => w.word);
 
-      // Accumulate non-final text
-      streamTextRef.current += transcript + " ";
+        // Calculate accuracy
+        const accuracy = calculateAccuracy(spokenWords, targetWords);
+        console.log("Accuracy result:", accuracy);
 
-      const spokenWords = streamTextRef.current
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean);
-
-      if (spokenWords.length === 0) return;
-
-      const cursor = currentTargetIndexRef.current;
-
-      // Build target window: ONLY upcoming words
-      const targetWindow = clipWords
-        .slice(cursor, cursor + LOOKAHEAD)
-        .map((w) => w.word);
-
-      const spokenPhrase = joinWords(collapseChurn(spokenWords));
-      const targetPhrase = joinWords(targetWindow);
-
-      // Fuzzy match PHRASES, not words
-      console.log("spokenPhrase", spokenPhrase);
-      console.log("targetPhrase", targetPhrase);
-      if (softMatch(spokenPhrase, targetPhrase)) {
-        pendingMatchCountRef.current += 1;
-
-        if (pendingMatchCountRef.current >= 2) {
-          // commit
-          currentTargetIndexRef.current += targetWindow.length;
-          setCurrentTargetIndex(currentTargetIndexRef.current);
-          streamTextRef.current = "";
-          pendingMatchCountRef.current = 0;
-        }
-      } else {
-        pendingMatchCountRef.current = 0;
-      }
-
-      // Optional: if final and no match, clear buffer anyway
-      if (isFinal) {
-        streamTextRef.current = "";
+        setAccuracyResult(accuracy);
+      } catch (err) {
+        console.error("Transcription error:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to process audio",
+        );
+      } finally {
+        setIsProcessing(false);
       }
     },
     [clipWords],
   );
 
-  const {
-    isRecording,
-    isConnecting,
-    hasPermission,
-    startRecording,
-    stopRecording,
-  } = useRecording({
-    onTranscript: handleTranscript,
-    onError: (message) => setError(message),
-  });
+  const { isRecording, hasPermission, startRecording, stopRecording } =
+    useRecording({
+      onRecordingComplete: handleRecordingComplete,
+      onError: (message) => setError(message),
+    });
 
   // Reset state when segment changes
   useEffect(() => {
-    setIsUserTurn(false);
-    setCurrentTargetIndex(0);
     setError(null);
-    streamTextRef.current = "";
+    setAccuracyResult(null);
+    setIsProcessing(false);
+    setIsVideoMuted(false);
+    shouldAutoStopRef.current = false;
   }, [currentVideo?.currentSegment]);
 
-  // Start recording when segment ends
+  // Auto-stop recording when segment ends
   useEffect(() => {
-    if (timeRemaining === 0 && !isUserTurn && hasPermission) {
-      setIsUserTurn(true);
-      // startRecording();
+    if (isRecording && timeRemaining <= 0 && shouldAutoStopRef.current) {
+      stopRecording();
+      shouldAutoStopRef.current = false;
+      // Don't refresh video after auto-stop - let it continue playing
     }
-  }, [timeRemaining, isUserTurn, hasPermission, startRecording]);
+  }, [timeRemaining, isRecording, stopRecording]);
 
   const handleSetTime = (newTime: number) => {
-    if (newTime >= 1 && (newTime < clip?.start || newTime > clip?.end)) {
-      dispatch(setSegmentByTime(newTime));
-      return;
-    }
+    // if (newTime >= 1 && (newTime <= clip?.start || newTime >= clip?.end)) {
+    // this causes bugs
+    //   console.log("newTime", newTime);
+    //   console.log("clip", clip?.start, clip?.end);
+    //   dispatch(setSegmentByTime(newTime));
+    //   return;
+    // }
     setTime(newTime);
   };
 
-  const handleRecordingPress = () => {
-    if (isRecording || isConnecting) {
-      stopRecording();
-    } else {
-      setIsUserTurn(true);
-      startRecording();
-    }
+  const handleStartRecording = async () => {
+    // Reset previous results
+    setAccuracyResult(null);
+    setError(null);
+    setTime(clip?.start || 0);
+    shouldAutoStopRef.current = true;
+    setIsVideoMuted(true);
+    await startRecording();
+
+    dispatch(refreshVideoPlayer());
+  };
+
+  const handleStopRecording = async () => {
+    shouldAutoStopRef.current = false;
+    // pause video
+    await stopRecording();
+    // Keep muted until user takes action (results will be shown)
+  };
+
+  const handleNextSegment = () => {
+    // Move to next segment and unmute
+    setIsVideoMuted(false);
+    dispatch(setNextSegment());
   };
 
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
+
+  // Determine what message to show during recording
+  const getRecordingMessage = () => {
+    if (isProcessing) return "Processing...";
+    if (isRecording) return `Listening... segment ends in ${timeRemaining}`;
+    return null;
+  };
+
+  const recordingMessage = getRecordingMessage();
+
+  const handlePlaySnippetAgain = () => {
+    dispatch(refreshVideoPlayer());
+  };
 
   return (
     <>
@@ -164,61 +178,104 @@ const ShadowTab: React.FC = () => {
             autoplay={true}
             refreshKey={videoRefreshKey}
             setTime={handleSetTime}
+            muted={isVideoMuted}
           />
-          {timeRemaining < 5 && timeRemaining > 0 && !isUserTurn && (
+          {recordingMessage && (
             <View style={styles.countdownContainer}>
-              <Text style={styles.countdownText}>
-                Your turn in {timeRemaining}
-              </Text>
-            </View>
-          )}
-          {isUserTurn && (
-            <View style={styles.countdownContainer}>
-              <Text style={styles.countdownText}>
-                {isConnecting
-                  ? "Connecting..."
-                  : isRecording
-                    ? "Listening..."
-                    : "Your turn!"}
-              </Text>
+              <Text style={styles.countdownText}>{recordingMessage}</Text>
             </View>
           )}
         </View>
+
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
+
         <ScrollView style={styles.transcriptContainer}>
-          <FullSegmentTranscriptBubble
-            words={clipWords}
-            time={time}
-            mode={isUserTurn ? "shadow" : "video"}
-            currentTargetIndex={currentTargetIndex}
-          />
-          <TouchableOpacity
-            style={[
-              styles.recordButton,
-              (isRecording || isConnecting) && styles.recordButtonActive,
-            ]}
-            onPress={handleRecordingPress}
-            disabled={!hasPermission}
-          >
-            {(isRecording || isConnecting) && (
-              <MaterialIcons
-                name="fiber-manual-record"
-                size={20}
-                color="#ff4757"
-              />
-            )}
-            <Text style={styles.recordButtonText}>
-              {isConnecting
-                ? "Connecting..."
-                : isRecording
-                  ? "Stop Recording"
-                  : "Start Recording"}
-            </Text>
-          </TouchableOpacity>
+          {!accuracyResult && (
+            <FullSegmentTranscriptBubble
+              words={clipWords}
+              time={time}
+              mode="video"
+            />
+          )}
+
+          {/* Recording button or processing indicator */}
+          {isProcessing ? (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator size="large" color="#4ade80" />
+              <Text style={styles.processingText}>
+                Analyzing your pronunciation...
+              </Text>
+            </View>
+          ) : accuracyResult ? (
+            // Show results
+            <View style={styles.resultsContainer}>
+              <View style={styles.accuracyCircle}>
+                <Text style={styles.accuracyPercentage}>
+                  {accuracyResult.percentage}%
+                </Text>
+                <Text style={styles.accuracyLabel}>Accuracy</Text>
+              </View>
+              <Text style={styles.accuracyDetails}>
+                {accuracyResult.matchedWords} of {accuracyResult.totalWords}{" "}
+                words matched
+              </Text>
+
+              {/* Action buttons */}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.tryAgainButton]}
+                  onPress={handleStartRecording}
+                >
+                  <MaterialIcons name="replay" size={20} color="#fff" />
+                  <Text style={styles.actionButtonText}>Re-Try Recording</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.nextButton]}
+                  onPress={handleNextSegment}
+                >
+                  <Text style={styles.actionButtonText}>Next Segment</Text>
+                  <MaterialIcons name="arrow-forward" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.playAgainButton]}
+                  onPress={handlePlaySnippetAgain}
+                >
+                  <Text style={styles.playAgainButtonText}>
+                    Re-Play Video Section
+                  </Text>
+                  <MaterialIcons name="play-arrow" size={20} color="black" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            // Show record button
+            <TouchableOpacity
+              style={[
+                styles.recordButton,
+                isRecording && styles.recordButtonActive,
+              ]}
+              onPress={isRecording ? handleStopRecording : handleStartRecording}
+              disabled={!hasPermission || isProcessing}
+            >
+              {isRecording && (
+                <MaterialIcons
+                  name="fiber-manual-record"
+                  size={20}
+                  color="#ff4757"
+                />
+              )}
+              <Text style={styles.recordButtonText}>
+                {isRecording ? "Stop Recording" : "Start Recording"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
     </>
@@ -230,47 +287,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "white",
   },
-  questionContextButton: {
-    flexDirection: "row",
-    alignSelf: "flex-end",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "#2a2a4a",
-    borderRadius: 8,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    margin: 16,
-  },
-  questionContextText: {
-    color: "#888",
-    fontSize: 12,
-  },
   transcriptContainer: {
     flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  button: {
-    backgroundColor: "#3d3a52",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#5a5680",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
   },
   videoContainer: {
     height: 230,
@@ -303,9 +321,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     textAlign: "center",
   },
-  loader: {
-    marginLeft: 8,
-  },
   recordButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -326,5 +341,78 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  processingContainer: {
+    alignItems: "center",
+    marginTop: 24,
+    gap: 12,
+  },
+  processingText: {
+    color: "#666",
+    fontSize: 14,
+  },
+  resultsContainer: {
+    alignItems: "center",
+    marginTop: 16,
+    paddingHorizontal: 16,
+  },
+  accuracyCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#2d2a40",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  accuracyPercentage: {
+    color: "#4ade80",
+    fontSize: 32,
+    fontWeight: "700",
+  },
+  accuracyLabel: {
+    color: "#fff",
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  accuracyDetails: {
+    color: "#666",
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+  },
+  tryAgainButton: {
+    backgroundColor: "#3d3a52",
+  },
+  playAgainButton: {
+    backgroundColor: "white",
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: "#3d3a52",
+  },
+  playAgainButtonText: {
+    color: "black",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  nextButton: {
+    backgroundColor: "#4ade80",
+  },
+  actionButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
 });
+
 export default ShadowTab;

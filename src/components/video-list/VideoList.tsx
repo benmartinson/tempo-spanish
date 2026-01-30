@@ -73,8 +73,8 @@ const VideoList: React.FC = () => {
       allWords: data.segments.flatMap((s: Segment) => s.words),
     };
     dispatch(setCurrentVideo(video));
-    dispatch(setCurrentTab("watch"));
-    navigation.navigate("Watch" as never);
+    dispatch(setCurrentTab("shadow"));
+    navigation.navigate("Shadow" as never);
     setLoadingVideo(false);
   };
 

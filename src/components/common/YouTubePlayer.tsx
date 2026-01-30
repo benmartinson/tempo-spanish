@@ -9,6 +9,7 @@ interface YouTubePlayerProps {
   autoplay: boolean;
   refreshKey: number;
   setTime: (time: number) => void;
+  muted?: boolean;
 }
 
 const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
@@ -17,13 +18,14 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   autoplay,
   refreshKey,
   setTime,
+  muted = false,
 }) => {
-  const getVideoUrl = (videoId, clip, autoplay) => {
+  const getVideoUrl = (videoId, clip, autoplay, muted) => {
     const baseUrl = "https://yt-relay.vercel.app";
     const params = new URLSearchParams({
       v: videoId,
       autoplay: autoplay ? "1" : "0",
-      mute: "1",
+      muted: muted ? "1" : "0",
       start: clip ? clip.start.toString() : "0",
       end: clip ? clip.end.toString() : null,
       controls: "1",
@@ -36,10 +38,10 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
       <WebView
         key={
           clip
-            ? `${clip.videoId}-${clip.start}-${clip.end}-${refreshKey}`
-            : `${videoId}`
+            ? `${clip.videoId}-${clip.start}-${clip.end}-${refreshKey}-${muted}`
+            : `${videoId}-${muted}`
         }
-        source={{ uri: getVideoUrl(videoId, clip, autoplay) }}
+        source={{ uri: getVideoUrl(videoId, clip, autoplay, muted) }}
         style={styles.webview}
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
