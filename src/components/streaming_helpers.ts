@@ -32,7 +32,11 @@ export interface BackendMessage {
 export interface TranscriptCallbacks {
   onReady?: (message: string) => void;
   onConnected?: () => void;
-  onTranscript?: (transcript: string, isFinal: boolean) => void;
+  onTranscript?: (
+    transcript: string,
+    isFinal: boolean,
+    words?: TranscriptWord[],
+  ) => void;
   onError?: (message: string) => void;
   onMetadata?: () => void;
 }
@@ -119,7 +123,11 @@ export const connectToBackend = (
 
           case "transcript":
             if (data.transcript) {
-              callbacks.onTranscript?.(data.transcript, data.is_final || false);
+              callbacks.onTranscript?.(
+                data.transcript,
+                data.is_final || false,
+                data.words,
+              );
             }
             break;
 
@@ -265,4 +273,45 @@ export const setAudioModeForRecording = async (
     allowsRecordingIOS: isRecording,
     playsInSilentModeIOS: isRecording,
   });
+};
+
+/**
+ * Lenient word matching - returns true if words share at least 25% of characters.
+ * This is forgiving to encourage users even with imperfect pronunciation.
+ *
+ * Example: "intelligente" (12 chars) vs "elegante" (8 chars)
+ * - Shared: e, l, e, g, a, n, t, e = 8 characters
+ * - Threshold: ceil(12 * 0.25) = 3
+ * - 8 >= 3, so it matches
+ */
+export const softMatch = (spokenWord: string, targetWord: string): boolean => {
+  // Normalize: lowercase, remove punctuation
+  const normalize = (w: string) =>
+    w
+      .toLowerCase()
+      .replace(/[.,!?¿¡;:'"()\-]/g, "")
+      .trim();
+
+  const spoken = normalize(spokenWord);
+  const target = normalize(targetWord);
+
+  if (!spoken || !target) return false;
+
+  // Count shared characters
+  const spokenChars = spoken.split("");
+  const targetCharsCopy = target.split("");
+
+  let sharedCount = 0;
+
+  for (const char of spokenChars) {
+    const idx = targetCharsCopy.indexOf(char);
+    if (idx !== -1) {
+      sharedCount++;
+      targetCharsCopy.splice(idx, 1); // Remove to avoid double counting
+    }
+  }
+
+  // Match if at least 25% of target characters are shared
+  const threshold = Math.ceil(target.length * 0.25);
+  return sharedCount >= threshold;
 };

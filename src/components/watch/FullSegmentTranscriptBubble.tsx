@@ -14,6 +14,8 @@ interface FullSegmentTranscriptBubbleProps {
   words?: SegmentWord[];
   translationWords?: string[];
   time: number;
+  mode?: "video" | "shadow"; // default 'video'
+  currentTargetIndex?: number; // for shadow mode - the word user is attempting
 }
 
 const LINE_HEIGHT = 28;
@@ -22,7 +24,13 @@ const VISIBLE_HEIGHT = LINE_HEIGHT * VISIBLE_LINES;
 
 const FullSegmentTranscriptBubble: React.FC<
   FullSegmentTranscriptBubbleProps
-> = ({ words, translationWords, time }) => {
+> = ({
+  words,
+  translationWords,
+  time,
+  mode = "video",
+  currentTargetIndex = 0,
+}) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
     {},
@@ -59,8 +67,12 @@ const FullSegmentTranscriptBubble: React.FC<
     }
   }, [words]);
 
-  // Find the current word index based on time
+  // Find the current word index based on time (video mode) or currentTargetIndex (shadow mode)
   const currentWordIndex = useMemo(() => {
+    if (mode === "shadow") {
+      return currentTargetIndex;
+    }
+    // Video mode: find word based on playback time
     for (let i = 0; i < words.length; i++) {
       if (time >= words[i].start && time <= words[i].end) {
         return i;
@@ -75,14 +87,16 @@ const FullSegmentTranscriptBubble: React.FC<
       }
     }
     return -1;
-  }, [words, time]);
+  }, [words, time, mode, currentTargetIndex]);
 
-  // Activate when we first hit a valid word
+  // Activate when we first hit a valid word (video mode) or immediately (shadow mode)
   useEffect(() => {
-    if (currentWordIndex >= 0 && !isActive) {
+    if (mode === "shadow") {
+      setIsActive(true);
+    } else if (currentWordIndex >= 0 && !isActive) {
       setIsActive(true);
     }
-  }, [currentWordIndex, isActive]);
+  }, [currentWordIndex, isActive, mode]);
 
   // Auto-scroll to current word
   useEffect(() => {
@@ -127,25 +141,32 @@ const FullSegmentTranscriptBubble: React.FC<
         scrollEnabled={false}
       >
         {!words.length && <Text style={styles.word}></Text>}
-        {words.map((word, index) => (
-          <Pressable
-            key={`${word.start}-${index}`}
-            onLayout={(e) => handleWordLayout(index, e)}
-            onLongPress={() => handleLongPress(word)}
-            delayLongPress={300}
-          >
-            <Text
-              style={[
-                styles.word,
-                index === currentWordIndex
-                  ? styles.currentWord
-                  : styles.normalWord,
-              ]}
+        {words.map((word, index) => {
+          // Determine word style based on mode
+          const getWordStyle = () => {
+            if (mode === "shadow") {
+              // Shadow mode: words at or before currentTargetIndex are highlighted
+              return index <= currentTargetIndex
+                ? styles.currentWord
+                : styles.normalWord;
+            }
+            // Video mode: only current word is highlighted
+            return index === currentWordIndex
+              ? styles.currentWord
+              : styles.normalWord;
+          };
+
+          return (
+            <Pressable
+              key={`${word.start}-${index}`}
+              onLayout={(e) => handleWordLayout(index, e)}
+              onLongPress={() => handleLongPress(word)}
+              delayLongPress={300}
             >
-              {word.word}
-            </Text>
-          </Pressable>
-        ))}
+              <Text style={[styles.word, getWordStyle()]}>{word.word}</Text>
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       <Modal
