@@ -20,7 +20,12 @@ import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import YouTubePlayer from "../common/YouTubePlayer";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
-import { softMatch, TranscriptWord } from "../streaming_helpers";
+import {
+  collapseChurn,
+  joinWords,
+  softMatch,
+  TranscriptWord,
+} from "../streaming_helpers";
 
 const ShadowTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -39,6 +44,7 @@ const ShadowTab: React.FC = () => {
 
   // Use ref to track currentTargetIndex in callback to avoid stale closures
   const currentTargetIndexRef = useRef(currentTargetIndex);
+  const pendingMatchCountRef = useRef(0);
   useEffect(() => {
     //what does this do? I'll tell you, it's a ref to the currentTargetIndex state,
     currentTargetIndexRef.current = currentTargetIndex;
@@ -48,39 +54,53 @@ const ShadowTab: React.FC = () => {
   const streamTextRef = useRef<string>("");
 
   // Handle incoming transcripts from Soniox
+  const LOOKAHEAD = 4; // how many transcript words we try to match at once
+
   const handleTranscript = useCallback(
-    (transcript: string, isFinal: boolean, words?: TranscriptWord[]) => {
+    (transcript: string, isFinal: boolean) => {
       if (clipWords.length === 0) return;
 
-      // Accumulate the transcript text
+      // Accumulate non-final text
       streamTextRef.current += transcript + " ";
 
-      // Split accumulated text into words
       const spokenWords = streamTextRef.current
         .trim()
         .split(/\s+/)
-        .filter((w) => w.length > 0);
+        .filter(Boolean);
 
-      console.log("spokenWords", spokenWords);
+      if (spokenWords.length === 0) return;
 
-      // Check each spoken word against current target
-      for (const spokenWord of spokenWords) {
-        const targetWord = clipWords[currentTargetIndexRef.current];
-        console.log(
-          "currentTargetIndexRef.current",
-          currentTargetIndexRef.current,
-        );
-        console.log("targetWord", targetWord);
-        if (targetWord && softMatch(spokenWord, targetWord.word)) {
-          // Match found! Move to next word
-          setCurrentTargetIndex((prev) =>
-            Math.min(prev + 1, clipWords.length - 1),
-          );
-          // Reset stream text after match
-          // break; // Only advance one word per transcript batch
+      const cursor = currentTargetIndexRef.current;
+
+      // Build target window: ONLY upcoming words
+      const targetWindow = clipWords
+        .slice(cursor, cursor + LOOKAHEAD)
+        .map((w) => w.word);
+
+      const spokenPhrase = joinWords(collapseChurn(spokenWords));
+      const targetPhrase = joinWords(targetWindow);
+
+      // Fuzzy match PHRASES, not words
+      console.log("spokenPhrase", spokenPhrase);
+      console.log("targetPhrase", targetPhrase);
+      if (softMatch(spokenPhrase, targetPhrase)) {
+        pendingMatchCountRef.current += 1;
+
+        if (pendingMatchCountRef.current >= 2) {
+          // commit
+          currentTargetIndexRef.current += targetWindow.length;
+          setCurrentTargetIndex(currentTargetIndexRef.current);
+          streamTextRef.current = "";
+          pendingMatchCountRef.current = 0;
         }
+      } else {
+        pendingMatchCountRef.current = 0;
       }
-      streamTextRef.current = "";
+
+      // Optional: if final and no match, clear buffer anyway
+      if (isFinal) {
+        streamTextRef.current = "";
+      }
     },
     [clipWords],
   );

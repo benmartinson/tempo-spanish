@@ -284,34 +284,132 @@ export const setAudioModeForRecording = async (
  * - Threshold: ceil(12 * 0.25) = 3
  * - 8 >= 3, so it matches
  */
-export const softMatch = (spokenWord: string, targetWord: string): boolean => {
-  // Normalize: lowercase, remove punctuation
-  const normalize = (w: string) =>
-    w
-      .toLowerCase()
-      .replace(/[.,!?¿¡;:'"()\-]/g, "")
-      .trim();
+function levenshtein(a: string, b: string): number {
+  const matrix = Array.from({ length: b.length + 1 }, (_, i) => [i]);
 
-  const spoken = normalize(spokenWord);
-  const target = normalize(targetWord);
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
 
-  if (!spoken || !target) return false;
-
-  // Count shared characters
-  const spokenChars = spoken.split("");
-  const targetCharsCopy = target.split("");
-
-  let sharedCount = 0;
-
-  for (const char of spokenChars) {
-    const idx = targetCharsCopy.indexOf(char);
-    if (idx !== -1) {
-      sharedCount++;
-      targetCharsCopy.splice(idx, 1); // Remove to avoid double counting
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b[i - 1] === a[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + 1,
+        );
+      }
     }
   }
 
-  // Match if at least 25% of target characters are shared
-  const threshold = Math.ceil(target.length * 0.25);
-  return sharedCount >= threshold;
-};
+  return matrix[b.length][a.length];
+}
+
+function similarity(a: string, b: string): number {
+  const distance = levenshtein(a, b);
+  return 1 - distance / Math.max(a.length, b.length);
+}
+function tokenSimilar(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (a.length < 3 || b.length < 3) return false;
+
+  // allow partial overlap
+  if (a.includes(b) || b.includes(a)) return true;
+
+  return similarity(a, b) >= 0.6;
+}
+
+export const normalize = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/[^\w\s]/g, "") // punctuation
+    .trim();
+
+export const joinWords = (words: string[]) => normalize(words.join(" "));
+
+export function softMatch(
+  spokenRaw: string,
+  targetRaw: string,
+  threshold = 0.6,
+): boolean {
+  const spoken = normalize(spokenRaw);
+  const target = normalize(targetRaw);
+
+  if (!spoken || !target) return false;
+
+  // 1️⃣ quick win: prefix match (great for streaming)
+  if (target.startsWith(spoken) || spoken.startsWith(target)) {
+    return true;
+  }
+
+  // 2️⃣ token overlap score
+  const spokenTokens = spoken.split(" ");
+  const targetTokens = target.split(" ");
+
+  const overlapCount = spokenTokens.filter((st) =>
+    targetTokens.some((tt) => tokenSimilar(st, tt)),
+  ).length;
+
+  const tokenScore = overlapCount / targetTokens.length;
+
+  // 3️⃣ character similarity (edit distance)
+  const charScore = similarity(spoken, target);
+
+  // Weighted blend
+  const score = tokenScore * 0.6 + charScore * 0.4;
+
+  return score >= threshold;
+}
+
+const RESTART_WORDS = new Set([
+  "el",
+  "la",
+  "los",
+  "las",
+  "un",
+  "una",
+  "de",
+  "del",
+  "al",
+]);
+
+export function collapseChurn(words: string[]): string[] {
+  const result: string[] = [];
+
+  for (const raw of words) {
+    const word = normalize(raw);
+    const last = result[result.length - 1];
+
+    // 🔁 Detect phrase restart
+    if (
+      RESTART_WORDS.has(word) &&
+      result.length >= 2 &&
+      result.includes(word)
+    ) {
+      // reset phrase
+      result.length = 0;
+      result.push(word);
+      continue;
+    }
+
+    if (!last) {
+      result.push(word);
+      continue;
+    }
+
+    // refinement of previous token
+    if (similarity(word, last) > 0.7) {
+      result[result.length - 1] = word;
+      continue;
+    }
+
+    result.push(word);
+  }
+
+  return result;
+}

@@ -157,33 +157,33 @@ class SonioxProxy:
                         break
                     
                     # Parse tokens from response, filtering out special tokens
+                    # Collect all tokens (both final and non-final) for immediate feedback
+                    current_tokens = []
                     has_non_final = False
+                    
                     for token in res.get("tokens", []):
                         text = token.get("text", "")
                         if text and not self._is_special_token(text):
+                            current_tokens.append(token)
                             if token.get("is_final"):
                                 # Final tokens are returned once and should be accumulated
                                 self.final_tokens.append(token)
                             else:
-                                # Track that we have non-final tokens (still processing)
                                 has_non_final = True
                     
-                    # Determine if this is a final result (endpoint detected)
-                    # Final when we have tokens and no more non-final tokens pending
-                    is_final = len(self.final_tokens) > 0 and not has_non_final
-                    
-                    # Only send when we have a final transcript
-                    if is_final and self.final_tokens:
-                        # Build transcript text from final tokens only
+                    # Send transcript immediately if we have any tokens
+                    # This provides real-time feedback for shadow practice
+                    if current_tokens:
+                        # Build transcript text from current tokens
                         transcript_parts = []
-                        for token in self.final_tokens:
+                        for token in current_tokens:
                             transcript_parts.append(token.get("text", ""))
                         
                         transcript = "".join(transcript_parts).strip()
                         
                         # Build words array with timing and confidence info
                         words = []
-                        for token in self.final_tokens:
+                        for token in current_tokens:
                             word_info = {
                                 "word": token.get("text", ""),
                                 "start": token.get("start_ms", 0) / 1000.0,
@@ -201,19 +201,23 @@ class SonioxProxy:
                             confidences = [w.get("confidence", 1.0) for w in words]
                             confidence = sum(confidences) / len(confidences)
                         
+                        # Determine if this batch is final (no non-final tokens)
+                        is_final = not has_non_final
+                        
                         # Send formatted response to client
                         if transcript:
                             await self.client_ws.send_json({
                                 "type": "transcript",
                                 "transcript": transcript,
                                 "confidence": confidence,
-                                "is_final": True,
+                                "is_final": is_final,
                                 "words": words,
                             })
-                            print(f"Final transcript: {transcript}")
+                            print(f"{'Final' if is_final else 'Interim'} transcript: {transcript}")
                         
-                        # Reset for next utterance
-                        self.final_tokens = []
+                        # Reset final_tokens when we've sent a final result
+                        if is_final:
+                            self.final_tokens = []
                     
                     # Session finished
                     if res.get("finished"):
