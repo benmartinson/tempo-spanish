@@ -1,6 +1,6 @@
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import SelectedVideoBanner from "../common/SelectedVideoBanner";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { StyleSheet, View, ScrollView } from "react-native";
 import YouTubePlayer from "../common/YouTubePlayer";
 import { RootState, VideoContext } from "../../types";
@@ -14,18 +14,25 @@ import TranscriptBubble from "./TranscriptBubble";
 import FullSegmentTranscriptBubble from "./FullSegmentTranscriptBubble";
 import TranslationBubble from "./TranslationBubble";
 import BubbleSelector from "./BubbleSelector";
+import SlideModal from "../common/Modal";
+import VocabList from "./VocabList";
+import VocabSelector from "./VocabSelector";
+import { randomlySelectVocab } from "../../helpers";
 
 const WatchTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const navigation = useNavigation();
   const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
+  const [isModalVisible, setIsModalVisible] = useState(true);
   const timeRemaining = Math.floor(Math.max(clip.end - time, 0));
   const dispatch = useDispatch();
   const isClip = false;
-  // const allWords = useSelector(
-  //   (state: RootState) => state.currentVideo?.allWords,
-  // );
+  const allWords = useSelector(
+    (state: RootState) => state.currentVideo?.allWords,
+  );
+
+  const randomlySelectedVocab = useMemo(() => randomlySelectVocab(allWords, 20), [allWords]);
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
   );
@@ -106,6 +113,16 @@ const WatchTab: React.FC = () => {
                   )} */}
         </ScrollView>
       </View>
+
+      <SlideModal
+        visible={isModalVisible}
+        onRequestClose={() => setIsModalVisible(false)}
+        title="Video Vocab Selection"
+      >
+        <VocabSelector
+          vocab={randomlySelectedVocab || []}
+        />
+      </SlideModal>
     </>
   );
 };

@@ -4,14 +4,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
-  SafeAreaView,
 } from "react-native";
-import Entypo from "@expo/vector-icons/Entypo";
+
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
+import SlideModal from "./common/Modal";
 
 const TopNavBar: React.FC = () => {
   const [profileVisible, setProfileVisible] = useState(false);
@@ -40,23 +39,12 @@ const TopNavBar: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <Modal
+      <SlideModal
         visible={profileVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
         onRequestClose={() => setProfileVisible(false)}
+        title="Profile"
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setProfileVisible(false)}
-            >
-              <Entypo name="cross" size={28} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Profile</Text>
-            <View style={styles.closeButton} />
-          </View>
+
 
           <View style={styles.profileContent}>
             <View style={styles.profileSection}>
@@ -79,8 +67,7 @@ const TopNavBar: React.FC = () => {
               </TouchableOpacity>
             </View>
           </View>
-        </SafeAreaView>
-      </Modal>
+      </SlideModal>
     </View>
   );
 };
@@ -134,26 +121,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#1a1a2e",
   },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#2a2a4a",
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-  },
+  
   profileContent: {
     flex: 1,
     paddingHorizontal: 20,
