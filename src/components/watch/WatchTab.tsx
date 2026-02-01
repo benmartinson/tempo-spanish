@@ -17,7 +17,9 @@ import BubbleSelector from "./BubbleSelector";
 import SlideModal from "../common/Modal";
 import VocabList from "./VocabList";
 import VocabSelector from "./VocabSelector";
+import VocabReview from "./VocabReview";
 import { randomlySelectVocab } from "../../helpers";
+import { refreshVideoPlayer } from "../../store/actions/dataActions";
 
 const WatchTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -32,7 +34,12 @@ const WatchTab: React.FC = () => {
     (state: RootState) => state.currentVideo?.allWords,
   );
 
-  const randomlySelectedVocab = useMemo(() => randomlySelectVocab(allWords, 20), [allWords]);
+  const [userSelectedVocab, setUserSelectedVocab] = useState<string[]>([]);
+  const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
+  const randomlySelectedVocab = useMemo(() => {
+    return randomlySelectVocab(allWords, 20, [...userSelectedVocab, ...userIgnoredVocab])
+  }, [allWords, userSelectedVocab, userIgnoredVocab]);
+  const [vocabSelectionStep, setVocabSelectionStep] = useState<number>(1);
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
   );
@@ -41,6 +48,7 @@ const WatchTab: React.FC = () => {
     "large",
     "translation",
   ]);
+  const [autoplay, setAutoplay] = useState<boolean>(false);
 
   useEffect(() => {
     if (clip) {
@@ -63,6 +71,12 @@ const WatchTab: React.FC = () => {
     setTime(newTime);
   };
 
+  const handleConfirmVocab = () => {
+    setIsModalVisible(false);
+    setAutoplay(true);
+    dispatch(refreshVideoPlayer());
+  };
+
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
@@ -75,7 +89,7 @@ const WatchTab: React.FC = () => {
           <YouTubePlayer
             // clip={{ ...clip, videoId: video.videoId }}
             videoId={currentVideo.videoId}
-            autoplay={true}
+            autoplay={autoplay}
             refreshKey={videoRefreshKey}
             setTime={handleSetTime}
           />
@@ -119,9 +133,26 @@ const WatchTab: React.FC = () => {
         onRequestClose={() => setIsModalVisible(false)}
         title="Video Vocab Selection"
       >
-        <VocabSelector
-          vocab={randomlySelectedVocab || []}
-        />
+        {vocabSelectionStep === 1 && (
+          <VocabSelector
+            vocab={randomlySelectedVocab || []}
+            userSelectedVocab={userSelectedVocab}
+            setUserSelectedVocab={setUserSelectedVocab}
+            userIgnoredVocab={userIgnoredVocab}
+            setUserIgnoredVocab={setUserIgnoredVocab}
+            onNext={() => setVocabSelectionStep(2)}
+          />
+        )}
+        {vocabSelectionStep === 2 && (
+          <VocabReview
+            userSelectedVocab={userSelectedVocab}
+            userIgnoredVocab={userIgnoredVocab}
+            setUserIgnoredVocab={setUserIgnoredVocab}
+            allWords={allWords || []}
+            onConfirm={handleConfirmVocab}
+            onGoBack={() => setVocabSelectionStep(1)}
+          />
+        )}
       </SlideModal>
     </>
   );
