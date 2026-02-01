@@ -45,6 +45,7 @@ export interface Channel {
 
 export interface Video {
   video_id: string;
+  id: string;
   topic: string;
   difficulty: string;
   title: string;

@@ -5,6 +5,8 @@ import 'react-native-url-polyfill/auto'
 // Env vars (ensure these are EXPO_PUBLIC_*)
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
+import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/clerk-expo";
 
 /**
  * 1️⃣ Singleton client for public queries
@@ -24,4 +26,24 @@ export function createSupabaseClientWithToken(token: string): SupabaseClient {
       },
     },
   })
+}
+
+
+export function useSupabaseWithClerk() {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(null);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+
+    const initSupabase = async () => {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClientWithToken(token);
+      setSupabaseClient(client);
+    };
+
+    initSupabase();
+  }, [isLoaded, isSignedIn]);
+
+  return supabaseClient;
 }

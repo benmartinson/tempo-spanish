@@ -18,11 +18,14 @@ import {
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
 import { BACKEND_BASE_URL } from "../streaming_helpers";
-import { supabase } from "../../../utils/supabase";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useNavigation } from "@react-navigation/native";
+import { useUser } from "@clerk/clerk-expo";
+
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
+  const supabase = useSupabaseWithClerk();
   const [loadingVideo, setLoadingVideo] = useState(false);
 
   const allChannels = useSelector((state: RootState) => state.allChannels);
@@ -30,11 +33,12 @@ const VideoList: React.FC = () => {
   const navigation = useNavigation();
 
   useEffect(() => {
+    if (!supabase) return;
     fetchAllVideos().then(({ channelData, videoData }) => {
       dispatch(setAllChannels(channelData));
       dispatch(setAllVideos(videoData));
     });
-  }, []);
+  }, [supabase]);
 
   const fetchAllVideos = async () => {
     const { data: channelData, error: channelError } = await supabase
@@ -45,10 +49,11 @@ const VideoList: React.FC = () => {
       .from("video")
       .select("*");
     if (videoError) console.error(videoError);
+
     return { channelData, videoData };
   };
 
-  const handleWatchPress = async (videoId: string) => {
+  const handleWatchPress = async (videoId: string, recordId) => {
     setLoadingVideo(true);
     const response = await fetch(
       `${BACKEND_BASE_URL}/video-segments/${videoId}`,
@@ -72,6 +77,22 @@ const VideoList: React.FC = () => {
       segments: data.segments,
       allWords: data.segments.flatMap((s: Segment) => s.words),
     };
+
+    const { data: videoViewData, error: videoViewError } = await supabase
+    .from("video_views")
+    .upsert(
+      {
+        video_id: recordId,
+        watched_at: new Date(), // new timestamp
+      },
+      {
+        onConflict: "user_id,video_id", // conflict target
+        ignoreDuplicates: false,            // overwrite watched_at if exists
+      }
+    );
+
+    if (videoViewError) console.error(videoViewError);
+    console.log("videoViewData", videoViewData);
     dispatch(setCurrentVideo(video));
     dispatch(setCurrentTab("watch"));
     navigation.navigate("Watch" as never);
@@ -112,7 +133,7 @@ const VideoList: React.FC = () => {
                 <TouchableOpacity
                   key={video.video_id}
                   style={styles.videoItem}
-                  onPress={() => handleWatchPress(video.video_id)}
+                  onPress={() => handleWatchPress(video.video_id, video.id)}
                   disabled={loadingVideo}
                 >
                   <Image
