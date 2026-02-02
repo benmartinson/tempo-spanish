@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 import { WebView } from "react-native-webview";
 import { Segment } from "../../types";
 
@@ -10,6 +10,7 @@ interface YouTubePlayerProps {
   refreshKey: number;
   setTime: (time: number) => void;
   muted?: boolean;
+  videoText?: string;
 }
 
 const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
@@ -17,6 +18,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   clip,
   autoplay,
   refreshKey,
+  videoText,
   setTime,
   muted = false,
 }) => {
@@ -55,6 +57,13 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           }
         }}
       />
+      {videoText && (
+        <View style={styles.videoTextContainer}>
+          <Text style={styles.videoText}>
+            {videoText}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -65,6 +74,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     borderRadius: 16,
     overflow: "hidden",
+  },
+  videoTextContainer: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  videoText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   webview: {
     flex: 1,

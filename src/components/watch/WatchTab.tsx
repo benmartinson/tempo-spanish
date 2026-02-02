@@ -3,7 +3,7 @@ import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { StyleSheet, View, ScrollView } from "react-native";
 import YouTubePlayer from "../common/YouTubePlayer";
-import { RootState, VideoContext, Vocabulary } from "../../types";
+import { RootState, SegmentWord, VideoContext, Vocabulary } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import {
   setCurrentTab,
@@ -109,7 +109,7 @@ const WatchTab: React.FC = () => {
   }, [vocabularyForVideo, userSelectedVocab, userIgnoredVocab]);
 
   const selectedVocabRecords = useMemo(
-    () =>
+    () => 
       vocabularyForVideo.filter((v) =>
         userSelectedVocab.some((w) => normalizeWord(w) === normalizeWord(v.word))
       ),
@@ -123,9 +123,7 @@ const WatchTab: React.FC = () => {
     (state: RootState) => state.videoRefreshKey,
   );
   const [bubbleSelections, setBubbleSelections] = useState<string[]>([
-    "small",
     "large",
-    "translation",
   ]);
   const [autoplay, setAutoplay] = useState<boolean>(false);
 
@@ -134,6 +132,14 @@ const WatchTab: React.FC = () => {
       // console.log("clip", clip);
     }
   }, [clip]);
+
+  const timeSpan = 2;
+
+  const selectedVocabTimes: SegmentWord[] = useMemo(() => {
+    return allWords?.filter((w) => currentVideo?.focusVocab.some((v) => normalizeWord(v.word) === normalizeWord(w.word)))
+  }, [allWords, currentVideo?.focusVocab]);
+    
+  const focusedVocabWord = selectedVocabTimes.find((t) => t.start <= time + timeSpan && t.end >= time - timeSpan);
 
   const handleSetTime = (newTime: number) => {
     if (newTime >= 1 && (newTime < clip.start || newTime > clip.end)) {
@@ -171,14 +177,9 @@ const WatchTab: React.FC = () => {
             autoplay={autoplay}
             refreshKey={videoRefreshKey}
             setTime={handleSetTime}
+            videoText={focusedVocabWord ? `${focusedVocabWord.word} => ${focusedVocabWord.translation}` : undefined}
           />
-          {/* {timeRemaining < 5 && timeRemaining > 0 && (
-                  <View style={styles.countdownContainer}>
-                    <Text style={styles.countdownText}>
-                      Segment ends in {timeRemaining}
-                    </Text>
-                  </View>
-                )} */}
+
         </View>
         <ScrollView style={styles.transcriptContainer}>
           <BubbleSelector
