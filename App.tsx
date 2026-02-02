@@ -9,7 +9,10 @@ import HomeTab from "./src/components/tabs/HomeTab";
 import VideosTab from "./src/components/tabs/VideosTab";
 import { Provider, useDispatch } from "react-redux";
 import store from "./src/store/store";
-import { setCurrentTab } from "./src/store/actions/dataActions";
+import { setCurrentTab, setAllVocabulary } from "./src/store/actions/dataActions";
+import { useSupabaseWithClerk } from "./utils/supabase";
+import { useEffect } from "react";
+import { Vocabulary } from "./src/types";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
@@ -121,6 +124,20 @@ const MainTabs: React.FC = () => {
 
 // Wrapper component that includes TopNavBar and MainTabs
 const AuthenticatedApp: React.FC = () => {
+  const dispatch = useDispatch();
+  const supabase = useSupabaseWithClerk();
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase
+      .from("vocabulary")
+      .select("id, word, translation")
+      .then(({ data, error }) => {
+        if (error) console.error(error);
+        dispatch(setAllVocabulary((data as Vocabulary[]) ?? []));
+      });
+  }, [supabase, dispatch]);
+
   return (
     <View style={{ flex: 1 }}>
       <TopNavBar />

@@ -1,10 +1,15 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { SegmentWord } from "../../types";
+import { SegmentWord, Vocabulary } from "../../types";
 import { capitalize, stripPunctuation } from "../../helpers";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../types";
+import { setFocusVocab } from "../../store/actions/dataActions";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
 
 interface VocabReviewProps {
+  selectedVocabRecords: Vocabulary[];
   userSelectedVocab: string[];
   userIgnoredVocab: string[];
   setUserIgnoredVocab: (userIgnoredVocab: string[]) => void;
@@ -14,6 +19,7 @@ interface VocabReviewProps {
 }
 
 const VocabReview: React.FC<VocabReviewProps> = ({
+  selectedVocabRecords,
   userSelectedVocab,
   userIgnoredVocab,
   setUserIgnoredVocab,
@@ -21,6 +27,11 @@ const VocabReview: React.FC<VocabReviewProps> = ({
   onConfirm,
   onGoBack,
 }) => {
+  const dispatch = useDispatch();
+  const supabase = useSupabaseWithClerk();
+  const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const [confirming, setConfirming] = useState(false);
+
   const getTranslation = (word: string): string => {
     const normalizedWord = stripPunctuation(word.toLowerCase());
     const found = allWords.find(
@@ -33,6 +44,24 @@ const VocabReview: React.FC<VocabReviewProps> = ({
     setUserIgnoredVocab(userIgnoredVocab.filter((w) => w !== word));
   };
 
+  const handleConfirm = async () => {
+    setConfirming(true);
+    if (currentVideo?.videoViewId && supabase && selectedVocabRecords.length > 0) {
+      const videoViewId = Number(currentVideo.videoViewId);
+      const rows = selectedVocabRecords.map((record) => ({
+        video_view_id: videoViewId,
+        vocabulary_id: record.id,
+      }));
+      const { error } = await supabase
+        .from("video_view_focus_vocab")
+        .upsert(rows, { onConflict: "video_view_id,vocabulary_id" });
+      if (error) console.error(error);
+    }
+    dispatch(setFocusVocab(selectedVocabRecords));
+    setConfirming(false);
+    onConfirm();
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollContainer}>
@@ -41,19 +70,19 @@ const VocabReview: React.FC<VocabReviewProps> = ({
           <Text style={styles.sectionTitle}>
             Review the vocab you're choosing to focus on
           </Text>
-          {userSelectedVocab.length === 0 ? (
+          {selectedVocabRecords.length === 0 ? (
             <Text style={styles.emptyText}>No vocab selected</Text>
           ) : (
             <View style={styles.vocabList}>
-              {userSelectedVocab.map((word, index) => (
-                <View key={`selected-${word}-${index}`} style={styles.wordContainer}>
+              {selectedVocabRecords.map((v, index) => (
+                <View key={`selected-${v.id}-${index}`} style={styles.wordContainer}>
                   <Text style={styles.wordText}>
-                    {word} <Text style={styles.arrow}>→</Text>{" "}
-                    <Text style={styles.translationText}>{getTranslation(word)}</Text>
+                    {capitalize(v.word)} <Text style={styles.arrow}>→</Text>{" "}
+                    <Text style={styles.translationText}>{capitalize(stripPunctuation(v.translation)) || "—"}</Text>
                   </Text>
                   <TouchableOpacity
                       style={styles.undoButton}
-                      onPress={() => handleUndo(word)}
+                      onPress={() => handleUndo(v.word)}
                     >
                       <Text style={styles.undoButtonText}>Remove</Text>
                     </TouchableOpacity>
@@ -71,7 +100,7 @@ const VocabReview: React.FC<VocabReviewProps> = ({
                 {userIgnoredVocab.map((word, index) => (
                   <View key={`ignored-${word}-${index}`} style={styles.wordContainer}>
                     <Text style={styles.wordText}>
-                      {word} <Text style={styles.arrow}>→</Text>{" "}
+                      {capitalize(word)} <Text style={styles.arrow}>→</Text>{" "}
                       <Text style={styles.translationText}>{getTranslation(word)}</Text>
                     </Text>
                     <TouchableOpacity
@@ -90,11 +119,15 @@ const VocabReview: React.FC<VocabReviewProps> = ({
 
       {/* Confirm Button */}
       <View style={styles.confirmButtonContainer}>
-        <TouchableOpacity style={styles.goBackButton} onPress={onGoBack}>
+        <TouchableOpacity style={styles.goBackButton} onPress={onGoBack} disabled={confirming}>
           <Text style={styles.goBackButtonText}>Go Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
-          <Text style={styles.confirmButtonText}>Confirm and Start Watching</Text>
+        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm} disabled={confirming}>
+          {confirming ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <Text style={styles.confirmButtonText}>Confirm and Start Watching</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

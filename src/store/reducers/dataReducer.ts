@@ -8,6 +8,7 @@ const initialState: RootState = {
   currentTab: "home",
   allChannels: [],
   allVideos: [],
+  allVocabulary: [],
 };
 
 const dataReducer = (
@@ -25,11 +26,27 @@ const dataReducer = (
         ...state,
         allVideos: action.payload,
       };
+    case "SET_ALL_VOCABULARY":
+      return {
+        ...state,
+        allVocabulary: action.payload,
+      };
     case "SET_CURRENT_VIDEO":
       return {
         ...state,
-        currentVideo: action.payload,
+        currentVideo: action.payload
+          ? { ...action.payload, focusVocab: action.payload.focusVocab ?? [] }
+          : null,
         videoRefreshKey: Date.now(),
+      };
+    case "SET_FOCUS_VOCAB":
+      if (!state.currentVideo) return state;
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          focusVocab: action.payload,
+        },
       };
     case "SET_NEXT_SEGMENT":
       return {

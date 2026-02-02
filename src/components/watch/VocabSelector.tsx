@@ -1,10 +1,12 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { SegmentWord } from "../../types";
+import { Vocabulary } from "../../types";
+import { capitalize } from "../../helpers";
 
 interface VocabSelectorProps {
-  vocab: string[];
+  vocab: Vocabulary[];
+  vocabLoading?: boolean;
   userSelectedVocab: string[];
   setUserSelectedVocab: (userSelectedVocab: string[]) => void;
   userIgnoredVocab: string[];
@@ -12,8 +14,15 @@ interface VocabSelectorProps {
   onNext: () => void;
 }
 
-const VocabSelector: React.FC<VocabSelectorProps> = ({ vocab, userSelectedVocab, setUserSelectedVocab, userIgnoredVocab, setUserIgnoredVocab, onNext }) => {
-
+const VocabSelector: React.FC<VocabSelectorProps> = ({
+  vocab,
+  vocabLoading = false,
+  userSelectedVocab,
+  setUserSelectedVocab,
+  userIgnoredVocab,
+  setUserIgnoredVocab,
+  onNext,
+}) => {
   return (
     <View style={styles.container}>
       <View style={styles.infoHeader}>
@@ -22,21 +31,27 @@ const VocabSelector: React.FC<VocabSelectorProps> = ({ vocab, userSelectedVocab,
         <Text>2. Click the trash icon if you already know the word and wont need to review it in the future.</Text>
         <Text>2. 5-10 words per video is recommended.</Text>
       </View>
+      {vocabLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" />
+        </View>
+      ) : (
       <ScrollView style={styles.vocabList}>
-        {vocab.map((word, index) => (
-          <View key={`${word}-${index}`} style={styles.wordContainer}>
-            <Text style={styles.wordText}>{word}</Text>
+        {vocab.map((v, index) => (
+          <View key={`${v.id}-${v.word}-${index}`} style={styles.wordContainer}>
+            <Text style={styles.wordText}>{capitalize(v.word)}</Text>
             <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => setUserIgnoredVocab([...userIgnoredVocab, word])}>
+              <TouchableOpacity style={styles.deleteButton} onPress={() => setUserIgnoredVocab([...userIgnoredVocab, v.word])}>
                 <MaterialIcons name="delete-outline" size={24} color="black" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.checkButton} onPress={() => setUserSelectedVocab([...userSelectedVocab, word])}>
+              <TouchableOpacity style={styles.checkButton} onPress={() => setUserSelectedVocab([...userSelectedVocab, v.word])}>
                 <MaterialIcons name="check" size={24} color="black" />
               </TouchableOpacity>
             </View>
           </View>
         ))}
       </ScrollView>
+      )}
 
      <View style={styles.nextButtonContainer}>
         <View style={styles.vocabCountContainer}>
@@ -111,6 +126,12 @@ const styles = StyleSheet.create({
   wordText: {
     fontSize: 16,
     fontWeight: "bold",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    margin: 16,
   },
 });
 

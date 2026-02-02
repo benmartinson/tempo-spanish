@@ -71,28 +71,31 @@ const VideoList: React.FC = () => {
     if (data.error) {
       throw new Error(data.error);
     }
+    const { data: videoViewData, error: videoViewError } = await supabase
+      .from("video_views")
+      .upsert(
+        {
+          video_id: recordId,
+          watched_at: new Date(),
+        },
+        {
+          onConflict: "user_id,video_id",
+          ignoreDuplicates: false,
+        }
+      )
+      .select("id");
+
+    if (videoViewError) console.error(videoViewError);
+    const videoViewId = videoViewData?.[0]?.id ?? "";
+
     const video: VideoContext = {
       videoId: data.video_id,
       currentSegment: 0,
       segments: data.segments,
       allWords: data.segments.flatMap((s: Segment) => s.words),
+      videoViewId: String(videoViewId),
+      focusVocab: [],
     };
-
-    const { data: videoViewData, error: videoViewError } = await supabase
-    .from("video_views")
-    .upsert(
-      {
-        video_id: recordId,
-        watched_at: new Date(), // new timestamp
-      },
-      {
-        onConflict: "user_id,video_id", // conflict target
-        ignoreDuplicates: false,            // overwrite watched_at if exists
-      }
-    );
-
-    if (videoViewError) console.error(videoViewError);
-    console.log("videoViewData", videoViewData);
     dispatch(setCurrentVideo(video));
     dispatch(setCurrentTab("watch"));
     navigation.navigate("Watch" as never);

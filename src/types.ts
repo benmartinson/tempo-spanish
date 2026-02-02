@@ -5,6 +5,7 @@ export interface RootState {
   currentTab: "home" | "videos" | "watch" | "discuss";
   allChannels: Channel[];
   allVideos: Video[];
+  allVocabulary: Vocabulary[];
 }
 
 export type DataActionTypes =
@@ -16,7 +17,9 @@ export type DataActionTypes =
   | "SET_ALL_CHANNELS"
   | "SET_ALL_VIDEOS"
   | "SET_PREVIOUS_SEGMENT"
-  | "SET_SEGMENT_BY_TIME";
+  | "SET_SEGMENT_BY_TIME"
+  | "SET_FOCUS_VOCAB"
+  | "SET_ALL_VOCABULARY";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -28,11 +31,19 @@ export interface ApiResponse<T> {
   statusText: string;
 }
 
+export interface Vocabulary {
+  id: number;
+  word: string;
+  translation: string;
+}
+
 export interface VideoContext {
   videoId: string;
   currentSegment: number;
   segments: Segment[];
   allWords: SegmentWord[];
+  videoViewId: string;
+  focusVocab: Vocabulary[];
 }
 
 export interface Channel {

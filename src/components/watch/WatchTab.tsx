@@ -1,9 +1,9 @@
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import SelectedVideoBanner from "../common/SelectedVideoBanner";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { StyleSheet, View, ScrollView } from "react-native";
 import YouTubePlayer from "../common/YouTubePlayer";
-import { RootState, VideoContext } from "../../types";
+import { RootState, VideoContext, Vocabulary } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import {
   setCurrentTab,
@@ -18,27 +18,106 @@ import SlideModal from "../common/Modal";
 import VocabList from "./VocabList";
 import VocabSelector from "./VocabSelector";
 import VocabReview from "./VocabReview";
-import { randomlySelectVocab } from "../../helpers";
+import { randomlySelectVocabFromVocabulary, normalizeWord, randomlySelectVocab, alreadyKnownVocab, ignoreVocab } from "../../helpers";
 import { refreshVideoPlayer } from "../../store/actions/dataActions";
 
 const WatchTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const navigation = useNavigation();
   const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
   const [isModalVisible, setIsModalVisible] = useState(true);
-  const timeRemaining = Math.floor(Math.max(clip.end - time, 0));
+  const timeRemaining = Math.floor(Math.max((clip?.end ?? 0) - time, 0));
   const dispatch = useDispatch();
   const isClip = false;
   const allWords = useSelector(
     (state: RootState) => state.currentVideo?.allWords,
   );
 
+  useEffect(() => {
+    console.log("focusVocab", currentVideo?.focusVocab);
+  }, [currentVideo?.focusVocab]);
+
   const [userSelectedVocab, setUserSelectedVocab] = useState<string[]>([]);
   const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
-  const randomlySelectedVocab = useMemo(() => {
-    return randomlySelectVocab(allWords, 20, [...userSelectedVocab, ...userIgnoredVocab])
-  }, [allWords, userSelectedVocab, userIgnoredVocab]);
+
+  const uniqueWordsFromVideo = useMemo(
+    () =>
+      allWords?.length
+        ? new Set(allWords.map((w) => normalizeWord(w.word)).filter(Boolean))
+        : new Set<string>(),
+    [allWords]
+  );
+
+  const vocabularyForVideo = useMemo(
+    () =>
+      allVocabulary.filter((v) => uniqueWordsFromVideo.has(normalizeWord(v.word))),
+    [allVocabulary, uniqueWordsFromVideo]
+  );
+
+  const [randomlySelectedVocab, setRandomlySelectedVocab] = useState<Vocabulary[]>([]);
+  const vocabularyForVideoRef = useRef<Vocabulary[]>([]);
+
+  useEffect(() => {
+    const normalizedExcluded = new Set(
+      [...userSelectedVocab, ...userIgnoredVocab].map(normalizeWord)
+    );
+
+    // Check if this is a new video (vocabularyForVideo reference changed)
+    const isNewVideo = vocabularyForVideoRef.current !== vocabularyForVideo;
+    vocabularyForVideoRef.current = vocabularyForVideo;
+
+    setRandomlySelectedVocab((prev) => {
+      // If new video or no items yet, do full initialization
+      if (isNewVideo || prev.length === 0) {
+        return randomlySelectVocabFromVocabulary(
+          vocabularyForVideo,
+          20,
+          [...userSelectedVocab, ...userIgnoredVocab]
+        );
+      }
+
+      // Otherwise, incremental update - filter out excluded items
+      const stillValid = prev.filter(
+        (v) => !normalizedExcluded.has(normalizeWord(v.word))
+      );
+
+      const targetCount = 20;
+      const needed = targetCount - stillValid.length;
+
+      if (needed <= 0) return stillValid;
+
+      // Get available vocab that's not already displayed and not excluded
+      const currentWords = new Set(stillValid.map((v) => normalizeWord(v.word)));
+      const availableVocab = vocabularyForVideo.filter(
+        (v) =>
+          !currentWords.has(normalizeWord(v.word)) &&
+          !normalizedExcluded.has(normalizeWord(v.word)) &&
+          !alreadyKnownVocab.includes(v.word.toLowerCase()) &&
+          !ignoreVocab.some((i) => i.toLowerCase() === v.word.toLowerCase()) &&
+          v.translation !== v.word
+      );
+
+      // Add only the needed amount of new items
+      const newItems = availableVocab
+        .sort(() => Math.random() - 0.5)
+        .slice(0, needed);
+
+      return [...stillValid, ...newItems];
+    });
+  }, [vocabularyForVideo, userSelectedVocab, userIgnoredVocab]);
+
+  const selectedVocabRecords = useMemo(
+    () =>
+      vocabularyForVideo.filter((v) =>
+        userSelectedVocab.some((w) => normalizeWord(w) === normalizeWord(v.word))
+      ),
+    [vocabularyForVideo, userSelectedVocab]
+  );
+
+  const vocabLoading = allWords?.length > 0 && allVocabulary.length === 0;
+
   const [vocabSelectionStep, setVocabSelectionStep] = useState<number>(1);
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
@@ -135,7 +214,8 @@ const WatchTab: React.FC = () => {
       >
         {vocabSelectionStep === 1 && (
           <VocabSelector
-            vocab={randomlySelectedVocab || []}
+            vocab={randomlySelectedVocab}
+            vocabLoading={vocabLoading}
             userSelectedVocab={userSelectedVocab}
             setUserSelectedVocab={setUserSelectedVocab}
             userIgnoredVocab={userIgnoredVocab}
@@ -145,6 +225,7 @@ const WatchTab: React.FC = () => {
         )}
         {vocabSelectionStep === 2 && (
           <VocabReview
+            selectedVocabRecords={selectedVocabRecords}
             userSelectedVocab={userSelectedVocab}
             userIgnoredVocab={userIgnoredVocab}
             setUserIgnoredVocab={setUserIgnoredVocab}

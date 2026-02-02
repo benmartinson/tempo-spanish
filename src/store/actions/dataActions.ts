@@ -1,4 +1,4 @@
-import { Channel, DataAction, Segment, Video, VideoContext } from "../../types";
+import { Channel, DataAction, Segment, Video, VideoContext, Vocabulary } from "../../types";
 
 export const setCurrentVideo = (video: VideoContext | null): DataAction => ({
   type: "SET_CURRENT_VIDEO",
@@ -47,4 +47,14 @@ export const setAllChannels = (channels: Channel[]): DataAction => ({
 export const setAllVideos = (videos: Video[]): DataAction => ({
   type: "SET_ALL_VIDEOS",
   payload: videos,
+});
+
+export const setFocusVocab = (vocab: Vocabulary[]): DataAction => ({
+  type: "SET_FOCUS_VOCAB",
+  payload: vocab,
+});
+
+export const setAllVocabulary = (vocab: Vocabulary[]): DataAction => ({
+  type: "SET_ALL_VOCABULARY",
+  payload: vocab,
 });
