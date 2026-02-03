@@ -34,12 +34,6 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
     "translation",
   ]);
 
-  useEffect(() => {
-    if (clip) {
-      // console.log("clip", clip);
-    }
-  }, [clip]);
-
   const handleSetTime = (newTime: number) => {
     if (newTime >= 1 && (newTime < clip.start || newTime > clip.end)) {
       dispatch(setSegmentByTime(newTime));

@@ -5,41 +5,48 @@ import {
   Text,
   View,
 } from "react-native";
-import { KeyVocabulary } from "../../types";
+import { KeyVocabulary, SegmentWord, Vocabulary } from "../../types";
 import { useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 const VocabList: React.FC<{
-  vocab: KeyVocabulary[];
+  vocab: SegmentWord[];
   time: number;
 }> = ({ vocab, time }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [manualTranslations, setManualTranslations] = useState<KeyVocabulary[]>(
-    [],
+  const [manualTranslations, setManualTranslations] = useState<SegmentWord[]>(
+    []
   );
+  // create a array of unique words segmentWord objects
+  const wordSet = vocab.reduce((acc, word) => {
+    if (!acc.some((w) => w.word === word.word)) {
+      acc.push(word);
+    }
+    return acc;
+  }, []);
 
-  const toggleTranslation = (word: KeyVocabulary) => {
+  const toggleTranslation = (word: SegmentWord) => {
     const isAlreadyShown = manualTranslations.find(
-      (translation) => translation.value === word.value,
+      (translation) => translation.word === word.word
     );
     if (isAlreadyShown) {
       setManualTranslations((prev) =>
-        prev.filter((translation) => translation.value !== word.value),
+        prev.filter((translation) => translation.word !== word.word)
       );
     } else {
       setManualTranslations((prev) => [...prev, word]);
     }
   };
 
-  const shouldHighlight = (word: KeyVocabulary) => {
+  const shouldHighlight = (word: SegmentWord) => {
     return Math.floor(word.start) <= time && Math.ceil(word.end) + 1 >= time;
   };
 
-  const shouldShowTranslation = (word: KeyVocabulary) => {
+  const shouldShowTranslation = (word: SegmentWord) => {
     // Show translation if highlighted OR if manually toggled
     // const isHighlighted = shouldHighlight(word);
     const isManuallyShown = manualTranslations.find(
-      (translation) => translation.value === word.value,
+      (translation) => translation.word === word.word
     );
     return isManuallyShown;
   };
@@ -58,7 +65,7 @@ const VocabList: React.FC<{
       </View>
       {isExpanded && (
         <ScrollView style={styles.vocabList}>
-          {vocab.map((word, index) => (
+          {wordSet.map((word, index) => (
             <TouchableOpacity
               key={index}
               style={[
@@ -68,11 +75,11 @@ const VocabList: React.FC<{
               onPress={() => toggleTranslation(word)}
               activeOpacity={0.7}
             >
-              <Text style={styles.vocabWord}>{word.value}</Text>
+              <Text style={styles.vocabWord}>{word.word}</Text>
               {shouldShowTranslation(word) && (
                 <Text style={styles.vocabTranslation}>
                   {" => "}
-                  {word.translations[word.correct_translation]}
+                  {word.translation}
                 </Text>
               )}
             </TouchableOpacity>
@@ -101,8 +108,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   vocabTitle: {
-    color: "#fff",
-    fontSize: 16,
+    color: "lightgrey",
+    fontSize: 14,
     fontWeight: "700",
   },
   vocabList: {

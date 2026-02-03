@@ -59,7 +59,6 @@ const ShadowTab: React.FC = () => {
   // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
     async (audioUri: string) => {
-      console.log("Recording complete, processing audio...");
       setIsProcessing(true);
       setError(null);
 
@@ -75,7 +74,6 @@ const ShadowTab: React.FC = () => {
 
         // Calculate accuracy
         const accuracy = calculateAccuracy(spokenWords, targetWords);
-        console.log("Accuracy result:", accuracy);
 
         setAccuracyResult(accuracy);
       } catch (err) {

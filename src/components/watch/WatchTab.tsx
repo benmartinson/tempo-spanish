@@ -18,7 +18,14 @@ import SlideModal from "../common/Modal";
 import VocabList from "./VocabList";
 import VocabSelector from "./VocabSelector";
 import VocabReview from "./VocabReview";
-import { randomlySelectVocabFromVocabulary, normalizeWord, randomlySelectVocab, alreadyKnownVocab, ignoreVocab } from "../../helpers";
+import {
+  randomlySelectVocabFromVocabulary,
+  normalizeWord,
+  randomlySelectVocab,
+  alreadyKnownVocab,
+  ignoreVocab,
+  findTimesForVocab,
+} from "../../helpers";
 import { refreshVideoPlayer } from "../../store/actions/dataActions";
 
 const WatchTab: React.FC = () => {
@@ -32,12 +39,12 @@ const WatchTab: React.FC = () => {
   const dispatch = useDispatch();
   const isClip = false;
   const allWords = useSelector(
-    (state: RootState) => state.currentVideo?.allWords,
+    (state: RootState) => state.currentVideo?.allWords
   );
-
-  useEffect(() => {
-    console.log("focusVocab", currentVideo?.focusVocab);
-  }, [currentVideo?.focusVocab]);
+  const focusVocabTimes = useMemo(
+    () => findTimesForVocab(currentVideo?.focusVocab, allWords),
+    [currentVideo?.focusVocab, allWords]
+  );
 
   const [userSelectedVocab, setUserSelectedVocab] = useState<string[]>([]);
   const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
@@ -45,18 +52,27 @@ const WatchTab: React.FC = () => {
   const uniqueWordsFromVideo = useMemo(
     () =>
       allWords?.length
-        ? new Set(allWords.map((w) => normalizeWord(w.word)).filter(Boolean))
+        ? new Set(
+            allWords
+              .filter((w) => w.start <= 15 && w.word.length > 3)
+              .map((w) => normalizeWord(w.word))
+              .filter(Boolean)
+          )
         : new Set<string>(),
     [allWords]
   );
 
   const vocabularyForVideo = useMemo(
     () =>
-      allVocabulary.filter((v) => uniqueWordsFromVideo.has(normalizeWord(v.word))),
+      allVocabulary.filter((v) =>
+        uniqueWordsFromVideo.has(normalizeWord(v.word))
+      ),
     [allVocabulary, uniqueWordsFromVideo]
   );
 
-  const [randomlySelectedVocab, setRandomlySelectedVocab] = useState<Vocabulary[]>([]);
+  const [randomlySelectedVocab, setRandomlySelectedVocab] = useState<
+    Vocabulary[]
+  >([]);
   const vocabularyForVideoRef = useRef<Vocabulary[]>([]);
 
   useEffect(() => {
@@ -71,11 +87,10 @@ const WatchTab: React.FC = () => {
     setRandomlySelectedVocab((prev) => {
       // If new video or no items yet, do full initialization
       if (isNewVideo || prev.length === 0) {
-        return randomlySelectVocabFromVocabulary(
-          vocabularyForVideo,
-          20,
-          [...userSelectedVocab, ...userIgnoredVocab]
-        );
+        return randomlySelectVocabFromVocabulary(vocabularyForVideo, 20, [
+          ...userSelectedVocab,
+          ...userIgnoredVocab,
+        ]);
       }
 
       // Otherwise, incremental update - filter out excluded items
@@ -89,7 +104,9 @@ const WatchTab: React.FC = () => {
       if (needed <= 0) return stillValid;
 
       // Get available vocab that's not already displayed and not excluded
-      const currentWords = new Set(stillValid.map((v) => normalizeWord(v.word)));
+      const currentWords = new Set(
+        stillValid.map((v) => normalizeWord(v.word))
+      );
       const availableVocab = vocabularyForVideo.filter(
         (v) =>
           !currentWords.has(normalizeWord(v.word)) &&
@@ -109,9 +126,11 @@ const WatchTab: React.FC = () => {
   }, [vocabularyForVideo, userSelectedVocab, userIgnoredVocab]);
 
   const selectedVocabRecords = useMemo(
-    () => 
+    () =>
       vocabularyForVideo.filter((v) =>
-        userSelectedVocab.some((w) => normalizeWord(w) === normalizeWord(v.word))
+        userSelectedVocab.some(
+          (w) => normalizeWord(w) === normalizeWord(v.word)
+        )
       ),
     [vocabularyForVideo, userSelectedVocab]
   );
@@ -120,26 +139,10 @@ const WatchTab: React.FC = () => {
 
   const [vocabSelectionStep, setVocabSelectionStep] = useState<number>(1);
   const videoRefreshKey = useSelector(
-    (state: RootState) => state.videoRefreshKey,
+    (state: RootState) => state.videoRefreshKey
   );
-  const [bubbleSelections, setBubbleSelections] = useState<string[]>([
-    "large",
-  ]);
+  const [selectedBubble, setSelectedBubble] = useState<string>("large");
   const [autoplay, setAutoplay] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (clip) {
-      // console.log("clip", clip);
-    }
-  }, [clip]);
-
-  const timeSpan = 2;
-
-  const selectedVocabTimes: SegmentWord[] = useMemo(() => {
-    return allWords?.filter((w) => currentVideo?.focusVocab.some((v) => normalizeWord(v.word) === normalizeWord(w.word)))
-  }, [allWords, currentVideo?.focusVocab]);
-    
-  const focusedVocabWord = selectedVocabTimes.find((t) => t.start <= time + timeSpan && t.end >= time - timeSpan);
 
   const handleSetTime = (newTime: number) => {
     if (newTime >= 1 && (newTime < clip.start || newTime > clip.end)) {
@@ -177,34 +180,33 @@ const WatchTab: React.FC = () => {
             autoplay={autoplay}
             refreshKey={videoRefreshKey}
             setTime={handleSetTime}
-            videoText={focusedVocabWord ? `${focusedVocabWord.word} => ${focusedVocabWord.translation}` : undefined}
+            // videoText={focusedWordCountdownTime ? `Selected vocab word appearing in ${focusedWordCountdownTime}` : undefined}
           />
-
         </View>
         <ScrollView style={styles.transcriptContainer}>
           <BubbleSelector
-            bubbleSelections={bubbleSelections}
-            setBubbleSelections={setBubbleSelections}
+            selectedBubble={selectedBubble}
+            setSelectedBubble={setSelectedBubble}
           />
-          {bubbleSelections.includes("small") && (
+          {selectedBubble === "small" && (
             <TranscriptBubble words={clip?.words || []} time={time} />
           )}
-          {bubbleSelections.includes("large") && (
+          {selectedBubble === "large" && (
             <FullSegmentTranscriptBubble
               words={clip?.words || []}
               time={time}
             />
           )}
-          {bubbleSelections.includes("translation") && (
+          {selectedBubble === "translation" && (
             <TranslationBubble
               translation={clip?.full_text_translation.split(" ") || []}
               words={clip?.words || []}
               time={time}
             />
           )}
-          {/* {clip.key_vocabulary && clip.key_vocabulary.length > 0 && (
-                  <VocabList vocab={clip.key_vocabulary} time={time} />
-                  )} */}
+          {focusVocabTimes.length > 0 && (
+            <VocabList vocab={focusVocabTimes} time={time} />
+          )}
         </ScrollView>
       </View>
 

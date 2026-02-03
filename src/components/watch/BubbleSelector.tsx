@@ -1,20 +1,20 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 interface BubbleSelectorProps {
-  bubbleSelections: string[];
-  setBubbleSelections: (bubbleSelections: string[]) => void;
+  selectedBubble: string;
+  setSelectedBubble: (selectedBubble: string) => void;
 }
 
 const BubbleSelector: React.FC<BubbleSelectorProps> = ({
-  bubbleSelections,
-  setBubbleSelections,
+  selectedBubble,
+  setSelectedBubble,
 }) => {
   const handleBubbleSelection = (selection: string) => {
-    if (bubbleSelections.includes(selection)) {
-      setBubbleSelections(bubbleSelections.filter((s) => s !== selection));
-    } else {
-      setBubbleSelections([...bubbleSelections, selection]);
+    if (selection === selectedBubble) {
+      setSelectedBubble("");
+      return;
     }
+    setSelectedBubble(selection);
   };
   return (
     <View style={styles.outerContainer}>
@@ -22,7 +22,7 @@ const BubbleSelector: React.FC<BubbleSelectorProps> = ({
         <TouchableOpacity
           style={[
             styles.button,
-            bubbleSelections.includes("small") && styles.selectedButton,
+            selectedBubble === "small" && styles.selectedButton,
             { borderRightWidth: 1 },
           ]}
           onPress={() => handleBubbleSelection("small")}
@@ -32,7 +32,7 @@ const BubbleSelector: React.FC<BubbleSelectorProps> = ({
         <TouchableOpacity
           style={[
             styles.button,
-            bubbleSelections.includes("large") && styles.selectedButton,
+            selectedBubble === "large" && styles.selectedButton,
             { borderRightWidth: 1 },
           ]}
           onPress={() => handleBubbleSelection("large")}
@@ -42,7 +42,7 @@ const BubbleSelector: React.FC<BubbleSelectorProps> = ({
         <TouchableOpacity
           style={[
             styles.button,
-            bubbleSelections.includes("translation") && styles.selectedButton,
+            selectedBubble === "translation" && styles.selectedButton,
           ]}
           onPress={() => handleBubbleSelection("translation")}
         >

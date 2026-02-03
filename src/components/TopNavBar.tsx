@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -44,29 +39,27 @@ const TopNavBar: React.FC = () => {
         onRequestClose={() => setProfileVisible(false)}
         title="Profile"
       >
-
-
-          <View style={styles.profileContent}>
-            <View style={styles.profileSection}>
-              <View style={styles.avatar}>
-                <Text style={styles.profileAvatarText}>👤</Text>
-              </View>
-              {user?.primaryEmailAddress && (
-                <Text style={styles.email}>
-                  {user.primaryEmailAddress.emailAddress}
-                </Text>
-              )}
+        <View style={styles.profileContent}>
+          <View style={styles.profileSection}>
+            <View style={styles.avatar}>
+              <Text style={styles.profileAvatarText}>👤</Text>
             </View>
-
-            <View style={styles.menuSection}>
-              <TouchableOpacity
-                style={styles.signOutButton}
-                onPress={handleSignOut}
-              >
-                <Text style={styles.signOutText}>Sign Out</Text>
-              </TouchableOpacity>
-            </View>
+            {user?.primaryEmailAddress && (
+              <Text style={styles.email}>
+                {user.primaryEmailAddress.emailAddress}
+              </Text>
+            )}
           </View>
+
+          <View style={styles.menuSection}>
+            <TouchableOpacity
+              style={styles.signOutButton}
+              onPress={handleSignOut}
+            >
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </SlideModal>
     </View>
   );
@@ -121,7 +114,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#1a1a2e",
   },
-  
+
   profileContent: {
     flex: 1,
     paddingHorizontal: 20,

@@ -53,14 +53,29 @@ export const stripPunctuation = (word: string) => {
   return word.replace(/[.,\/#!$%\^&\*\?;:{}=\-\"\'_`~()]/g, "");
 };
 
-export const randomlySelectVocab = (vocab: Vocabulary[], count: number, alreadySelectedVocab: string[]) => {
-  const filteredWords = vocab.filter(word => !alreadyKnownVocab.includes(word.word) && !ignoreVocab.includes(word.word) && word.translation !== word.word && !alreadySelectedVocab.includes(word.word));
-  const wordSet = new Set(filteredWords.map(word => capitalize(stripPunctuation(word.word))));
-  const selectedWords = Array.from(wordSet).sort(() => Math.random() - 0.5).slice(0, count);
+export const randomlySelectVocab = (
+  vocab: Vocabulary[],
+  count: number,
+  alreadySelectedVocab: string[]
+) => {
+  const filteredWords = vocab.filter(
+    (word) =>
+      !alreadyKnownVocab.includes(word.word) &&
+      !ignoreVocab.includes(word.word) &&
+      word.translation !== word.word &&
+      !alreadySelectedVocab.includes(word.word)
+  );
+  const wordSet = new Set(
+    filteredWords.map((word) => capitalize(stripPunctuation(word.word)))
+  );
+  const selectedWords = Array.from(wordSet)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, count);
   return selectedWords;
 };
 
-export const normalizeWord = (word: string) => capitalize(stripPunctuation(word.toLowerCase()));
+export const normalizeWord = (word: string) =>
+  capitalize(stripPunctuation(word.toLowerCase()));
 
 export const randomlySelectVocabFromVocabulary = (
   vocab: Vocabulary[],
@@ -83,4 +98,23 @@ export const randomlySelectVocabFromVocabulary = (
   return Array.from(byWord.values())
     .sort(() => Math.random() - 0.5)
     .slice(0, count);
+};
+
+export const findTimesForVocab = (
+  vocab: Vocabulary[],
+  allWords: SegmentWord[]
+) => {
+  const wordTimes = [];
+  for (const word of vocab) {
+    const normalizedWord = normalizeWord(word.word);
+    const currentWordTimes = allWords
+      .filter((w) => normalizeWord(w.word) === normalizedWord)
+      .map((w) => ({
+        ...w,
+        word: normalizeWord(word.word),
+        translation: normalizeWord(word.translation),
+      }));
+    wordTimes.push(...currentWordTimes);
+  }
+  return wordTimes.sort((a, b) => a.start - b.start);
 };
