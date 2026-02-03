@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Vocabulary } from "../../types";
 import { capitalize } from "../../helpers";
@@ -27,8 +34,14 @@ const VocabSelector: React.FC<VocabSelectorProps> = ({
     <View style={styles.container}>
       <View style={styles.infoHeader}>
         <Text>Below is a list of words used in the video. </Text>
-        <Text>1. Click the checkmark to select the word to focus on that are unknown or need reinforcement.</Text>
-        <Text>2. Click the trash icon if you already know the word and wont need to review it in the future.</Text>
+        <Text>
+          1. Click the checkmark to select the word to focus on that are unknown
+          or need reinforcement.
+        </Text>
+        <Text>
+          2. Click the trash icon if you already know the word and wont need to
+          review it in the future.
+        </Text>
         <Text>2. 5-10 words per video is recommended.</Text>
       </View>
       {vocabLoading ? (
@@ -36,29 +49,52 @@ const VocabSelector: React.FC<VocabSelectorProps> = ({
           <ActivityIndicator size="large" />
         </View>
       ) : (
-      <ScrollView style={styles.vocabList}>
-        {vocab.map((v, index) => (
-          <View key={`${v.id}-${v.word}-${index}`} style={styles.wordContainer}>
-            <Text style={styles.wordText}>{capitalize(v.word)}</Text>
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => setUserIgnoredVocab([...userIgnoredVocab, v.word])}>
-                <MaterialIcons name="delete-outline" size={24} color="black" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.checkButton} onPress={() => setUserSelectedVocab([...userSelectedVocab, v.word])}>
-                <MaterialIcons name="check" size={24} color="black" />
-              </TouchableOpacity>
+        <ScrollView style={styles.vocabList}>
+          {vocab.map((v, index) => (
+            <View
+              key={`${v.id}-${v.word}-${index}`}
+              style={styles.wordContainer}
+            >
+              <Text style={styles.wordText}>{capitalize(v.word)}</Text>
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() =>
+                    setUserIgnoredVocab([...userIgnoredVocab, v.word])
+                  }
+                >
+                  <MaterialIcons
+                    name="delete-outline"
+                    size={24}
+                    color="black"
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.checkButton}
+                  onPress={() =>
+                    setUserSelectedVocab([...userSelectedVocab, v.word])
+                  }
+                >
+                  <MaterialIcons name="check" size={24} color="black" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </ScrollView>
       )}
 
-     <View style={styles.nextButtonContainer}>
+      <View style={styles.nextButtonContainer}>
         <View style={styles.vocabCountContainer}>
-          {userSelectedVocab.length > 0 && <Text>Selected Vocab: {userSelectedVocab.length} choosen</Text>}
-          {userIgnoredVocab.length > 0 && <Text>Removed Vocab: {userIgnoredVocab.length} removed</Text>}
+          {userSelectedVocab.length > 0 && (
+            <Text>Selected Vocab: {userSelectedVocab.length} choosen</Text>
+          )}
+          {userIgnoredVocab.length > 0 && (
+            <Text>Removed Vocab: {userIgnoredVocab.length} removed</Text>
+          )}
         </View>
-        <TouchableOpacity style={styles.submitButton} onPress={onNext}><Text style={styles.submitButtonText}>Next</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.submitButton} onPress={onNext}>
+          <Text style={styles.submitButtonText}>Next</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -97,7 +133,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
   },
   deleteButton: {
     backgroundColor: "#fff",

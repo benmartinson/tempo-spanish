@@ -6,7 +6,7 @@ import {
   View,
 } from "react-native";
 import { KeyVocabulary, SegmentWord, Vocabulary } from "../../types";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 const VocabList: React.FC<{
@@ -15,6 +15,11 @@ const VocabList: React.FC<{
   addToFocusVocab: () => void;
 }> = ({ vocab, time, addToFocusVocab }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const itemLayouts = useRef<{ [key: number]: number }>({});
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const autoScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [manualTranslations, setManualTranslations] = useState<SegmentWord[]>(
     []
   );
@@ -41,6 +46,35 @@ const VocabList: React.FC<{
 
   const shouldHighlight = (word: SegmentWord) => {
     return Math.floor(word.start) <= time && Math.ceil(word.end) + 1 >= time;
+  };
+
+  useEffect(() => {
+    if (!isAutoScrollEnabled) return;
+
+    const highlightedIndex = wordSet.findIndex((word) => shouldHighlight(word));
+    if (
+      highlightedIndex !== -1 &&
+      itemLayouts.current[highlightedIndex] !== undefined
+    ) {
+      scrollViewRef.current?.scrollTo({
+        y: itemLayouts.current[highlightedIndex],
+        animated: true,
+      });
+    }
+  }, [time, wordSet, isAutoScrollEnabled]);
+
+  const handleScrollBeginDrag = () => {
+    setIsAutoScrollEnabled(false);
+    if (autoScrollTimeoutRef.current) {
+      clearTimeout(autoScrollTimeoutRef.current);
+    }
+  };
+
+  const handleScrollEndDrag = () => {
+    // Resume auto-scroll after 3 seconds of inactivity
+    autoScrollTimeoutRef.current = setTimeout(() => {
+      setIsAutoScrollEnabled(true);
+    }, 3000);
   };
 
   const shouldShowTranslation = (word: SegmentWord) => {
@@ -70,10 +104,19 @@ const VocabList: React.FC<{
         </View>
       </View>
       {isExpanded && (
-        <ScrollView style={styles.vocabList}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.vocabList}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollEndDrag={handleScrollEndDrag}
+          scrollEventThrottle={16}
+        >
           {wordSet.map((word, index) => (
             <TouchableOpacity
               key={index}
+              onLayout={(event) => {
+                itemLayouts.current[index] = event.nativeEvent.layout.y;
+              }}
               style={[
                 styles.vocabItem,
                 shouldHighlight(word) && styles.highlightedVocabItem,
@@ -121,6 +164,7 @@ const styles = StyleSheet.create({
   vocabList: {
     flexGrow: 0,
     marginTop: 12,
+    maxHeight: 150,
   },
   highlightedVocabItem: {
     backgroundColor: "#4d4a62",
