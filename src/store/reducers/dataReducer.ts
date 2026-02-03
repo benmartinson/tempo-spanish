@@ -10,17 +10,23 @@ const initialState: RootState = {
   allVideos: [],
   allVocabulary: [],
   userKnownVocab: [],
+  userVideoViews: [],
 };
 
 const dataReducer = (
   state: RootState = initialState,
-  action: DataAction,
+  action: DataAction
 ): RootState => {
   switch (action.type) {
     case "SET_ALL_CHANNELS":
       return {
         ...state,
         allChannels: action.payload,
+      };
+    case "SET_USER_VIDEO_VIEWS":
+      return {
+        ...state,
+        userVideoViews: action.payload,
       };
     case "SET_ALL_VIDEOS":
       return {
@@ -61,7 +67,7 @@ const dataReducer = (
     case "SET_SEGMENT_BY_TIME":
       const index = state.currentVideo?.segments.findIndex(
         (segment) =>
-          action.payload >= segment.start && action.payload <= segment.end,
+          action.payload >= segment.start && action.payload <= segment.end
       );
 
       const currentSegment = index >= 0 ? index : 0;

@@ -13,10 +13,11 @@ import {
   setCurrentTab,
   setAllVocabulary,
   setUserKnownVocab,
+  setUserVideoViews,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import { useEffect } from "react";
-import { Vocabulary } from "./src/types";
+import { VideoView, Vocabulary } from "./src/types";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
@@ -134,7 +135,7 @@ const AuthenticatedApp: React.FC = () => {
 
   useEffect(() => {
     if (!supabase) return;
-    
+
     // Fetch all vocabulary
     supabase
       .from("vocabulary")
@@ -150,8 +151,20 @@ const AuthenticatedApp: React.FC = () => {
       .select("vocabulary_id")
       .then(({ data, error }) => {
         if (error) console.error(error);
-        const vocabIds = (data ?? []).map((row: { vocabulary_id: number }) => row.vocabulary_id);
+        const vocabIds = (data ?? []).map(
+          (row: { vocabulary_id: number }) => row.vocabulary_id
+        );
         dispatch(setUserKnownVocab(vocabIds));
+      });
+
+    // fetch video views
+    supabase
+      .from("video_views")
+      .select("id, video_id, watched_at")
+      .then(({ data, error }) => {
+        if (error) console.error(error);
+        const videoViews = (data as VideoView[]) ?? [];
+        dispatch(setUserVideoViews(videoViews));
       });
   }, [supabase, dispatch]);
 

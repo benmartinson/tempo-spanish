@@ -21,6 +21,8 @@ import { BACKEND_BASE_URL } from "../streaming_helpers";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useNavigation } from "@react-navigation/native";
 import { useUser } from "@clerk/clerk-expo";
+import HorizontalVideoScroll from "./HorizontalVideoScroll";
+import VideoSectionHeader from "./VideoSectionHeader";
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
@@ -29,6 +31,9 @@ const VideoList: React.FC = () => {
 
   const allChannels = useSelector((state: RootState) => state.allChannels);
   const allVideos = useSelector((state: RootState) => state.allVideos);
+  const userVideoViews = useSelector(
+    (state: RootState) => state.userVideoViews
+  );
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -119,8 +124,27 @@ const VideoList: React.FC = () => {
     setLoadingVideo(false);
   };
 
+  const recentlyWatchedVideos =
+    allVideos?.filter((video) =>
+      userVideoViews?.some((videoView) => videoView.video_id === video.id)
+    ) ?? [];
+  console.log("userVideoViews", userVideoViews);
+  console.log("recentlyWatchedVideos", recentlyWatchedVideos);
+
   return (
     <ScrollView style={styles.container}>
+      {recentlyWatchedVideos.length > 0 && (
+        <>
+          <VideoSectionHeader title="Recently Watched" isFirst={true} />
+          <HorizontalVideoScroll
+            videos={recentlyWatchedVideos}
+            handleWatchPress={handleWatchPress}
+            loadingVideo={loadingVideo}
+          />
+        </>
+      )}
+      {/* <VideoSectionHeader title="Recommended" /> */}
+      <VideoSectionHeader title="All Channels" />
       {allChannels.map((channel) => {
         const channelVideos = allVideos.filter(
           (video) => video.channel_id === channel.channel_id
@@ -144,28 +168,11 @@ const VideoList: React.FC = () => {
             </View>
 
             {/* Horizontal Video List */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.videoScrollContent}
-            >
-              {channelVideos.map((video) => (
-                <TouchableOpacity
-                  key={video.video_id}
-                  style={styles.videoItem}
-                  onPress={() => handleWatchPress(video.video_id, video.id)}
-                  disabled={loadingVideo}
-                >
-                  <Image
-                    source={{ uri: video.thumbnail_url }}
-                    style={styles.videoThumbnail}
-                  />
-                  <Text style={styles.videoTitle} numberOfLines={2}>
-                    {video.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <HorizontalVideoScroll
+              videos={channelVideos}
+              handleWatchPress={handleWatchPress}
+              loadingVideo={loadingVideo}
+            />
           </View>
         );
       })}
@@ -179,8 +186,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 0,
   },
   title: {
     fontSize: 32,
@@ -195,6 +201,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: 12,
+    paddingHorizontal: 16,
   },
   channelThumbnail: {
     width: 100,
@@ -216,26 +223,6 @@ const styles = StyleSheet.create({
   channelInfo: {
     flex: 1,
     paddingRight: 8,
-  },
-  videoScrollContent: {
-    paddingRight: 16,
-  },
-  videoItem: {
-    width: 320,
-    height: 260,
-    marginRight: 12,
-  },
-  videoThumbnail: {
-    width: 320,
-    height: 180,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  videoTitle: {
-    fontSize: 14,
-    color: "black",
-    textAlign: "left",
-    lineHeight: 16,
   },
 });
 

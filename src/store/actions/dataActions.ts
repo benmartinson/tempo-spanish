@@ -1,4 +1,12 @@
-import { Channel, DataAction, Segment, Video, VideoContext, Vocabulary } from "../../types";
+import {
+  Channel,
+  DataAction,
+  Segment,
+  Video,
+  VideoContext,
+  VideoView,
+  Vocabulary,
+} from "../../types";
 
 export const setCurrentVideo = (video: VideoContext | null): DataAction => ({
   type: "SET_CURRENT_VIDEO",
@@ -21,7 +29,7 @@ export const setSegmentByTime = (time: number): DataAction => ({
 });
 
 export const setCurrentChatType = (
-  chatType: "general" | "video-based",
+  chatType: "general" | "video-based"
 ): DataAction => ({
   type: "SET_CURRENT_CHAT_TYPE",
   payload: chatType,
@@ -33,7 +41,7 @@ export const refreshVideoPlayer = (): DataAction => ({
 });
 
 export const setCurrentTab = (
-  tab: "home" | "videos" | "watch" | "discuss" | "shadow",
+  tab: "home" | "videos" | "watch" | "discuss" | "shadow"
 ): DataAction => ({
   type: "SET_CURRENT_TAB",
   payload: tab,
@@ -67,4 +75,9 @@ export const setUserKnownVocab = (vocabIds: number[]): DataAction => ({
 export const addUserKnownVocab = (vocabIds: number[]): DataAction => ({
   type: "ADD_USER_KNOWN_VOCAB",
   payload: vocabIds,
+});
+
+export const setUserVideoViews = (videoViews: VideoView[]): DataAction => ({
+  type: "SET_USER_VIDEO_VIEWS",
+  payload: videoViews,
 });

@@ -7,6 +7,7 @@ export interface RootState {
   allVideos: Video[];
   allVocabulary: Vocabulary[];
   userKnownVocab: number[];
+  userVideoViews: VideoView[];
 }
 
 export type DataActionTypes =
@@ -22,7 +23,8 @@ export type DataActionTypes =
   | "SET_FOCUS_VOCAB"
   | "SET_ALL_VOCABULARY"
   | "SET_USER_KNOWN_VOCAB"
-  | "ADD_USER_KNOWN_VOCAB";
+  | "ADD_USER_KNOWN_VOCAB"
+  | "SET_USER_VIDEO_VIEWS";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -95,4 +97,10 @@ export interface KeyVocabulary {
 export interface Answer {
   answer: string;
   correct: boolean;
+}
+
+export interface VideoView {
+  id: number;
+  video_id: string;
+  watched_at: Date;
 }
