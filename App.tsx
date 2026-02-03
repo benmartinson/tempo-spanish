@@ -9,7 +9,11 @@ import HomeTab from "./src/components/tabs/HomeTab";
 import VideosTab from "./src/components/tabs/VideosTab";
 import { Provider, useDispatch } from "react-redux";
 import store from "./src/store/store";
-import { setCurrentTab, setAllVocabulary } from "./src/store/actions/dataActions";
+import {
+  setCurrentTab,
+  setAllVocabulary,
+  setUserKnownVocab,
+} from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import { useEffect } from "react";
 import { Vocabulary } from "./src/types";
@@ -35,6 +39,7 @@ const MainTabs: React.FC = () => {
   return (
     <Tab.Navigator
       id="MainTabs"
+      initialRouteName="Videos"
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -129,12 +134,24 @@ const AuthenticatedApp: React.FC = () => {
 
   useEffect(() => {
     if (!supabase) return;
+    
+    // Fetch all vocabulary
     supabase
       .from("vocabulary")
       .select("id, word, translation")
       .then(({ data, error }) => {
         if (error) console.error(error);
         dispatch(setAllVocabulary((data as Vocabulary[]) ?? []));
+      });
+
+    // Fetch user's known vocabulary
+    supabase
+      .from("user_known_vocab")
+      .select("vocabulary_id")
+      .then(({ data, error }) => {
+        if (error) console.error(error);
+        const vocabIds = (data ?? []).map((row: { vocabulary_id: number }) => row.vocabulary_id);
+        dispatch(setUserKnownVocab(vocabIds));
       });
   }, [supabase, dispatch]);
 

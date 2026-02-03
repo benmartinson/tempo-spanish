@@ -22,7 +22,6 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useNavigation } from "@react-navigation/native";
 import { useUser } from "@clerk/clerk-expo";
 
-
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -62,7 +61,7 @@ const VideoList: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-      },
+      }
     );
     if (!response.ok) {
       throw new Error("Failed to get initial message");
@@ -86,7 +85,24 @@ const VideoList: React.FC = () => {
       .select("id");
 
     if (videoViewError) console.error(videoViewError);
+
     const videoViewId = videoViewData?.[0]?.id ?? "";
+    const { data: focusVocabData, error: focusVocabError } = await supabase
+      .from("video_view_focus_vocab")
+      .select(
+        `
+        vocabulary (
+          id,
+          word,
+          translation
+        )
+      `
+      )
+      .eq("video_view_id", videoViewId);
+
+    const focusVocab = (
+      focusVocabData?.map((item: any) => item.vocabulary) || []
+    ).filter(Boolean);
 
     const video: VideoContext = {
       videoId: data.video_id,
@@ -94,8 +110,9 @@ const VideoList: React.FC = () => {
       segments: data.segments,
       allWords: data.segments.flatMap((s: Segment) => s.words),
       videoViewId: String(videoViewId),
-      focusVocab: [],
+      focusVocab: focusVocab,
     };
+
     dispatch(setCurrentVideo(video));
     dispatch(setCurrentTab("watch"));
     navigation.navigate("Watch" as never);
@@ -106,7 +123,7 @@ const VideoList: React.FC = () => {
     <ScrollView style={styles.container}>
       {allChannels.map((channel) => {
         const channelVideos = allVideos.filter(
-          (video) => video.channel_id === channel.channel_id,
+          (video) => video.channel_id === channel.channel_id
         );
         return (
           <View key={channel.channel_id} style={styles.channelContainer}>

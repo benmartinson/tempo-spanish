@@ -9,6 +9,7 @@ const initialState: RootState = {
   allChannels: [],
   allVideos: [],
   allVocabulary: [],
+  userKnownVocab: [],
 };
 
 const dataReducer = (
@@ -94,6 +95,16 @@ const dataReducer = (
       return {
         ...state,
         currentTab: action.payload,
+      };
+    case "SET_USER_KNOWN_VOCAB":
+      return {
+        ...state,
+        userKnownVocab: action.payload,
+      };
+    case "ADD_USER_KNOWN_VOCAB":
+      return {
+        ...state,
+        userKnownVocab: [...state.userKnownVocab, ...action.payload],
       };
     default:
       return state;

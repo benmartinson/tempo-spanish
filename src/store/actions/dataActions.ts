@@ -58,3 +58,13 @@ export const setAllVocabulary = (vocab: Vocabulary[]): DataAction => ({
   type: "SET_ALL_VOCABULARY",
   payload: vocab,
 });
+
+export const setUserKnownVocab = (vocabIds: number[]): DataAction => ({
+  type: "SET_USER_KNOWN_VOCAB",
+  payload: vocabIds,
+});
+
+export const addUserKnownVocab = (vocabIds: number[]): DataAction => ({
+  type: "ADD_USER_KNOWN_VOCAB",
+  payload: vocabIds,
+});

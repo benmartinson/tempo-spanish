@@ -31,10 +31,13 @@ import { refreshVideoPlayer } from "../../store/actions/dataActions";
 const WatchTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
+  const userKnownVocab = useSelector((state: RootState) => state.userKnownVocab);
   const navigation = useNavigation();
   const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
-  const [isModalVisible, setIsModalVisible] = useState(true);
+  const [isModalVisible, setIsModalVisible] = useState(
+    currentVideo && currentVideo.focusVocab.length > 0 ? false : true
+  );
   const timeRemaining = Math.floor(Math.max((clip?.end ?? 0) - time, 0));
   const dispatch = useDispatch();
   const isClip = false;
@@ -48,6 +51,13 @@ const WatchTab: React.FC = () => {
 
   const [userSelectedVocab, setUserSelectedVocab] = useState<string[]>([]);
   const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
+
+  const handleAddToFocusVocab = () => {
+    setUserSelectedVocab(currentVideo?.focusVocab.map((v) => v.word) || []);
+    setUserIgnoredVocab([]);
+    setVocabSelectionStep(1);
+    setIsModalVisible(true);
+  };
 
   const uniqueWordsFromVideo = useMemo(
     () =>
@@ -64,10 +74,12 @@ const WatchTab: React.FC = () => {
 
   const vocabularyForVideo = useMemo(
     () =>
-      allVocabulary.filter((v) =>
-        uniqueWordsFromVideo.has(normalizeWord(v.word))
+      allVocabulary.filter(
+        (v) =>
+          uniqueWordsFromVideo.has(normalizeWord(v.word)) &&
+          !userKnownVocab.includes(v.id)
       ),
-    [allVocabulary, uniqueWordsFromVideo]
+    [allVocabulary, uniqueWordsFromVideo, userKnownVocab]
   );
 
   const [randomlySelectedVocab, setRandomlySelectedVocab] = useState<
@@ -205,7 +217,11 @@ const WatchTab: React.FC = () => {
             />
           )}
           {focusVocabTimes.length > 0 && (
-            <VocabList vocab={focusVocabTimes} time={time} />
+            <VocabList
+              vocab={focusVocabTimes}
+              time={time}
+              addToFocusVocab={handleAddToFocusVocab}
+            />
           )}
         </ScrollView>
       </View>

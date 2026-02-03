@@ -6,6 +6,7 @@ export interface RootState {
   allChannels: Channel[];
   allVideos: Video[];
   allVocabulary: Vocabulary[];
+  userKnownVocab: number[];
 }
 
 export type DataActionTypes =
@@ -19,7 +20,9 @@ export type DataActionTypes =
   | "SET_PREVIOUS_SEGMENT"
   | "SET_SEGMENT_BY_TIME"
   | "SET_FOCUS_VOCAB"
-  | "SET_ALL_VOCABULARY";
+  | "SET_ALL_VOCABULARY"
+  | "SET_USER_KNOWN_VOCAB"
+  | "ADD_USER_KNOWN_VOCAB";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;

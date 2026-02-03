@@ -12,7 +12,8 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 const VocabList: React.FC<{
   vocab: SegmentWord[];
   time: number;
-}> = ({ vocab, time }) => {
+  addToFocusVocab: () => void;
+}> = ({ vocab, time, addToFocusVocab }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [manualTranslations, setManualTranslations] = useState<SegmentWord[]>(
     []
@@ -55,13 +56,18 @@ const VocabList: React.FC<{
     <View style={styles.vocabCard}>
       <View style={styles.header}>
         <Text style={styles.vocabTitle}>Selected Vocab</Text>
-        <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
-          <MaterialIcons
-            name={isExpanded ? "expand-less" : "expand-more"}
-            size={24}
-            color="#fff"
-          />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity onPress={addToFocusVocab}>
+            <MaterialIcons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
+            <MaterialIcons
+              name={isExpanded ? "expand-less" : "expand-more"}
+              size={24}
+              color="#fff"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
       {isExpanded && (
         <ScrollView style={styles.vocabList}>
@@ -127,6 +133,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#3d3a52",
     borderRadius: 10,
     marginBottom: 8,
+  },
+  headerButtons: {
+    flexDirection: "row",
+    gap: 8,
   },
   vocabWord: {
     color: "#a0a0b0",
