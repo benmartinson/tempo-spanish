@@ -33,6 +33,7 @@ import {
   AccuracyResult,
 } from "../streaming_helpers";
 import SettingsModal from "./SettingsModal";
+import CountdownTimer from "./CountdownTimer";
 
 // Helper function to split words into sentences based on punctuation
 const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
@@ -83,6 +84,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   );
   const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState<boolean>(false);
+  // Tracks when we're in recording mode (includes countdown, recording, and buffer phases)
+  const [isRecordingMode, setIsRecordingMode] = useState<boolean>(false);
 
   // Track if recording should auto-stop when segment ends
   const shouldAutoStopRef = useRef<boolean>(false);
@@ -93,10 +96,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const sentences = useMemo(() => splitIntoSentences(clipWords), [clipWords]);
   const currentSentenceWords = sentences[currentSentence] || [];
   const sentenceStart = currentSentenceWords[0]?.start ?? clip?.start ?? 0;
-  const sentenceEnd =
+  let sentenceEnd =
     currentSentenceWords[currentSentenceWords.length - 1]?.end ??
     clip?.end ??
     0;
+  sentenceEnd = (parseFloat(sentenceEnd.toFixed(1)) + 0.1).toString();
   const isLastSentence = currentSentence >= sentences.length - 1;
   const isFirstSentence = currentSentence === 0;
   const isFirstSegment = currentVideo?.currentSegment === 0;
@@ -149,6 +153,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     setAccuracyResult(null);
     setIsProcessing(false);
     setIsVideoMuted(false);
+    setIsRecordingMode(false);
     shouldAutoStopRef.current = false;
     setCurrentSentence(0);
     setSentenceEnded(false);
@@ -158,7 +163,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     }
   }, [currentVideo?.currentSegment]);
 
-  // Auto-stop recording when sentence ends (with 5-second buffer)
+  // Detect when sentence ends (for CountdownTimer to show buffer)
   useEffect(() => {
     if (
       isRecording &&
@@ -167,13 +172,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
       shouldAutoStopRef.current
     ) {
       setSentenceEnded(true);
-      // Allow 5 more seconds of recording after sentence ends
-      recordingExtensionRef.current = setTimeout(() => {
-        stopRecording();
-        shouldAutoStopRef.current = false;
-      }, 5000);
     }
-  }, [time, sentenceEnd, isRecording, sentenceEnded, stopRecording]);
+  }, [time, sentenceEnd, isRecording, sentenceEnded]);
 
   // Cleanup timer on unmount or sentence change
   useEffect(() => {
@@ -195,26 +195,34 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     setTime(newTime);
   };
 
-  const handleStartRecording = async () => {
+  // Enter recording mode (shows countdown, then starts recording)
+  const handleEnterRecordingMode = () => {
     // Reset previous results
+    setTime(sentenceStart);
     setAccuracyResult(null);
     setError(null);
-    setTime(sentenceStart);
     setSentenceEnded(false);
-    shouldAutoStopRef.current = true;
-    setIsVideoMuted(true);
+    setIsRecordingMode(true);
     // Clear any existing timer
     if (recordingExtensionRef.current) {
       clearTimeout(recordingExtensionRef.current);
       recordingExtensionRef.current = null;
     }
-    await startRecording();
+  };
 
+  // Called by CountdownTimer after 3-second countdown
+  const handleActualStartRecording = async () => {
+    setTime(sentenceStart);
+    shouldAutoStopRef.current = true;
+    setIsVideoMuted(true);
+    await startRecording();
     dispatch(refreshVideoPlayer());
   };
 
+  // Called by CountdownTimer after buffer countdown completes
   const handleStopRecording = async () => {
     shouldAutoStopRef.current = false;
+    setIsRecordingMode(false);
     // pause video
     await stopRecording();
     // Keep muted until user takes action (results will be shown)
@@ -279,20 +287,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     return <SelectVideoPrompt />;
   }
 
-  // Determine what message to show during recording
-  const getRecordingMessage = () => {
-    if (isProcessing) return "Processing...";
-    if (isRecording) {
-      return sentenceEnded
-        ? "Recording... (5s buffer)"
-        : `Listening... sentence ends in ${sentenceTimeRemaining}s`;
-    }
-    return null;
-  };
-
-  const recordingMessage = getRecordingMessage();
-
   const handlePlaySnippetAgain = () => {
+    setIsVideoMuted(false);
+    setIsRecordingMode(false);
+    setTime(sentenceStart);
+    setAccuracyResult(null);
+    setSentenceEnded(false);
+    if (recordingExtensionRef.current) {
+      clearTimeout(recordingExtensionRef.current);
+      recordingExtensionRef.current = null;
+    }
     dispatch(refreshVideoPlayer());
   };
 
@@ -319,11 +323,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
             muted={isVideoMuted}
             playbackSpeed={currentSpeed}
           />
-          {recordingMessage && (
-            <View style={styles.countdownContainer}>
-              <Text style={styles.countdownText}>{recordingMessage}</Text>
-            </View>
-          )}
         </View>
 
         {error && (
@@ -359,7 +358,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
               <View style={styles.actionButtons}>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.tryAgainButton]}
-                  onPress={handleStartRecording}
+                  onPress={handleEnterRecordingMode}
                 >
                   <MaterialIcons name="replay" size={20} color="#fff" />
                   <Text style={styles.actionButtonText}>Re-Try Recording</Text>
@@ -385,6 +384,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                 </TouchableOpacity>
               </View>
             </View>
+          ) : isRecordingMode ? (
+            <>
+              <CountdownTimer
+                onStartRecording={handleActualStartRecording}
+                onStopRecording={handleStopRecording}
+                sentenceEnded={sentenceEnded}
+                bufferDuration={5}
+                countdownDuration={3}
+              />
+              <FullSegmentTranscriptBubble
+                words={currentSentenceWords}
+                time={time}
+                mode="video"
+              />
+            </>
           ) : (
             <>
               {/* Sentence Navigation */}
@@ -441,25 +455,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   <MaterialIcons name="play-arrow" size={20} color="black" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.recordButton,
-                    isRecording && styles.recordButtonActive,
-                  ]}
-                  onPress={
-                    isRecording ? handleStopRecording : handleStartRecording
-                  }
+                  style={styles.recordButton}
+                  onPress={handleEnterRecordingMode}
                   disabled={!hasPermission || isProcessing}
                 >
-                  {isRecording && (
-                    <MaterialIcons
-                      name="fiber-manual-record"
-                      size={20}
-                      color="#ff4757"
-                    />
-                  )}
-                  <Text style={styles.recordButtonText}>
-                    {isRecording ? "Stop Recording" : "Record Yourself"}
-                  </Text>
+                  <Text style={styles.recordButtonText}>Record Yourself</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -470,6 +470,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
         <SettingsModal
           visible={isSettingsVisible}
           onClose={() => setIsSettingsVisible(false)}
+          playbackSpeed={playbackSpeed}
+          recordSpeed={recordSpeed}
+          setPlaybackSpeed={setPlaybackSpeed}
+          setRecordSpeed={setRecordSpeed}
         />
       )}
     </>
@@ -497,20 +501,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 24,
-  },
-  countdownContainer: {
-    position: "absolute",
-    bottom: 10,
-    right: 10,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  countdownText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
   },
   errorContainer: {
     marginHorizontal: 16,
@@ -540,9 +530,6 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "flex-end",
     gap: 16,
-  },
-  recordButtonActive: {
-    backgroundColor: "#2d2a40",
   },
   recordButtonText: {
     color: "#fff",

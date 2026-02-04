@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import SlideModal from "../common/Modal";
 
@@ -18,7 +18,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   setPlaybackSpeed,
   setRecordSpeed,
 }) => {
-  const speedOptions = [0.5, 0.75, 1, 1.25, 1.5];
+  const speedOptions = [0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
+  const [editedPlaybackSpeed, setEditedPlaybackSpeed] = useState(playbackSpeed);
+  const [editedRecordSpeed, setEditedRecordSpeed] = useState(recordSpeed);
+
+  const handlePlaybackSpeedChange = (speed: number) => {
+    setEditedPlaybackSpeed(speed);
+  };
+
+  const handleRecordSpeedChange = (speed: number) => {
+    setEditedRecordSpeed(speed);
+  };
+
+  const handleSubmit = () => {
+    setPlaybackSpeed(editedPlaybackSpeed);
+    setRecordSpeed(editedRecordSpeed);
+    onClose();
+  };
   return (
     <SlideModal
       visible={visible}
@@ -35,14 +51,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 key={`playback-${speed}`}
                 style={[
                   styles.speedOption,
-                  playbackSpeed === speed && styles.speedOptionActive,
+                  editedPlaybackSpeed === speed && styles.speedOptionActive,
                 ]}
-                onPress={() => setPlaybackSpeed(speed)}
+                onPress={() => handlePlaybackSpeedChange(speed)}
               >
                 <Text
                   style={[
                     styles.speedOptionText,
-                    playbackSpeed === speed && styles.speedOptionTextActive,
+                    editedPlaybackSpeed === speed &&
+                      styles.speedOptionTextActive,
                   ]}
                 >
                   {speed}x
@@ -60,14 +77,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 key={`record-${speed}`}
                 style={[
                   styles.speedOption,
-                  recordSpeed === speed && styles.speedOptionActive,
+                  editedRecordSpeed === speed && styles.speedOptionActive,
                 ]}
-                onPress={() => setRecordSpeed(speed)}
+                onPress={() => handleRecordSpeedChange(speed)}
               >
                 <Text
                   style={[
                     styles.speedOptionText,
-                    recordSpeed === speed && styles.speedOptionTextActive,
+                    editedRecordSpeed === speed && styles.speedOptionTextActive,
                   ]}
                 >
                   {speed}x
@@ -76,6 +93,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             ))}
           </View>
         </View>
+      </View>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+          <Text style={styles.buttonText}>Save</Text>
+        </TouchableOpacity>
       </View>
     </SlideModal>
   );
@@ -125,6 +147,25 @@ const styles = StyleSheet.create({
   },
   speedOptionTextActive: {
     color: "#fff",
+  },
+  buttonContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    justifyContent: "flex-end",
+    alignItems: "flex-end",
+    gap: 16,
+    marginTop: 16,
+  },
+  button: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: "white",
+  },
+  buttonText: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });
 
