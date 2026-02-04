@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -9,10 +15,11 @@ import {
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { RootState } from "../../types";
+import { RootState, SegmentWord } from "../../types";
 import {
   setSegmentByTime,
   setNextSegment,
+  setPreviousSegment,
   refreshVideoPlayer,
 } from "../../store/actions/dataActions";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
@@ -25,6 +32,27 @@ import {
   calculateAccuracy,
   AccuracyResult,
 } from "../streaming_helpers";
+import SettingsModal from "./SettingsModal";
+
+// Helper function to split words into sentences based on punctuation
+const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
+  const sentences: SegmentWord[][] = [];
+  let currentSentenceWords: SegmentWord[] = [];
+
+  for (const word of words) {
+    currentSentenceWords.push(word);
+    // Check if word ends with sentence-ending punctuation
+    if (/[.!?]$/.test(word.word)) {
+      sentences.push(currentSentenceWords);
+      currentSentenceWords = [];
+    }
+  }
+  // Handle remaining words (last sentence without punctuation)
+  if (currentSentenceWords.length > 0) {
+    sentences.push(currentSentenceWords);
+  }
+  return sentences;
+};
 
 interface ShadowTabProps {
   segmentId?: string;
@@ -33,18 +61,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const clip = currentVideo?.segments[segmentId || currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
-  const timeRemaining = Math.floor(Math.max(clip?.end - time, 0));
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey
   );
   const dispatch = useDispatch();
 
-  // useEffect(() => {
-  //   if (clip) {
-  //     setTime(clip.start);
-  //     dispatch(refreshVideoPlayer());
-  //   }
-  // }, [clip]);
+  // Sentence tracking state
+  const [currentSentence, setCurrentSentence] = useState<number>(0);
+  const [sentenceEnded, setSentenceEnded] = useState<boolean>(false);
+  const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Speed control state
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [recordSpeed, setRecordSpeed] = useState<number>(0.75);
 
   // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
@@ -53,11 +82,28 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     null
   );
   const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
+  const [isSettingsVisible, setIsSettingsVisible] = useState<boolean>(false);
 
   // Track if recording should auto-stop when segment ends
   const shouldAutoStopRef = useRef<boolean>(false);
 
   const clipWords = clip?.words || [];
+
+  // Split clip words into sentences and derive current sentence data
+  const sentences = useMemo(() => splitIntoSentences(clipWords), [clipWords]);
+  const currentSentenceWords = sentences[currentSentence] || [];
+  const sentenceStart = currentSentenceWords[0]?.start ?? clip?.start ?? 0;
+  const sentenceEnd =
+    currentSentenceWords[currentSentenceWords.length - 1]?.end ??
+    clip?.end ??
+    0;
+  const isLastSentence = currentSentence >= sentences.length - 1;
+  const isFirstSentence = currentSentence === 0;
+  const isFirstSegment = currentVideo?.currentSegment === 0;
+  const sentenceTimeRemaining = Math.floor(Math.max(sentenceEnd - time, 0));
+
+  // Determine current playback speed based on recording state
+  const currentSpeed = isVideoMuted ? recordSpeed : playbackSpeed;
 
   // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
@@ -72,8 +118,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
         // Extract words from transcript
         const spokenWords = result.transcript.split(/\s+/).filter(Boolean);
 
-        // Get target words from clip
-        const targetWords = clipWords.map((w) => w.word);
+        // Get target words from current sentence
+        const targetWords = currentSentenceWords.map((w) => w.word);
 
         // Calculate accuracy
         const accuracy = calculateAccuracy(spokenWords, targetWords);
@@ -88,7 +134,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
         setIsProcessing(false);
       }
     },
-    [clipWords]
+    [currentSentenceWords]
   );
 
   const { isRecording, hasPermission, startRecording, stopRecording } =
@@ -104,16 +150,39 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     setIsProcessing(false);
     setIsVideoMuted(false);
     shouldAutoStopRef.current = false;
+    setCurrentSentence(0);
+    setSentenceEnded(false);
+    if (recordingExtensionRef.current) {
+      clearTimeout(recordingExtensionRef.current);
+      recordingExtensionRef.current = null;
+    }
   }, [currentVideo?.currentSegment]);
 
-  // Auto-stop recording when segment ends
+  // Auto-stop recording when sentence ends (with 5-second buffer)
   useEffect(() => {
-    if (isRecording && timeRemaining <= 0 && shouldAutoStopRef.current) {
-      stopRecording();
-      shouldAutoStopRef.current = false;
-      // Don't refresh video after auto-stop - let it continue playing
+    if (
+      isRecording &&
+      time >= sentenceEnd &&
+      !sentenceEnded &&
+      shouldAutoStopRef.current
+    ) {
+      setSentenceEnded(true);
+      // Allow 5 more seconds of recording after sentence ends
+      recordingExtensionRef.current = setTimeout(() => {
+        stopRecording();
+        shouldAutoStopRef.current = false;
+      }, 5000);
     }
-  }, [timeRemaining, isRecording, stopRecording]);
+  }, [time, sentenceEnd, isRecording, sentenceEnded, stopRecording]);
+
+  // Cleanup timer on unmount or sentence change
+  useEffect(() => {
+    return () => {
+      if (recordingExtensionRef.current) {
+        clearTimeout(recordingExtensionRef.current);
+      }
+    };
+  }, [currentSentence]);
 
   const handleSetTime = (newTime: number) => {
     // if (newTime >= 1 && (newTime <= clip?.start || newTime >= clip?.end)) {
@@ -130,9 +199,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     // Reset previous results
     setAccuracyResult(null);
     setError(null);
-    setTime(clip?.start || 0);
+    setTime(sentenceStart);
+    setSentenceEnded(false);
     shouldAutoStopRef.current = true;
     setIsVideoMuted(true);
+    // Clear any existing timer
+    if (recordingExtensionRef.current) {
+      clearTimeout(recordingExtensionRef.current);
+      recordingExtensionRef.current = null;
+    }
     await startRecording();
 
     dispatch(refreshVideoPlayer());
@@ -151,6 +226,55 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     dispatch(setNextSegment());
   };
 
+  const handlePreviousSegment = () => {
+    // Move to previous segment and unmute
+    setIsVideoMuted(false);
+    dispatch(setPreviousSegment());
+  };
+
+  const handlePreviousSentence = () => {
+    if (isFirstSentence) {
+      if (!isFirstSegment) {
+        // Move to previous segment's last sentence
+        handlePreviousSegment();
+        // Note: currentSentence will reset to 0 due to segment change useEffect
+        // We need to set it to last sentence after segment loads
+      }
+      // If first segment and first sentence, do nothing
+    } else {
+      // Move to previous sentence within the same segment
+      setCurrentSentence((prev) => prev - 1);
+      setAccuracyResult(null);
+      setSentenceEnded(false);
+      setIsVideoMuted(false);
+      // Clear any existing timer
+      if (recordingExtensionRef.current) {
+        clearTimeout(recordingExtensionRef.current);
+        recordingExtensionRef.current = null;
+      }
+      dispatch(refreshVideoPlayer());
+    }
+  };
+
+  const handleNextSentence = () => {
+    if (isLastSentence) {
+      // Move to next segment if this was the last sentence
+      handleNextSegment();
+    } else {
+      // Move to next sentence within the same segment
+      setCurrentSentence((prev) => prev + 1);
+      setAccuracyResult(null);
+      setSentenceEnded(false);
+      setIsVideoMuted(false);
+      // Clear any existing timer
+      if (recordingExtensionRef.current) {
+        clearTimeout(recordingExtensionRef.current);
+        recordingExtensionRef.current = null;
+      }
+      dispatch(refreshVideoPlayer());
+    }
+  };
+
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
@@ -158,7 +282,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   // Determine what message to show during recording
   const getRecordingMessage = () => {
     if (isProcessing) return "Processing...";
-    if (isRecording) return `Listening... segment ends in ${timeRemaining}`;
+    if (isRecording) {
+      return sentenceEnded
+        ? "Recording... (5s buffer)"
+        : `Listening... sentence ends in ${sentenceTimeRemaining}s`;
+    }
     return null;
   };
 
@@ -168,18 +296,28 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     dispatch(refreshVideoPlayer());
   };
 
+  const handleSettingsToggle = () => {
+    setIsSettingsVisible(!isSettingsVisible);
+  };
+
   return (
     <>
       <SelectedVideoBanner />
       <View style={styles.container}>
         <View style={styles.videoContainer}>
           <YouTubePlayer
-            clip={{ ...clip, videoId: currentVideo.videoId }}
+            clip={{
+              ...clip,
+              start: sentenceStart,
+              end: sentenceEnd,
+              videoId: currentVideo.videoId,
+            }}
             videoId={currentVideo.videoId}
             autoplay={true}
             refreshKey={videoRefreshKey}
             setTime={handleSetTime}
             muted={isVideoMuted}
+            playbackSpeed={currentSpeed}
           />
           {recordingMessage && (
             <View style={styles.countdownContainer}>
@@ -195,14 +333,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
         )}
 
         <ScrollView style={styles.transcriptContainer}>
-          {!accuracyResult && (
-            <FullSegmentTranscriptBubble
-              words={clipWords}
-              time={time}
-              mode="video"
-            />
-          )}
-
           {/* Recording button or processing indicator */}
           {isProcessing ? (
             <View style={styles.processingContainer}>
@@ -237,9 +367,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
 
                 <TouchableOpacity
                   style={[styles.actionButton, styles.nextButton]}
-                  onPress={handleNextSegment}
+                  onPress={handleNextSentence}
                 >
-                  <Text style={styles.actionButtonText}>Next Segment</Text>
+                  <Text style={styles.actionButtonText}>Next Sentence</Text>
                   <MaterialIcons name="arrow-forward" size={20} color="#fff" />
                 </TouchableOpacity>
               </View>
@@ -249,46 +379,99 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   onPress={handlePlaySnippetAgain}
                 >
                   <Text style={styles.playAgainButtonText}>
-                    Re-Play Video Section
+                    Re-Play Sentence
                   </Text>
                   <MaterialIcons name="play-arrow" size={20} color="black" />
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
-            <View style={styles.recordButtonContainer}>
-              <TouchableOpacity
-                style={styles.playSegmentButton}
-                onPress={handlePlaySnippetAgain}
-              >
-                <Text style={styles.playSegmentButtonText}>Play Segment</Text>
-                <MaterialIcons name="play-arrow" size={20} color="black" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.recordButton,
-                  isRecording && styles.recordButtonActive,
-                ]}
-                onPress={
-                  isRecording ? handleStopRecording : handleStartRecording
-                }
-                disabled={!hasPermission || isProcessing}
-              >
-                {isRecording && (
+            <>
+              {/* Sentence Navigation */}
+              <View style={styles.sentenceNavContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.prevSentenceButton,
+                    isFirstSentence &&
+                      isFirstSegment &&
+                      styles.navButtonDisabled,
+                  ]}
+                  onPress={handlePreviousSentence}
+                  disabled={isFirstSentence && isFirstSegment}
+                >
                   <MaterialIcons
-                    name="fiber-manual-record"
-                    size={20}
-                    color="#ff4757"
+                    name="chevron-left"
+                    size={24}
+                    color={isFirstSentence && isFirstSegment ? "#ccc" : "black"}
                   />
-                )}
-                <Text style={styles.recordButtonText}>
-                  {isRecording ? "Stop Recording" : "Record Yourself"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                </TouchableOpacity>
+
+                <View style={styles.rightArrowContainer}>
+                  <TouchableOpacity
+                    style={styles.settingsButton}
+                    onPress={handleSettingsToggle}
+                  >
+                    <MaterialIcons name="settings" size={24} color="grey" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.nextSentenceButton}
+                    onPress={handleNextSentence}
+                  >
+                    <MaterialIcons
+                      name="chevron-right"
+                      size={24}
+                      color="white"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <FullSegmentTranscriptBubble
+                words={currentSentenceWords}
+                time={time}
+                mode="video"
+              />
+              <View style={styles.recordButtonContainer}>
+                <TouchableOpacity
+                  style={styles.playSegmentButton}
+                  onPress={handlePlaySnippetAgain}
+                >
+                  <Text style={styles.playSegmentButtonText}>
+                    Play Sentence
+                  </Text>
+                  <MaterialIcons name="play-arrow" size={20} color="black" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.recordButton,
+                    isRecording && styles.recordButtonActive,
+                  ]}
+                  onPress={
+                    isRecording ? handleStopRecording : handleStartRecording
+                  }
+                  disabled={!hasPermission || isProcessing}
+                >
+                  {isRecording && (
+                    <MaterialIcons
+                      name="fiber-manual-record"
+                      size={20}
+                      color="#ff4757"
+                    />
+                  )}
+                  <Text style={styles.recordButtonText}>
+                    {isRecording ? "Stop Recording" : "Record Yourself"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
         </ScrollView>
       </View>
+      {isSettingsVisible && (
+        <SettingsModal
+          visible={isSettingsVisible}
+          onClose={() => setIsSettingsVisible(false)}
+        />
+      )}
     </>
   );
 };
@@ -306,6 +489,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     position: "relative",
     marginTop: 0,
+  },
+  settingsButton: {
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "grey",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
   },
   countdownContainer: {
     position: "absolute",
@@ -343,6 +534,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#3d3a52",
     borderRadius: 24,
     gap: 8,
+  },
+  rightArrowContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+    gap: 16,
   },
   recordButtonActive: {
     backgroundColor: "#2d2a40",
@@ -445,6 +642,51 @@ const styles = StyleSheet.create({
   },
   playSegmentButtonText: {
     color: "black",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  sentenceNavContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginTop: 16,
+  },
+  prevSentenceButton: {
+    flexDirection: "row",
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "black",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+    alignSelf: "center",
+  },
+  nextSentenceButton: {
+    flexDirection: "row",
+    backgroundColor: "#4ade80",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 2,
+    borderColor: "#4ade80",
+    borderRadius: 24,
+    gap: 8,
+    alignSelf: "center",
+  },
+  navButtonDisabled: {
+    opacity: 0.5,
+    borderColor: "#ccc",
+  },
+  navButtonTextDisabled: {
+    color: "#ccc",
+  },
+  sentenceIndicator: {
+    color: "#666",
     fontSize: 14,
     fontWeight: "600",
   },
