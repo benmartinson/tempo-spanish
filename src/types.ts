@@ -2,7 +2,7 @@ export interface RootState {
   currentVideo: VideoContext | null;
   currentChatType: "general" | "video-based" | null;
   videoRefreshKey: number;
-  currentTab: "home" | "videos" | "watch" | "discuss";
+  currentTab: "home" | "videos" | "watch" | "discuss" | "shadow";
   allChannels: Channel[];
   allVideos: Video[];
   allVocabulary: Vocabulary[];

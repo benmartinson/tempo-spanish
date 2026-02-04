@@ -26,13 +26,16 @@ import {
   AccuracyResult,
 } from "../streaming_helpers";
 
-const ShadowTab: React.FC = () => {
+interface ShadowTabProps {
+  segmentId?: string;
+}
+const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const clip = currentVideo?.segments[currentVideo.currentSegment];
+  const clip = currentVideo?.segments[segmentId || currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
   const timeRemaining = Math.floor(Math.max(clip?.end - time, 0));
   const videoRefreshKey = useSelector(
-    (state: RootState) => state.videoRefreshKey,
+    (state: RootState) => state.videoRefreshKey
   );
   const dispatch = useDispatch();
 
@@ -47,7 +50,7 @@ const ShadowTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
-    null,
+    null
   );
   const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
 
@@ -79,13 +82,13 @@ const ShadowTab: React.FC = () => {
       } catch (err) {
         console.error("Transcription error:", err);
         setError(
-          err instanceof Error ? err.message : "Failed to process audio",
+          err instanceof Error ? err.message : "Failed to process audio"
         );
       } finally {
         setIsProcessing(false);
       }
     },
-    [clipWords],
+    [clipWords]
   );
 
   const { isRecording, hasPermission, startRecording, stopRecording } =
@@ -253,26 +256,36 @@ const ShadowTab: React.FC = () => {
               </View>
             </View>
           ) : (
-            // Show record button
-            <TouchableOpacity
-              style={[
-                styles.recordButton,
-                isRecording && styles.recordButtonActive,
-              ]}
-              onPress={isRecording ? handleStopRecording : handleStartRecording}
-              disabled={!hasPermission || isProcessing}
-            >
-              {isRecording && (
-                <MaterialIcons
-                  name="fiber-manual-record"
-                  size={20}
-                  color="#ff4757"
-                />
-              )}
-              <Text style={styles.recordButtonText}>
-                {isRecording ? "Stop Recording" : "Start Recording"}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.recordButtonContainer}>
+              <TouchableOpacity
+                style={styles.playSegmentButton}
+                onPress={handlePlaySnippetAgain}
+              >
+                <Text style={styles.playSegmentButtonText}>Play Segment</Text>
+                <MaterialIcons name="play-arrow" size={20} color="black" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.recordButton,
+                  isRecording && styles.recordButtonActive,
+                ]}
+                onPress={
+                  isRecording ? handleStopRecording : handleStartRecording
+                }
+                disabled={!hasPermission || isProcessing}
+              >
+                {isRecording && (
+                  <MaterialIcons
+                    name="fiber-manual-record"
+                    size={20}
+                    color="#ff4757"
+                  />
+                )}
+                <Text style={styles.recordButtonText}>
+                  {isRecording ? "Stop Recording" : "Record Yourself"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
         </ScrollView>
       </View>
@@ -408,6 +421,30 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  recordButtonContainer: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playSegmentButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#3d3a52",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+    alignSelf: "center",
+    marginTop: 16,
+  },
+  playSegmentButtonText: {
+    color: "black",
     fontSize: 14,
     fontWeight: "600",
   },

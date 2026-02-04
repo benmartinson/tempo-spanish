@@ -1,7 +1,13 @@
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { StyleSheet, View, ScrollView, TouchableOpacity, Text } from "react-native";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+} from "react-native";
 import YouTubePlayer from "../common/YouTubePlayer";
 import { RootState, SegmentWord, VideoContext, Vocabulary } from "../../types";
 import { useNavigation } from "@react-navigation/native";
@@ -19,6 +25,7 @@ import VocabList from "./VocabList";
 import VocabSelector from "./VocabSelector";
 import VocabReview from "./VocabReview";
 import VocabTestModal from "./VocabTestModal";
+import ActionsModal from "./ActionsModal";
 import {
   randomlySelectVocabFromVocabulary,
   normalizeWord,
@@ -42,6 +49,7 @@ const WatchTab: React.FC = () => {
     currentVideo && currentVideo.focusVocab.length > 0 ? false : true
   );
   const [isVocabTestVisible, setIsVocabTestVisible] = useState(false);
+  const [isActionsModalVisible, setIsActionsModalVisible] = useState(false);
   const timeRemaining = Math.floor(Math.max((clip?.end ?? 0) - time, 0));
   const dispatch = useDispatch();
   const isClip = false;
@@ -181,6 +189,23 @@ const WatchTab: React.FC = () => {
     dispatch(refreshVideoPlayer());
   };
 
+  const handleOpenVocabTest = () => {
+    setIsActionsModalVisible(false);
+    setIsVocabTestVisible(true);
+  };
+
+  const handleShadow = () => {
+    setIsActionsModalVisible(false);
+    dispatch(setCurrentTab("shadow"));
+    (navigation as any).navigate("Shadow", { segmentId: currentVideo?.currentSegment });
+  };
+
+  const handleDiscuss = () => {
+    setIsActionsModalVisible(false);
+    dispatch(setCurrentTab("discuss"));
+    (navigation as any).navigate("Discuss");
+  };
+
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
@@ -230,11 +255,9 @@ const WatchTab: React.FC = () => {
               <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
                 <TouchableOpacity
                   style={styles.vocabTestButton}
-                  onPress={() => setIsVocabTestVisible(true)}
+                  onPress={() => setIsActionsModalVisible(true)}
                 >
-                  <Text style={styles.vocabTestButtonText}>
-                    Start Vocab Test
-                  </Text>
+                  <Text style={styles.vocabTestButtonText}>Actions</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -275,6 +298,14 @@ const WatchTab: React.FC = () => {
         visible={isVocabTestVisible}
         onClose={() => setIsVocabTestVisible(false)}
         vocab={currentVideo.focusVocab}
+      />
+
+      <ActionsModal
+        visible={isActionsModalVisible}
+        onClose={() => setIsActionsModalVisible(false)}
+        onStartVocabTest={handleOpenVocabTest}
+        onShadow={handleShadow}
+        onDiscuss={handleDiscuss}
       />
     </>
   );
@@ -352,17 +383,17 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   vocabTestButton: {
-    backgroundColor: "#2a2a4a",
+    backgroundColor: "white",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: "center",
     marginTop: 10,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: "#3d3a52",
   },
   vocabTestButtonText: {
-    color: "#fff",
+    color: "#3d3a52",
     fontSize: 16,
     fontWeight: "600",
   },
