@@ -1,7 +1,7 @@
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { StyleSheet, View, ScrollView } from "react-native";
+import { StyleSheet, View, ScrollView, TouchableOpacity, Text } from "react-native";
 import YouTubePlayer from "../common/YouTubePlayer";
 import { RootState, SegmentWord, VideoContext, Vocabulary } from "../../types";
 import { useNavigation } from "@react-navigation/native";
@@ -18,6 +18,7 @@ import SlideModal from "../common/Modal";
 import VocabList from "./VocabList";
 import VocabSelector from "./VocabSelector";
 import VocabReview from "./VocabReview";
+import VocabTestModal from "./VocabTestModal";
 import {
   randomlySelectVocabFromVocabulary,
   normalizeWord,
@@ -31,13 +32,16 @@ import { refreshVideoPlayer } from "../../store/actions/dataActions";
 const WatchTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
-  const userKnownVocab = useSelector((state: RootState) => state.userKnownVocab);
+  const userKnownVocab = useSelector(
+    (state: RootState) => state.userKnownVocab
+  );
   const navigation = useNavigation();
   const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
   const [isModalVisible, setIsModalVisible] = useState(
     currentVideo && currentVideo.focusVocab.length > 0 ? false : true
   );
+  const [isVocabTestVisible, setIsVocabTestVisible] = useState(false);
   const timeRemaining = Math.floor(Math.max((clip?.end ?? 0) - time, 0));
   const dispatch = useDispatch();
   const isClip = false;
@@ -45,7 +49,7 @@ const WatchTab: React.FC = () => {
     (state: RootState) => state.currentVideo?.allWords
   );
   const focusVocabTimes = useMemo(
-    () => findTimesForVocab(currentVideo?.focusVocab, allWords),
+    () => findTimesForVocab(currentVideo?.focusVocab || [], allWords),
     [currentVideo?.focusVocab, allWords]
   );
 
@@ -217,11 +221,23 @@ const WatchTab: React.FC = () => {
             />
           )}
           {focusVocabTimes.length > 0 && (
-            <VocabList
-              vocab={focusVocabTimes}
-              time={time}
-              addToFocusVocab={handleAddToFocusVocab}
-            />
+            <>
+              <VocabList
+                vocab={focusVocabTimes}
+                time={time}
+                addToFocusVocab={handleAddToFocusVocab}
+              />
+              <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
+                <TouchableOpacity
+                  style={styles.vocabTestButton}
+                  onPress={() => setIsVocabTestVisible(true)}
+                >
+                  <Text style={styles.vocabTestButtonText}>
+                    Start Vocab Test
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
         </ScrollView>
       </View>
@@ -254,6 +270,12 @@ const WatchTab: React.FC = () => {
           />
         )}
       </SlideModal>
+
+      <VocabTestModal
+        visible={isVocabTestVisible}
+        onClose={() => setIsVocabTestVisible(false)}
+        vocab={currentVideo.focusVocab}
+      />
     </>
   );
 };
@@ -328,6 +350,21 @@ const styles = StyleSheet.create({
 
   loader: {
     marginLeft: 8,
+  },
+  vocabTestButton: {
+    backgroundColor: "#2a2a4a",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#3d3a52",
+  },
+  vocabTestButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 

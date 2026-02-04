@@ -128,8 +128,6 @@ const VideoList: React.FC = () => {
     allVideos?.filter((video) =>
       userVideoViews?.some((videoView) => videoView.video_id === video.id)
     ) ?? [];
-  console.log("userVideoViews", userVideoViews);
-  console.log("recentlyWatchedVideos", recentlyWatchedVideos);
 
   return (
     <ScrollView style={styles.container}>
