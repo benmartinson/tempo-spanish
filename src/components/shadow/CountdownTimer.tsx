@@ -58,10 +58,10 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   // Pre-recording countdown (3, 2, 1)
   useEffect(() => {
     if (phase !== "countdown") return;
-
     if (countdown <= 0) {
       // Start recording when countdown reaches 0
       if (!hasStartedRecording.current) {
+        console.log("countdown stopped ", countdown);
         hasStartedRecording.current = true;
         onStartRecording();
         setPhase("recording");
@@ -91,6 +91,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     if (bufferCountdown <= 0) {
       // Stop recording when buffer countdown reaches 0
       if (!hasStoppedRecording.current) {
+        console.log("buffer countdown stopped ", bufferCountdown);
         hasStoppedRecording.current = true;
         setPhase("complete");
         onStopRecording();
@@ -130,6 +131,12 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
             <Text style={styles.recordingInstructions}>
               Read aloud the highlighted words
             </Text>
+            <TouchableOpacity
+              onPress={onStopRecording}
+              style={styles.stopButton}
+            >
+              <Text style={styles.stopButtonText}>Stop Recording</Text>
+            </TouchableOpacity>
           </View>
         );
 

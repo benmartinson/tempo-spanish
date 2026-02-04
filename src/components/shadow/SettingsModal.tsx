@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
 import SlideModal from "../common/Modal";
 
 interface SettingsModalProps {
@@ -9,6 +9,8 @@ interface SettingsModalProps {
   recordSpeed: number;
   setPlaybackSpeed: (speed: number) => void;
   setRecordSpeed: (speed: number) => void;
+  initMute: boolean;
+  setMuteWhenRecording: (mute: boolean) => void;
 }
 const SettingsModal: React.FC<SettingsModalProps> = ({
   visible,
@@ -17,10 +19,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   recordSpeed,
   setPlaybackSpeed,
   setRecordSpeed,
+  initMute,
+  setMuteWhenRecording,
 }) => {
   const speedOptions = [0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
   const [editedPlaybackSpeed, setEditedPlaybackSpeed] = useState(playbackSpeed);
   const [editedRecordSpeed, setEditedRecordSpeed] = useState(recordSpeed);
+  const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
+    useState(initMute);
 
   const handlePlaybackSpeedChange = (speed: number) => {
     setEditedPlaybackSpeed(speed);
@@ -33,6 +39,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSubmit = () => {
     setPlaybackSpeed(editedPlaybackSpeed);
     setRecordSpeed(editedRecordSpeed);
+    setMuteWhenRecording(muteVideoWhenRecording);
     onClose();
   };
   return (
@@ -94,6 +101,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </View>
         </View>
       </View>
+      <View style={styles.questionContainer}>
+        <Text style={styles.questionText}>Mute video when recording?</Text>
+        <Switch
+          value={muteVideoWhenRecording}
+          onValueChange={setMuteVideoWhenRecording}
+        />
+      </View>
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
           <Text style={styles.buttonText}>Save</Text>
@@ -107,6 +121,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
+  },
+  questionContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  questionText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "500",
   },
   speedControlsContainer: {
     marginTop: 16,

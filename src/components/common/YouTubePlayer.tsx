@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { StyleSheet, View, Text } from "react-native";
 import { WebView } from "react-native-webview";
 import { Segment } from "../../types";
@@ -41,12 +41,10 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   return (
     <View style={styles.container}>
       <WebView
-        key={
-          clip
-            ? `${clip.videoId}-${clip.start}-${clip.end}-${refreshKey}-${muted}-${playbackSpeed}`
-            : `${videoId}-${muted}-${playbackSpeed}`
-        }
-        source={{ uri: getVideoUrl(videoId, clip, autoplay, muted, playbackSpeed) }}
+        key={refreshKey}
+        source={{
+          uri: getVideoUrl(videoId, clip, autoplay, muted, playbackSpeed),
+        }}
         style={styles.webview}
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
@@ -62,9 +60,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
       />
       {videoText && (
         <View style={styles.videoTextContainer}>
-          <Text style={styles.videoText}>
-            {videoText}
-          </Text>
+          <Text style={styles.videoText}>{videoText}</Text>
         </View>
       )}
     </View>

@@ -12,7 +12,6 @@ const HorizontalVideoScroll: React.FC<{
   handleWatchPress: (videoId: string, recordId: string) => void;
   loadingVideo: boolean;
 }> = ({ videos, handleWatchPress, loadingVideo }) => {
-  console.log(videos);
   return (
     <ScrollView
       horizontal

@@ -76,6 +76,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [recordSpeed, setRecordSpeed] = useState<number>(0.75);
 
+  const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
+    useState<boolean>(true);
+
   // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -107,7 +110,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const sentenceTimeRemaining = Math.floor(Math.max(sentenceEnd - time, 0));
 
   // Determine current playback speed based on recording state
-  const currentSpeed = isVideoMuted ? recordSpeed : playbackSpeed;
+  const [currentSpeed, setCurrentSpeed] = useState<number>(playbackSpeed);
 
   // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
@@ -192,15 +195,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     //   dispatch(setSegmentByTime(newTime));
     //   return;
     // }
+    if (newTime < sentenceStart) {
+      return;
+    }
+    console.log("handleSetTime", newTime);
     setTime(newTime);
   };
 
   // Enter recording mode (shows countdown, then starts recording)
   const handleEnterRecordingMode = () => {
     // Reset previous results
-    setTime(sentenceStart);
     setAccuracyResult(null);
     setError(null);
+    handleSetTime(sentenceStart);
     setSentenceEnded(false);
     setIsRecordingMode(true);
     // Clear any existing timer
@@ -212,11 +219,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
 
   // Called by CountdownTimer after 3-second countdown
   const handleActualStartRecording = async () => {
-    setTime(sentenceStart);
     shouldAutoStopRef.current = true;
-    setIsVideoMuted(true);
     await startRecording();
-    dispatch(refreshVideoPlayer());
+    refreshVideoPlayerAndState(recordSpeed, muteVideoWhenRecording);
   };
 
   // Called by CountdownTimer after buffer countdown completes
@@ -254,14 +259,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
       setCurrentSentence((prev) => prev - 1);
       setAccuracyResult(null);
       setSentenceEnded(false);
-      setIsVideoMuted(false);
       // Clear any existing timer
       if (recordingExtensionRef.current) {
         clearTimeout(recordingExtensionRef.current);
         recordingExtensionRef.current = null;
       }
-      dispatch(refreshVideoPlayer());
+      refreshVideoPlayerAndState(playbackSpeed, false);
     }
+  };
+
+  const refreshVideoPlayerAndState = (speed: number, muted: boolean) => {
+    setCurrentSpeed(speed);
+    setIsVideoMuted(muted);
+    dispatch(refreshVideoPlayer());
   };
 
   const handleNextSentence = () => {
@@ -273,13 +283,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
       setCurrentSentence((prev) => prev + 1);
       setAccuracyResult(null);
       setSentenceEnded(false);
-      setIsVideoMuted(false);
       // Clear any existing timer
       if (recordingExtensionRef.current) {
         clearTimeout(recordingExtensionRef.current);
         recordingExtensionRef.current = null;
       }
-      dispatch(refreshVideoPlayer());
+      refreshVideoPlayerAndState(playbackSpeed, false);
     }
   };
 
@@ -288,16 +297,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   }
 
   const handlePlaySnippetAgain = () => {
-    setIsVideoMuted(false);
     setIsRecordingMode(false);
-    setTime(sentenceStart);
+    handleSetTime(sentenceStart);
     setAccuracyResult(null);
     setSentenceEnded(false);
     if (recordingExtensionRef.current) {
       clearTimeout(recordingExtensionRef.current);
       recordingExtensionRef.current = null;
     }
-    dispatch(refreshVideoPlayer());
+    refreshVideoPlayerAndState(playbackSpeed, false);
   };
 
   const handleSettingsToggle = () => {
@@ -420,24 +428,18 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   />
                 </TouchableOpacity>
 
-                <View style={styles.rightArrowContainer}>
-                  <TouchableOpacity
-                    style={styles.settingsButton}
-                    onPress={handleSettingsToggle}
-                  >
-                    <MaterialIcons name="settings" size={24} color="grey" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.nextSentenceButton}
-                    onPress={handleNextSentence}
-                  >
-                    <MaterialIcons
-                      name="chevron-right"
-                      size={24}
-                      color="white"
-                    />
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                  style={styles.settingsButton}
+                  onPress={handleSettingsToggle}
+                >
+                  <MaterialIcons name="settings" size={24} color="grey" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.nextSentenceButton}
+                  onPress={handleNextSentence}
+                >
+                  <MaterialIcons name="chevron-right" size={24} color="white" />
+                </TouchableOpacity>
               </View>
               <FullSegmentTranscriptBubble
                 words={currentSentenceWords}
@@ -474,6 +476,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
           recordSpeed={recordSpeed}
           setPlaybackSpeed={setPlaybackSpeed}
           setRecordSpeed={setRecordSpeed}
+          initMute={muteVideoWhenRecording}
+          setMuteWhenRecording={setMuteVideoWhenRecording}
         />
       )}
     </>
