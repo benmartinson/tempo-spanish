@@ -321,6 +321,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   };
 
   const refreshVideoPlayerAndState = (speed: number, muted: boolean) => {
+    // Reset so the first time update from the remounted player isn't
+    // mistaken for a manual seek (it may briefly report time ~0).
+    prevTimeRef.current = -1;
     setCurrentSpeed(speed);
     setIsVideoMuted(muted);
     dispatch(refreshVideoPlayer());
