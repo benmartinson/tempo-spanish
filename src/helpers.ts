@@ -1,4 +1,4 @@
-import { Segment, SegmentWord, Vocabulary } from "./types";
+import { Segment, SegmentWord, VideoContext, Vocabulary } from "./types";
 
 export const canIgnoreVocab = (word: string) => {
   return ignoreVocab.includes(word) || alreadyKnownVocab.includes(word);
@@ -80,14 +80,19 @@ export const randomlySelectVocabFromVocabulary = (
 };
 
 export const findTimesForVocab = (
-  vocab: Vocabulary[],
-  allWords: SegmentWord[]
+  allWords: SegmentWord[],
+  currentVideo: VideoContext
 ): SegmentWord[] => {
   const wordTimes = [];
+  if (!currentVideo || !currentVideo.segments) return [];
+  const vocab = currentVideo?.focusVocab || [];
+  const lastPossibleTime =
+    currentVideo?.segments[currentVideo?.segments.length - 1].end;
   for (const word of vocab) {
     const normalizedWord = normalizeWord(word.word);
     const currentWordTimes = allWords
       .filter((w) => normalizeWord(w.word) === normalizedWord)
+      .filter((w) => w.start < lastPossibleTime)
       .map((w) => ({
         ...w,
         word: normalizeWord(word.word),

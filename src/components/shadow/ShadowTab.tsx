@@ -109,8 +109,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     (state: RootState) => state.currentVideo?.allWords
   );
   const focusVocabTimes = useMemo(
-    () => findTimesForVocab(currentVideo?.focusVocab || [], allWords),
-    [currentVideo?.focusVocab, allWords]
+    () => findTimesForVocab(allWords, currentVideo),
+    [currentVideo, allWords]
   );
 
   // Determine current playback speed based on recording state
@@ -229,7 +229,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
         currentVideo.segments,
         currentVideo.currentSegment
       );
-      console.log({ result });
 
       if (result) {
         // Lock out further time updates until the WebView remounts
@@ -345,10 +344,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     }
   };
 
-  if (!currentVideo) {
-    return <SelectVideoPrompt />;
-  }
-
   const handlePlaySnippetAgain = () => {
     setIsRecordingMode(false);
     handleSetTime(sentenceStart);
@@ -377,22 +372,27 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
         nextSegment,
         nextFocusVocabTime.start
       );
-      console.log({ sentence });
-      if (sentence || sentence === 0) {
+      if (sentence && sentence >= 0) {
         setCurrentSentence(sentence);
-        setTime(nextSegment.words[sentence].start);
         setSentenceEnded(false);
         setAccuracyResult(null);
         if (recordingExtensionRef.current) {
           clearTimeout(recordingExtensionRef.current);
           recordingExtensionRef.current = null;
         }
-        dispatch(setSegmentByTime(nextSegment.words[sentence].start));
+        // setTime(nextSegment.words[sentence].start);
+        // dispatch(setSegmentByTime(nextSegment.words[sentence].start));
+        const sentences = splitIntoSentences(nextSegment.words);
+        handleSetTime(sentences[sentence][0].start);
         return;
       }
     }
     setShowNoVocabFoundTooltip(true);
   };
+
+  if (!currentVideo) {
+    return <SelectVideoPrompt />;
+  }
 
   return (
     <>
