@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SegmentWord } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import TooltipModal from "../common/TooltipModal";
 
 interface FullSegmentTranscriptBubbleProps {
   words?: SegmentWord[];
@@ -16,6 +17,7 @@ interface FullSegmentTranscriptBubbleProps {
   time: number;
   mode?: "video" | "shadow"; // default 'video'
   currentTargetIndex?: number; // for shadow mode - the word user is attempting
+  showFullText?: boolean;
 }
 
 const LINE_HEIGHT = 28;
@@ -30,6 +32,7 @@ const FullSegmentTranscriptBubble: React.FC<
   time,
   mode = "video",
   currentTargetIndex = 0,
+  showFullText = false,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
@@ -69,9 +72,9 @@ const FullSegmentTranscriptBubble: React.FC<
 
   // Find the current word index based on time (video mode) or currentTargetIndex (shadow mode)
   const currentWordIndex = useMemo(() => {
-    // if (mode === "shadow") {
-    //   return currentTargetIndex;
-    // }
+    if (mode === "shadow") {
+      return currentTargetIndex;
+    }
     // Video mode: find word based on playback time
     for (let i = 0; i < words.length; i++) {
       if (time >= words[i].start && time <= words[i].end) {
@@ -133,8 +136,12 @@ const FullSegmentTranscriptBubble: React.FC<
     <View style={styles.card}>
       <ScrollView
         ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.wordsRow}
+        style={showFullText ? styles.fullTextScrollView : styles.scrollView}
+        contentContainerStyle={[
+          styles.wordsRow,
+          !showFullText && styles.wordsRowPadding,
+          styles.tooltipContent,
+        ]}
         showsVerticalScrollIndicator={false}
         scrollEnabled={false}
       >
@@ -166,22 +173,15 @@ const FullSegmentTranscriptBubble: React.FC<
           );
         })}
       </ScrollView>
-
-      <Modal
-        visible={tooltipWord !== null}
-        transparent
-        animationType="fade"
+      <TooltipModal
+        isVisible={tooltipWord !== null}
         onRequestClose={hideTooltip}
       >
-        <Pressable style={styles.tooltipOverlay} onPress={hideTooltip}>
-          <View style={styles.tooltipContainer}>
-            <Text style={styles.tooltipWord}>{tooltipWord?.word}</Text>
-            <Text style={styles.tooltipTranslation}>
-              {tooltipWord?.translation}
-            </Text>
-          </View>
-        </Pressable>
-      </Modal>
+        <Text style={styles.tooltipWord}>{tooltipWord?.word}</Text>
+        <Text style={styles.tooltipTranslation}>
+          {tooltipWord?.translation}
+        </Text>
+      </TooltipModal>
     </View>
   );
 };
@@ -205,10 +205,15 @@ const styles = StyleSheet.create({
   },
   wordsRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
     justifyContent: "center",
     gap: 4,
     flexWrap: "wrap",
+  },
+  fullTextScrollView: {
+    height: "auto",
+    overflow: "visible",
+  },
+  wordsRowPadding: {
     paddingBottom: LINE_HEIGHT * 2, // Extra space at bottom for scrolling
   },
   word: {
@@ -225,24 +230,6 @@ const styles = StyleSheet.create({
     color: "#ffffff", // White for other words
     opacity: 0.7, // Slightly dimmed
   },
-  tooltipOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tooltipContainer: {
-    backgroundColor: "#3d3a50",
-    borderRadius: 12,
-    padding: 16,
-    minWidth: 120,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
-  },
   tooltipWord: {
     fontSize: 20,
     fontWeight: "700",
@@ -253,6 +240,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#ffffff",
     textAlign: "center",
+  },
+  tooltipContent: {
+    alignItems: "center",
   },
 });
 

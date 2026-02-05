@@ -423,6 +423,7 @@ export const sendAudioForTranscription = async (
 export const calculateAccuracy = (
   spokenWords: string[],
   targetWords: string[],
+  ignoredWords: string[],
 ): AccuracyResult => {
   if (targetWords.length === 0) {
     return {
@@ -434,6 +435,7 @@ export const calculateAccuracy = (
   }
 
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
+  const normalizedIgnored = ignoredWords.map(normalize).filter(Boolean);
   const details: AccuracyResult["details"] = [];
   let matchedCount = 0;
 
@@ -445,6 +447,16 @@ export const calculateAccuracy = (
     const normalizedTarget = normalize(targetWord);
     if (!normalizedTarget) {
       // Skip empty words (punctuation only)
+      continue;
+    }
+
+    // Check if this is an ignored word
+    if (normalizedIgnored.includes(normalizedTarget)) {
+      matchedCount++;
+      details.push({
+        targetWord,
+        matched: true,
+      });
       continue;
     }
 

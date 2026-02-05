@@ -155,7 +155,6 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
                 Recording stopping in {bufferCountdown}
               </Text>
             </View>
-            <Text style={styles.bufferInstructions}>Finish speaking...</Text>
             <TouchableOpacity
               onPress={onStopRecording}
               style={styles.stopButton}
@@ -185,7 +184,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: 8,
     margin: 16,
     backgroundColor: "#2d2a40",
     borderRadius: 16,

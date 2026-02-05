@@ -34,6 +34,8 @@ import {
 } from "../streaming_helpers";
 import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
+import { normalizeWord } from "../../helpers";
+import ShadowResults from "./ShadowResults";
 
 // Helper function to split words into sentences based on punctuation
 const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
@@ -127,9 +129,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
 
         // Get target words from current sentence
         const targetWords = currentSentenceWords.map((w) => w.word);
+        const ignoredWords = currentSentenceWords
+          .filter((w) => {
+            const word = normalizeWord(w.word);
+            return word.length <= 2 || normalizeWord(w.translation) === word;
+          })
+          .map((w) => w.word);
 
         // Calculate accuracy
-        const accuracy = calculateAccuracy(spokenWords, targetWords);
+        const accuracy = calculateAccuracy(
+          spokenWords,
+          targetWords,
+          ignoredWords
+        );
 
         setAccuracyResult(accuracy);
       } catch (err) {
@@ -198,7 +210,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     if (newTime < sentenceStart) {
       return;
     }
-    console.log("handleSetTime", newTime);
     setTime(newTime);
   };
 
@@ -350,48 +361,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
             </View>
           ) : accuracyResult ? (
             // Show results
-            <View style={styles.resultsContainer}>
-              <View style={styles.accuracyCircle}>
-                <Text style={styles.accuracyPercentage}>
-                  {accuracyResult.percentage}%
-                </Text>
-                <Text style={styles.accuracyLabel}>Accuracy</Text>
-              </View>
-              <Text style={styles.accuracyDetails}>
-                {accuracyResult.matchedWords} of {accuracyResult.totalWords}{" "}
-                words matched
-              </Text>
-
-              {/* Action buttons */}
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.tryAgainButton]}
-                  onPress={handleEnterRecordingMode}
-                >
-                  <MaterialIcons name="replay" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>Re-Try Recording</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.nextButton]}
-                  onPress={handleNextSentence}
-                >
-                  <Text style={styles.actionButtonText}>Next Sentence</Text>
-                  <MaterialIcons name="arrow-forward" size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.playAgainButton]}
-                  onPress={handlePlaySnippetAgain}
-                >
-                  <Text style={styles.playAgainButtonText}>
-                    Re-Play Sentence
-                  </Text>
-                  <MaterialIcons name="play-arrow" size={20} color="black" />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <ShadowResults
+              accuracyResult={accuracyResult}
+              handleEnterRecordingMode={handleEnterRecordingMode}
+              handleNextSentence={handleNextSentence}
+              handlePlaySnippetAgain={handlePlaySnippetAgain}
+            />
           ) : isRecordingMode ? (
             <>
               <CountdownTimer
@@ -404,6 +379,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
               <FullSegmentTranscriptBubble
                 words={currentSentenceWords}
                 time={time}
+                showFullText={true}
                 mode="video"
               />
             </>
@@ -435,10 +411,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   <MaterialIcons name="settings" size={24} color="grey" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.nextSentenceButton}
+                  style={styles.prevSentenceButton}
                   onPress={handleNextSentence}
                 >
-                  <MaterialIcons name="chevron-right" size={24} color="white" />
+                  <MaterialIcons name="chevron-right" size={24} color="black" />
                 </TouchableOpacity>
               </View>
               <FullSegmentTranscriptBubble
@@ -461,6 +437,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   onPress={handleEnterRecordingMode}
                   disabled={!hasPermission || isProcessing}
                 >
+                  <MaterialIcons name="mic" size={20} color="red" />
                   <Text style={styles.recordButtonText}>Record Yourself</Text>
                 </TouchableOpacity>
               </View>
@@ -484,7 +461,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   );
 };
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
@@ -549,39 +526,6 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 14,
   },
-  resultsContainer: {
-    alignItems: "center",
-    marginTop: 16,
-    paddingHorizontal: 16,
-  },
-  accuracyCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#2d2a40",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  accuracyPercentage: {
-    color: "#4ade80",
-    fontSize: 32,
-    fontWeight: "700",
-  },
-  accuracyLabel: {
-    color: "#fff",
-    fontSize: 14,
-    opacity: 0.8,
-  },
-  accuracyDetails: {
-    color: "#666",
-    fontSize: 14,
-    marginBottom: 20,
-  },
-  actionButtons: {
-    flexDirection: "row",
-    gap: 12,
-  },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -589,28 +533,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 24,
     gap: 8,
-  },
-  tryAgainButton: {
-    backgroundColor: "#3d3a52",
-  },
-  playAgainButton: {
-    backgroundColor: "white",
-    marginVertical: 16,
-    borderWidth: 1,
-    borderColor: "#3d3a52",
-  },
-  playAgainButtonText: {
-    color: "black",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  nextButton: {
-    backgroundColor: "#4ade80",
-  },
-  actionButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
   },
   recordButtonContainer: {
     flexDirection: "row",

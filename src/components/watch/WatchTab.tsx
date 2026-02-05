@@ -29,7 +29,6 @@ import ActionsModal from "./ActionsModal";
 import {
   randomlySelectVocabFromVocabulary,
   normalizeWord,
-  randomlySelectVocab,
   alreadyKnownVocab,
   ignoreVocab,
   findTimesForVocab,
@@ -197,7 +196,9 @@ const WatchTab: React.FC = () => {
   const handleShadow = () => {
     setIsActionsModalVisible(false);
     dispatch(setCurrentTab("shadow"));
-    (navigation as any).navigate("Shadow", { segmentId: currentVideo?.currentSegment });
+    (navigation as any).navigate("Shadow", {
+      segmentId: currentVideo?.currentSegment,
+    });
   };
 
   const handleDiscuss = () => {
