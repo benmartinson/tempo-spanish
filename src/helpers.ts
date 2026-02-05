@@ -1,4 +1,4 @@
-import { SegmentWord, Vocabulary } from "./types";
+import { Segment, SegmentWord, Vocabulary } from "./types";
 
 export const canIgnoreVocab = (word: string) => {
   return ignoreVocab.includes(word) || alreadyKnownVocab.includes(word);
@@ -82,7 +82,7 @@ export const randomlySelectVocabFromVocabulary = (
 export const findTimesForVocab = (
   vocab: Vocabulary[],
   allWords: SegmentWord[]
-) => {
+): SegmentWord[] => {
   const wordTimes = [];
   for (const word of vocab) {
     const normalizedWord = normalizeWord(word.word);
@@ -96,4 +96,74 @@ export const findTimesForVocab = (
     wordTimes.push(...currentWordTimes);
   }
   return wordTimes.sort((a, b) => a.start - b.start);
+};
+
+export const findNextSegmentWithVocab = (
+  focusVocabTimes: SegmentWord[],
+  word: SegmentWord,
+  segments: Segment[],
+  currentSegment: number
+): [Segment, SegmentWord] => {
+  const nextSegmentStart = segments[currentSegment + 1].start;
+  // console.log({
+  //   focusVocabTimes: focusVocabTimes.map((v) => {
+  //     return { word: normalizeWord(v.word), start: v.start, end: v.end };
+  //   }),
+  //   nextSegmentStart,
+  //   normalizeWord: normalizeWord(word.word),
+  // });
+  const nextFocusVocabTime = focusVocabTimes.find(
+    (v) =>
+      normalizeWord(word.word) === normalizeWord(v.word) &&
+      v.start >= nextSegmentStart
+  );
+  if (!nextFocusVocabTime) {
+    return [null, null];
+  }
+  for (let i = currentSegment + 1; i < segments.length; i++) {
+    const segment = segments[i];
+    if (
+      nextFocusVocabTime.start >= segment.start &&
+      nextFocusVocabTime.start <= segment.end
+    ) {
+      return [segment, nextFocusVocabTime];
+    }
+  }
+  return [null, null];
+};
+
+// Helper function to split words into sentences based on punctuation
+export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
+  const sentences: SegmentWord[][] = [];
+  let currentSentenceWords: SegmentWord[] = [];
+  for (const word of words) {
+    currentSentenceWords.push(word);
+    // Check if word ends with sentence-ending punctuation
+    if (/[.!?]$/.test(word.word)) {
+      sentences.push(currentSentenceWords);
+      currentSentenceWords = [];
+    }
+  }
+  // Handle remaining words (last sentence without punctuation)
+  if (currentSentenceWords.length > 0) {
+    sentences.push(currentSentenceWords);
+  }
+  return sentences;
+};
+
+export const findSentenceWithVocab = (
+  segment: Segment,
+  wordTime: number
+): number => {
+  const sentences = splitIntoSentences(segment.words);
+  for (let i = 0; i < sentences.length; i++) {
+    const sentence = sentences[i];
+    if (
+      sentence.some((w) => w.start <= wordTime) &&
+      sentence.some((w) => w.end >= wordTime)
+    ) {
+      return i;
+    }
+  }
+  return null;
 };

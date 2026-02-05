@@ -75,7 +75,7 @@ const WatchTab: React.FC = () => {
       allWords?.length
         ? new Set(
             allWords
-              .filter((w) => w.start <= 15 && w.word.length > 3)
+              .filter((w) => w.word.length > 3)
               .map((w) => normalizeWord(w.word))
               .filter(Boolean)
           )
@@ -217,7 +217,7 @@ const WatchTab: React.FC = () => {
       <View style={styles.container}>
         <View style={styles.videoContainer}>
           <YouTubePlayer
-            // clip={{ ...clip, videoId: video.videoId }}
+            // clip={{ ...clip, videoId: currentVideo.videoId }}
             videoId={currentVideo.videoId}
             autoplay={autoplay}
             refreshKey={videoRefreshKey}

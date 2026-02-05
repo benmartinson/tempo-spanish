@@ -41,7 +41,11 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   return (
     <View style={styles.container}>
       <WebView
-        key={refreshKey}
+        key={
+          clip
+            ? `${clip.videoId}-${clip.start}-${clip.end}-${refreshKey}-${muted}-${playbackSpeed}`
+            : `${videoId}-${refreshKey}-${muted}-${playbackSpeed}`
+        }
         source={{
           uri: getVideoUrl(videoId, clip, autoplay, muted, playbackSpeed),
         }}

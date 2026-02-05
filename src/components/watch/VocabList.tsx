@@ -8,18 +8,20 @@ import {
 import { KeyVocabulary, SegmentWord, Vocabulary } from "../../types";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { normalizeWord } from "../../helpers";
 
 const VocabList: React.FC<{
   vocab: SegmentWord[];
   time: number;
-  addToFocusVocab: () => void;
-}> = ({ vocab, time, addToFocusVocab }) => {
+  addToFocusVocab?: () => void;
+  header?: string;
+  onSkipToVocab?: (word: SegmentWord) => void;
+}> = ({ vocab, time, addToFocusVocab, header, onSkipToVocab }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
   const itemLayouts = useRef<{ [key: number]: number }>({});
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const autoScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const [manualTranslations, setManualTranslations] = useState<SegmentWord[]>(
     []
   );
@@ -45,23 +47,32 @@ const VocabList: React.FC<{
   };
 
   const shouldHighlight = (word: SegmentWord) => {
-    return Math.floor(word.start) <= time && Math.ceil(word.end) + 1 >= time;
+    return !!vocab.find((v) => {
+      return (
+        word.word === v.word &&
+        Math.floor(v.start) <= time &&
+        Math.ceil(v.end) + 1 >= time
+      );
+    });
   };
 
   useEffect(() => {
     if (!isAutoScrollEnabled) return;
 
-    const highlightedIndex = wordSet.findIndex((word) => shouldHighlight(word));
+    const highlightedIndex = wordSet.findIndex((word) => {
+      return shouldHighlight(word);
+    });
     if (
       highlightedIndex !== -1 &&
       itemLayouts.current[highlightedIndex] !== undefined
     ) {
+      console.log({ itemLayouts: itemLayouts.current[highlightedIndex] });
       scrollViewRef.current?.scrollTo({
         y: itemLayouts.current[highlightedIndex],
         animated: true,
       });
     }
-  }, [time, wordSet, isAutoScrollEnabled]);
+  }, [time, vocab, isAutoScrollEnabled, wordSet]);
 
   const handleScrollBeginDrag = () => {
     setIsAutoScrollEnabled(false);
@@ -89,11 +100,13 @@ const VocabList: React.FC<{
   return (
     <View style={styles.vocabCard}>
       <View style={styles.header}>
-        <Text style={styles.vocabTitle}>Selected Vocab</Text>
+        <Text style={styles.vocabTitle}>{header || "Selected Vocab"}</Text>
         <View style={styles.headerButtons}>
-          <TouchableOpacity onPress={addToFocusVocab}>
-            <MaterialIcons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
+          {addToFocusVocab && (
+            <TouchableOpacity onPress={addToFocusVocab}>
+              <MaterialIcons name="add" size={24} color="#fff" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
             <MaterialIcons
               name={isExpanded ? "expand-less" : "expand-more"}
@@ -130,6 +143,14 @@ const VocabList: React.FC<{
                   {" => "}
                   {word.translation}
                 </Text>
+              )}
+              {onSkipToVocab && (
+                <TouchableOpacity
+                  onPress={() => onSkipToVocab(word)}
+                  style={styles.skipToVocabButton}
+                >
+                  <MaterialIcons name="skip-next" size={24} color="#fff" />
+                </TouchableOpacity>
               )}
             </TouchableOpacity>
           ))}
@@ -191,6 +212,10 @@ const styles = StyleSheet.create({
     color: "#a0a0b0",
     fontSize: 15,
     fontWeight: "500",
+  },
+  skipToVocabButton: {
+    marginLeft: "auto",
+    width: 30,
   },
 });
 

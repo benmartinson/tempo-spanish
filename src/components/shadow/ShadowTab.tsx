@@ -34,28 +34,16 @@ import {
 } from "../streaming_helpers";
 import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
-import { normalizeWord } from "../../helpers";
+import {
+  findNextSegmentWithVocab,
+  findSentenceWithVocab,
+  findTimesForVocab,
+  normalizeWord,
+  splitIntoSentences,
+} from "../../helpers";
 import ShadowResults from "./ShadowResults";
-
-// Helper function to split words into sentences based on punctuation
-const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
-  const sentences: SegmentWord[][] = [];
-  let currentSentenceWords: SegmentWord[] = [];
-
-  for (const word of words) {
-    currentSentenceWords.push(word);
-    // Check if word ends with sentence-ending punctuation
-    if (/[.!?]$/.test(word.word)) {
-      sentences.push(currentSentenceWords);
-      currentSentenceWords = [];
-    }
-  }
-  // Handle remaining words (last sentence without punctuation)
-  if (currentSentenceWords.length > 0) {
-    sentences.push(currentSentenceWords);
-  }
-  return sentences;
-};
+import VocabList from "../watch/VocabList";
+import TooltipModal from "../common/TooltipModal";
 
 interface ShadowTabProps {
   segmentId?: string;
@@ -91,7 +79,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const [isSettingsVisible, setIsSettingsVisible] = useState<boolean>(false);
   // Tracks when we're in recording mode (includes countdown, recording, and buffer phases)
   const [isRecordingMode, setIsRecordingMode] = useState<boolean>(false);
-
+  const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
+    useState<boolean>(false);
   // Track if recording should auto-stop when segment ends
   const shouldAutoStopRef = useRef<boolean>(false);
 
@@ -110,6 +99,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const isFirstSentence = currentSentence === 0;
   const isFirstSegment = currentVideo?.currentSegment === 0;
   const sentenceTimeRemaining = Math.floor(Math.max(sentenceEnd - time, 0));
+  const allWords = useSelector(
+    (state: RootState) => state.currentVideo?.allWords
+  );
+  const focusVocabTimes = useMemo(
+    () => findTimesForVocab(currentVideo?.focusVocab || [], allWords),
+    [currentVideo?.focusVocab, allWords]
+  );
 
   // Determine current playback speed based on recording state
   const [currentSpeed, setCurrentSpeed] = useState<number>(playbackSpeed);
@@ -170,7 +166,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     setIsVideoMuted(false);
     setIsRecordingMode(false);
     shouldAutoStopRef.current = false;
-    setCurrentSentence(0);
     setSentenceEnded(false);
     if (recordingExtensionRef.current) {
       clearTimeout(recordingExtensionRef.current);
@@ -259,12 +254,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const handlePreviousSentence = () => {
     if (isFirstSentence) {
       if (!isFirstSegment) {
-        // Move to previous segment's last sentence
+        setCurrentSentence(sentences.length - 1);
         handlePreviousSegment();
-        // Note: currentSentence will reset to 0 due to segment change useEffect
-        // We need to set it to last sentence after segment loads
       }
-      // If first segment and first sentence, do nothing
     } else {
       // Move to previous sentence within the same segment
       setCurrentSentence((prev) => prev - 1);
@@ -321,6 +313,35 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
 
   const handleSettingsToggle = () => {
     setIsSettingsVisible(!isSettingsVisible);
+  };
+
+  const handleSkipToVocab = (word: SegmentWord) => {
+    const [nextSegment, nextFocusVocabTime] = findNextSegmentWithVocab(
+      focusVocabTimes,
+      word,
+      currentVideo.segments,
+      currentVideo.currentSegment
+    );
+    if (nextSegment && nextFocusVocabTime) {
+      const sentence = findSentenceWithVocab(
+        nextSegment,
+        nextFocusVocabTime.start
+      );
+      console.log({ sentence });
+      if (sentence || sentence === 0) {
+        setCurrentSentence(sentence);
+        setTime(nextSegment.words[sentence].start);
+        setSentenceEnded(false);
+        setAccuracyResult(null);
+        if (recordingExtensionRef.current) {
+          clearTimeout(recordingExtensionRef.current);
+          recordingExtensionRef.current = null;
+        }
+        dispatch(setSegmentByTime(nextSegment.words[sentence].start));
+        return;
+      }
+    }
+    setShowNoVocabFoundTooltip(true);
   };
 
   return (
@@ -441,6 +462,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   <Text style={styles.recordButtonText}>Record Yourself</Text>
                 </TouchableOpacity>
               </View>
+              <VocabList
+                vocab={focusVocabTimes}
+                time={time}
+                onSkipToVocab={handleSkipToVocab}
+                header="Skip to selected vocab"
+              />
             </>
           )}
         </ScrollView>
@@ -456,6 +483,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
           initMute={muteVideoWhenRecording}
           setMuteWhenRecording={setMuteVideoWhenRecording}
         />
+      )}
+      {showNoVocabFoundTooltip && (
+        <TooltipModal
+          isVisible={showNoVocabFoundTooltip}
+          onRequestClose={() => setShowNoVocabFoundTooltip(false)}
+        >
+          <Text style={styles.noVocabFoundTooltipText}>
+            Vocab is in this segment or a previous segment
+          </Text>
+        </TooltipModal>
       )}
     </>
   );
@@ -480,7 +517,7 @@ export const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "grey",
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 4,
     borderRadius: 24,
   },
   errorContainer: {
@@ -491,6 +528,10 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
   },
   errorText: {
+    color: "#fff",
+    textAlign: "center",
+  },
+  noVocabFoundTooltipText: {
     color: "#fff",
     textAlign: "center",
   },
@@ -563,6 +604,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
+    height: 40,
     marginTop: 16,
   },
   prevSentenceButton: {
@@ -573,7 +615,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 4,
     borderRadius: 24,
     gap: 8,
     alignSelf: "center",
@@ -584,7 +626,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 4,
     borderWidth: 2,
     borderColor: "#4ade80",
     borderRadius: 24,
