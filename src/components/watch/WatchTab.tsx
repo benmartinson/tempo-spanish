@@ -14,6 +14,7 @@ import { useNavigation } from "@react-navigation/native";
 import {
   setCurrentTab,
   setSegmentByTime,
+  refreshVideoPlayer,
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
 import TranscriptBubble from "./TranscriptBubble";
@@ -32,8 +33,8 @@ import {
   alreadyKnownVocab,
   ignoreVocab,
   findTimesForVocab,
+  findSegmentAndSentenceByTime,
 } from "../../helpers";
-import { refreshVideoPlayer } from "../../store/actions/dataActions";
 
 const WatchTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -168,11 +169,18 @@ const WatchTab: React.FC = () => {
   const [autoplay, setAutoplay] = useState<boolean>(false);
 
   const handleSetTime = (newTime: number) => {
-    if (newTime >= 1 && (newTime < clip.start || newTime > clip.end)) {
-      dispatch(setSegmentByTime(newTime));
+    if (newTime >= 1 && clip && (newTime < clip.start || newTime > clip.end)) {
+      const result = findSegmentAndSentenceByTime(
+        newTime,
+        currentVideo.segments,
+        currentVideo.currentSegment
+      );
+      if (result) {
+        dispatch(setSegmentByTime(newTime));
+      }
       return;
     }
-    const newTimeRemaining = Math.max(Math.ceil(clip.end - newTime), 0);
+    const newTimeRemaining = Math.max(Math.ceil((clip?.end ?? 0) - newTime), 0);
     if (newTimeRemaining < 1 && timeRemaining >= 0) {
       if (isClip) {
         dispatch(setCurrentTab("discuss"));

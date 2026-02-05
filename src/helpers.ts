@@ -151,6 +151,46 @@ export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
   return sentences;
 };
 
+export interface SegmentSeekResult {
+  segmentIndex: number;
+  sentenceIndex: number;
+}
+
+/**
+ * Finds the segment and sentence that contain the given time.
+ * Returns null if the time doesn't fall within any segment
+ * or if it's already in the given currentSegmentIndex.
+ */
+export const findSegmentAndSentenceByTime = (
+  time: number,
+  segments: Segment[],
+  currentSegmentIndex: number
+): SegmentSeekResult | null => {
+  const targetIndex =
+    time < 1
+      ? 0
+      : segments.findIndex((seg) => time >= seg.start && time <= seg.end);
+
+  if (targetIndex < 0 || targetIndex === currentSegmentIndex) {
+    return null;
+  }
+
+  const targetSegment = segments[targetIndex];
+  const targetSentences = splitIntoSentences(targetSegment.words);
+  let sentenceIndex = 0;
+  for (let i = 0; i < targetSentences.length; i++) {
+    const words = targetSentences[i];
+    const sStart = words[0]?.start ?? 0;
+    const sEnd = words[words.length - 1]?.end ?? 0;
+    if (time >= sStart && time <= sEnd) {
+      sentenceIndex = i;
+      break;
+    }
+  }
+
+  return { segmentIndex: targetIndex, sentenceIndex };
+};
+
 export const findSentenceWithVocab = (
   segment: Segment,
   wordTime: number

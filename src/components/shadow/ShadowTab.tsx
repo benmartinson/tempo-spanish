@@ -36,6 +36,7 @@ import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
 import {
   findNextSegmentWithVocab,
+  findSegmentAndSentenceByTime,
   findSentenceWithVocab,
   findTimesForVocab,
   normalizeWord,
@@ -83,6 +84,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     useState<boolean>(false);
   // Track if recording should auto-stop when segment ends
   const shouldAutoStopRef = useRef<boolean>(false);
+
+  // Seek detection: track previous time to detect large jumps (manual seeks)
+  const prevTimeRef = useRef<number>(-1);
+  // Guard to ignore time updates while transitioning between segments
+  const isTransitioningRef = useRef<boolean>(false);
 
   const clipWords = clip?.words || [];
 
@@ -167,10 +173,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     setIsRecordingMode(false);
     shouldAutoStopRef.current = false;
     setSentenceEnded(false);
+    // Reset prev time so first update in new segment isn't mistaken for a seek
+    prevTimeRef.current = -1;
     if (recordingExtensionRef.current) {
       clearTimeout(recordingExtensionRef.current);
       recordingExtensionRef.current = null;
     }
+    // Clear the transitioning guard after a brief delay for the WebView to remount
+    const transitionTimer = setTimeout(() => {
+      isTransitioningRef.current = false;
+    }, 500);
+    return () => clearTimeout(transitionTimer);
   }, [currentVideo?.currentSegment]);
 
   // Detect when sentence ends (for CountdownTimer to show buffer)
@@ -195,13 +208,50 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   }, [currentSentence]);
 
   const handleSetTime = (newTime: number) => {
-    // if (newTime >= 1 && (newTime <= clip?.start || newTime >= clip?.end)) {
-    // this causes bugs
-    //   console.log("newTime", newTime);
-    //   console.log("clip", clip?.start, clip?.end);
-    //   dispatch(setSegmentByTime(newTime));
-    //   return;
-    // }
+    // Ignore time updates while transitioning between segments (prevents feedback loops)
+    if (isTransitioningRef.current) {
+      return;
+    }
+
+    const prevTime = prevTimeRef.current;
+    prevTimeRef.current = newTime;
+
+    // Detect manual seek: a large time jump (>2s) that lands outside the current clip.
+    // Skip on the very first time update (prevTime === -1) to avoid false positives.
+    if (
+      prevTime !== -1 &&
+      Math.abs(newTime - prevTime) > 2 &&
+      clip &&
+      (newTime < clip.start - 0.5 || newTime > clip.end + 0.5)
+    ) {
+      const result = findSegmentAndSentenceByTime(
+        newTime,
+        currentVideo.segments,
+        currentVideo.currentSegment
+      );
+      console.log({ result });
+
+      if (result) {
+        // Lock out further time updates until the WebView remounts
+        isTransitioningRef.current = true;
+
+        // Reset local state for the new segment/sentence
+        setCurrentSentence(result.sentenceIndex);
+        setAccuracyResult(null);
+        setSentenceEnded(false);
+        setIsRecordingMode(false);
+        setError(null);
+        if (recordingExtensionRef.current) {
+          clearTimeout(recordingExtensionRef.current);
+          recordingExtensionRef.current = null;
+        }
+
+        dispatch(setSegmentByTime(newTime));
+        dispatch(refreshVideoPlayer());
+        return;
+      }
+    }
+
     if (newTime < sentenceStart) {
       return;
     }

@@ -66,7 +66,6 @@ const VocabList: React.FC<{
       highlightedIndex !== -1 &&
       itemLayouts.current[highlightedIndex] !== undefined
     ) {
-      console.log({ itemLayouts: itemLayouts.current[highlightedIndex] });
       scrollViewRef.current?.scrollTo({
         y: itemLayouts.current[highlightedIndex],
         animated: true,
