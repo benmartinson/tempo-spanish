@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { StyleSheet, View, Text } from "react-native";
+import { StyleSheet, View, Text, Linking } from "react-native";
 import { WebView } from "react-native-webview";
 import { Segment } from "../../types";
 
@@ -60,6 +60,13 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           if (msg.type === "YT_TIME") {
             setTime(msg.time);
           }
+        }}
+        onShouldStartLoadWithRequest={(request) => {
+          if (request.url.includes("youtube.com/watch")) {
+            Linking.openURL(request.url);
+            return false;
+          }
+          return true;
         }}
       />
       {videoText && (

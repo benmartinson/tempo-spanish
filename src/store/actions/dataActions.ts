@@ -1,6 +1,7 @@
 import {
   Channel,
   DataAction,
+  FocusSentence,
   Segment,
   Video,
   VideoContext,
@@ -80,4 +81,18 @@ export const addUserKnownVocab = (vocabIds: number[]): DataAction => ({
 export const setUserVideoViews = (videoViews: VideoView[]): DataAction => ({
   type: "SET_USER_VIDEO_VIEWS",
   payload: videoViews,
+});
+
+export const setFocusSentences = (
+  sentences: FocusSentence[]
+): DataAction => ({
+  type: "SET_FOCUS_SENTENCES",
+  payload: sentences,
+});
+
+export const addFocusSentence = (
+  sentence: FocusSentence
+): DataAction => ({
+  type: "ADD_FOCUS_SENTENCE",
+  payload: sentence,
 });

@@ -39,12 +39,14 @@ import {
   findSegmentAndSentenceByTime,
   findSentenceWithVocab,
   findTimesForVocab,
+  getSentenceData,
   normalizeWord,
   splitIntoSentences,
 } from "../../helpers";
 import ShadowResults from "./ShadowResults";
 import VocabList from "../watch/VocabList";
 import TooltipModal from "../common/TooltipModal";
+import FocusSentenceRequest from "./FocusSentenceRequest";
 
 interface ShadowTabProps {
   segmentId?: string;
@@ -91,20 +93,33 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const isTransitioningRef = useRef<boolean>(false);
 
   const clipWords = clip?.words || [];
+  const {
+    sentences,
+    currentSentenceWords,
+    sentenceStart,
+    sentenceEnd,
+    isLastSentence,
+    isFirstSentence,
+    isFirstSegment,
+    sentencesText,
+  } = useMemo(
+    () =>
+      getSentenceData(
+        clipWords,
+        currentSentence,
+        clip?.start ?? 0,
+        clip?.end ?? 0,
+        currentVideo?.currentSegment ?? 0
+      ),
+    [
+      clipWords,
+      currentSentence,
+      clip?.start,
+      clip?.end,
+      currentVideo?.currentSegment,
+    ]
+  );
 
-  // Split clip words into sentences and derive current sentence data
-  const sentences = useMemo(() => splitIntoSentences(clipWords), [clipWords]);
-  const currentSentenceWords = sentences[currentSentence] || [];
-  const sentenceStart = currentSentenceWords[0]?.start ?? clip?.start ?? 0;
-  let sentenceEnd =
-    currentSentenceWords[currentSentenceWords.length - 1]?.end ??
-    clip?.end ??
-    0;
-  sentenceEnd = (parseFloat(sentenceEnd.toFixed(1)) + 0.1).toString();
-  const isLastSentence = currentSentence >= sentences.length - 1;
-  const isFirstSentence = currentSentence === 0;
-  const isFirstSegment = currentVideo?.currentSegment === 0;
-  const sentenceTimeRemaining = Math.floor(Math.max(sentenceEnd - time, 0));
   const allWords = useSelector(
     (state: RootState) => state.currentVideo?.allWords
   );
@@ -515,6 +530,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   <Text style={styles.recordButtonText}>Record Yourself</Text>
                 </TouchableOpacity>
               </View>
+              {clip && (
+                <FocusSentenceRequest
+                  sentenceIndex={currentSentence}
+                  translation={
+                    clip.full_text_translation.split(".")[currentSentence]
+                  }
+                  sentenceText={sentencesText[currentSentence][0]}
+                  segmentIndex={currentVideo.currentSegment}
+                  videoViewId={Number(currentVideo.videoViewId)}
+                />
+              )}
               <VocabList
                 vocab={focusVocabTimes}
                 time={time}
@@ -594,9 +620,11 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignSelf: "center",
     marginTop: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#3d3a52",
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#3d3a52",
     borderRadius: 24,
     gap: 8,
   },
@@ -607,7 +635,7 @@ export const styles = StyleSheet.create({
     gap: 16,
   },
   recordButtonText: {
-    color: "#fff",
+    color: "black",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -640,7 +668,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#3d3a52",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 24,
     gap: 8,
@@ -649,7 +677,7 @@ export const styles = StyleSheet.create({
   },
   playSegmentButtonText: {
     color: "black",
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
   },
   sentenceNavContainer: {

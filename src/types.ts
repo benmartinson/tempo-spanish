@@ -24,7 +24,9 @@ export type DataActionTypes =
   | "SET_ALL_VOCABULARY"
   | "SET_USER_KNOWN_VOCAB"
   | "ADD_USER_KNOWN_VOCAB"
-  | "SET_USER_VIDEO_VIEWS";
+  | "SET_USER_VIDEO_VIEWS"
+  | "SET_FOCUS_SENTENCES"
+  | "ADD_FOCUS_SENTENCE";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -42,6 +44,14 @@ export interface Vocabulary {
   translation: string;
 }
 
+export interface FocusSentence {
+  id?: number;
+  text: string;
+  translation: string;
+  segment_index: number;
+  sentence_index: number;
+}
+
 export interface VideoContext {
   videoId: string;
   currentSegment: number;
@@ -49,6 +59,7 @@ export interface VideoContext {
   allWords: SegmentWord[];
   videoViewId: string;
   focusVocab: Vocabulary[];
+  focusSentences: FocusSentence[];
 }
 
 export interface Channel {

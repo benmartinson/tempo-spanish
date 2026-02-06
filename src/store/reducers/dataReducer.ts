@@ -42,7 +42,11 @@ const dataReducer = (
       return {
         ...state,
         currentVideo: action.payload
-          ? { ...action.payload, focusVocab: action.payload.focusVocab ?? [] }
+          ? {
+              ...action.payload,
+              focusVocab: action.payload.focusVocab ?? [],
+              focusSentences: action.payload.focusSentences ?? [],
+            }
           : null,
         videoRefreshKey: Date.now(),
       };
@@ -53,6 +57,27 @@ const dataReducer = (
         currentVideo: {
           ...state.currentVideo,
           focusVocab: action.payload,
+        },
+      };
+    case "SET_FOCUS_SENTENCES":
+      if (!state.currentVideo) return state;
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          focusSentences: action.payload,
+        },
+      };
+    case "ADD_FOCUS_SENTENCE":
+      if (!state.currentVideo) return state;
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          focusSentences: [
+            ...state.currentVideo.focusSentences,
+            action.payload,
+          ],
         },
       };
     case "SET_NEXT_SEGMENT":

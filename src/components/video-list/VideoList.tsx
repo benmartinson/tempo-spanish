@@ -109,6 +109,16 @@ const VideoList: React.FC = () => {
       focusVocabData?.map((item: any) => item.vocabulary) || []
     ).filter(Boolean);
 
+    const { data: focusSentenceData, error: focusSentenceError } =
+      await supabase
+        .from("video_view_focus_sentence")
+        .select("id, text, translation, segment_index, sentence_index")
+        .eq("video_view_id", videoViewId);
+
+    if (focusSentenceError) console.error(focusSentenceError);
+
+    const focusSentences = focusSentenceData ?? [];
+
     const video: VideoContext = {
       videoId: data.video_id,
       currentSegment: 0,
@@ -116,6 +126,7 @@ const VideoList: React.FC = () => {
       allWords: data.segments.flatMap((s: Segment) => s.words),
       videoViewId: String(videoViewId),
       focusVocab: focusVocab,
+      focusSentences: focusSentences,
     };
 
     dispatch(setCurrentVideo(video));

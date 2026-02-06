@@ -156,6 +156,43 @@ export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
   return sentences;
 };
 
+export const getSentenceData = (
+  clipWords: SegmentWord[],
+  currentSentence: number,
+  clipStart: number,
+  clipEnd: number,
+  currentSegment: number
+) => {
+  const sentences = splitIntoSentences(clipWords);
+  let sentencesText = clipWords
+    .map((w) => w.word)
+    .join(" ")
+    .split(/[.!?]/)
+    .map((s) => s.trim());
+  // add period to end of each sentence
+  sentencesText = sentencesText.map((s) => s + ".");
+
+  const currentSentenceWords = sentences[currentSentence] || [];
+  const sentenceStart = currentSentenceWords[0]?.start ?? clipStart;
+  const rawEnd =
+    currentSentenceWords[currentSentenceWords.length - 1]?.end ?? clipEnd;
+  const sentenceEnd = parseFloat(rawEnd.toFixed(1)) + 0.1;
+  const isLastSentence = currentSentence >= sentences.length - 1;
+  const isFirstSentence = currentSentence === 0;
+  const isFirstSegment = currentSegment === 0;
+
+  return {
+    sentences,
+    currentSentenceWords,
+    sentenceStart,
+    sentenceEnd,
+    isLastSentence,
+    isFirstSentence,
+    isFirstSegment,
+    sentencesText,
+  };
+};
+
 export interface SegmentSeekResult {
   segmentIndex: number;
   sentenceIndex: number;

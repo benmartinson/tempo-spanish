@@ -34,7 +34,9 @@ import {
   ignoreVocab,
   findTimesForVocab,
   findSegmentAndSentenceByTime,
+  getSentenceData,
 } from "../../helpers";
+import FocusSentenceRequest from "../shadow/FocusSentenceRequest";
 
 const WatchTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -57,12 +59,13 @@ const WatchTab: React.FC = () => {
     (state: RootState) => state.currentVideo?.allWords
   );
   const focusVocabTimes = useMemo(
-    () => findTimesForVocab(currentVideo?.focusVocab || [], allWords),
+    () => findTimesForVocab(allWords, currentVideo),
     [currentVideo?.focusVocab, allWords]
   );
 
   const [userSelectedVocab, setUserSelectedVocab] = useState<string[]>([]);
   const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
+  const [currentSentence, setCurrentSentence] = useState<number>(0);
 
   const handleAddToFocusVocab = () => {
     setUserSelectedVocab(currentVideo?.focusVocab.map((v) => v.word) || []);
@@ -98,6 +101,25 @@ const WatchTab: React.FC = () => {
     Vocabulary[]
   >([]);
   const vocabularyForVideoRef = useRef<Vocabulary[]>([]);
+
+  const clipWords = clip?.words || [];
+  const { sentences, sentencesText, sentenceStart, sentenceEnd } = useMemo(
+    () =>
+      getSentenceData(
+        clipWords,
+        currentSentence,
+        clip?.start ?? 0,
+        clip?.end ?? 0,
+        currentVideo?.currentSegment ?? 0
+      ),
+    [
+      clipWords,
+      currentSentence,
+      clip?.start,
+      clip?.end,
+      currentVideo?.currentSegment,
+    ]
+  );
 
   useEffect(() => {
     const normalizedExcluded = new Set(
@@ -176,10 +198,26 @@ const WatchTab: React.FC = () => {
         currentVideo.currentSegment
       );
       if (result) {
+        setCurrentSentence(result.sentenceIndex);
         dispatch(setSegmentByTime(newTime));
       }
       return;
     }
+
+    // Detect which sentence the current time falls into
+    for (let i = 0; i < sentences.length; i++) {
+      const words = sentences[i];
+      if (words.length === 0) continue;
+      const sStart = words[0].start;
+      const sEnd = words[words.length - 1].end;
+      if (newTime >= sStart && newTime <= sEnd + 0.15) {
+        if (i !== currentSentence) {
+          setCurrentSentence(i);
+        }
+        break;
+      }
+    }
+
     const newTimeRemaining = Math.max(Math.ceil((clip?.end ?? 0) - newTime), 0);
     if (newTimeRemaining < 1 && timeRemaining >= 0) {
       if (isClip) {
@@ -252,6 +290,17 @@ const WatchTab: React.FC = () => {
               translation={clip?.full_text_translation.split(" ") || []}
               words={clip?.words || []}
               time={time}
+            />
+          )}
+          {clip && sentencesText?.length > 0 && (
+            <FocusSentenceRequest
+              sentenceIndex={currentSentence}
+              translation={
+                clip.full_text_translation.split(".")[currentSentence]
+              }
+              sentenceText={sentencesText[currentSentence]}
+              segmentIndex={currentVideo.currentSegment}
+              videoViewId={Number(currentVideo.videoViewId)}
             />
           )}
           {focusVocabTimes.length > 0 && (
