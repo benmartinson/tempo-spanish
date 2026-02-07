@@ -125,6 +125,9 @@ const VocabList: React.FC<{
           onScrollEndDrag={handleScrollEndDrag}
           scrollEventThrottle={16}
         >
+          {wordSet.length === 0 && (
+            <Text style={styles.noVocabText}>None </Text>
+          )}
           {wordSet.map((word, index) => (
             <TouchableOpacity
               key={index}
@@ -172,6 +175,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
+  },
+  noVocabText: {
+    color: "lightgrey",
+    fontSize: 14,
+    fontWeight: "700",
   },
   header: {
     flexDirection: "row",

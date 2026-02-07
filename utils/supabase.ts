@@ -5,7 +5,7 @@ import 'react-native-url-polyfill/auto'
 // Env vars (ensure these are EXPO_PUBLIC_*)
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useAuth } from "@clerk/clerk-expo";
 
 /**
@@ -30,20 +30,29 @@ export function createSupabaseClientWithToken(token: string): SupabaseClient {
 
 
 export function useSupabaseWithClerk() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
-  const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(null);
+  const { getToken } = useAuth();
 
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-
-    const initSupabase = async () => {
-      const token = await getToken({ template: 'supabase' });
-      const client = createSupabaseClientWithToken(token);
-      setSupabaseClient(client);
-    };
-
-    initSupabase();
-  }, [isLoaded, isSignedIn]);
-
-  return supabaseClient;
+  return useMemo(() => {
+    return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        storage: null,
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+      global: {
+        fetch: async (url, options = {}) => {
+          const clerkToken = await getToken({ template: 'supabase' })
+          const headers = new Headers(options?.headers)
+          if (clerkToken) {
+            headers.set('Authorization', `Bearer ${clerkToken}`)
+          }
+          return fetch(url, {
+            ...options,
+            headers,
+          })
+        },
+      },
+    })
+  }, [getToken])
 }

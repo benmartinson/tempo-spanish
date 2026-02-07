@@ -68,8 +68,8 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
     >
       <Text style={styles.title}>
         {isMarked
-          ? "Sentence marked for review."
-          : "Mark this Sentence for Review"}
+          ? "Sentence Marked for Review."
+          : "Mark this Sentence as Difficult"}
       </Text>
       {!isMarked && <Entypo name="pencil" size={24} color="black" />}
     </TouchableOpacity>

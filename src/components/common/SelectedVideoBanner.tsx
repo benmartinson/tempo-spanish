@@ -15,8 +15,8 @@ const SelectedVideoBanner: React.FC = () => {
   if (!currentVideo) {
     return null;
   }
-  const video = allVideos.find(
-    (video) => video.video_id === currentVideo.videoId,
+  const video = (allVideos || []).find(
+    (video) => video.video_id === currentVideo.videoId
   );
   if (!video) {
     return null;

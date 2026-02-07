@@ -154,7 +154,7 @@ const VideoList: React.FC = () => {
       )}
       {/* <VideoSectionHeader title="Recommended" /> */}
       <VideoSectionHeader title="All Channels" />
-      {allChannels.map((channel) => {
+      {(allChannels || []).map((channel) => {
         const channelVideos = allVideos.filter(
           (video) => video.channel_id === channel.channel_id
         );
@@ -169,8 +169,7 @@ const VideoList: React.FC = () => {
               <View style={styles.channelInfo}>
                 <Text style={styles.channelTitle}>{channel.title}</Text>
                 <View style={styles.channelBadges}>
-                  <Text>{channel.difficulty}</Text>
-                  <Text>{channel.topic}</Text>
+                  {channel.topic && <Text>{channel.topic}</Text>}
                   <Text>{channelVideos.length} videos available</Text>
                 </View>
               </View>
@@ -232,6 +231,7 @@ const styles = StyleSheet.create({
   channelInfo: {
     flex: 1,
     paddingRight: 8,
+    paddingTop: 8,
   },
 });
 
