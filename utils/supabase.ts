@@ -1,58 +1,41 @@
-// supabaseClient.ts
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import 'react-native-url-polyfill/auto'
-
-// Env vars (ensure these are EXPO_PUBLIC_*)
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
-import { useMemo } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@clerk/clerk-expo";
+import { clearClerkAuth, withClerkAuth } from "../lib/clerkAuth";
+import { supabase } from "../lib/supabase";
 
 /**
- * 1️⃣ Singleton client for public queries
- * Example: fetching all videos, channels, etc.
+ * Returns the shared Supabase client, wired to Clerk auth.
+ *
+ * Important: we do NOT create per-user Supabase clients. Creating multiple
+ * clients triggers Supabase's "Multiple GoTrueClient instances" warning.
  */
-export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-/**
- * 2️⃣ Function to create a per-user client with Clerk JWT
- * Example: fetching / updating user-specific data
- */
-export function createSupabaseClientWithToken(token: string): SupabaseClient {
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  })
-}
-
-
 export function useSupabaseWithClerk() {
-  const { getToken } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
 
-  return useMemo(() => {
-    return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        storage: null,
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false,
-      },
-      global: {
-        fetch: async (url, options = {}) => {
-          const clerkToken = await getToken({ template: 'supabase' })
-          const headers = new Headers(options?.headers)
-          if (clerkToken) {
-            headers.set('Authorization', `Bearer ${clerkToken}`)
-          }
-          return fetch(url, {
-            ...options,
-            headers,
-          })
-        },
-      },
-    })
-  }, [getToken])
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      clearClerkAuth();
+      return;
+    }
+
+    withClerkAuth(getToken);
+
+    let cancelled = false;
+    const refreshRealtimeAuth = async () => {
+      const token = await getToken({ template: "supabase" });
+      if (!cancelled) supabase.realtime.setAuth(token ?? "");
+    };
+
+    // Set immediately, then refresh periodically to keep the JWT fresh.
+    void refreshRealtimeAuth();
+    const interval = setInterval(refreshRealtimeAuth, 50 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [getToken, isLoaded, isSignedIn]);
+
+  return isLoaded && isSignedIn ? supabase : null;
 }
