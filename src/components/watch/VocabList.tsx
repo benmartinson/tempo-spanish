@@ -106,13 +106,15 @@ const VocabList: React.FC<{
               <MaterialIcons name="add" size={24} color="#fff" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
-            <MaterialIcons
-              name={isExpanded ? "expand-less" : "expand-more"}
-              size={24}
-              color="#fff"
-            />
-          </TouchableOpacity>
+          {vocab?.length > 0 && (
+            <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
+              <MaterialIcons
+                name={isExpanded ? "expand-less" : "expand-more"}
+                size={24}
+                color="#fff"
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       {isExpanded && (

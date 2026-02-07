@@ -55,7 +55,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [multipleChoiceAnswers, setMultipleChoiceAnswers] = useState<Answer[]>(
-    [],
+    []
   );
   const [currentlyPlayingAnswerIndex, setCurrentlyPlayingAnswerIndex] =
     useState<number | null>(null);
@@ -80,7 +80,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
 
   const dispatch = useDispatch();
   const currentChatType = useSelector(
-    (state: RootState) => state.currentChatType,
+    (state: RootState) => state.currentChatType
   );
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const currentTab = useSelector((state: RootState) => state.currentTab);
@@ -150,7 +150,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
 
   const fetchVocabQuestions = async (
     keyVocabulary: (typeof currentVideo.segments)[0]["key_vocabulary"],
-    segmentText: string,
+    segmentText: string
   ): Promise<typeof vocabQuestions> => {
     const response = await fetch(`${BACKEND_BASE_URL}/vocab-based-question`, {
       method: "POST",
@@ -189,7 +189,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     // Start prefetching vocab questions in the background
     vocabQuestionsPrefetchRef.current = fetchVocabQuestions(
       keyVocabulary,
-      segmentText,
+      segmentText
     );
   };
 
@@ -232,7 +232,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
 
   const displayVocabQuestion = (
     index: number,
-    questions: typeof vocabQuestions,
+    questions: typeof vocabQuestions
   ) => {
     const question = questions[index];
 
@@ -241,7 +241,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       question.answers.map((answer, idx) => ({
         answer,
         correct: idx === question.correct_answer,
-      })),
+      }))
     );
 
     // Set audio if available
@@ -294,8 +294,8 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
           segment_id: currentVideo.currentSegment,
           start: segment.start,
           end: segment.end,
-          resolved_text: segment.text,
-          cefr_level: segment.cefr_level,
+          // resolved_text: segment.text,
+          // cefr_level: segment.cefr_level,
         },
       ],
     });
@@ -318,7 +318,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       data.answers.map((answer: string, index: number) => ({
         answer,
         correct: index === data.correct_answer,
-      })),
+      }))
     );
 
     // Store audio for replay
@@ -474,7 +474,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       // Start streaming audio chunks to backend server
       streamIntervalRef.current = startAudioStreaming(
         () => recordingRef.current,
-        () => wsRef.current,
+        () => wsRef.current
       );
     } catch (err) {
       console.error("Failed to start recording:", err);

@@ -84,8 +84,8 @@ export interface Segment {
   start: number;
   end: number;
   text: string;
-  cefr_level: string;
-  key_vocabulary: KeyVocabulary[];
+  // cefr_level: string;
+  // key_vocabulary: KeyVocabulary[];
   full_text_translation: string;
   words: SegmentWord[];
 }

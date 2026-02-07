@@ -303,7 +303,7 @@ const WatchTab: React.FC = () => {
               videoViewId={Number(currentVideo.videoViewId)}
             />
           )}
-          {focusVocabTimes.length > 0 && (
+          {focusVocabTimes && (
             <>
               <VocabList
                 vocab={focusVocabTimes}

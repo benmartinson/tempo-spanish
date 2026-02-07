@@ -110,7 +110,7 @@ const MainTabs: React.FC = () => {
           ),
         }}
       />
-      <Tab.Screen
+      {/* <Tab.Screen
         name="Discuss"
         component={DiscussTab}
         listeners={{
@@ -123,7 +123,7 @@ const MainTabs: React.FC = () => {
             <TabIcon icon="chat-outline" label="Discuss" focused={focused} />
           ),
         }}
-      />
+      /> */}
     </Tab.Navigator>
   );
 };
