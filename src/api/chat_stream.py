@@ -217,6 +217,19 @@ class AutocorrectRequest(BaseModel):
     transcript: str
 
 
+class ReviewContextRequest(BaseModel):
+    question: str
+    answer: str
+    video_id: str  # YouTube video_id for Pinecone metadata filter
+
+
+class EvaluateReviewAnswerRequest(BaseModel):
+    question: str
+    ideal_answer: str
+    user_answer: str
+    context_segments: List[dict] = []
+
+
 app = FastAPI(title="SpeakUp Spanish API")
 
 # Enable CORS for all origins (configure appropriately for production)
@@ -343,7 +356,7 @@ async def get_video_segments(video_id: str):
                 "segment_id": int(metadata.get("segment_id", 0)),
                 "start": metadata.get("start"),
                 "end": metadata.get("end"),
-                # "text": metadata.get("resolved_text", ""),
+                "text": metadata.get("raw_text", ""),
                 "full_text_translation": full_text_translation,
                 # "cefr_level": metadata.get("cefr_level"),
                 # "key_vocabulary": vocab_map,
@@ -362,231 +375,229 @@ async def get_video_segments(video_id: str):
         print(f"Error fetching video segments: {e}")
         return {"error": str(e), "segments": []}
 
-# @app.post("/video-based-question")
-# async def video_based_question(request: VideoBasedQuestionRequest):
-#     """
-#     Generate a video-based question with TTS audio.
-#     Expects segments array to be provided in the request.
-#     Uses the first segment as the main segment and the second (if provided) as previous context.
-#     """
-#     if not openai_client:
-#         return {"error": "OpenAI API key not configured"}
+@app.post("/video-based-question")
+async def video_based_question(request: VideoBasedQuestionRequest):
+    """
+    Generate a video-based question with TTS audio.
+    Expects segments array to be provided in the request.
+    Uses the first segment as the main segment and the second (if provided) as previous context.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
 
-#     if not request.segments or len(request.segments) == 0:
-#         return {"error": "No segments provided"}
+    if not request.segments or len(request.segments) == 0:
+        return {"error": "No segments provided"}
 
-#     try:
-#         # Use the first segment as the main segment for the question
-#         segments = request.segments
-#         # resolved_text = ""
-#         # for segment in segments:
-#             # resolved_text += segment.resolved_text
-#         # cefr_level = segments[0].cefr_level
+    try:
+        # Use the first segment as the main segment for the question
+        segments = request.segments
+        text = ""
+        for segment in segments:
+            text += segment.text
 
-#         # if not resolved_text:
-#             # return {"error": "Segment has no resolved_text"}
+        if not text:
+            return {"error": "Segment has no text"}
 
-#         # user_prompt = f"""Transcript segment: "{resolved_text}"
-#         user_prompt = f"""Transcript segment: "{segments[0].text}"
+        user_prompt = f"""Transcript segment: "{text}"
 
-# Generate a comprehension question in Spanish for this video segment transcript.
-#  Then generate 3 multiple choice answers to the question. Answer choices should be in Spanish. Provide the correct answer in the response."""
+Generate a comprehension question in Spanish for this video segment transcript.
+ Then generate 3 multiple choice answers to the question. Answer choices should be in Spanish. Provide the correct answer in the response."""
 
-#         messages = [
-#             {"role": "system", "content": VIDEO_QUESTION_SYSTEM_PROMPT},
-#             {"role": "user", "content": user_prompt}
-#         ]
+        messages = [
+            {"role": "system", "content": VIDEO_QUESTION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
 
-#         response = openai_client.chat.completions.create(
-#             model="gpt-4.1-mini",
-#             messages=messages,
-#             max_tokens=300,
-#             temperature=0.7,
-#             response_format={
-#                 "type": "json_schema", 
-#                 "json_schema": {
-#                     "name": "question_data",
-#                     "strict": True,
-#                     "schema": {
-#                         "type": "object",
-#                         "required": ["question", "answers", "correct_answer"],
-#                         "properties": {
-#                             "question": {"type": "string"},
-#                             "answers": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
-#                             "correct_answer": {"type": "integer", "minimum": 0, "maximum": 2}
-#                         },
-#                         "additionalProperties": False
-#                     }
-#                 }
-#             }
-#         )
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=300,
+            temperature=0.7,
+            response_format={
+                "type": "json_schema", 
+                "json_schema": {
+                    "name": "question_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["question", "answers", "correct_answer"],
+                        "properties": {
+                            "question": {"type": "string"},
+                            "answers": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
+                            "correct_answer": {"type": "integer", "minimum": 0, "maximum": 2}
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
 
-#         question_data = json.loads(response.choices[0].message.content.strip())
+        question_data = json.loads(response.choices[0].message.content.strip())
 
-#         # Track the correct answer before shuffling
-#         correct_answer_text = question_data["answers"][question_data["correct_answer"]]
-#         random.shuffle(question_data["answers"])
-#         question_data["correct_answer"] = question_data["answers"].index(correct_answer_text)
+        # Track the correct answer before shuffling
+        correct_answer_text = question_data["answers"][question_data["correct_answer"]]
+        random.shuffle(question_data["answers"])
+        question_data["correct_answer"] = question_data["answers"].index(correct_answer_text)
 
-#         # Generate TTS audio for the question
-#         audio_base64 = generate_tts_audio(question_data["question"])
-#         audio_base64_answers = [generate_tts_audio(answer) for answer in question_data["answers"]]
+        # Generate TTS audio for the question
+        audio_base64 = generate_tts_audio(question_data["question"])
+        audio_base64_answers = [generate_tts_audio(answer) for answer in question_data["answers"]]
 
-#         response_data = {
-#             "question": question_data["question"],
-#             "answers": question_data["answers"],
-#             "correct_answer": question_data["correct_answer"],
-#             "audio": audio_base64,
-#             "audio_answers": audio_base64_answers,
-#             "status": "complete"
-#         }
+        response_data = {
+            "question": question_data["question"],
+            "answers": question_data["answers"],
+            "correct_answer": question_data["correct_answer"],
+            "audio": audio_base64,
+            "audio_answers": audio_base64_answers,
+            "status": "complete"
+        }
 
-#         return response_data
-#     except Exception as e:
-#         print(f"Error generating video-based question: {e}")
-#         return {"error": str(e)}
+        return response_data
+    except Exception as e:
+        print(f"Error generating video-based question: {e}")
+        return {"error": str(e)}
 
 
-# @app.post("/vocab-based-question")
-# async def vocab_based_question(request: VocabBasedQuestionRequest):
-#     """
-#     Generate vocab-based questions with TTS audio.
-#     Takes key_vocabulary array and generates 3 questions incorporating the vocab words.
-#     """
-#     if not openai_client:
-#         return {"error": "OpenAI API key not configured"}
+@app.post("/vocab-based-question")
+async def vocab_based_question(request: VocabBasedQuestionRequest):
+    """
+    Generate vocab-based questions with TTS audio.
+    Takes key_vocabulary array and generates 3 questions incorporating the vocab words.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
 
-#     # if not request.key_vocabulary or len(request.key_vocabulary) == 0:
-#         # return {"error": "No vocabulary provided"}
+    # if not request.key_vocabulary or len(request.key_vocabulary) == 0:
+        # return {"error": "No vocabulary provided"}
 
-#     try:
-#         # Format vocabulary for the prompt
-#         # vocab_list = []
-#         # for vocab in request.key_vocabulary:
-#             # correct_translation = vocab.translations[vocab.correct_translation]
-#             # vocab_list.append(f"- {vocab.value} (meaning: you decide based on the context)")
+    try:
+        # Format vocabulary for the prompt
+        vocab_list = []
+        for vocab in request.key_vocabulary:
+            correct_translation = vocab.translations[vocab.correct_translation]
+            vocab_list.append(f"- {vocab.value} (meaning: you decide based on the context)")
         
-#         # vocab_text = "\n".join(vocab_list)
+        vocab_text = "\n".join(vocab_list)
         
-#         # Build context section if provided
-#         context_section = ""
-#         if request.context:
-#             context_section = f"""
-# Video transcript context (use this to make translations more relevant):
-# "{request.context}"
+        # Build context section if provided
+        context_section = ""
+        if request.context:
+            context_section = f"""
+Video transcript context (use this to make translations more relevant):
+"{request.context}"
 
-# """
-#         user_prompt = f"""Vocabulary words to incorporate:
-# {vocab_text}
-# Context of the video segment where the vocabulary words are used:
-# {context_section}"""
+"""
+        user_prompt = f"""Vocabulary words to incorporate:
+{vocab_text}
+Context of the video segment where the vocabulary words are used:
+{context_section}"""
 
-#         messages = [
-#             {"role": "system", "content": VOCAB_QUESTION_SYSTEM_PROMPT},
-#             {"role": "user", "content": user_prompt}
-#         ]
+        messages = [
+            {"role": "system", "content": VOCAB_QUESTION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
 
-#         response = openai_client.chat.completions.create(
-#             model="gpt-4.1-mini",
-#             messages=messages,
-#             max_tokens=800,
-#             temperature=0.7,
-#             response_format={
-#                 "type": "json_schema", 
-#                 "json_schema": {
-#                     "name": "vocab_questions_data",
-#                     "strict": True,
-#                     "schema": {
-#                         "type": "object",
-#                         "required": ["questions"],
-#                         "properties": {
-#                             "questions": {
-#                                 "type": "array",
-#                                 "items": {
-#                                     "type": "object",
-#                                     "required": ["question", "answers", "correct_answer"],
-#                                     "properties": {
-#                                         "question": {"type": "string"},
-#                                         "answers": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
-#                                         "correct_answer": {"type": "integer", "minimum": 0, "maximum": 2}
-#                                     },
-#                                     "additionalProperties": False
-#                                 },
-#                                 "minItems": 1,
-#                                 "maxItems": 1
-#                             }
-#                         },
-#                         "additionalProperties": False
-#                     }
-#                 }
-#             }
-#         )
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=800,
+            temperature=0.7,
+            response_format={
+                "type": "json_schema", 
+                "json_schema": {
+                    "name": "vocab_questions_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["questions"],
+                        "properties": {
+                            "questions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["question", "answers", "correct_answer"],
+                                    "properties": {
+                                        "question": {"type": "string"},
+                                        "answers": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
+                                        "correct_answer": {"type": "integer", "minimum": 0, "maximum": 2}
+                                    },
+                                    "additionalProperties": False
+                                },
+                                "minItems": 1,
+                                "maxItems": 1
+                            }
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
 
-#         questions_data = json.loads(response.choices[0].message.content.strip())
+        questions_data = json.loads(response.choices[0].message.content.strip())
 
-#         # Process each question - shuffle answers and track correct answer
-#         processed_questions = []
-#         for q in questions_data["questions"]:
-#             correct_answer_text = q["answers"][q["correct_answer"]]
-#             random.shuffle(q["answers"])
-#             q["correct_answer"] = q["answers"].index(correct_answer_text)
+        # Process each question - shuffle answers and track correct answer
+        processed_questions = []
+        for q in questions_data["questions"]:
+            correct_answer_text = q["answers"][q["correct_answer"]]
+            random.shuffle(q["answers"])
+            q["correct_answer"] = q["answers"].index(correct_answer_text)
             
-#             # Generate TTS audio for question and answers
-#             audio_base64 = generate_tts_audio(q["question"])
-#             audio_base64_answers = [generate_tts_audio(answer) for answer in q["answers"]]
+            # Generate TTS audio for question and answers
+            audio_base64 = generate_tts_audio(q["question"])
+            audio_base64_answers = [generate_tts_audio(answer) for answer in q["answers"]]
             
-#             processed_questions.append({
-#                 "question": q["question"],
-#                 "answers": q["answers"],
-#                 "correct_answer": q["correct_answer"],
-#                 "audio": audio_base64,
-#                 "audio_answers": audio_base64_answers
-#             })
+            processed_questions.append({
+                "question": q["question"],
+                "answers": q["answers"],
+                "correct_answer": q["correct_answer"],
+                "audio": audio_base64,
+                "audio_answers": audio_base64_answers
+            })
 
-#         return {
-#             "questions": processed_questions,
-#             "status": "complete"
-#         }
-#     except Exception as e:
-#         print(f"Error generating vocab-based questions: {e}")
-#         return {"error": str(e)}
+        return {
+            "questions": processed_questions,
+            "status": "complete"
+        }
+    except Exception as e:
+        print(f"Error generating vocab-based questions: {e}")
+        return {"error": str(e)}
 
 
-# @app.post("/initial-message")
-# async def initial_message():
-#     """
-#     Generate an initial conversation starter message with TTS audio.
-#     """
-#     if not openai_client:
-#         return {"error": "OpenAI API key not configured"}
+@app.post("/initial-message")
+async def initial_message():
+    """
+    Generate an initial conversation starter message with TTS audio.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
 
-#     try:
-#         messages = [
-#             {"role": "system", "content": INITIAL_PROMPT_SYSTEM_PROMPT},
-#             {"role": "user", "content": "Generate an engaging conversation starter in Spanish."}
-#         ]
+    try:
+        messages = [
+            {"role": "system", "content": INITIAL_PROMPT_SYSTEM_PROMPT},
+            {"role": "user", "content": "Generate an engaging conversation starter in Spanish."}
+        ]
 
-#         response = openai_client.chat.completions.create(
-#             model="gpt-4o-mini",
-#             messages=messages,
-#             max_tokens=100,
-#             temperature=0.8,  # Slightly higher temperature for more variety
-#         )
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=100,
+            temperature=0.8,  # Slightly higher temperature for more variety
+        )
 
-#         initial_message = response.choices[0].message.content
+        initial_message = response.choices[0].message.content
         
-#         # Generate TTS audio for the initial message
-#         audio_base64 = generate_tts_audio(initial_message)
+        # Generate TTS audio for the initial message
+        audio_base64 = generate_tts_audio(initial_message)
 
-#         return {
-#             "response": initial_message,
-#             "audio": audio_base64,
-#             "status": "complete"
-#         }
+        return {
+            "response": initial_message,
+            "audio": audio_base64,
+            "status": "complete"
+        }
 
-#     except Exception as e:
-#         print(f"Error generating initial message: {e}")
-#         return {"error": str(e)}
+    except Exception as e:
+        print(f"Error generating initial message: {e}")
+        return {"error": str(e)}
 
 
 @app.post("/chat")
@@ -723,6 +734,153 @@ async def chat(request: ChatRequest):
 #     except Exception as e:
 #         print(f"Error autocorrecting transcript: {e}")
 #         return {"error": str(e)}
+
+
+# System prompt for evaluating review answers
+REVIEW_EVALUATION_SYSTEM_PROMPT = """You are evaluating a Spanish language learner's answer to a comprehension question about a video.
+
+You will be given:
+- The question (in Spanish)
+- The ideal/expected answer
+- The user's answer
+- Relevant transcript context from the video
+
+Evaluate how close the user's answer is to the ideal answer. Consider:
+- Semantic similarity (do they convey the same meaning?)
+- Key concepts covered
+- Language accuracy
+
+Respond in Spanish with encouraging, constructive feedback. Keep it to 2-3 sentences.
+Be encouraging even if the answer is partially correct."""
+
+
+@app.post("/review-context")
+async def review_context(request: ReviewContextRequest):
+    """
+    Perform semantic search on Pinecone to find transcript segments
+    relevant to a question and its answer for a given video.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+    if not pinecone_client:
+        return {"error": "Pinecone API key not configured"}
+
+    try:
+        # Combine question + answer into a search query
+        search_text = f"{request.question} {request.answer}"
+
+        # Generate embedding using OpenAI
+        # Using text-embedding-3-small to match the model used during ingestion
+        embedding_response = openai_client.embeddings.create(
+            model="text-embedding-3-large",
+            input=search_text,
+            dimensions=1536
+        )
+        query_vector = embedding_response.data[0].embedding
+
+        # Query Pinecone with the real embedding vector
+        index = pinecone_client.Index("spanish-video-transcripts")
+        results = index.query(
+            vector=query_vector,
+            filter={"video_id": {"$eq": request.video_id}},
+            top_k=5,
+            include_metadata=True
+        )
+
+        # Extract matching segments
+        segments = []
+        for match in results.matches:
+            metadata = match.metadata
+            print(f"[review-context] Match: segment_id={metadata.get('segment_id')}, "
+                  f"start={metadata.get('start')}, score={match.score:.4f}, "
+                  f"text={metadata.get('raw_text', '')[:80]}...")
+            segments.append({
+                "segment_id": int(metadata.get("segment_id", 0)),
+                "start": metadata.get("start"),
+                "end": metadata.get("end"),
+                "text": metadata.get("raw_text", ""),
+                "score": match.score,
+            })
+
+        # Sort by score descending (most relevant first)
+        segments.sort(key=lambda x: x["score"], reverse=True)
+
+        return {
+            "segments": segments,
+            "status": "complete"
+        }
+    except Exception as e:
+        print(f"Error in review context search: {e}")
+        return {"error": str(e), "segments": []}
+
+
+@app.post("/evaluate-review-answer")
+async def evaluate_review_answer(request: EvaluateReviewAnswerRequest):
+    """
+    Evaluate a user's answer against the ideal answer using GPT.
+    Returns feedback and a score classification.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    try:
+        # Build context from segments
+        context_text = ""
+        if request.context_segments:
+            context_parts = [seg.get("text", "") for seg in request.context_segments if seg.get("text")]
+            context_text = "\n".join(context_parts)
+
+        user_prompt = f"""Question: {request.question}
+
+Ideal answer: {request.ideal_answer}
+
+User's answer: {request.user_answer}
+
+{"Video transcript context:" + chr(10) + context_text if context_text else ""}
+
+Evaluate the user's answer. Respond with a JSON object containing:
+- "feedback": your evaluation in Spanish (2-3 sentences, encouraging)
+- "score": one of "correct", "partial", or "incorrect"
+"""
+
+        messages = [
+            {"role": "system", "content": REVIEW_EVALUATION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=300,
+            temperature=0.5,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "evaluation_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["feedback", "score"],
+                        "properties": {
+                            "feedback": {"type": "string"},
+                            "score": {"type": "string", "enum": ["correct", "partial", "incorrect"]}
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
+
+        evaluation = json.loads(response.choices[0].message.content.strip())
+
+        return {
+            "feedback": evaluation["feedback"],
+            "score": evaluation["score"],
+            "status": "complete"
+        }
+    except Exception as e:
+        print(f"Error evaluating review answer: {e}")
+        return {"error": str(e)}
 
 
 if __name__ == "__main__":

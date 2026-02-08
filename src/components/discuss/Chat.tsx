@@ -294,8 +294,8 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
           segment_id: currentVideo.currentSegment,
           start: segment.start,
           end: segment.end,
-          // resolved_text: segment.text,
-          // cefr_level: segment.cefr_level,
+          text: segment.text,
+          key_vocabulary: currentVideo?.focusVocab.map((vocab) => vocab.word),
         },
       ],
     });

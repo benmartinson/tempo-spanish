@@ -115,3 +115,19 @@ export interface VideoView {
   video_id: string;
   watched_at: Date;
 }
+
+export interface VideoQuestion {
+  id: number;
+  video_id: number;
+  cefr_level: string;
+  question: string;
+  answer: string;
+}
+
+export interface ContextSegment {
+  segment_id: number;
+  start: number;
+  end: number;
+  text: string;
+  score: number;
+}
