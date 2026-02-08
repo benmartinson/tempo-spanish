@@ -783,7 +783,7 @@ async def review_context(request: ReviewContextRequest):
         results = index.query(
             vector=query_vector,
             filter={"video_id": {"$eq": request.video_id}},
-            top_k=5,
+            top_k=4,
             include_metadata=True
         )
 
@@ -794,6 +794,9 @@ async def review_context(request: ReviewContextRequest):
             print(f"[review-context] Match: segment_id={metadata.get('segment_id')}, "
                   f"start={metadata.get('start')}, score={match.score:.4f}, "
                   f"text={metadata.get('raw_text', '')[:80]}...")
+            
+            if match.score < 0.55:
+                continue
             segments.append({
                 "segment_id": int(metadata.get("segment_id", 0)),
                 "start": metadata.get("start"),
@@ -802,6 +805,16 @@ async def review_context(request: ReviewContextRequest):
                 "score": match.score,
             })
 
+        if len(segments) == 0:
+            max_score = max(match.score for match in results.matches)
+            max_score_match = next((match for match in results.matches if match.score == max_score), None)
+            segments.append({
+                "segment_id": int(max_score_match.metadata.get("segment_id", 0)),
+                "start": max_score_match.metadata.get("start"),
+                "end": max_score_match.metadata.get("end"),
+                "text": max_score_match.metadata.get("raw_text", ""),
+                "score": max_score,
+            })
         # Sort by score descending (most relevant first)
         segments.sort(key=lambda x: x["score"], reverse=True)
 
