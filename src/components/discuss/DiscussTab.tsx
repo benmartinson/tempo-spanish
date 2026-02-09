@@ -3,7 +3,6 @@ import { View, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
 import { RootState, VideoQuestion, ContextSegment } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
-import YouTubePlayer from "../common/YouTubePlayer";
 import ReviewChat from "./ReviewChat";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 
@@ -16,7 +15,11 @@ const CEFR_ORDER: Record<string, number> = {
   C2: 5,
 };
 
-const DiscussTab: React.FC = () => {
+interface DiscussTabProps {
+  onPlayClip: (segment: { start: number; end: number }) => void;
+}
+
+const DiscussTab: React.FC<DiscussTabProps> = ({ onPlayClip }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const supabase = useSupabaseWithClerk();
@@ -24,14 +27,6 @@ const DiscussTab: React.FC = () => {
   const [questions, setQuestions] = useState<VideoQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questionsLoading, setQuestionsLoading] = useState(false);
-
-  // Active clip for the YouTube player (set when user clicks a context timestamp)
-  const [activeClip, setActiveClip] = useState<{
-    start: number;
-    end: number;
-  } | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [autoplay, setAutoplay] = useState(false);
 
   // Look up the database record ID from the YouTube video_id
   const dbRecordId = currentVideo
@@ -82,22 +77,20 @@ const DiscussTab: React.FC = () => {
   // Handle clicking a context segment timestamp
   const handlePlayClip = useCallback(
     (segment: ContextSegment) => {
-      setActiveClip({ start: segment.start, end: segment.end });
-      setAutoplay(true);
-      setRefreshKey((prev) => prev + 1);
+      onPlayClip({ start: segment.start, end: segment.end });
     },
-    []
+    [onPlayClip],
   );
 
   // Navigate between questions
   const handleNextQuestion = useCallback(() => {
-    setCurrentQuestionIndex((prev) => Math.min(prev + 1, questions.length - 1));
-    setActiveClip(null);
+    setCurrentQuestionIndex((prev) =>
+      Math.min(prev + 1, questions.length - 1),
+    );
   }, [questions.length]);
 
   const handlePrevQuestion = useCallback(() => {
     setCurrentQuestionIndex((prev) => Math.max(prev - 1, 0));
-    setActiveClip(null);
   }, []);
 
   if (!currentVideo) {
@@ -111,28 +104,8 @@ const DiscussTab: React.FC = () => {
     );
   }
 
-  const clipForPlayer = activeClip
-    ? {
-        videoId: currentVideo.videoId,
-        start: activeClip.start,
-        end: activeClip.end,
-        text: "",
-        full_text_translation: "",
-        words: [],
-      }
-    : undefined;
-
   return (
     <View style={styles.container}>
-      <View style={styles.videoContainer}>
-        <YouTubePlayer
-          videoId={currentVideo.videoId}
-          clip={clipForPlayer}
-          autoplay={autoplay}
-          refreshKey={refreshKey}
-          setTime={() => {}}
-        />
-      </View>
       <ReviewChat
         questions={questions}
         currentQuestionIndex={currentQuestionIndex}
@@ -154,12 +127,6 @@ const styles = StyleSheet.create({
   noVideoContainer: {
     flex: 1,
     backgroundColor: "#1a1a2e",
-  },
-  videoContainer: {
-    height: 230,
-    backgroundColor: "#000",
-    position: "relative",
-    marginTop: 0,
   },
 });
 

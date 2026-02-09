@@ -15,15 +15,8 @@ import {
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { RootState, SegmentWord } from "../../types";
-import {
-  setSegmentByTime,
-  setNextSegment,
-  setPreviousSegment,
-  refreshVideoPlayer,
-} from "../../store/actions/dataActions";
+import { RootState, Segment, SegmentWord } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
-import YouTubePlayer from "../common/YouTubePlayer";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
 import {
@@ -35,39 +28,70 @@ import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
 import {
   findNextSegmentWithVocab,
-  findSegmentAndSentenceByTime,
   findSentenceWithVocab,
   findTimesForVocab,
-  getSentenceData,
   normalizeWord,
   splitIntoSentences,
 } from "../../helpers";
 import ShadowResults from "./ShadowResults";
 import VocabList from "../watch/VocabList";
 import TooltipModal from "../common/TooltipModal";
-import FocusSentenceRequest from "./FocusSentenceRequest";
 
 interface ShadowTabProps {
-  segmentId?: string;
+  time: number;
+  setTime: React.Dispatch<React.SetStateAction<number>>;
+  currentSentence: number;
+  setCurrentSentence: React.Dispatch<React.SetStateAction<number>>;
+  clip: Segment | undefined;
+  sentences: SegmentWord[][];
+  currentSentenceWords: SegmentWord[];
+  sentenceStart: number;
+  sentenceEnd: number;
+  sentencesText: string[];
+  isLastSentence: boolean;
+  isFirstSentence: boolean;
+  isFirstSegment: boolean;
+  focusVocabTimes: SegmentWord[];
+  handleNextSentence: () => void;
+  handlePreviousSentence: () => void;
+  handleNextSegment: () => void;
+  handlePreviousSegment: () => void;
+  setPlayerMuted: (muted: boolean) => void;
+  setPlayerSpeed: (speed: number) => void;
+  refreshPlayer: () => void;
+  seekToTime: (targetTime: number, targetSentenceIndex?: number) => void;
 }
-const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
-  const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const clip = currentVideo?.segments[segmentId || currentVideo.currentSegment];
-  const [time, setTime] = useState<number>(0);
-  const videoRefreshKey = useSelector(
-    (state: RootState) => state.videoRefreshKey,
-  );
-  const dispatch = useDispatch();
 
-  // Sentence tracking state
-  const [currentSentence, setCurrentSentence] = useState<number>(0);
-  const [sentenceEnded, setSentenceEnded] = useState<boolean>(false);
+const ShadowTab: React.FC<ShadowTabProps> = ({
+  time,
+  setTime,
+  currentSentence,
+  setCurrentSentence,
+  clip,
+  sentences,
+  currentSentenceWords,
+  sentenceStart,
+  sentenceEnd,
+  sentencesText,
+  isLastSentence,
+  isFirstSentence,
+  isFirstSegment,
+  focusVocabTimes,
+  handleNextSentence: parentHandleNextSentence,
+  handlePreviousSentence: parentHandlePreviousSentence,
+  handleNextSegment,
+  handlePreviousSegment,
+  setPlayerMuted,
+  setPlayerSpeed,
+  refreshPlayer,
+  seekToTime,
+}) => {
+  const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Speed control state
+  // Speed control state (internal settings)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [recordSpeed, setRecordSpeed] = useState<number>(0.75);
-
   const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
     useState<boolean>(true);
 
@@ -77,58 +101,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
     null,
   );
-  const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState<boolean>(false);
-  // Tracks when we're in recording mode (includes countdown, recording, and buffer phases)
   const [isRecordingMode, setIsRecordingMode] = useState<boolean>(false);
+  const [sentenceEnded, setSentenceEnded] = useState<boolean>(false);
   const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
     useState<boolean>(false);
-  // Track if recording should auto-stop when segment ends
   const shouldAutoStopRef = useRef<boolean>(false);
-
-  // Seek detection: track previous time to detect large jumps (manual seeks)
-  const prevTimeRef = useRef<number>(-1);
-  // Guard to ignore time updates while transitioning between segments
-  const isTransitioningRef = useRef<boolean>(false);
-
-  const clipWords = clip?.words || [];
-  const {
-    sentences,
-    currentSentenceWords,
-    sentenceStart,
-    sentenceEnd,
-    isLastSentence,
-    isFirstSentence,
-    isFirstSegment,
-    sentencesText,
-  } = useMemo(
-    () =>
-      getSentenceData(
-        clipWords,
-        currentSentence,
-        clip?.start ?? 0,
-        clip?.end ?? 0,
-        currentVideo?.currentSegment ?? 0,
-      ),
-    [
-      clipWords,
-      currentSentence,
-      clip?.start,
-      clip?.end,
-      currentVideo?.currentSegment,
-    ],
-  );
-
-  const allWords = useSelector(
-    (state: RootState) => state.currentVideo?.allWords,
-  );
-  const focusVocabTimes = useMemo(
-    () => findTimesForVocab(allWords, currentVideo),
-    [currentVideo, allWords],
-  );
-
-  // Determine current playback speed based on recording state
-  const [currentSpeed, setCurrentSpeed] = useState<number>(playbackSpeed);
 
   // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
@@ -137,13 +115,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
       setError(null);
 
       try {
-        // Send audio to backend for transcription
         const result = await sendAudioForTranscription(audioUri);
-
-        // Extract words from transcript
         const spokenWords = result.transcript.split(/\s+/).filter(Boolean);
-
-        // Get target words from current sentence
         const targetWords = currentSentenceWords.map((w) => w.word);
         const ignoredWords = currentSentenceWords
           .filter((w) => {
@@ -152,13 +125,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
           })
           .map((w) => w.word);
 
-        // Calculate accuracy
         const accuracy = calculateAccuracy(
           spokenWords,
           targetWords,
           ignoredWords,
         );
-
         setAccuracyResult(accuracy);
       } catch (err) {
         console.error("Transcription error:", err);
@@ -178,26 +149,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
       onError: (message) => setError(message),
     });
 
-  // Reset state when segment changes
+  // Reset shadow-specific state when segment changes
   useEffect(() => {
     setError(null);
     setAccuracyResult(null);
     setIsProcessing(false);
-    setIsVideoMuted(false);
+    setPlayerMuted(false);
     setIsRecordingMode(false);
     shouldAutoStopRef.current = false;
     setSentenceEnded(false);
-    // Reset prev time so first update in new segment isn't mistaken for a seek
-    prevTimeRef.current = -1;
     if (recordingExtensionRef.current) {
       clearTimeout(recordingExtensionRef.current);
       recordingExtensionRef.current = null;
     }
-    // Clear the transitioning guard after a brief delay for the WebView to remount
-    const transitionTimer = setTimeout(() => {
-      isTransitioningRef.current = false;
-    }, 500);
-    return () => clearTimeout(transitionTimer);
   }, [currentVideo?.currentSegment]);
 
   // Detect when sentence ends (for CountdownTimer to show buffer)
@@ -221,69 +185,28 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     };
   }, [currentSentence]);
 
-  const handleSetTime = (newTime: number) => {
-    // Ignore time updates while transitioning between segments (prevents feedback loops)
-    if (isTransitioningRef.current) {
-      return;
-    }
-
-    const prevTime = prevTimeRef.current;
-    prevTimeRef.current = newTime;
-
-    // Detect manual seek: a large time jump (>2s) that lands outside the current clip.
-    // Skip on the very first time update (prevTime === -1) to avoid false positives.
-    if (
-      prevTime !== -1 &&
-      Math.abs(newTime - prevTime) > 2 &&
-      clip &&
-      (newTime < clip.start - 0.5 || newTime > clip.end + 0.5)
-    ) {
-      const result = findSegmentAndSentenceByTime(
-        newTime,
-        currentVideo.segments,
-        currentVideo.currentSegment,
-      );
-
-      if (result) {
-        // Lock out further time updates until the WebView remounts
-        isTransitioningRef.current = true;
-
-        // Reset local state for the new segment/sentence
-        setCurrentSentence(result.sentenceIndex);
-        setAccuracyResult(null);
-        setSentenceEnded(false);
-        setIsRecordingMode(false);
-        setError(null);
-        if (recordingExtensionRef.current) {
-          clearTimeout(recordingExtensionRef.current);
-          recordingExtensionRef.current = null;
-        }
-
-        dispatch(setSegmentByTime(newTime));
-        dispatch(refreshVideoPlayer());
-        return;
-      }
-    }
-
-    if (newTime < sentenceStart) {
-      return;
-    }
-    setTime(newTime);
-  };
-
-  // Enter recording mode (shows countdown, then starts recording)
-  const handleEnterRecordingMode = () => {
-    // Reset previous results
-    setAccuracyResult(null);
-    setError(null);
-    handleSetTime(sentenceStart);
-    setSentenceEnded(false);
-    setIsRecordingMode(true);
-    // Clear any existing timer
+  const clearRecordingTimer = () => {
     if (recordingExtensionRef.current) {
       clearTimeout(recordingExtensionRef.current);
       recordingExtensionRef.current = null;
     }
+  };
+
+  // Helper to refresh player with specific speed and mute settings
+  const refreshVideoPlayerAndState = (speed: number, muted: boolean) => {
+    setPlayerSpeed(speed);
+    setPlayerMuted(muted);
+    refreshPlayer();
+  };
+
+  // Enter recording mode (shows countdown, then starts recording)
+  const handleEnterRecordingMode = () => {
+    setAccuracyResult(null);
+    setError(null);
+    setTime(sentenceStart);
+    setSentenceEnded(false);
+    setIsRecordingMode(true);
+    clearRecordingTimer();
   };
 
   // Called by CountdownTimer after 3-second countdown
@@ -297,79 +220,43 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const handleStopRecording = async () => {
     shouldAutoStopRef.current = false;
     setIsRecordingMode(false);
-    // pause video
     await stopRecording();
-    // Keep muted until user takes action (results will be shown)
   };
 
-  const handleNextSegment = () => {
-    // Move to next segment and unmute
-    setIsVideoMuted(false);
-    dispatch(setNextSegment());
-  };
-
-  const handlePreviousSegment = () => {
-    // Move to previous segment and unmute
-    setIsVideoMuted(false);
-    dispatch(setPreviousSegment());
-  };
-
-  const handlePreviousSentence = () => {
+  // Shadow-specific sentence navigation (wraps parent with recording state cleanup)
+  const handleShadowPreviousSentence = () => {
     if (isFirstSentence) {
       if (!isFirstSegment) {
         setCurrentSentence(sentences.length - 1);
         handlePreviousSegment();
       }
     } else {
-      // Move to previous sentence within the same segment
       setCurrentSentence((prev) => prev - 1);
       setAccuracyResult(null);
       setSentenceEnded(false);
-      // Clear any existing timer
-      if (recordingExtensionRef.current) {
-        clearTimeout(recordingExtensionRef.current);
-        recordingExtensionRef.current = null;
-      }
+      clearRecordingTimer();
       refreshVideoPlayerAndState(playbackSpeed, false);
     }
   };
 
-  const refreshVideoPlayerAndState = (speed: number, muted: boolean) => {
-    // Reset so the first time update from the remounted player isn't
-    // mistaken for a manual seek (it may briefly report time ~0).
-    prevTimeRef.current = -1;
-    setCurrentSpeed(speed);
-    setIsVideoMuted(muted);
-    dispatch(refreshVideoPlayer());
-  };
-
-  const handleNextSentence = () => {
+  const handleShadowNextSentence = () => {
     if (isLastSentence) {
-      // Move to next segment if this was the last sentence
       handleNextSegment();
     } else {
-      // Move to next sentence within the same segment
       setCurrentSentence((prev) => prev + 1);
       setAccuracyResult(null);
       setSentenceEnded(false);
-      // Clear any existing timer
-      if (recordingExtensionRef.current) {
-        clearTimeout(recordingExtensionRef.current);
-        recordingExtensionRef.current = null;
-      }
+      clearRecordingTimer();
       refreshVideoPlayerAndState(playbackSpeed, false);
     }
   };
 
   const handlePlaySnippetAgain = () => {
     setIsRecordingMode(false);
-    handleSetTime(sentenceStart);
+    setTime(sentenceStart);
     setAccuracyResult(null);
     setSentenceEnded(false);
-    if (recordingExtensionRef.current) {
-      clearTimeout(recordingExtensionRef.current);
-      recordingExtensionRef.current = null;
-    }
+    clearRecordingTimer();
     refreshVideoPlayerAndState(playbackSpeed, false);
   };
 
@@ -381,8 +268,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
     const [nextSegment, nextFocusVocabTime] = findNextSegmentWithVocab(
       focusVocabTimes,
       word,
-      currentVideo.segments,
-      currentVideo.currentSegment,
+      currentVideo!.segments,
+      currentVideo!.currentSegment,
     );
     if (nextSegment && nextFocusVocabTime) {
       const sentence = findSentenceWithVocab(
@@ -390,17 +277,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
         nextFocusVocabTime.start,
       );
       if (sentence && sentence >= 0) {
-        setCurrentSentence(sentence);
-        setSentenceEnded(false);
         setAccuracyResult(null);
-        if (recordingExtensionRef.current) {
-          clearTimeout(recordingExtensionRef.current);
-          recordingExtensionRef.current = null;
-        }
-        // setTime(nextSegment.words[sentence].start);
-        // dispatch(setSegmentByTime(nextSegment.words[sentence].start));
-        const sentences = splitIntoSentences(nextSegment.words);
-        handleSetTime(sentences[sentence][0].start);
+        setSentenceEnded(false);
+        clearRecordingTimer();
+        const sentencesInSegment = splitIntoSentences(nextSegment.words);
+        seekToTime(sentencesInSegment[sentence][0].start, sentence);
         return;
       }
     }
@@ -414,23 +295,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   return (
     <>
       <View style={styles.container}>
-        <View style={styles.videoContainer}>
-          <YouTubePlayer
-            clip={{
-              ...clip,
-              start: sentenceStart,
-              end: sentenceEnd,
-              videoId: currentVideo.videoId,
-            }}
-            videoId={currentVideo.videoId}
-            autoplay={true}
-            refreshKey={videoRefreshKey}
-            setTime={handleSetTime}
-            muted={isVideoMuted}
-            playbackSpeed={currentSpeed}
-          />
-        </View>
-
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
@@ -447,11 +311,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
               </Text>
             </View>
           ) : accuracyResult ? (
-            // Show results
             <ShadowResults
               accuracyResult={accuracyResult}
               handleEnterRecordingMode={handleEnterRecordingMode}
-              handleNextSentence={handleNextSentence}
+              handleNextSentence={handleShadowNextSentence}
               handlePlaySnippetAgain={handlePlaySnippetAgain}
             />
           ) : isRecordingMode ? (
@@ -481,7 +344,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                       isFirstSegment &&
                       styles.navButtonDisabled,
                   ]}
-                  onPress={handlePreviousSentence}
+                  onPress={handleShadowPreviousSentence}
                   disabled={isFirstSentence && isFirstSegment}
                 >
                   <MaterialIcons
@@ -499,7 +362,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.prevSentenceButton}
-                  onPress={handleNextSentence}
+                  onPress={handleShadowNextSentence}
                 >
                   <MaterialIcons name="chevron-right" size={24} color="black" />
                 </TouchableOpacity>
@@ -528,17 +391,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   <Text style={styles.recordButtonText}>Record Yourself</Text>
                 </TouchableOpacity>
               </View>
-              {/* {clip && (
-                <FocusSentenceRequest
-                  sentenceIndex={currentSentence}
-                  translation={
-                    clip.full_text_translation.split(".")[currentSentence]
-                  }
-                  sentenceText={sentencesText[currentSentence][0]}
-                  segmentIndex={currentVideo.currentSegment}
-                  videoViewId={Number(currentVideo.videoViewId)}
-                />
-              )} */}
               <VocabList
                 vocab={focusVocabTimes}
                 time={time}
@@ -582,12 +434,6 @@ export const styles = StyleSheet.create({
   },
   transcriptContainer: {
     flex: 1,
-  },
-  videoContainer: {
-    height: 230,
-    backgroundColor: "#000",
-    position: "relative",
-    marginTop: 0,
   },
   settingsButton: {
     backgroundColor: "white",

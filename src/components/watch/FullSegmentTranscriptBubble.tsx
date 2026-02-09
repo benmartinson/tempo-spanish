@@ -36,7 +36,7 @@ const FullSegmentTranscriptBubble: React.FC<
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
-    {}
+    {},
   );
   const [isActive, setIsActive] = useState(false);
   const prevWordsRef = useRef<SegmentWord[]>([]);
@@ -50,7 +50,7 @@ const FullSegmentTranscriptBubble: React.FC<
         word: word.word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ""),
         translation: word.translation.replace(
           /[.,\/#!$%\^&\*;:{}=\-_`~()]/g,
-          ""
+          "",
         ),
       };
       setTooltipWord(cleanWord);
@@ -89,7 +89,7 @@ const FullSegmentTranscriptBubble: React.FC<
         return i;
       }
     }
-    return -1;
+    return 0;
   }, [words, time, mode, currentTargetIndex]);
 
   // Activate when we first hit a valid word (video mode) or immediately (shadow mode)

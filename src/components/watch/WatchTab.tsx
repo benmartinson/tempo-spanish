@@ -7,12 +7,10 @@ import {
   TouchableOpacity,
   Text,
 } from "react-native";
-import YouTubePlayer from "../common/YouTubePlayer";
-import { RootState, SegmentWord, VideoContext, Vocabulary } from "../../types";
+import { RootState, Segment, SegmentWord, VideoContext, Vocabulary } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import {
   setCurrentTab,
-  setSegmentByTime,
   refreshVideoPlayer,
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
@@ -31,40 +29,53 @@ import {
   normalizeWord,
   alreadyKnownVocab,
   ignoreVocab,
-  findTimesForVocab,
-  findSegmentAndSentenceByTime,
-  getSentenceData,
 } from "../../helpers";
-import FocusSentenceRequest from "../shadow/FocusSentenceRequest";
 
-const WatchTab: React.FC = () => {
+interface WatchTabProps {
+  time: number;
+  currentSentence: number;
+  setCurrentSentence: React.Dispatch<React.SetStateAction<number>>;
+  clip: Segment | undefined;
+  sentences: SegmentWord[][];
+  sentencesText: string[];
+  sentenceStart: number;
+  sentenceEnd: number;
+  focusVocabTimes: SegmentWord[];
+  setAutoplay: (autoplay: boolean) => void;
+  refreshPlayer: () => void;
+}
+
+const WatchTab: React.FC<WatchTabProps> = ({
+  time,
+  currentSentence,
+  setCurrentSentence,
+  clip,
+  sentences,
+  sentencesText,
+  sentenceStart,
+  sentenceEnd,
+  focusVocabTimes,
+  setAutoplay,
+  refreshPlayer,
+}) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const userKnownVocab = useSelector(
     (state: RootState) => state.userKnownVocab,
   );
   const navigation = useNavigation();
-  const clip = currentVideo?.segments[currentVideo.currentSegment];
-  const [time, setTime] = useState<number>(0);
   const [isModalVisible, setIsModalVisible] = useState(
     currentVideo && currentVideo.focusVocab.length > 0 ? false : true,
   );
   const [isVocabTestVisible, setIsVocabTestVisible] = useState(false);
   const [isActionsModalVisible, setIsActionsModalVisible] = useState(false);
-  const timeRemaining = Math.floor(Math.max((clip?.end ?? 0) - time, 0));
   const dispatch = useDispatch();
-  const isClip = false;
   const allWords = useSelector(
     (state: RootState) => state.currentVideo?.allWords,
-  );
-  const focusVocabTimes = useMemo(
-    () => findTimesForVocab(allWords, currentVideo),
-    [currentVideo?.focusVocab, allWords],
   );
 
   const [userSelectedVocab, setUserSelectedVocab] = useState<string[]>([]);
   const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
-  const [currentSentence, setCurrentSentence] = useState<number>(0);
 
   const handleAddToFocusVocab = () => {
     setUserSelectedVocab(currentVideo?.focusVocab.map((v) => v.word) || []);
@@ -100,25 +111,6 @@ const WatchTab: React.FC = () => {
     Vocabulary[]
   >([]);
   const vocabularyForVideoRef = useRef<Vocabulary[]>([]);
-
-  const clipWords = clip?.words || [];
-  const { sentences, sentencesText, sentenceStart, sentenceEnd } = useMemo(
-    () =>
-      getSentenceData(
-        clipWords,
-        currentSentence,
-        clip?.start ?? 0,
-        clip?.end ?? 0,
-        currentVideo?.currentSegment ?? 0,
-      ),
-    [
-      clipWords,
-      currentSentence,
-      clip?.start,
-      clip?.end,
-      currentVideo?.currentSegment,
-    ],
-  );
 
   useEffect(() => {
     const normalizedExcluded = new Set(
@@ -183,54 +175,12 @@ const WatchTab: React.FC = () => {
   const vocabLoading = allWords?.length > 0 && allVocabulary.length === 0;
 
   const [vocabSelectionStep, setVocabSelectionStep] = useState<number>(1);
-  const videoRefreshKey = useSelector(
-    (state: RootState) => state.videoRefreshKey,
-  );
   const [selectedBubble, setSelectedBubble] = useState<string>("large");
-  const [autoplay, setAutoplay] = useState<boolean>(false);
-
-  const handleSetTime = (newTime: number) => {
-    if (newTime >= 1 && clip && (newTime < clip.start || newTime > clip.end)) {
-      const result = findSegmentAndSentenceByTime(
-        newTime,
-        currentVideo.segments,
-        currentVideo.currentSegment,
-      );
-      if (result) {
-        setCurrentSentence(result.sentenceIndex);
-        dispatch(setSegmentByTime(newTime));
-      }
-      return;
-    }
-
-    // Detect which sentence the current time falls into
-    for (let i = 0; i < sentences.length; i++) {
-      const words = sentences[i];
-      if (words.length === 0) continue;
-      const sStart = words[0].start;
-      const sEnd = words[words.length - 1].end;
-      if (newTime >= sStart && newTime <= sEnd + 0.15) {
-        if (i !== currentSentence) {
-          setCurrentSentence(i);
-        }
-        break;
-      }
-    }
-
-    const newTimeRemaining = Math.max(Math.ceil((clip?.end ?? 0) - newTime), 0);
-    if (newTimeRemaining < 1 && timeRemaining >= 0) {
-      if (isClip) {
-        dispatch(setCurrentTab("discuss"));
-        // navigation.navigate("Discuss" as never);
-      }
-    }
-    setTime(newTime);
-  };
 
   const handleConfirmVocab = () => {
     setIsModalVisible(false);
     setAutoplay(true);
-    dispatch(refreshVideoPlayer());
+    refreshPlayer();
   };
 
   const handleOpenVocabTest = () => {
@@ -241,15 +191,11 @@ const WatchTab: React.FC = () => {
   const handleShadow = () => {
     setIsActionsModalVisible(false);
     dispatch(setCurrentTab("shadow"));
-    // (navigation as any).navigate("Shadow", {
-    //   segmentId: currentVideo?.currentSegment,
-    // });
   };
 
   const handleDiscuss = () => {
     setIsActionsModalVisible(false);
     dispatch(setCurrentTab("discuss"));
-    // (navigation as any).navigate("Discuss");
   };
 
   if (!currentVideo) {
@@ -259,16 +205,6 @@ const WatchTab: React.FC = () => {
   return (
     <>
       <View style={styles.container}>
-        <View style={styles.videoContainer}>
-          <YouTubePlayer
-            // clip={{ ...clip, videoId: currentVideo.videoId }}
-            videoId={currentVideo.videoId}
-            autoplay={autoplay}
-            refreshKey={videoRefreshKey}
-            setTime={handleSetTime}
-            // videoText={focusedWordCountdownTime ? `Selected vocab word appearing in ${focusedWordCountdownTime}` : undefined}
-          />
-        </View>
         <ScrollView style={styles.transcriptContainer}>
           <BubbleSelector
             selectedBubble={selectedBubble}
@@ -290,17 +226,6 @@ const WatchTab: React.FC = () => {
               time={time}
             />
           )}
-          {/* {clip && sentencesText?.length > 0 && (
-            <FocusSentenceRequest
-              sentenceIndex={currentSentence}
-              translation={
-                clip.full_text_translation.split(".")[currentSentence]
-              }
-              sentenceText={sentencesText[currentSentence]}
-              segmentIndex={currentVideo.currentSegment}
-              videoViewId={Number(currentVideo.videoViewId)}
-            />
-          )} */}
           {focusVocabTimes && (
             <>
               <VocabList
@@ -414,12 +339,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  videoContainer: {
-    height: 230,
-    backgroundColor: "#000",
-    position: "relative",
-    marginTop: 0,
-  },
   countdownContainer: {
     position: "absolute",
     bottom: 10,
@@ -434,7 +353,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-
   loader: {
     marginLeft: 8,
   },

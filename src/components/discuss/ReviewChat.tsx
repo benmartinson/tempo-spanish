@@ -139,7 +139,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             user_answer: userAnswer.trim(),
             context_segments: contextSegments.map((s) => ({ text: s.text })),
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -248,9 +248,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         {currentQuestion && (
           <View style={styles.questionBubble}>
             <Text style={styles.questionLabel}>Question</Text>
-            <Text style={styles.questionText}>
-              {currentQuestion.question}
-            </Text>
+            <Text style={styles.questionText}>{currentQuestion.question}</Text>
           </View>
         )}
 
@@ -265,9 +263,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             </View>
           ) : contextSegments.length > 0 ? (
             <>
-              <Text style={styles.contextTitle}>
-                Context Clips
-              </Text>
+              <Text style={styles.contextTitle}>Context Clips</Text>
               <View style={styles.timestampRow}>
                 {contextSegments.map((segment, index) => (
                   <TouchableOpacity
@@ -616,6 +612,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingHorizontal: 12,
     paddingVertical: 10,
+    paddingBottom: 40,
     borderTopWidth: 1,
     borderTopColor: "#eee",
     backgroundColor: "#fafafa",

@@ -30,6 +30,7 @@ import VideoList from "./src/components/video-list/VideoList";
 import SelectedVideoBanner from "./src/components/common/SelectedVideoBanner";
 import NavTabBanner from "./src/components/common/NavTabBanner";
 import ShadowTab from "./src/components/shadow/ShadowTab";
+import SelectedVideoTabs from "./src/components/common/SelectedVideoTabs";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -191,16 +192,7 @@ const AuthenticatedApp: React.FC = () => {
   };
 
   const renderTabContent = () => {
-    switch (selectedNavTab) {
-      case "watch":
-        return <WatchTab />;
-      case "shadow":
-        return <ShadowTab />;
-      case "review":
-        return <DiscussTab />;
-      default:
-        return <WatchTab />;
-    }
+    return <SelectedVideoTabs selectedNavTab={selectedNavTab} />;
   };
 
   if (showTabsBelow) {
