@@ -114,7 +114,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   // When switching to Shadow, the video keeps playing and handleSetTime
   // will pause it at the current sentence end.
   useEffect(() => {
-    if (selectedNavTab === "watch" || selectedNavTab === "review") {
+    if (selectedNavTab === "watch") {
       playerRef.current?.disableClipEnforcement();
     }
   }, [selectedNavTab]);
@@ -224,24 +224,40 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     } else {
       setCurrentSentence((prev) => prev - 1);
     }
-  }, [isFirstSentence, isFirstSegment, sentences.length, handlePreviousSegment]);
+  }, [
+    isFirstSentence,
+    isFirstSegment,
+    sentences.length,
+    handlePreviousSegment,
+  ]);
 
   const refreshPlayer = useCallback(() => {
     prevTimeRef.current = -1;
     dispatch(refreshVideoPlayerAction());
   }, [dispatch]);
 
-  // Seek to a specific time (triggers segment change if needed)
+  // Seek to a specific time (triggers segment change if needed).
+  // In Watch/Review mode: seeks the player directly via injected JS (no reload),
+  // preserving free-play behavior.
+  // In Shadow mode: reloads the player so the URL gets the correct sentence clip.
   const seekToTime = useCallback(
     (targetTime: number, targetSentenceIndex?: number) => {
-      isTransitioningRef.current = true;
       if (targetSentenceIndex !== undefined) {
         setCurrentSentence(targetSentenceIndex);
       }
       dispatch(setSegmentByTime(targetTime));
-      dispatch(refreshVideoPlayerAction());
+
+      if (selectedNavTab === "watch" || selectedNavTab === "review") {
+        // Seek directly without reloading - keeps free play intact
+        playerRef.current?.seekTo(targetTime);
+        prevTimeRef.current = -1;
+      } else {
+        // Shadow mode needs a reload to set sentence clip boundaries in the URL
+        isTransitioningRef.current = true;
+        dispatch(refreshVideoPlayerAction());
+      }
     },
-    [dispatch],
+    [dispatch, selectedNavTab],
   );
 
   // Callback for DiscussTab to request clip playback
@@ -329,6 +345,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           focusVocabTimes={focusVocabTimes}
           setAutoplay={setAutoplay}
           refreshPlayer={refreshPlayer}
+          seekToTime={seekToTime}
         />
       )}
       {selectedNavTab === "shadow" && (

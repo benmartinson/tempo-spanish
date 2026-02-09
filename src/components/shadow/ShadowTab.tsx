@@ -391,12 +391,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   <Text style={styles.recordButtonText}>Record Yourself</Text>
                 </TouchableOpacity>
               </View>
-              <VocabList
+              {/* <VocabList
                 vocab={focusVocabTimes}
                 time={time}
                 onSkipToVocab={handleSkipToVocab}
                 header="Skip to selected vocab"
-              />
+              /> */}
             </>
           )}
         </ScrollView>

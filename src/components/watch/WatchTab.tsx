@@ -7,7 +7,13 @@ import {
   TouchableOpacity,
   Text,
 } from "react-native";
-import { RootState, Segment, SegmentWord, VideoContext, Vocabulary } from "../../types";
+import {
+  RootState,
+  Segment,
+  SegmentWord,
+  VideoContext,
+  Vocabulary,
+} from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import {
   setCurrentTab,
@@ -29,7 +35,11 @@ import {
   normalizeWord,
   alreadyKnownVocab,
   ignoreVocab,
+  findSentenceWithVocab,
+  splitIntoSentences,
+  findNextSegmentWithVocab,
 } from "../../helpers";
+import TooltipModal from "../common/TooltipModal";
 
 interface WatchTabProps {
   time: number;
@@ -43,6 +53,7 @@ interface WatchTabProps {
   focusVocabTimes: SegmentWord[];
   setAutoplay: (autoplay: boolean) => void;
   refreshPlayer: () => void;
+  seekToTime: (targetTime: number, targetSentenceIndex?: number) => void;
 }
 
 const WatchTab: React.FC<WatchTabProps> = ({
@@ -57,6 +68,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
   focusVocabTimes,
   setAutoplay,
   refreshPlayer,
+  seekToTime,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
@@ -76,6 +88,8 @@ const WatchTab: React.FC<WatchTabProps> = ({
 
   const [userSelectedVocab, setUserSelectedVocab] = useState<string[]>([]);
   const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
+  const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
+    useState<boolean>(false);
 
   const handleAddToFocusVocab = () => {
     setUserSelectedVocab(currentVideo?.focusVocab.map((v) => v.word) || []);
@@ -188,14 +202,26 @@ const WatchTab: React.FC<WatchTabProps> = ({
     setIsVocabTestVisible(true);
   };
 
-  const handleShadow = () => {
-    setIsActionsModalVisible(false);
-    dispatch(setCurrentTab("shadow"));
-  };
-
-  const handleDiscuss = () => {
-    setIsActionsModalVisible(false);
-    dispatch(setCurrentTab("discuss"));
+  const handleSkipToVocab = (word: SegmentWord) => {
+    const [nextSegment, nextFocusVocabTime] = findNextSegmentWithVocab(
+      focusVocabTimes,
+      word,
+      currentVideo!.segments,
+      currentVideo!.currentSegment,
+    );
+    if (nextSegment && nextFocusVocabTime) {
+      const sentence = findSentenceWithVocab(
+        nextSegment,
+        nextFocusVocabTime.start,
+      );
+      if (sentence && sentence >= 0) {
+        const sentencesInSegment = splitIntoSentences(nextSegment.words);
+        setAutoplay(true);
+        seekToTime(sentencesInSegment[sentence][0].start, sentence);
+        return;
+      }
+    }
+    setShowNoVocabFoundTooltip(true);
   };
 
   if (!currentVideo) {
@@ -231,16 +257,9 @@ const WatchTab: React.FC<WatchTabProps> = ({
               <VocabList
                 vocab={focusVocabTimes}
                 time={time}
+                onSkipToVocab={handleSkipToVocab}
                 addToFocusVocab={handleAddToFocusVocab}
               />
-              <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
-                <TouchableOpacity
-                  style={styles.vocabTestButton}
-                  onPress={() => setIsActionsModalVisible(true)}
-                >
-                  <Text style={styles.vocabTestButtonText}>Actions</Text>
-                </TouchableOpacity>
-              </View>
             </>
           )}
         </ScrollView>
@@ -280,14 +299,16 @@ const WatchTab: React.FC<WatchTabProps> = ({
         onClose={() => setIsVocabTestVisible(false)}
         vocab={currentVideo.focusVocab}
       />
-
-      <ActionsModal
-        visible={isActionsModalVisible}
-        onClose={() => setIsActionsModalVisible(false)}
-        onStartVocabTest={handleOpenVocabTest}
-        onShadow={handleShadow}
-        onDiscuss={handleDiscuss}
-      />
+      {showNoVocabFoundTooltip && (
+        <TooltipModal
+          isVisible={showNoVocabFoundTooltip}
+          onRequestClose={() => setShowNoVocabFoundTooltip(false)}
+        >
+          <Text style={styles.noVocabFoundTooltipText}>
+            Vocab is in this segment or a previous segment
+          </Text>
+        </TooltipModal>
+      )}
     </>
   );
 };
@@ -312,6 +333,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     margin: 16,
+  },
+  noVocabFoundTooltipText: {
+    color: "#fff",
+    textAlign: "center",
   },
   questionContextText: {
     color: "#888",

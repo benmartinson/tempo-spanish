@@ -84,9 +84,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({ onPlayClip }) => {
 
   // Navigate between questions
   const handleNextQuestion = useCallback(() => {
-    setCurrentQuestionIndex((prev) =>
-      Math.min(prev + 1, questions.length - 1),
-    );
+    setCurrentQuestionIndex((prev) => Math.min(prev + 1, questions.length - 1));
   }, [questions.length]);
 
   const handlePrevQuestion = useCallback(() => {
