@@ -3,7 +3,6 @@ import { View, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
 import { RootState, VideoQuestion, ContextSegment } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
-import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import YouTubePlayer from "../common/YouTubePlayer";
 import ReviewChat from "./ReviewChat";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
@@ -124,29 +123,26 @@ const DiscussTab: React.FC = () => {
     : undefined;
 
   return (
-    <>
-      <SelectedVideoBanner />
-      <View style={styles.container}>
-        <View style={styles.videoContainer}>
-          <YouTubePlayer
-            videoId={currentVideo.videoId}
-            clip={clipForPlayer}
-            autoplay={autoplay}
-            refreshKey={refreshKey}
-            setTime={() => {}}
-          />
-        </View>
-        <ReviewChat
-          questions={questions}
-          currentQuestionIndex={currentQuestionIndex}
-          questionsLoading={questionsLoading}
+    <View style={styles.container}>
+      <View style={styles.videoContainer}>
+        <YouTubePlayer
           videoId={currentVideo.videoId}
-          onNextQuestion={handleNextQuestion}
-          onPrevQuestion={handlePrevQuestion}
-          onPlayClip={handlePlayClip}
+          clip={clipForPlayer}
+          autoplay={autoplay}
+          refreshKey={refreshKey}
+          setTime={() => {}}
         />
       </View>
-    </>
+      <ReviewChat
+        questions={questions}
+        currentQuestionIndex={currentQuestionIndex}
+        questionsLoading={questionsLoading}
+        videoId={currentVideo.videoId}
+        onNextQuestion={handleNextQuestion}
+        onPrevQuestion={handlePrevQuestion}
+        onPlayClip={handlePlayClip}
+      />
+    </View>
   );
 };
 

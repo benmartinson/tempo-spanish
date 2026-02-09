@@ -16,7 +16,7 @@ const SelectedVideoBanner: React.FC = () => {
     return null;
   }
   const video = (allVideos || []).find(
-    (video) => video.video_id === currentVideo.videoId
+    (video) => video.video_id === currentVideo.videoId,
   );
   if (!video) {
     return null;
@@ -26,7 +26,7 @@ const SelectedVideoBanner: React.FC = () => {
       style={styles.container}
       onPress={() => {
         dispatch(setCurrentTab("watch"));
-        navigation.navigate("Watch" as never);
+        // navigation.navigate("Watch" as never);
       }}
     >
       <Text style={styles.title}>{video.title}</Text>

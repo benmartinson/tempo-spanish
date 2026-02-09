@@ -23,7 +23,6 @@ import {
   refreshVideoPlayer,
 } from "../../store/actions/dataActions";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
-import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import YouTubePlayer from "../common/YouTubePlayer";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
@@ -56,7 +55,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const clip = currentVideo?.segments[segmentId || currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
   const videoRefreshKey = useSelector(
-    (state: RootState) => state.videoRefreshKey
+    (state: RootState) => state.videoRefreshKey,
   );
   const dispatch = useDispatch();
 
@@ -76,7 +75,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
-    null
+    null,
   );
   const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState<boolean>(false);
@@ -109,7 +108,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
         currentSentence,
         clip?.start ?? 0,
         clip?.end ?? 0,
-        currentVideo?.currentSegment ?? 0
+        currentVideo?.currentSegment ?? 0,
       ),
     [
       clipWords,
@@ -117,15 +116,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
       clip?.start,
       clip?.end,
       currentVideo?.currentSegment,
-    ]
+    ],
   );
 
   const allWords = useSelector(
-    (state: RootState) => state.currentVideo?.allWords
+    (state: RootState) => state.currentVideo?.allWords,
   );
   const focusVocabTimes = useMemo(
     () => findTimesForVocab(allWords, currentVideo),
-    [currentVideo, allWords]
+    [currentVideo, allWords],
   );
 
   // Determine current playback speed based on recording state
@@ -157,20 +156,20 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
         const accuracy = calculateAccuracy(
           spokenWords,
           targetWords,
-          ignoredWords
+          ignoredWords,
         );
 
         setAccuracyResult(accuracy);
       } catch (err) {
         console.error("Transcription error:", err);
         setError(
-          err instanceof Error ? err.message : "Failed to process audio"
+          err instanceof Error ? err.message : "Failed to process audio",
         );
       } finally {
         setIsProcessing(false);
       }
     },
-    [currentSentenceWords]
+    [currentSentenceWords],
   );
 
   const { isRecording, hasPermission, startRecording, stopRecording } =
@@ -242,7 +241,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
       const result = findSegmentAndSentenceByTime(
         newTime,
         currentVideo.segments,
-        currentVideo.currentSegment
+        currentVideo.currentSegment,
       );
 
       if (result) {
@@ -383,12 +382,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
       focusVocabTimes,
       word,
       currentVideo.segments,
-      currentVideo.currentSegment
+      currentVideo.currentSegment,
     );
     if (nextSegment && nextFocusVocabTime) {
       const sentence = findSentenceWithVocab(
         nextSegment,
-        nextFocusVocabTime.start
+        nextFocusVocabTime.start,
       );
       if (sentence && sentence >= 0) {
         setCurrentSentence(sentence);
@@ -414,7 +413,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
 
   return (
     <>
-      <SelectedVideoBanner />
       <View style={styles.container}>
         <View style={styles.videoContainer}>
           <YouTubePlayer
@@ -530,7 +528,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   <Text style={styles.recordButtonText}>Record Yourself</Text>
                 </TouchableOpacity>
               </View>
-              {clip && (
+              {/* {clip && (
                 <FocusSentenceRequest
                   sentenceIndex={currentSentence}
                   translation={
@@ -540,7 +538,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({ segmentId }) => {
                   segmentIndex={currentVideo.currentSegment}
                   videoViewId={Number(currentVideo.videoViewId)}
                 />
-              )}
+              )} */}
               <VocabList
                 vocab={focusVocabTimes}
                 time={time}

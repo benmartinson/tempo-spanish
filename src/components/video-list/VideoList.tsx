@@ -32,7 +32,7 @@ const VideoList: React.FC = () => {
   const allChannels = useSelector((state: RootState) => state.allChannels);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const userVideoViews = useSelector(
-    (state: RootState) => state.userVideoViews
+    (state: RootState) => state.userVideoViews,
   );
   const navigation = useNavigation();
 
@@ -66,7 +66,7 @@ const VideoList: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
     if (!response.ok) {
       throw new Error("Failed to get initial message");
@@ -85,7 +85,7 @@ const VideoList: React.FC = () => {
         {
           onConflict: "user_id,video_id",
           ignoreDuplicates: false,
-        }
+        },
       )
       .select("id");
 
@@ -101,7 +101,7 @@ const VideoList: React.FC = () => {
           word,
           translation
         )
-      `
+      `,
       )
       .eq("video_view_id", videoViewId);
 
@@ -131,13 +131,13 @@ const VideoList: React.FC = () => {
 
     dispatch(setCurrentVideo(video));
     dispatch(setCurrentTab("watch"));
-    navigation.navigate("Watch" as never);
+    // navigation.navigate("Watch" as never);
     setLoadingVideo(false);
   };
 
   const recentlyWatchedVideos =
     allVideos?.filter((video) =>
-      userVideoViews?.some((videoView) => videoView.video_id === video.id)
+      userVideoViews?.some((videoView) => videoView.video_id === video.id),
     ) ?? [];
 
   return (
@@ -156,7 +156,7 @@ const VideoList: React.FC = () => {
       <VideoSectionHeader title="All Channels" />
       {(allChannels || []).map((channel) => {
         const channelVideos = allVideos.filter(
-          (video) => video.channel_id === channel.channel_id
+          (video) => video.channel_id === channel.channel_id,
         );
         return (
           <View key={channel.channel_id} style={styles.channelContainer}>

@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import Feather from '@expo/vector-icons/Feather';
-import { setCurrentTab } from '../../store/actions/dataActions';
-import { useDispatch } from 'react-redux';
+import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import Feather from "@expo/vector-icons/Feather";
+import { setCurrentTab } from "../../store/actions/dataActions";
+import { useDispatch } from "react-redux";
 
 interface SelectVideoPromptProps {
   title?: string;
@@ -11,15 +11,15 @@ interface SelectVideoPromptProps {
 }
 
 const SelectVideoPrompt: React.FC<SelectVideoPromptProps> = ({
-  title = 'No Video Selected',
-  subtitle = 'Choose a video to start watching',
+  title = "No Video Selected",
+  subtitle = "Choose a video to start watching",
 }) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
   const handleSelectVideo = () => {
-    dispatch(setCurrentTab('videos'));
-    navigation.navigate('Videos' as never);
+    dispatch(setCurrentTab("videos"));
+    // navigation.navigate('Videos' as never);
   };
 
   return (
@@ -37,33 +37,33 @@ const SelectVideoPrompt: React.FC<SelectVideoPromptProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 40,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginTop: 20,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#888',
+    color: "#888",
     marginBottom: 32,
-    textAlign: 'center',
+    textAlign: "center",
   },
   selectButton: {
-    backgroundColor: '#5a5680',
+    backgroundColor: "#5a5680",
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
   },
   selectButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
 

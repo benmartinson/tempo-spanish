@@ -1,5 +1,4 @@
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
-import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   StyleSheet,
@@ -42,13 +41,13 @@ const WatchTab: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const userKnownVocab = useSelector(
-    (state: RootState) => state.userKnownVocab
+    (state: RootState) => state.userKnownVocab,
   );
   const navigation = useNavigation();
   const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
   const [isModalVisible, setIsModalVisible] = useState(
-    currentVideo && currentVideo.focusVocab.length > 0 ? false : true
+    currentVideo && currentVideo.focusVocab.length > 0 ? false : true,
   );
   const [isVocabTestVisible, setIsVocabTestVisible] = useState(false);
   const [isActionsModalVisible, setIsActionsModalVisible] = useState(false);
@@ -56,11 +55,11 @@ const WatchTab: React.FC = () => {
   const dispatch = useDispatch();
   const isClip = false;
   const allWords = useSelector(
-    (state: RootState) => state.currentVideo?.allWords
+    (state: RootState) => state.currentVideo?.allWords,
   );
   const focusVocabTimes = useMemo(
     () => findTimesForVocab(allWords, currentVideo),
-    [currentVideo?.focusVocab, allWords]
+    [currentVideo?.focusVocab, allWords],
   );
 
   const [userSelectedVocab, setUserSelectedVocab] = useState<string[]>([]);
@@ -81,10 +80,10 @@ const WatchTab: React.FC = () => {
             allWords
               .filter((w) => w.word.length > 3)
               .map((w) => normalizeWord(w.word))
-              .filter(Boolean)
+              .filter(Boolean),
           )
         : new Set<string>(),
-    [allWords]
+    [allWords],
   );
 
   const vocabularyForVideo = useMemo(
@@ -92,9 +91,9 @@ const WatchTab: React.FC = () => {
       allVocabulary.filter(
         (v) =>
           uniqueWordsFromVideo.has(normalizeWord(v.word)) &&
-          !userKnownVocab.includes(v.id)
+          !userKnownVocab.includes(v.id),
       ),
-    [allVocabulary, uniqueWordsFromVideo, userKnownVocab]
+    [allVocabulary, uniqueWordsFromVideo, userKnownVocab],
   );
 
   const [randomlySelectedVocab, setRandomlySelectedVocab] = useState<
@@ -110,7 +109,7 @@ const WatchTab: React.FC = () => {
         currentSentence,
         clip?.start ?? 0,
         clip?.end ?? 0,
-        currentVideo?.currentSegment ?? 0
+        currentVideo?.currentSegment ?? 0,
       ),
     [
       clipWords,
@@ -118,12 +117,12 @@ const WatchTab: React.FC = () => {
       clip?.start,
       clip?.end,
       currentVideo?.currentSegment,
-    ]
+    ],
   );
 
   useEffect(() => {
     const normalizedExcluded = new Set(
-      [...userSelectedVocab, ...userIgnoredVocab].map(normalizeWord)
+      [...userSelectedVocab, ...userIgnoredVocab].map(normalizeWord),
     );
 
     // Check if this is a new video (vocabularyForVideo reference changed)
@@ -141,7 +140,7 @@ const WatchTab: React.FC = () => {
 
       // Otherwise, incremental update - filter out excluded items
       const stillValid = prev.filter(
-        (v) => !normalizedExcluded.has(normalizeWord(v.word))
+        (v) => !normalizedExcluded.has(normalizeWord(v.word)),
       );
 
       const targetCount = 20;
@@ -151,7 +150,7 @@ const WatchTab: React.FC = () => {
 
       // Get available vocab that's not already displayed and not excluded
       const currentWords = new Set(
-        stillValid.map((v) => normalizeWord(v.word))
+        stillValid.map((v) => normalizeWord(v.word)),
       );
       const availableVocab = vocabularyForVideo.filter(
         (v) =>
@@ -159,7 +158,7 @@ const WatchTab: React.FC = () => {
           !normalizedExcluded.has(normalizeWord(v.word)) &&
           !alreadyKnownVocab.includes(v.word.toLowerCase()) &&
           !ignoreVocab.some((i) => i.toLowerCase() === v.word.toLowerCase()) &&
-          v.translation !== v.word
+          v.translation !== v.word,
       );
 
       // Add only the needed amount of new items
@@ -175,17 +174,17 @@ const WatchTab: React.FC = () => {
     () =>
       vocabularyForVideo.filter((v) =>
         userSelectedVocab.some(
-          (w) => normalizeWord(w) === normalizeWord(v.word)
-        )
+          (w) => normalizeWord(w) === normalizeWord(v.word),
+        ),
       ),
-    [vocabularyForVideo, userSelectedVocab]
+    [vocabularyForVideo, userSelectedVocab],
   );
 
   const vocabLoading = allWords?.length > 0 && allVocabulary.length === 0;
 
   const [vocabSelectionStep, setVocabSelectionStep] = useState<number>(1);
   const videoRefreshKey = useSelector(
-    (state: RootState) => state.videoRefreshKey
+    (state: RootState) => state.videoRefreshKey,
   );
   const [selectedBubble, setSelectedBubble] = useState<string>("large");
   const [autoplay, setAutoplay] = useState<boolean>(false);
@@ -195,7 +194,7 @@ const WatchTab: React.FC = () => {
       const result = findSegmentAndSentenceByTime(
         newTime,
         currentVideo.segments,
-        currentVideo.currentSegment
+        currentVideo.currentSegment,
       );
       if (result) {
         setCurrentSentence(result.sentenceIndex);
@@ -222,7 +221,7 @@ const WatchTab: React.FC = () => {
     if (newTimeRemaining < 1 && timeRemaining >= 0) {
       if (isClip) {
         dispatch(setCurrentTab("discuss"));
-        navigation.navigate("Discuss" as never);
+        // navigation.navigate("Discuss" as never);
       }
     }
     setTime(newTime);
@@ -242,15 +241,15 @@ const WatchTab: React.FC = () => {
   const handleShadow = () => {
     setIsActionsModalVisible(false);
     dispatch(setCurrentTab("shadow"));
-    (navigation as any).navigate("Shadow", {
-      segmentId: currentVideo?.currentSegment,
-    });
+    // (navigation as any).navigate("Shadow", {
+    //   segmentId: currentVideo?.currentSegment,
+    // });
   };
 
   const handleDiscuss = () => {
     setIsActionsModalVisible(false);
     dispatch(setCurrentTab("discuss"));
-    (navigation as any).navigate("Discuss");
+    // (navigation as any).navigate("Discuss");
   };
 
   if (!currentVideo) {
@@ -259,7 +258,6 @@ const WatchTab: React.FC = () => {
 
   return (
     <>
-      <SelectedVideoBanner />
       <View style={styles.container}>
         <View style={styles.videoContainer}>
           <YouTubePlayer
@@ -292,7 +290,7 @@ const WatchTab: React.FC = () => {
               time={time}
             />
           )}
-          {clip && sentencesText?.length > 0 && (
+          {/* {clip && sentencesText?.length > 0 && (
             <FocusSentenceRequest
               sentenceIndex={currentSentence}
               translation={
@@ -302,7 +300,7 @@ const WatchTab: React.FC = () => {
               segmentIndex={currentVideo.currentSegment}
               videoViewId={Number(currentVideo.videoViewId)}
             />
-          )}
+          )} */}
           {focusVocabTimes && (
             <>
               <VocabList

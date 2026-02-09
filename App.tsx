@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -7,7 +8,7 @@ import SignInScreen from "./src/components/SignInScreen";
 import SignUpScreen from "./src/components/SignUpScreen";
 import HomeTab from "./src/components/tabs/HomeTab";
 import VideosTab from "./src/components/tabs/VideosTab";
-import { Provider, useDispatch } from "react-redux";
+import { Provider, useDispatch, useSelector } from "react-redux";
 import store from "./src/store/store";
 import {
   setCurrentTab,
@@ -16,8 +17,7 @@ import {
   setUserVideoViews,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
-import { useEffect } from "react";
-import { VideoView, Vocabulary } from "./src/types";
+import { VideoView, Vocabulary, RootState } from "./src/types";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
@@ -28,6 +28,7 @@ import TopNavBar from "./src/components/TopNavBar";
 import DiscussTab from "./src/components/discuss/DiscussTab";
 import VideoList from "./src/components/video-list/VideoList";
 import SelectedVideoBanner from "./src/components/common/SelectedVideoBanner";
+import NavTabBanner from "./src/components/common/NavTabBanner";
 import ShadowTab from "./src/components/shadow/ShadowTab";
 
 const Stack = createStackNavigator();
@@ -132,6 +133,8 @@ const MainTabs: React.FC = () => {
 const AuthenticatedApp: React.FC = () => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
+  const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const [selectedNavTab, setSelectedNavTab] = useState<"watch" | "shadow" | "review">("watch");
 
   useEffect(() => {
     if (!supabase) return;
@@ -152,7 +155,7 @@ const AuthenticatedApp: React.FC = () => {
       .then(({ data, error }) => {
         if (error) console.error(error);
         const vocabIds = (data ?? []).map(
-          (row: { vocabulary_id: number }) => row.vocabulary_id
+          (row: { vocabulary_id: number }) => row.vocabulary_id,
         );
         dispatch(setUserKnownVocab(vocabIds));
       });
@@ -168,10 +171,62 @@ const AuthenticatedApp: React.FC = () => {
       });
   }, [supabase, dispatch]);
 
+  const showTabsBelow = false;
+
+  // When a video is selected, reset to watch tab
+  useEffect(() => {
+    if (currentVideo) {
+      setSelectedNavTab("watch");
+    }
+  }, [currentVideo?.videoId]);
+
+  const handleNavTabSelect = (tab: "watch" | "shadow" | "review") => {
+    setSelectedNavTab(tab);
+    // Also update redux current tab for consistency
+    if (tab === "review") {
+      dispatch(setCurrentTab("discuss"));
+    } else {
+      dispatch(setCurrentTab(tab));
+    }
+  };
+
+  const renderTabContent = () => {
+    switch (selectedNavTab) {
+      case "watch":
+        return <WatchTab />;
+      case "shadow":
+        return <ShadowTab />;
+      case "review":
+        return <DiscussTab />;
+      default:
+        return <WatchTab />;
+    }
+  };
+
+  if (showTabsBelow) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TopNavBar />
+        <MainTabs />
+      </View>
+    );
+  }
+
+  // When showTabsBelow is false, use NavTabBanner navigation
   return (
     <View style={{ flex: 1 }}>
       <TopNavBar />
-      <MainTabs />
+      {currentVideo ? (
+        <>
+          <NavTabBanner
+            selectedTab={selectedNavTab}
+            onTabSelect={handleNavTabSelect}
+          />
+          {renderTabContent()}
+        </>
+      ) : (
+        <VideoList />
+      )}
     </View>
   );
 };

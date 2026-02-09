@@ -43,7 +43,7 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
     if (newTimeRemaining < 1 && timeRemaining >= 0) {
       if (isClip) {
         dispatch(setCurrentTab("discuss"));
-        navigation.navigate("Discuss" as never);
+        // navigation.navigate("Discuss" as never);
       }
     }
     setTime(newTime);
