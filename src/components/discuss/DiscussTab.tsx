@@ -17,9 +17,13 @@ const CEFR_ORDER: Record<string, number> = {
 
 interface DiscussTabProps {
   onPlayClip: (segment: { start: number; end: number }) => void;
+  isKeyboardVisible: boolean;
 }
 
-const DiscussTab: React.FC<DiscussTabProps> = ({ onPlayClip }) => {
+const DiscussTab: React.FC<DiscussTabProps> = ({
+  onPlayClip,
+  isKeyboardVisible,
+}) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const supabase = useSupabaseWithClerk();
@@ -112,6 +116,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({ onPlayClip }) => {
         onNextQuestion={handleNextQuestion}
         onPrevQuestion={handlePrevQuestion}
         onPlayClip={handlePlayClip}
+        isKeyboardVisible={isKeyboardVisible}
       />
     </View>
   );

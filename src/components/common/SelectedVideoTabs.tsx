@@ -5,7 +5,14 @@ import React, {
   useRef,
   useCallback,
 } from "react";
-import { View, StyleSheet } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Keyboard,
+  Platform,
+  LayoutAnimation,
+  UIManager,
+} from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, SegmentWord } from "../../types";
 import {
@@ -28,6 +35,13 @@ interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";
 }
 
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   selectedNavTab,
 }) => {
@@ -36,6 +50,30 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     (state: RootState) => state.videoRefreshKey,
   );
   const dispatch = useDispatch();
+
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardVisible(true);
+      },
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardVisible(false);
+      },
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
@@ -316,9 +354,16 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   if (!currentVideo) return null;
 
+  const showVideo = !(selectedNavTab === "review" && isKeyboardVisible);
+
   return (
     <View style={styles.container}>
-      <View style={styles.videoContainer}>
+      <View
+        style={[
+          styles.videoContainer,
+          !showVideo && { height: 0, marginTop: 0 },
+        ]}
+      >
         <YouTubePlayer
           ref={playerRef}
           videoId={currentVideo.videoId}
@@ -375,7 +420,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         />
       )}
       {selectedNavTab === "review" && (
-        <DiscussTab onPlayClip={handlePlayClip} />
+        <DiscussTab
+          onPlayClip={handlePlayClip}
+          isKeyboardVisible={isKeyboardVisible}
+        />
       )}
     </View>
   );
@@ -391,6 +439,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     position: "relative",
     marginTop: 0,
+    overflow: "hidden",
   },
 });
 

@@ -5,7 +5,7 @@ const initialState: RootState = {
   currentVideo: null,
   currentChatType: null,
   videoRefreshKey: Date.now(),
-  currentTab: "home",
+  currentTab: "discuss",
   allChannels: [],
   allVideos: [],
   allVocabulary: [],
@@ -15,7 +15,7 @@ const initialState: RootState = {
 
 const dataReducer = (
   state: RootState = initialState,
-  action: DataAction
+  action: DataAction,
 ): RootState => {
   switch (action.type) {
     case "SET_ALL_CHANNELS":
@@ -92,7 +92,7 @@ const dataReducer = (
     case "SET_SEGMENT_BY_TIME":
       const index = state.currentVideo?.segments.findIndex(
         (segment) =>
-          action.payload >= segment.start && action.payload <= segment.end
+          action.payload >= segment.start && action.payload <= segment.end,
       );
 
       const currentSegment = index >= 0 ? index : 0;

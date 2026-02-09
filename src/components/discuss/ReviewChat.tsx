@@ -9,10 +9,13 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from "react-native";
 import { VideoQuestion, ContextSegment } from "../../types";
 import { BACKEND_BASE_URL } from "../streaming_helpers";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import Feather from "@expo/vector-icons/Feather";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 interface ReviewChatProps {
   questions: VideoQuestion[];
@@ -22,6 +25,7 @@ interface ReviewChatProps {
   onNextQuestion: () => void;
   onPrevQuestion: () => void;
   onPlayClip: (segment: ContextSegment) => void;
+  isKeyboardVisible: boolean;
 }
 
 type EvaluationScore = "correct" | "partial" | "incorrect";
@@ -63,6 +67,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   onNextQuestion,
   onPrevQuestion,
   onPlayClip,
+  isKeyboardVisible,
 }) => {
   const [contextSegments, setContextSegments] = useState<ContextSegment[]>([]);
   const [contextLoading, setContextLoading] = useState(false);
@@ -119,6 +124,14 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 
     fetchContext();
   }, [currentQuestion?.id, videoId]);
+
+  const handleResetAnswer = () => {
+    setUserAnswer("");
+    setEvaluation(null);
+    setAnswered(false);
+    // close keyboard
+    Keyboard.dismiss();
+  };
 
   // Submit answer for evaluation
   const handleSubmitAnswer = async () => {
@@ -186,7 +199,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 180 : 0}
+      keyboardVerticalOffset={
+        Platform.OS === "ios" ? (isKeyboardVisible ? 128 : 180) : 0
+      }
     >
       {/* Question Navigation Header */}
       <View style={styles.navHeader}>
@@ -337,33 +352,54 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       </ScrollView>
 
       {/* Input Area */}
-      {!answered ? (
-        <View style={styles.inputArea}>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Type your answer..."
-            placeholderTextColor="#999"
-            value={userAnswer}
-            onChangeText={setUserAnswer}
-            multiline
-            maxLength={500}
+      {/* {!answered ? ( */}
+      <View
+        style={[
+          styles.inputArea,
+          { paddingBottom: isKeyboardVisible ? 10 : 40 },
+        ]}
+      >
+        <TextInput
+          style={styles.textInput}
+          placeholder="Type your answer..."
+          placeholderTextColor="#999"
+          value={userAnswer}
+          onChangeText={setUserAnswer}
+          autoComplete="off"
+          autoCorrect={false}
+          autoCapitalize="none"
+          multiline
+          maxLength={500}
+        />
+        <TouchableOpacity
+          style={[
+            styles.trashButton,
+            { backgroundColor: isKeyboardVisible ? "white" : "#f0f0f0" },
+          ]}
+          onPress={handleResetAnswer}
+        >
+          <FontAwesome
+            name="trash-o"
+            size={22}
+            color={isKeyboardVisible ? "red" : "#aaa"}
           />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              !userAnswer.trim() && styles.sendButtonDisabled,
-            ]}
-            onPress={handleSubmitAnswer}
-            disabled={!userAnswer.trim()}
-          >
-            <MaterialIcons
-              name="send"
-              size={22}
-              color={userAnswer.trim() ? "#fff" : "#aaa"}
-            />
-          </TouchableOpacity>
-        </View>
-      ) : (
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            !userAnswer.trim() && styles.sendButtonDisabled,
+          ]}
+          onPress={handleSubmitAnswer}
+          disabled={!userAnswer.trim()}
+        >
+          <MaterialIcons
+            name="send"
+            size={22}
+            color={userAnswer.trim() ? "#fff" : "#aaa"}
+          />
+        </TouchableOpacity>
+      </View>
+      {/* ) : (
         <View style={styles.nextPrompt}>
           <TouchableOpacity
             style={styles.nextQuestionButton}
@@ -380,7 +416,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             )}
           </TouchableOpacity>
         </View>
-      )}
+      )} */}
     </KeyboardAvoidingView>
   );
 };
@@ -612,7 +648,6 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    paddingBottom: 40,
     borderTopWidth: 1,
     borderTopColor: "#eee",
     backgroundColor: "#fafafa",
@@ -642,6 +677,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0e0e0",
   },
 
+  trashButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+  },
   // Next Question Prompt
   nextPrompt: {
     paddingHorizontal: 16,

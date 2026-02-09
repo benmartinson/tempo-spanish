@@ -135,7 +135,9 @@ const AuthenticatedApp: React.FC = () => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const [selectedNavTab, setSelectedNavTab] = useState<"watch" | "shadow" | "review">("watch");
+  const [selectedNavTab, setSelectedNavTab] = useState<
+    "watch" | "shadow" | "review"
+  >("watch");
 
   useEffect(() => {
     if (!supabase) return;
@@ -177,7 +179,7 @@ const AuthenticatedApp: React.FC = () => {
   // When a video is selected, reset to watch tab
   useEffect(() => {
     if (currentVideo) {
-      setSelectedNavTab("watch");
+      setSelectedNavTab("review");
     }
   }, [currentVideo?.videoId]);
 
