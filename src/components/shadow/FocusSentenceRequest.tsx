@@ -26,39 +26,39 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
   const isMarked = useSelector((state: RootState) =>
     state.currentVideo?.focusSentences?.some(
       (s) =>
-        s.segment_index === segmentIndex && s.sentence_index === sentenceIndex
-    )
+        s.segment_index === segmentIndex && s.sentence_index === sentenceIndex,
+    ),
   );
 
   const handlePress = async () => {
     if (isMarked) return;
 
-    const { data, error } = await supabase
-      .from("video_view_focus_sentence")
-      .insert({
-        video_view_id: videoViewId,
-        text: sentenceText,
-        translation: translation,
-        segment_index: segmentIndex,
-        sentence_index: sentenceIndex,
-      })
-      .select("id, text, translation, segment_index, sentence_index")
-      .single();
+    // const { data, error } = await supabase
+    //   .from("video_view_focus_sentence")
+    //   .insert({
+    //     video_view_id: videoViewId,
+    //     text: sentenceText,
+    //     translation: translation,
+    //     segment_index: segmentIndex,
+    //     sentence_index: sentenceIndex,
+    //   })
+    //   .select("id, text, translation, segment_index, sentence_index")
+    //   .single();
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+    // if (error) {
+    //   console.error(error);
+    //   return;
+    // }
 
-    dispatch(
-      addFocusSentence({
-        id: data.id,
-        text: data.text,
-        translation: data.translation,
-        segment_index: data.segment_index,
-        sentence_index: data.sentence_index,
-      })
-    );
+    // dispatch(
+    //   addFocusSentence({
+    //     id: data.id,
+    //     text: data.text,
+    //     translation: data.translation,
+    //     segment_index: data.segment_index,
+    //     sentence_index: data.sentence_index,
+    //   }),
+    // );
   };
 
   return (

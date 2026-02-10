@@ -56,7 +56,6 @@ interface WatchTabProps {
   sentencesText: string[];
   sentenceStart: number;
   sentenceEnd: number;
-  focusVocabTimes: SegmentWord[];
   setAutoplay: (autoplay: boolean) => void;
   refreshPlayer: () => void;
   seekToTime: (targetTime: number, targetSentenceIndex?: number) => void;
@@ -71,12 +70,12 @@ const WatchTab: React.FC<WatchTabProps> = ({
   sentencesText,
   sentenceStart,
   sentenceEnd,
-  focusVocabTimes,
   setAutoplay,
   refreshPlayer,
   seekToTime,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const focusVocab = currentVideo?.focusVocab || [];
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const userKnownVocab = useSelector(
     (state: RootState) => state.userKnownVocab,
@@ -232,7 +231,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
 
   const handleSkipToVocab = (word: SegmentWord) => {
     const [nextSegment, nextFocusVocabTime] = findNextSegmentWithVocab(
-      focusVocabTimes,
+      focusVocab,
       word,
       currentVideo!.segments,
       currentVideo!.currentSegment,
@@ -255,7 +254,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
   const featuredVocab = useMemo(() => {
     // find the latest focus vocab time that is before the current time
     let latest = null;
-    for (const v of focusVocabTimes) {
+    for (const v of focusVocab) {
       if (
         time >= v.start - 1 &&
         time <= v.end + 4 &&
@@ -265,52 +264,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
       }
     }
     return latest;
-  }, [focusVocabTimes, time]);
-
-  const handleMarkKnown = async (word: SegmentWord) => {
-    if (!currentVideo) return;
-
-    // 1. Remove from Redux focus vocab
-    const newFocusVocab = currentVideo.focusVocab.filter(
-      (v) => normalizeWord(v.word) !== normalizeWord(word.word),
-    );
-    dispatch(setFocusVocab(newFocusVocab));
-
-    // 2. Add to Redux known vocab
-    const vocabItem = currentVideo.focusVocab.find(
-      (v) => normalizeWord(v.word) === normalizeWord(word.word),
-    );
-
-    if (vocabItem) {
-      dispatch(addUserKnownVocab([vocabItem.id]));
-
-      // 3. Update Supabase
-      if (supabase && userId && currentVideo.videoViewId) {
-        // Add to user_known_vocab
-        const { error: insertError } = await supabase
-          .from("user_known_vocab")
-          .upsert(
-            { vocabulary_id: vocabItem.id, user_id: userId },
-            { onConflict: "vocabulary_id,user_id" },
-          );
-
-        if (insertError)
-          console.error("Error adding to known vocab:", insertError);
-
-        // Remove from video_view_focus_vocab
-        const { error: deleteError } = await supabase
-          .from("video_view_focus_vocab")
-          .delete()
-          .match({
-            video_view_id: currentVideo.videoViewId,
-            vocabulary_id: vocabItem.id,
-          });
-
-        if (deleteError)
-          console.error("Error removing from focus vocab:", deleteError);
-      }
-    }
-  };
+  }, [focusVocab, time]);
 
   if (!currentVideo) {
     return <SelectVideoPrompt />;
@@ -340,9 +294,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
               time={time}
             />
           )}
-          {featuredVocab && (
-            <FeaturedVocab word={featuredVocab} onMarkKnown={handleMarkKnown} />
-          )}
+          {featuredVocab && <FeaturedVocab word={featuredVocab} />}
 
           {/* {focusVocabTimes && (
             <>

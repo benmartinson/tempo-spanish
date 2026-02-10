@@ -59,7 +59,7 @@ export interface VideoContext {
   segments: Segment[];
   allWords: SegmentWord[];
   videoViewId: string;
-  focusVocab: Vocabulary[];
+  focusVocab: SegmentWord[];
   focusSentences: FocusSentence[];
 }
 

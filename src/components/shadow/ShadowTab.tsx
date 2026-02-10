@@ -51,7 +51,6 @@ interface ShadowTabProps {
   isLastSentence: boolean;
   isFirstSentence: boolean;
   isFirstSegment: boolean;
-  focusVocabTimes: SegmentWord[];
   handleNextSentence: () => void;
   handlePreviousSentence: () => void;
   handleNextSegment: () => void;
@@ -76,7 +75,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isLastSentence,
   isFirstSentence,
   isFirstSegment,
-  focusVocabTimes,
   handleNextSentence: parentHandleNextSentence,
   handlePreviousSentence: parentHandlePreviousSentence,
   handleNextSegment,
@@ -88,6 +86,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
+  const focusVocab = currentVideo?.focusVocab || [];
 
   // Speed control state (internal settings)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -266,7 +265,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleSkipToVocab = (word: SegmentWord) => {
     const [nextSegment, nextFocusVocabTime] = findNextSegmentWithVocab(
-      focusVocabTimes,
+      focusVocab,
       word,
       currentVideo!.segments,
       currentVideo!.currentSegment,

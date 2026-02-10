@@ -12,7 +12,10 @@ import { SegmentWord, Vocabulary } from "../../types";
 import { capitalize, normalizeWord, stripPunctuation } from "../../helpers";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../types";
-import { setFocusVocab, addUserKnownVocab } from "../../store/actions/dataActions";
+import {
+  setFocusVocab,
+  addUserKnownVocab,
+} from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 
@@ -45,7 +48,7 @@ const VocabReview: React.FC<VocabReviewProps> = ({
   const getTranslation = (word: string): string => {
     const normalizedWord = stripPunctuation(word.toLowerCase());
     const found = allWords.find(
-      (w) => stripPunctuation(w.word.toLowerCase()) === normalizedWord
+      (w) => stripPunctuation(w.word.toLowerCase()) === normalizedWord,
     );
     return capitalize(stripPunctuation(found?.translation)) || "—";
   };
@@ -56,29 +59,29 @@ const VocabReview: React.FC<VocabReviewProps> = ({
 
   const handleConfirm = async () => {
     setConfirming(true);
-    if (
-      currentVideo?.videoViewId &&
-      supabase &&
-      selectedVocabRecords.length > 0
-    ) {
-      const videoViewId = Number(currentVideo.videoViewId);
-      const rows = selectedVocabRecords.map((record) => ({
-        video_view_id: videoViewId,
-        vocabulary_id: record.id,
-      }));
-      const { data, error } = await supabase
-        .from("video_view_focus_vocab")
-        .upsert(rows, { onConflict: "video_view_id,vocabulary_id" });
-      if (error) console.error(error);
-    }
+    // if (
+    //   currentVideo?.videoViewId &&
+    //   supabase &&
+    //   selectedVocabRecords.length > 0
+    // ) {
+    //   const videoViewId = Number(currentVideo.videoViewId);
+    //   const rows = selectedVocabRecords.map((record) => ({
+    //     video_view_id: videoViewId,
+    //     vocabulary_id: record.id,
+    //   }));
+    //   const { data, error } = await supabase
+    //     .from("video_view_focus_vocab")
+    //     .upsert(rows, { onConflict: "video_view_id,vocabulary_id" });
+    //   if (error) console.error(error);
+    // }
 
     // Insert ignored vocab as known
     if (userIgnoredVocab.length > 0 && supabase && userId) {
       const ignoredVocabIds = Object.values(allVocabulary)
         .filter((v) =>
           userIgnoredVocab.some(
-            (w) => normalizeWord(w) === normalizeWord(v.word)
-          )
+            (w) => normalizeWord(w) === normalizeWord(v.word),
+          ),
         )
         .map((v) => v.id);
 
@@ -91,7 +94,7 @@ const VocabReview: React.FC<VocabReviewProps> = ({
         const { error } = await supabase
           .from("user_known_vocab")
           .upsert(knownRows, { onConflict: "vocabulary_id,user_id" });
-        
+
         if (error) {
           console.error(error);
         } else {

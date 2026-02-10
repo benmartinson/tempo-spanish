@@ -102,10 +102,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const allWords = useSelector(
     (state: RootState) => state.currentVideo?.allWords,
   );
-  const focusVocabTimes = useMemo(
-    () => findTimesForVocab(allWords, currentVideo),
-    [currentVideo, allWords],
-  );
+  // const focusVocabTimes = useMemo(
+  //   () => findTimesForVocab(allWords, currentVideo),
+  //   [currentVideo, allWords],
+  // );
 
   const clipWords = clip?.words || [];
   const {
@@ -353,11 +353,11 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const startTimeForPlayer = playerClip ? undefined : time;
 
   const currentVideoText = useMemo(() => {
-    const match = focusVocabTimes.find(
+    const match = currentVideo?.focusVocab.find(
       (v) => time >= v.start - 1 && time <= v.start + 3,
     );
     return match ? `${match.word} => ${match.translation}` : "";
-  }, [focusVocabTimes, time]);
+  }, [currentVideo?.focusVocab, time]);
 
   if (!currentVideo) return null;
 
@@ -395,7 +395,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           sentencesText={sentencesText}
           sentenceStart={sentenceStart}
           sentenceEnd={sentenceEnd}
-          focusVocabTimes={focusVocabTimes}
           setAutoplay={setAutoplay}
           refreshPlayer={refreshPlayer}
           seekToTime={seekToTime}
@@ -416,7 +415,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           isLastSentence={isLastSentence}
           isFirstSentence={isFirstSentence}
           isFirstSegment={isFirstSegment}
-          focusVocabTimes={focusVocabTimes}
           handleNextSentence={handleNextSentence}
           handlePreviousSentence={handlePreviousSentence}
           handleNextSegment={handleNextSegment}

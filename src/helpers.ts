@@ -80,32 +80,32 @@ export const randomlySelectVocabFromVocabulary = (
     .slice(0, count);
 };
 
-export const findTimesForVocab = (
-  allWords: SegmentWord[],
-  currentVideo: VideoContext,
-): SegmentWord[] => {
-  const wordTimes = [];
-  if (!currentVideo || !currentVideo.segments) return [];
-  const vocab = currentVideo?.focusVocab || [];
-  const lastPossibleTime =
-    currentVideo?.segments[currentVideo?.segments.length - 1].end;
-  for (const word of vocab) {
-    const normalizedWord = normalizeWord(word.word);
-    const currentWordTimes = allWords
-      .filter((w) => normalizeWord(w.word) === normalizedWord)
-      .filter((w) => w.start < lastPossibleTime)
-      .map((w) => ({
-        ...w,
-        word: normalizeWord(word.word),
-        translation: normalizeWord(word.translation),
-      }));
-    wordTimes.push(...currentWordTimes);
-  }
-  return wordTimes.sort((a, b) => a.start - b.start);
-};
+// export const findTimesForVocab = (
+//   allWords: SegmentWord[],
+//   currentVideo: VideoContext,
+// ): SegmentWord[] => {
+//   const wordTimes = [];
+//   if (!currentVideo || !currentVideo.segments) return [];
+//   const vocab: SegmentWord[] = currentVideo?.focusVocab || [];
+//   const lastPossibleTime =
+//     currentVideo?.segments[currentVideo?.segments.length - 1].end;
+//   for (const word of vocab) {
+//     const normalizedWord = normalizeWord(word.word);
+//     const currentWordTimes = allWords
+//       .filter((w) => normalizeWord(w.word) === normalizedWord)
+//       .filter((w) => w.start < lastPossibleTime)
+//       .map((w) => ({
+//         ...w,
+//         word: normalizeWord(word.word),
+//         translation: normalizeWord(word.translation),
+//       }));
+//     wordTimes.push(...currentWordTimes);
+//   }
+//   return wordTimes.sort((a, b) => a.start - b.start);
+// };
 
 export const findNextSegmentWithVocab = (
-  focusVocabTimes: SegmentWord[],
+  focusVocab: SegmentWord[],
   word: SegmentWord,
   segments: Segment[],
   currentSegment: number,
@@ -118,7 +118,7 @@ export const findNextSegmentWithVocab = (
   //   nextSegmentStart,
   //   normalizeWord: normalizeWord(word.word),
   // });
-  const nextFocusVocabTime = focusVocabTimes.find(
+  const nextFocusVocabTime = focusVocab.find(
     (v) =>
       normalizeWord(word.word) === normalizeWord(v.word) &&
       v.start >= nextSegmentStart,
@@ -255,13 +255,12 @@ export const autoSelectVocabForVideo = (
   allWords: SegmentWord[],
   allVocabulary: Record<string, Vocabulary>,
   userKnownVocab: number[],
-): Vocabulary[] => {
+): SegmentWord[] => {
   const allSentences = splitIntoSentences(allWords);
   const selectedVocab = [];
-  let index = 0;
+  const minimumInterval = 10;
+  let latestTime = 0;
   for (const sentence of allSentences) {
-    index++;
-    if (index % 2 === 0) continue;
     const lowestFrequencyWord = sentence
       .filter((w) => {
         const normalizedWord = stripPunctuation(w.word.toLowerCase());
@@ -269,6 +268,8 @@ export const autoSelectVocabForVideo = (
           w.translation.toLowerCase(),
         );
         return (
+          (latestTime === 0 || w.start > latestTime + minimumInterval) &&
+          w.word.length > 3 &&
           allVocabulary[normalizedWord] &&
           normalizedWord !== normalizedTranslation &&
           !userKnownVocab.includes(allVocabulary[normalizedWord].id) &&
@@ -281,7 +282,13 @@ export const autoSelectVocabForVideo = (
           const vocabulary = allVocabulary[normalizedWord];
           const frequency = vocabulary?.frequency;
           if (frequency && frequency < min.frequency) {
-            return { ...vocabulary };
+            latestTime = word.start;
+            return {
+              ...word,
+              translation: normalizeWord(word.translation),
+              word: normalizeWord(word.word),
+              frequency,
+            };
           }
           return min;
         },

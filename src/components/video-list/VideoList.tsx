@@ -93,32 +93,32 @@ const VideoList: React.FC = () => {
     if (videoViewError) console.error(videoViewError);
 
     const videoViewId = videoViewData?.[0]?.id ?? "";
-    const { data: focusVocabData, error: focusVocabError } = await supabase
-      .from("video_view_focus_vocab")
-      .select(
-        `
-        vocabulary (
-          id,
-          word,
-          translation
-        )
-      `,
-      )
-      .eq("video_view_id", videoViewId);
+    // const { data: focusVocabData, error: focusVocabError } = await supabase
+    //   .from("video_view_focus_vocab")
+    //   .select(
+    //     `
+    //     vocabulary (
+    //       id,
+    //       word,
+    //       translation
+    //     )
+    //   `,
+    //   )
+    //   .eq("video_view_id", videoViewId);
 
-    const focusVocab = (
-      focusVocabData?.map((item: any) => item.vocabulary) || []
-    ).filter(Boolean);
+    // const focusVocab = (
+    //   focusVocabData?.map((item: any) => item.vocabulary) || []
+    // ).filter(Boolean);
 
-    const { data: focusSentenceData, error: focusSentenceError } =
-      await supabase
-        .from("video_view_focus_sentence")
-        .select("id, text, translation, segment_index, sentence_index")
-        .eq("video_view_id", videoViewId);
+    // const { data: focusSentenceData, error: focusSentenceError } =
+    //   await supabase
+    //     .from("video_view_focus_sentence")
+    //     .select("id, text, translation, segment_index, sentence_index")
+    //     .eq("video_view_id", videoViewId);
 
-    if (focusSentenceError) console.error(focusSentenceError);
+    // if (focusSentenceError) console.error(focusSentenceError);
 
-    const focusSentences = focusSentenceData ?? [];
+    // const focusSentences = focusSentenceData ?? [];
 
     const video: VideoContext = {
       videoId: data.video_id,
@@ -126,8 +126,8 @@ const VideoList: React.FC = () => {
       segments: data.segments,
       allWords: data.segments.flatMap((s: Segment) => s.words),
       videoViewId: String(videoViewId),
-      focusVocab: focusVocab,
-      focusSentences: focusSentences,
+      focusVocab: [],
+      focusSentences: [],
     };
 
     dispatch(setCurrentVideo(video));

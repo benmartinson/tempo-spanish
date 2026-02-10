@@ -3,6 +3,7 @@ import {
   DataAction,
   FocusSentence,
   Segment,
+  SegmentWord,
   Video,
   VideoContext,
   VideoView,
@@ -30,7 +31,7 @@ export const setSegmentByTime = (time: number): DataAction => ({
 });
 
 export const setCurrentChatType = (
-  chatType: "general" | "video-based"
+  chatType: "general" | "video-based",
 ): DataAction => ({
   type: "SET_CURRENT_CHAT_TYPE",
   payload: chatType,
@@ -42,7 +43,7 @@ export const refreshVideoPlayer = (): DataAction => ({
 });
 
 export const setCurrentTab = (
-  tab: "home" | "videos" | "watch" | "discuss" | "shadow"
+  tab: "home" | "videos" | "watch" | "discuss" | "shadow",
 ): DataAction => ({
   type: "SET_CURRENT_TAB",
   payload: tab,
@@ -58,12 +59,14 @@ export const setAllVideos = (videos: Video[]): DataAction => ({
   payload: videos,
 });
 
-export const setFocusVocab = (vocab: Vocabulary[]): DataAction => ({
+export const setFocusVocab = (vocab: SegmentWord[]): DataAction => ({
   type: "SET_FOCUS_VOCAB",
   payload: vocab,
 });
 
-export const setAllVocabulary = (vocab: Record<string, Vocabulary>): DataAction => ({
+export const setAllVocabulary = (
+  vocab: Record<string, Vocabulary>,
+): DataAction => ({
   type: "SET_ALL_VOCABULARY",
   payload: vocab,
 });
@@ -83,16 +86,12 @@ export const setUserVideoViews = (videoViews: VideoView[]): DataAction => ({
   payload: videoViews,
 });
 
-export const setFocusSentences = (
-  sentences: FocusSentence[]
-): DataAction => ({
+export const setFocusSentences = (sentences: FocusSentence[]): DataAction => ({
   type: "SET_FOCUS_SENTENCES",
   payload: sentences,
 });
 
-export const addFocusSentence = (
-  sentence: FocusSentence
-): DataAction => ({
+export const addFocusSentence = (sentence: FocusSentence): DataAction => ({
   type: "ADD_FOCUS_SENTENCE",
   payload: sentence,
 });

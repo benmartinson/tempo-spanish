@@ -1,15 +1,63 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { SegmentWord } from "../../types";
-import { capitalize } from "../../helpers";
+import { RootState, SegmentWord } from "../../types";
+import { capitalize, normalizeWord } from "../../helpers";
 import Entypo from "@expo/vector-icons/Entypo";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  addUserKnownVocab,
+  setFocusVocab,
+} from "../../store/actions/dataActions";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
+import { useAuth } from "@clerk/clerk-expo";
 
 interface FeaturedVocabProps {
   word: SegmentWord;
-  onMarkKnown: (word: SegmentWord) => void;
 }
 
-const FeaturedVocab: React.FC<FeaturedVocabProps> = ({ word, onMarkKnown }) => {
+const FeaturedVocab: React.FC<FeaturedVocabProps> = ({ word }) => {
+  const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
+  const dispatch = useDispatch();
+  const supabase = useSupabaseWithClerk();
+  const { userId } = useAuth();
+
+  const handleMarkKnown = async (word: SegmentWord) => {
+    if (!currentVideo) return;
+
+    // 1. Remove from Redux focus vocab
+    const newFocusVocab = currentVideo.focusVocab.filter(
+      (v) => normalizeWord(v.word) !== normalizeWord(word.word),
+    );
+    dispatch(setFocusVocab(newFocusVocab));
+
+    // 2. Add to Redux known vocab
+    const vocabItem = currentVideo.focusVocab.find(
+      (v) => normalizeWord(v.word) === normalizeWord(word.word),
+    );
+
+    if (vocabItem) {
+      const vocabId = Object.values(allVocabulary).find(
+        (v) => normalizeWord(v.word) === normalizeWord(vocabItem.word),
+      )?.id;
+      dispatch(addUserKnownVocab([vocabId]));
+
+      // 3. Update Supabase
+      if (supabase && userId && currentVideo.videoViewId) {
+        // Add to user_known_vocab
+        const { error: insertError } = await supabase
+          .from("user_known_vocab")
+          .upsert(
+            { vocabulary_id: vocabId, user_id: userId },
+            { onConflict: "vocabulary_id,user_id" },
+          );
+
+        if (insertError)
+          console.error("Error adding to known vocab:", insertError);
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.card}>
@@ -19,7 +67,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({ word, onMarkKnown }) => {
         </View>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => onMarkKnown(word)}
+          onPress={() => handleMarkKnown(word)}
         >
           <Text style={styles.buttonText}>Mark This Word as Already Known</Text>
           <Entypo name="pencil" size={16} color="#5a5680" />
