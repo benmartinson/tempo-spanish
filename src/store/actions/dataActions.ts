@@ -63,7 +63,7 @@ export const setFocusVocab = (vocab: Vocabulary[]): DataAction => ({
   payload: vocab,
 });
 
-export const setAllVocabulary = (vocab: Vocabulary[]): DataAction => ({
+export const setAllVocabulary = (vocab: Record<string, Vocabulary>): DataAction => ({
   type: "SET_ALL_VOCABULARY",
   payload: vocab,
 });

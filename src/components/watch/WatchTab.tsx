@@ -18,6 +18,7 @@ import { useNavigation } from "@react-navigation/native";
 import {
   setCurrentTab,
   refreshVideoPlayer,
+  setFocusVocab,
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
 import TranscriptBubble from "./TranscriptBubble";
@@ -38,6 +39,7 @@ import {
   findSentenceWithVocab,
   splitIntoSentences,
   findNextSegmentWithVocab,
+  autoSelectVocabForVideo,
 } from "../../helpers";
 import TooltipModal from "../common/TooltipModal";
 
@@ -76,9 +78,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
     (state: RootState) => state.userKnownVocab,
   );
   const navigation = useNavigation();
-  const [isModalVisible, setIsModalVisible] = useState(
-    currentVideo && currentVideo.focusVocab.length > 0 ? false : true,
-  );
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const [isVocabTestVisible, setIsVocabTestVisible] = useState(false);
   const [isActionsModalVisible, setIsActionsModalVisible] = useState(false);
   const dispatch = useDispatch();
@@ -90,6 +90,9 @@ const WatchTab: React.FC<WatchTabProps> = ({
   const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
   const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
     useState<boolean>(false);
+  const [isAutoSelectingVocab, setIsAutoSelectingVocab] = useState(
+    currentVideo?.focusVocab.length === 0,
+  );
 
   const handleAddToFocusVocab = () => {
     setUserSelectedVocab(currentVideo?.focusVocab.map((v) => v.word) || []);
@@ -111,9 +114,27 @@ const WatchTab: React.FC<WatchTabProps> = ({
     [allWords],
   );
 
+  useEffect(() => {
+    if (
+      isAutoSelectingVocab &&
+      currentVideo &&
+      Object.keys(allVocabulary).length > 0 &&
+      currentVideo.focusVocab.length === 0
+    ) {
+      const selectedVocab = autoSelectVocabForVideo(
+        currentVideo.allWords,
+        allVocabulary,
+        userKnownVocab,
+      );
+      console.log({ selectedVocab });
+      dispatch(setFocusVocab(selectedVocab));
+      setIsAutoSelectingVocab(false);
+    }
+  }, [isAutoSelectingVocab, currentVideo, allVocabulary, userKnownVocab]);
+
   const vocabularyForVideo = useMemo(
     () =>
-      allVocabulary.filter(
+      Object.values(allVocabulary).filter(
         (v) =>
           uniqueWordsFromVideo.has(normalizeWord(v.word)) &&
           !userKnownVocab.includes(v.id),
@@ -186,7 +207,8 @@ const WatchTab: React.FC<WatchTabProps> = ({
     [vocabularyForVideo, userSelectedVocab],
   );
 
-  const vocabLoading = allWords?.length > 0 && allVocabulary.length === 0;
+  const vocabLoading =
+    allWords?.length > 0 && Object.keys(allVocabulary).length === 0;
 
   const [vocabSelectionStep, setVocabSelectionStep] = useState<number>(1);
   const [selectedBubble, setSelectedBubble] = useState<string>("large");

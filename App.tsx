@@ -143,13 +143,44 @@ const AuthenticatedApp: React.FC = () => {
     if (!supabase) return;
 
     // Fetch all vocabulary
-    supabase
-      .from("vocabulary")
-      .select("id, word, translation")
-      .then(({ data, error }) => {
-        if (error) console.error(error);
-        dispatch(setAllVocabulary((data as Vocabulary[]) ?? []));
-      });
+    const fetchAllVocabulary = async () => {
+      let allVocab: Vocabulary[] = [];
+      let from = 0;
+      const limit = 1000;
+      let fetching = true;
+
+      while (fetching) {
+        const { data, error } = await supabase
+          .from("vocabulary")
+          .select("id, word, translation, frequency")
+          .range(from, from + limit - 1);
+
+        if (error) {
+          console.error(error);
+          fetching = false;
+        } else {
+          const vocabBatch = (data as Vocabulary[]) ?? [];
+          allVocab = [...allVocab, ...vocabBatch];
+          if (vocabBatch.length < limit) {
+            fetching = false;
+          } else {
+            from += limit;
+          }
+        }
+      }
+
+      console.log({ totalVocab: allVocab.length });
+      const vocabHash = allVocab.reduce(
+        (acc, v) => {
+          acc[v.word] = v;
+          return acc;
+        },
+        {} as Record<string, Vocabulary>,
+      );
+      dispatch(setAllVocabulary(vocabHash));
+    };
+
+    fetchAllVocabulary();
 
     // Fetch user's known vocabulary
     supabase
@@ -179,7 +210,7 @@ const AuthenticatedApp: React.FC = () => {
   // When a video is selected, reset to watch tab
   useEffect(() => {
     if (currentVideo) {
-      setSelectedNavTab("review");
+      setSelectedNavTab("watch");
     }
   }, [currentVideo?.videoId]);
 

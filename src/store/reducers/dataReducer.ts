@@ -8,7 +8,7 @@ const initialState: RootState = {
   currentTab: "discuss",
   allChannels: [],
   allVideos: [],
-  allVocabulary: [],
+  allVocabulary: {},
   userKnownVocab: [],
   userVideoViews: [],
 };

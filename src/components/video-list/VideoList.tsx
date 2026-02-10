@@ -31,6 +31,7 @@ const VideoList: React.FC = () => {
 
   const allChannels = useSelector((state: RootState) => state.allChannels);
   const allVideos = useSelector((state: RootState) => state.allVideos);
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const userVideoViews = useSelector(
     (state: RootState) => state.userVideoViews,
   );

@@ -33,6 +33,7 @@ export const ignoreVocab = [
   "al",
   "del",
   "a",
+  "no",
 ];
 
 export const alreadyKnownVocab = [
@@ -59,7 +60,7 @@ export const normalizeWord = (word: string) =>
 export const randomlySelectVocabFromVocabulary = (
   vocab: Vocabulary[],
   count: number,
-  alreadySelectedVocab: string[]
+  alreadySelectedVocab: string[],
 ): Vocabulary[] => {
   const normalizedAlready = new Set(alreadySelectedVocab.map(normalizeWord));
   const filtered = vocab.filter(
@@ -67,7 +68,7 @@ export const randomlySelectVocabFromVocabulary = (
       !alreadyKnownVocab.includes(v.word.toLowerCase()) &&
       !ignoreVocab.some((i) => i.toLowerCase() === v.word.toLowerCase()) &&
       v.translation !== v.word &&
-      !normalizedAlready.has(normalizeWord(v.word))
+      !normalizedAlready.has(normalizeWord(v.word)),
   );
   const byWord = new Map<string, Vocabulary>();
   for (const v of filtered) {
@@ -81,7 +82,7 @@ export const randomlySelectVocabFromVocabulary = (
 
 export const findTimesForVocab = (
   allWords: SegmentWord[],
-  currentVideo: VideoContext
+  currentVideo: VideoContext,
 ): SegmentWord[] => {
   const wordTimes = [];
   if (!currentVideo || !currentVideo.segments) return [];
@@ -107,7 +108,7 @@ export const findNextSegmentWithVocab = (
   focusVocabTimes: SegmentWord[],
   word: SegmentWord,
   segments: Segment[],
-  currentSegment: number
+  currentSegment: number,
 ): [Segment, SegmentWord] => {
   const nextSegmentStart = segments[currentSegment + 1].start;
   // console.log({
@@ -120,7 +121,7 @@ export const findNextSegmentWithVocab = (
   const nextFocusVocabTime = focusVocabTimes.find(
     (v) =>
       normalizeWord(word.word) === normalizeWord(v.word) &&
-      v.start >= nextSegmentStart
+      v.start >= nextSegmentStart,
   );
   if (!nextFocusVocabTime) {
     return [null, null];
@@ -161,7 +162,7 @@ export const getSentenceData = (
   currentSentence: number,
   clipStart: number,
   clipEnd: number,
-  currentSegment: number
+  currentSegment: number,
 ) => {
   const sentences = splitIntoSentences(clipWords);
   let sentencesText = clipWords
@@ -206,7 +207,7 @@ export interface SegmentSeekResult {
 export const findSegmentAndSentenceByTime = (
   time: number,
   segments: Segment[],
-  currentSegmentIndex: number
+  currentSegmentIndex: number,
 ): SegmentSeekResult | null => {
   const targetIndex =
     time < 1
@@ -235,7 +236,7 @@ export const findSegmentAndSentenceByTime = (
 
 export const findSentenceWithVocab = (
   segment: Segment,
-  wordTime: number
+  wordTime: number,
 ): number => {
   const sentences = splitIntoSentences(segment.words);
   for (let i = 0; i < sentences.length; i++) {
@@ -248,4 +249,44 @@ export const findSentenceWithVocab = (
     }
   }
   return null;
+};
+
+export const autoSelectVocabForVideo = (
+  allWords: SegmentWord[],
+  allVocabulary: Record<string, Vocabulary>,
+  userKnownVocab: number[],
+): Vocabulary[] => {
+  const allSentences = splitIntoSentences(allWords);
+  const selectedVocab = [];
+  let index = 0;
+  for (const sentence of allSentences) {
+    index++;
+    if (index % 2 === 0) continue;
+    const lowestFrequencyWord = sentence
+      .filter((w) => {
+        const normalizedWord = stripPunctuation(w.word.toLowerCase());
+        return (
+          allVocabulary[normalizedWord] &&
+          normalizedWord !== w.translation &&
+          !userKnownVocab.includes(allVocabulary[normalizedWord].id) &&
+          !ignoreVocab.includes(normalizedWord)
+        );
+      })
+      .reduce(
+        (min, word) => {
+          const normalizedWord = stripPunctuation(word.word.toLowerCase());
+          const vocabulary = allVocabulary[normalizedWord];
+          const frequency = vocabulary?.frequency;
+          if (frequency && frequency < min.frequency) {
+            return { ...vocabulary };
+          }
+          return min;
+        },
+        { frequency: Infinity },
+      );
+    if (lowestFrequencyWord.frequency < Infinity) {
+      selectedVocab.push(lowestFrequencyWord);
+    }
+  }
+  return selectedVocab;
 };

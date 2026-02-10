@@ -5,7 +5,7 @@ export interface RootState {
   currentTab: "home" | "videos" | "watch" | "discuss" | "shadow";
   allChannels: Channel[];
   allVideos: Video[];
-  allVocabulary: Vocabulary[];
+  allVocabulary: Record<string, Vocabulary>;
   userKnownVocab: number[];
   userVideoViews: VideoView[];
 }
@@ -42,6 +42,7 @@ export interface Vocabulary {
   id: number;
   word: string;
   translation: string;
+  frequency: number;
 }
 
 export interface FocusSentence {
@@ -95,6 +96,7 @@ export interface SegmentWord {
   start: number;
   end: number;
   translation: string;
+  frequency: number;
 }
 
 export interface KeyVocabulary {

@@ -74,7 +74,7 @@ const VocabReview: React.FC<VocabReviewProps> = ({
 
     // Insert ignored vocab as known
     if (userIgnoredVocab.length > 0 && supabase && userId) {
-      const ignoredVocabIds = allVocabulary
+      const ignoredVocabIds = Object.values(allVocabulary)
         .filter((v) =>
           userIgnoredVocab.some(
             (w) => normalizeWord(w) === normalizeWord(v.word)
