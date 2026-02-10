@@ -19,7 +19,7 @@ const BubbleSelector: React.FC<BubbleSelectorProps> = ({
   return (
     <View style={styles.outerContainer}>
       <View style={styles.container}>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[
             styles.button,
             selectedBubble === "small" && styles.selectedButton,
@@ -28,7 +28,7 @@ const BubbleSelector: React.FC<BubbleSelectorProps> = ({
           onPress={() => handleBubbleSelection("small")}
         >
           <Text style={styles.buttonText}>Small</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <TouchableOpacity
           style={[
             styles.button,
@@ -37,7 +37,7 @@ const BubbleSelector: React.FC<BubbleSelectorProps> = ({
           ]}
           onPress={() => handleBubbleSelection("large")}
         >
-          <Text style={styles.buttonText}>Large</Text>
+          <Text style={styles.buttonText}>Spanish</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -46,7 +46,7 @@ const BubbleSelector: React.FC<BubbleSelectorProps> = ({
           ]}
           onPress={() => handleBubbleSelection("translation")}
         >
-          <Text style={styles.buttonText}>Translation</Text>
+          <Text style={styles.buttonText}>English</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   button: {
-    width: "33.33%",
+    width: "50%",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "white",

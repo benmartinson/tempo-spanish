@@ -352,6 +352,13 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   // `time` here doesn't cause continuous URL changes.
   const startTimeForPlayer = playerClip ? undefined : time;
 
+  const currentVideoText = useMemo(() => {
+    const match = focusVocabTimes.find(
+      (v) => time >= v.start - 1 && time <= v.start + 3,
+    );
+    return match ? `${match.word} => ${match.translation}` : "";
+  }, [focusVocabTimes, time]);
+
   if (!currentVideo) return null;
 
   const showVideo = !(selectedNavTab === "review" && isKeyboardVisible);
@@ -374,6 +381,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           muted={playerMuted}
           playbackSpeed={playerSpeed}
           startTime={startTimeForPlayer}
+          videoText={currentVideoText}
         />
       </View>
 

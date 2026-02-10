@@ -1,3 +1,6 @@
+import FeaturedVocab from "./FeaturedVocab";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
+import { useAuth } from "@clerk/clerk-expo";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
@@ -19,6 +22,7 @@ import {
   setCurrentTab,
   refreshVideoPlayer,
   setFocusVocab,
+  addUserKnownVocab,
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
 import TranscriptBubble from "./TranscriptBubble";
@@ -82,6 +86,8 @@ const WatchTab: React.FC<WatchTabProps> = ({
   const [isVocabTestVisible, setIsVocabTestVisible] = useState(false);
   const [isActionsModalVisible, setIsActionsModalVisible] = useState(false);
   const dispatch = useDispatch();
+  const supabase = useSupabaseWithClerk();
+  const { userId } = useAuth();
   const allWords = useSelector(
     (state: RootState) => state.currentVideo?.allWords,
   );
@@ -246,6 +252,66 @@ const WatchTab: React.FC<WatchTabProps> = ({
     setShowNoVocabFoundTooltip(true);
   };
 
+  const featuredVocab = useMemo(() => {
+    // find the latest focus vocab time that is before the current time
+    let latest = null;
+    for (const v of focusVocabTimes) {
+      if (
+        time >= v.start - 1 &&
+        time <= v.end + 4 &&
+        v.start > (latest?.start || 0)
+      ) {
+        latest = v;
+      }
+    }
+    return latest;
+  }, [focusVocabTimes, time]);
+
+  const handleMarkKnown = async (word: SegmentWord) => {
+    if (!currentVideo) return;
+
+    // 1. Remove from Redux focus vocab
+    const newFocusVocab = currentVideo.focusVocab.filter(
+      (v) => normalizeWord(v.word) !== normalizeWord(word.word),
+    );
+    dispatch(setFocusVocab(newFocusVocab));
+
+    // 2. Add to Redux known vocab
+    const vocabItem = currentVideo.focusVocab.find(
+      (v) => normalizeWord(v.word) === normalizeWord(word.word),
+    );
+
+    if (vocabItem) {
+      dispatch(addUserKnownVocab([vocabItem.id]));
+
+      // 3. Update Supabase
+      if (supabase && userId && currentVideo.videoViewId) {
+        // Add to user_known_vocab
+        const { error: insertError } = await supabase
+          .from("user_known_vocab")
+          .upsert(
+            { vocabulary_id: vocabItem.id, user_id: userId },
+            { onConflict: "vocabulary_id,user_id" },
+          );
+
+        if (insertError)
+          console.error("Error adding to known vocab:", insertError);
+
+        // Remove from video_view_focus_vocab
+        const { error: deleteError } = await supabase
+          .from("video_view_focus_vocab")
+          .delete()
+          .match({
+            video_view_id: currentVideo.videoViewId,
+            vocabulary_id: vocabItem.id,
+          });
+
+        if (deleteError)
+          console.error("Error removing from focus vocab:", deleteError);
+      }
+    }
+  };
+
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
@@ -258,9 +324,9 @@ const WatchTab: React.FC<WatchTabProps> = ({
             selectedBubble={selectedBubble}
             setSelectedBubble={setSelectedBubble}
           />
-          {selectedBubble === "small" && (
+          {/* {selectedBubble === "small" && (
             <TranscriptBubble words={clip?.words || []} time={time} />
-          )}
+          )} */}
           {selectedBubble === "large" && (
             <FullSegmentTranscriptBubble
               words={clip?.words || []}
@@ -274,7 +340,11 @@ const WatchTab: React.FC<WatchTabProps> = ({
               time={time}
             />
           )}
-          {focusVocabTimes && (
+          {featuredVocab && (
+            <FeaturedVocab word={featuredVocab} onMarkKnown={handleMarkKnown} />
+          )}
+
+          {/* {focusVocabTimes && (
             <>
               <VocabList
                 vocab={focusVocabTimes}
@@ -283,7 +353,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
                 addToFocusVocab={handleAddToFocusVocab}
               />
             </>
-          )}
+          )} */}
         </ScrollView>
       </View>
 

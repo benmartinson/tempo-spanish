@@ -158,7 +158,6 @@ const styles = StyleSheet.create({
   },
   normalWord: {
     color: "#000000", // White for other words
-    opacity: 0.7, // Slightly dimmed
   },
   tooltipOverlay: {
     flex: 1,

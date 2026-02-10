@@ -265,9 +265,12 @@ export const autoSelectVocabForVideo = (
     const lowestFrequencyWord = sentence
       .filter((w) => {
         const normalizedWord = stripPunctuation(w.word.toLowerCase());
+        const normalizedTranslation = stripPunctuation(
+          w.translation.toLowerCase(),
+        );
         return (
           allVocabulary[normalizedWord] &&
-          normalizedWord !== w.translation &&
+          normalizedWord !== normalizedTranslation &&
           !userKnownVocab.includes(allVocabulary[normalizedWord].id) &&
           !ignoreVocab.includes(normalizedWord)
         );

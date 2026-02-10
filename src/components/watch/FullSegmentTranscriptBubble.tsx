@@ -190,9 +190,11 @@ const styles = StyleSheet.create({
   card: {
     margin: 16,
     marginBottom: 0,
-    backgroundColor: "#2d2a40",
+    backgroundColor: "white",
     borderRadius: 16,
     padding: 16,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -224,11 +226,10 @@ const styles = StyleSheet.create({
     lineHeight: LINE_HEIGHT,
   },
   currentWord: {
-    color: "#4ade80", // Green highlight for current word
+    color: "black", // Green highlight for current word
   },
   normalWord: {
-    color: "#ffffff", // White for other words
-    opacity: 0.7, // Slightly dimmed
+    color: "black", // White for other words
   },
   tooltipWord: {
     fontSize: 20,
