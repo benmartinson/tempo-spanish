@@ -91,6 +91,8 @@ export interface Segment {
   words: SegmentWord[];
 }
 
+export type QuizType = "Comprehension" | "Vocab" | "Vocab in Context";
+
 export interface SegmentWord {
   word: string;
   start: number;
@@ -132,4 +134,18 @@ export interface ContextSegment {
   end: number;
   text: string;
   score: number;
+}
+
+export interface VocabQuestion {
+  word: string;
+  translation: string;
+  question: string;
+  contextSegments: ContextSegment[];
+}
+
+export type EvaluationScore = "correct" | "partial" | "incorrect";
+
+export interface Evaluation {
+  feedback: string;
+  score: EvaluationScore;
 }

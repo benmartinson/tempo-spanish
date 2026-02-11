@@ -36,6 +36,7 @@ import {
 import ShadowResults from "./ShadowResults";
 import VocabList from "../watch/VocabList";
 import TooltipModal from "../common/TooltipModal";
+import NavSwitcher from "../common/NavSwitcher";
 
 interface ShadowTabProps {
   time: number;
@@ -335,37 +336,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           ) : (
             <>
               {/* Sentence Navigation */}
-              <View style={styles.sentenceNavContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.prevSentenceButton,
-                    isFirstSentence &&
-                      isFirstSegment &&
-                      styles.navButtonDisabled,
-                  ]}
-                  onPress={handleShadowPreviousSentence}
-                  disabled={isFirstSentence && isFirstSegment}
-                >
-                  <MaterialIcons
-                    name="chevron-left"
-                    size={24}
-                    color={isFirstSentence && isFirstSegment ? "#ccc" : "black"}
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.settingsButton}
-                  onPress={handleSettingsToggle}
-                >
-                  <MaterialIcons name="settings" size={24} color="grey" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.prevSentenceButton}
-                  onPress={handleShadowNextSentence}
-                >
-                  <MaterialIcons name="chevron-right" size={24} color="black" />
-                </TouchableOpacity>
-              </View>
+              <NavSwitcher
+                onPrev={handleShadowPreviousSentence}
+                onNext={handleShadowNextSentence}
+                currentIndex={currentSentence}
+                totalItems={currentVideo.segments.length * 3}
+              >
+                <Text>
+                  Sentence {currentSentence + 1} of{" "}
+                  {currentVideo.segments.length * 3}
+                </Text>
+              </NavSwitcher>
               <FullSegmentTranscriptBubble
                 words={currentSentenceWords}
                 time={time}

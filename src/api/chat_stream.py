@@ -125,6 +125,25 @@ Guidelines:
 - Make it tricky by including some fake translations that may seem correct but are not.
 - One of the answers NEEDS to be the correct translation of the vocabulary word."""
 
+# System prompt for generating vocab-in-context questions
+VOCAB_IN_CONTEXT_QUESTION_SYSTEM_PROMPT = """You are helping a Spanish language learner practice vocabulary in context.
+
+Given a vocabulary word, its translation, and a transcript segment from a video where the word is used,
+generate a question in Spanish that:
+1. Can be answered using the vocabulary word (or a sentence containing it)
+2. Is related to the context of the video transcript
+3. Tests whether the learner understands and can use the word appropriately
+
+The question should be natural and conversational, encouraging the learner to respond using the target vocabulary word.
+Do NOT directly ask "What does X mean?" - instead, create a question where using that word would be a natural part of the answer.
+
+Examples of good question styles:
+- "¿Cómo describirías...?" (if the vocab word is a descriptive word)
+- "¿Qué pasó cuando...?" (if the vocab word relates to an action)
+- "Según el video, ¿qué...?" (to connect to video context)
+
+Keep the question concise (1-2 sentences max)."""
+
 ignoreVocab = [
   "por",
   "la",
@@ -228,6 +247,14 @@ class EvaluateReviewAnswerRequest(BaseModel):
     ideal_answer: str
     user_answer: str
     context_segments: List[dict] = []
+    additional_context: str | None = None  # Extra instructions for vocab quiz types
+    vocab_word: str | None = None  # The vocab word being tested (for vocab quizzes)
+
+
+class GenerateVocabContextQuestionRequest(BaseModel):
+    vocab_word: str  # The vocabulary word to test
+    translation: str  # The translation of the vocab word
+    context_text: str  # The transcript segment text containing the vocab word
 
 
 app = FastAPI(title="SpeakUp Spanish API")
@@ -736,7 +763,7 @@ async def chat(request: ChatRequest):
 #         return {"error": str(e)}
 
 
-# System prompt for evaluating review answers
+# System prompt for evaluating review answers (comprehension questions)
 REVIEW_EVALUATION_SYSTEM_PROMPT = """You are evaluating a Spanish language learner's answer to a comprehension question about a video.
 
 You will be given:
@@ -750,9 +777,26 @@ Evaluate how close the user's answer is to the ideal answer. Consider:
 - Key concepts covered
 - Language accuracy
 
-Respond in Spanish with encouraging, constructive feedback. Keep it to 2-3 sentences.
-Be encouraging even if the answer is partially correct."""
+Respond with only the reasoning for your score, why or why not they got the answer correct. Keep it to 2-3 sentences.
+"""
 
+# System prompt for evaluating vocab quiz answers
+VOCAB_EVALUATION_SYSTEM_PROMPT = """You are evaluating a Spanish language learner's vocabulary knowledge.
+
+You will be given:
+- The question asking about a vocabulary word
+- The correct translation of the word
+- The user's answer (which may include a definition and/or a sentence using the word)
+- Video transcript context showing how the word is used
+- The specific vocabulary word being tested
+
+Evaluate the user's understanding of the vocabulary word. Consider:
+- Did they correctly understand the meaning of the word?
+- If they used it in a sentence, did they use it correctly and naturally?
+- Is their understanding consistent with how the word is used in the video context?
+
+Respond in Spanish with only the reasoning for your score, why or why not they got the answer correct. Keep it to 2-3 sentences.
+"""
 
 @app.post("/review-context")
 async def review_context(request: ReviewContextRequest):
@@ -832,6 +876,7 @@ async def evaluate_review_answer(request: EvaluateReviewAnswerRequest):
     """
     Evaluate a user's answer against the ideal answer using GPT.
     Returns feedback and a score classification.
+    Supports both comprehension questions and vocab quiz types.
     """
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
@@ -843,7 +888,31 @@ async def evaluate_review_answer(request: EvaluateReviewAnswerRequest):
             context_parts = [seg.get("text", "") for seg in request.context_segments if seg.get("text")]
             context_text = "\n".join(context_parts)
 
-        user_prompt = f"""Question: {request.question}
+        # Determine if this is a vocab quiz (has vocab_word or additional_context)
+        is_vocab_quiz = request.vocab_word is not None or request.additional_context is not None
+
+        if is_vocab_quiz:
+            # Vocab quiz evaluation prompt
+            user_prompt = f"""Question: {request.question}
+
+Correct translation of the word: {request.ideal_answer}
+
+{"Vocabulary word being tested: " + request.vocab_word if request.vocab_word else ""}
+
+User's answer: {request.user_answer}
+
+{"Video transcript context (showing how the word is used):" + chr(10) + context_text if context_text else ""}
+
+{"Additional evaluation notes: " + request.additional_context if request.additional_context else ""}
+
+Evaluate the user's vocabulary knowledge. Respond with a JSON object containing:
+- "feedback": your evaluation in Spanish (2-3 sentences, encouraging). Comment on their understanding of the word's meaning and their usage in a sentence if they provided one.
+- "score": one of "correct", "partial", or "incorrect"
+"""
+            system_prompt = VOCAB_EVALUATION_SYSTEM_PROMPT
+        else:
+            # Comprehension quiz evaluation prompt (original behavior)
+            user_prompt = f"""Question: {request.question}
 
 Ideal answer: {request.ideal_answer}
 
@@ -855,9 +924,10 @@ Evaluate the user's answer. Respond with a JSON object containing:
 - "feedback": your evaluation in Spanish (2-3 sentences, encouraging)
 - "score": one of "correct", "partial", or "incorrect"
 """
+            system_prompt = REVIEW_EVALUATION_SYSTEM_PROMPT
 
         messages = [
-            {"role": "system", "content": REVIEW_EVALUATION_SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
 
@@ -893,6 +963,68 @@ Evaluate the user's answer. Respond with a JSON object containing:
         }
     except Exception as e:
         print(f"Error evaluating review answer: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/generate-vocab-context-question")
+async def generate_vocab_context_question(request: GenerateVocabContextQuestionRequest):
+    """
+    Generate a contextual question for a vocabulary word.
+    The question is designed so that the answer naturally includes the vocab word.
+    Used for the 'Vocab in Context' quiz type.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    try:
+        user_prompt = f"""Vocabulary word: {request.vocab_word}
+Translation: {request.translation}
+
+Video transcript context where the word is used:
+"{request.context_text}"
+
+Generate a question in Spanish that can be answered using the word "{request.vocab_word}" or a sentence containing it.
+The question should relate to the video context provided. Do not reference the video or anything else besides the question itself. 
+So your question should not include the phrase 'según el video' or anything else that references the video like that. 
+Also do not reference the word itself in the question. Your question should be natural and conversational, and not use the word we want them to use in the answer."""
+
+        messages = [
+            {"role": "system", "content": VOCAB_IN_CONTEXT_QUESTION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=150,
+            temperature=0.7,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "vocab_context_question",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["question"],
+                        "properties": {
+                            "question": {"type": "string"}
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
+
+        result = json.loads(response.choices[0].message.content.strip())
+
+        return {
+            "question": result["question"],
+            "vocab_word": request.vocab_word,
+            "translation": request.translation,
+            "status": "complete"
+        }
+    except Exception as e:
+        print(f"Error generating vocab context question: {e}")
         return {"error": str(e)}
 
 

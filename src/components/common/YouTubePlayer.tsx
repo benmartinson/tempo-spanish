@@ -1,5 +1,11 @@
-import React, { useRef, useImperativeHandle, forwardRef } from "react";
-import { StyleSheet, View, Text, Linking } from "react-native";
+import React, {
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+  useEffect,
+  useState,
+} from "react";
+import { StyleSheet, View, Text, Linking, Platform } from "react-native";
 import { WebView } from "react-native-webview";
 import { Segment } from "../../types";
 
@@ -25,9 +31,162 @@ interface YouTubePlayerProps {
   startTime?: number;
 }
 
-const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
+const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
   (
     {
+      videoId,
+      clip,
+      autoplay,
+      setTime,
+      muted = false,
+      playbackSpeed = 1,
+      startTime,
+      videoText,
+    },
+    ref,
+  ) => {
+    const playerRef = useRef<any>(null);
+    const containerId = useRef(
+      `player-${Math.random().toString(36).substr(2, 9)}`,
+    );
+    const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const previousStateRef = useRef<number | null>(null);
+    const clipEnforcementEnabledRef = useRef(true);
+
+    const start = clip ? clip.start : (startTime ?? 0);
+    const end = clip ? clip.end : null;
+
+    useImperativeHandle(ref, () => ({
+      play: () => playerRef.current?.playVideo(),
+      pause: () => playerRef.current?.pauseVideo(),
+      seekTo: (time: number) => playerRef.current?.seekTo(time, true),
+      disableClipEnforcement: () => {
+        clipEnforcementEnabledRef.current = false;
+      },
+    }));
+
+    const stopTimePolling = () => {
+      if (timeIntervalRef.current) {
+        clearInterval(timeIntervalRef.current);
+        timeIntervalRef.current = null;
+      }
+    };
+
+    const startTimePolling = () => {
+      stopTimePolling();
+      timeIntervalRef.current = setInterval(() => {
+        if (
+          !playerRef.current ||
+          typeof playerRef.current.getCurrentTime !== "function"
+        )
+          return;
+
+        const currentTime = playerRef.current.getCurrentTime();
+        setTime(currentTime);
+
+        if (clipEnforcementEnabledRef.current && end && currentTime >= end) {
+          playerRef.current.pauseVideo();
+        }
+      }, 100);
+    };
+
+    const onPlayerStateChange = (event: any) => {
+      const state = event.data;
+      const YT = (window as any).YT;
+
+      // Update time immediately on state change
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === "function") {
+         setTime(playerRef.current.getCurrentTime());
+      }
+
+      if (
+        previousStateRef.current === YT.PlayerState.ENDED &&
+        state === YT.PlayerState.PLAYING
+      ) {
+        playerRef.current.seekTo(start);
+      }
+
+      if (state === YT.PlayerState.PLAYING) {
+        startTimePolling();
+      }
+
+      if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.ENDED) {
+        stopTimePolling();
+      }
+
+      previousStateRef.current = state;
+    };
+
+    useEffect(() => {
+      const initPlayer = () => {
+        const YT = (window as any).YT;
+        playerRef.current = new YT.Player(containerId.current, {
+          videoId,
+          height: "100%",
+          width: "100%",
+          playerVars: {
+            autoplay: autoplay ? 1 : 0,
+            controls: 1,
+            start: Math.floor(start),
+            rel: 0,
+            playsinline: 1,
+            mute: muted ? 1 : 0,
+          },
+          events: {
+            onReady: (event: any) => {
+              if (playbackSpeed) event.target.setPlaybackRate(playbackSpeed);
+              if (autoplay) event.target.playVideo();
+              // Report initial time
+              if (typeof event.target.getCurrentTime === "function") {
+                 setTime(event.target.getCurrentTime());
+              }
+            },
+            onStateChange: onPlayerStateChange,
+          },
+        });
+      };
+
+      if (!(window as any).YT) {
+        const tag = document.createElement("script");
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName("script")[0];
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+        (window as any).onYouTubeIframeAPIReady = initPlayer;
+      } else {
+        initPlayer();
+      }
+
+      return () => {
+        stopTimePolling();
+        if (playerRef.current) {
+          playerRef.current.destroy();
+        }
+      };
+    }, []);
+
+    return (
+      <View style={styles.container}>
+        <div
+          id={containerId.current}
+          style={{ width: "100%", height: "100%" }}
+        />
+        {videoText && (
+          <View style={styles.videoTextContainer}>
+            <Text style={styles.videoText}>{videoText}</Text>
+          </View>
+        )}
+      </View>
+    );
+  },
+);
+
+const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
+  (props, ref) => {
+    if (Platform.OS === "web") {
+      return <YoutubePlayerWeb {...props} ref={ref} key={props.refreshKey} />;
+    }
+
+    const {
       videoId,
       clip,
       autoplay,
@@ -37,9 +196,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       muted = false,
       playbackSpeed = 1,
       startTime,
-    },
-    ref,
-  ) => {
+    } = props;
     const webViewRef = useRef<WebView>(null);
 
     useImperativeHandle(ref, () => ({
@@ -66,7 +223,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
     }));
 
     const getVideoUrl = () => {
-      const baseUrl = "https://yt-relay.vercel.app";
+      const baseUrl = Platform.OS === "ios" ? "https://yt-relay.vercel.app" : "http://192.168.1.100:3000";
       const params = new URLSearchParams({
         v: videoId,
         autoplay: autoplay ? "1" : "0",

@@ -14,7 +14,7 @@ import {
   UIManager,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState, SegmentWord } from "../../types";
+import { QuizType, RootState, SegmentWord } from "../../types";
 import {
   setSegmentByTime,
   setNextSegment,
@@ -25,11 +25,7 @@ import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import WatchTab from "../watch/WatchTab";
 import ShadowTab from "../shadow/ShadowTab";
 import DiscussTab from "../discuss/DiscussTab";
-import {
-  findSegmentAndSentenceByTime,
-  findTimesForVocab,
-  getSentenceData,
-} from "../../helpers";
+import { findSegmentAndSentenceByTime, getSentenceData } from "../../helpers";
 
 interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";
@@ -46,6 +42,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   selectedNavTab,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const [selectedQuizType, setSelectedQuizType] =
+    useState<QuizType>("Comprehension");
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
   );
@@ -353,11 +351,12 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const startTimeForPlayer = playerClip ? undefined : time;
 
   const currentVideoText = useMemo(() => {
+    if (selectedNavTab !== "watch") return "";
     const match = currentVideo?.focusVocab.find(
       (v) => time >= v.start - 1 && time <= v.start + 3,
     );
     return match ? `${match.word} => ${match.translation}` : "";
-  }, [currentVideo?.focusVocab, time]);
+  }, [currentVideo?.focusVocab, time, selectedNavTab]);
 
   if (!currentVideo) return null;
 
@@ -429,6 +428,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         <DiscussTab
           onPlayClip={handlePlayClip}
           isKeyboardVisible={isKeyboardVisible}
+          selectedQuizType={selectedQuizType}
+          setSelectedQuizType={setSelectedQuizType}
         />
       )}
     </View>

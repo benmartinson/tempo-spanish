@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
-import { RootState, VideoQuestion, ContextSegment } from "../../types";
+import {
+  RootState,
+  VideoQuestion,
+  ContextSegment,
+  QuizType,
+} from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import ReviewChat from "./ReviewChat";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
@@ -18,11 +23,15 @@ const CEFR_ORDER: Record<string, number> = {
 interface DiscussTabProps {
   onPlayClip: (segment: { start: number; end: number }) => void;
   isKeyboardVisible: boolean;
+  selectedQuizType: QuizType;
+  setSelectedQuizType: (type: QuizType) => void;
 }
 
 const DiscussTab: React.FC<DiscussTabProps> = ({
   onPlayClip,
   isKeyboardVisible,
+  selectedQuizType,
+  setSelectedQuizType,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVideos = useSelector((state: RootState) => state.allVideos);
@@ -117,6 +126,10 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
         onPrevQuestion={handlePrevQuestion}
         onPlayClip={handlePlayClip}
         isKeyboardVisible={isKeyboardVisible}
+        selectedQuizType={selectedQuizType}
+        onSelectQuizType={setSelectedQuizType}
+        focusVocab={currentVideo.focusVocab}
+        segments={currentVideo.segments}
       />
     </View>
   );

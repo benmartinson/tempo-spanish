@@ -131,7 +131,6 @@ const WatchTab: React.FC<WatchTabProps> = ({
         allVocabulary,
         userKnownVocab,
       );
-      console.log({ selectedVocab });
       dispatch(setFocusVocab(selectedVocab));
       setIsAutoSelectingVocab(false);
     }

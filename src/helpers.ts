@@ -258,7 +258,7 @@ export const autoSelectVocabForVideo = (
 ): SegmentWord[] => {
   const allSentences = splitIntoSentences(allWords);
   const selectedVocab = [];
-  const minimumInterval = 10;
+  const minimumInterval = 7;
   let latestTime = 0;
   for (const sentence of allSentences) {
     const lowestFrequencyWord = sentence

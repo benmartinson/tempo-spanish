@@ -169,7 +169,6 @@ const AuthenticatedApp: React.FC = () => {
         }
       }
 
-      console.log({ totalVocab: allVocab.length });
       const vocabHash = allVocab.reduce(
         (acc, v) => {
           acc[v.word] = v;
