@@ -123,6 +123,7 @@ const VideoList: React.FC = () => {
     const video: VideoContext = {
       videoId: data.video_id,
       currentSegment: 0,
+      currentSentence: 0,
       segments: data.segments,
       allWords: data.segments.flatMap((s: Segment) => s.words),
       videoViewId: String(videoViewId),

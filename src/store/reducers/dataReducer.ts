@@ -44,6 +44,7 @@ const dataReducer = (
         currentVideo: action.payload
           ? {
               ...action.payload,
+              currentSentence: action.payload.currentSentence ?? 0,
               focusVocab: action.payload.focusVocab ?? [],
               focusSentences: action.payload.focusSentences ?? [],
             }
@@ -80,17 +81,33 @@ const dataReducer = (
           ],
         },
       };
-    case "SET_NEXT_SEGMENT":
+    case "SET_CURRENT_SENTENCE":
+      if (!state.currentVideo) return state;
+      const nextSentence =
+        typeof action.payload === "function"
+          ? action.payload(state.currentVideo.currentSentence)
+          : action.payload;
       return {
         ...state,
         currentVideo: {
           ...state.currentVideo,
-          currentSegment: state.currentVideo?.currentSegment + 1,
+          currentSentence: nextSentence,
+        },
+      };
+    case "SET_NEXT_SEGMENT":
+      if (!state.currentVideo) return state;
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          currentSegment: state.currentVideo.currentSegment + 1,
+          currentSentence: 0,
         },
         videoRefreshKey: Date.now(),
       };
     case "SET_SEGMENT_BY_TIME":
-      const index = state.currentVideo?.segments.findIndex(
+      if (!state.currentVideo) return state;
+      const index = state.currentVideo.segments.findIndex(
         (segment) =>
           action.payload >= segment.start && action.payload <= segment.end,
       );
@@ -101,14 +118,17 @@ const dataReducer = (
         currentVideo: {
           ...state.currentVideo,
           currentSegment: currentSegment,
+          currentSentence: 0,
         },
       };
     case "SET_PREVIOUS_SEGMENT":
+      if (!state.currentVideo) return state;
       return {
         ...state,
         currentVideo: {
           ...state.currentVideo,
-          currentSegment: state.currentVideo?.currentSegment - 1,
+          currentSegment: state.currentVideo.currentSegment - 1,
+          currentSentence: 0,
         },
         videoRefreshKey: Date.now(),
       };

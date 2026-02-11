@@ -90,8 +90,6 @@ export const useRecording = (
       recordingRef.current = recording;
       await recording.startAsync();
       setIsRecording(true);
-
-      console.log("Recording started");
     } catch (err) {
       console.error("Failed to start recording:", err);
       onErrorRef.current?.("Failed to start recording. Please try again.");
@@ -103,13 +101,11 @@ export const useRecording = (
     setIsRecording(false);
 
     let audioUri: string | null = null;
-
     // Stop recording and get the URI
     if (recordingRef.current) {
       try {
         await recordingRef.current.stopAndUnloadAsync();
         audioUri = recordingRef.current.getURI();
-        console.log("Recording stopped, URI:", audioUri);
       } catch (err) {
         console.error("Error stopping recording:", err);
         onErrorRef.current?.("Error stopping recording");

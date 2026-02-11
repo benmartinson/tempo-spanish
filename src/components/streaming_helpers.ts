@@ -408,7 +408,6 @@ export const sendAudioForTranscription = async (
     }
 
     const result: TranscriptionResponse = await response.json();
-    console.log("Transcription result:", result.transcript);
     return result;
   } catch (err) {
     console.error("Error sending audio for transcription:", err);

@@ -19,6 +19,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { QuizType, RootState, SegmentWord } from "../../types";
 import {
   setSegmentByTime,
+  setCurrentSentence as setCurrentSentenceAction,
   setNextSegment,
   setPreviousSegment,
   refreshVideoPlayer as refreshVideoPlayerAction,
@@ -75,7 +76,15 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
-  const [currentSentence, setCurrentSentence] = useState<number>(0);
+  const currentSentence = useSelector(
+    (state: RootState) => state.currentVideo?.currentSentence ?? 0,
+  );
+  const setCurrentSentence = useCallback(
+    (next: React.SetStateAction<number>) => {
+      dispatch(setCurrentSentenceAction(next));
+    },
+    [dispatch],
+  );
   const [showVideo, setShowVideo] = useState<boolean>(true);
 
   // Player state
@@ -192,8 +201,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         );
         if (result) {
           isTransitioningRef.current = true;
-          setCurrentSentence(result.sentenceIndex);
           dispatch(setSegmentByTime(newTime));
+          dispatch(setCurrentSentenceAction(result.sentenceIndex));
           dispatch(refreshVideoPlayerAction());
           return;
         }
@@ -219,8 +228,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           currentVideo!.currentSegment,
         );
         if (result) {
-          setCurrentSentence(result.sentenceIndex);
           dispatch(setSegmentByTime(newTime));
+          dispatch(setCurrentSentenceAction(result.sentenceIndex));
         }
         return;
       }
@@ -286,10 +295,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   // In Shadow mode: reloads the player so the URL gets the correct sentence clip.
   const seekToTime = useCallback(
     (targetTime: number, targetSentenceIndex?: number) => {
-      if (targetSentenceIndex !== undefined) {
-        setCurrentSentence(targetSentenceIndex);
-      }
       dispatch(setSegmentByTime(targetTime));
+      if (targetSentenceIndex !== undefined) {
+        dispatch(setCurrentSentenceAction(targetSentenceIndex));
+      }
 
       if (selectedNavTab === "watch" || selectedNavTab === "review") {
         // Seek directly without reloading - keeps free play intact
@@ -443,7 +452,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setPlayerMuted={setPlayerMuted}
           setPlayerSpeed={setPlayerSpeed}
           refreshPlayer={refreshPlayer}
-          seekToTime={seekToTime}
           isActive={selectedNavTab === "shadow"}
         />
       </View>

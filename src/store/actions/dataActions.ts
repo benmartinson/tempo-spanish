@@ -30,6 +30,13 @@ export const setSegmentByTime = (time: number): DataAction => ({
   payload: time,
 });
 
+export const setCurrentSentence = (
+  sentenceIndex: number | ((prev: number) => number),
+): DataAction => ({
+  type: "SET_CURRENT_SENTENCE",
+  payload: sentenceIndex,
+});
+
 export const setCurrentChatType = (
   chatType: "general" | "video-based",
 ): DataAction => ({
