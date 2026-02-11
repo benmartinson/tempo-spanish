@@ -777,7 +777,7 @@ Evaluate how close the user's answer is to the ideal answer. Consider:
 - Key concepts covered
 - Language accuracy
 
-Respond with only the reasoning for your score, why or why not they got the answer correct. Keep it to 2-3 sentences.
+Respond with only the reasoning for your score, why or why not they got the answer correct. Keep it to 1 sentence.
 """
 
 # System prompt for evaluating vocab quiz answers
@@ -795,7 +795,7 @@ Evaluate the user's understanding of the vocabulary word. Consider:
 - If they used it in a sentence, did they use it correctly and naturally?
 - Is their understanding consistent with how the word is used in the video context?
 
-Respond in Spanish with only the reasoning for your score, why or why not they got the answer correct. Keep it to 2-3 sentences.
+Respond in Spanish with only the reasoning for your score, why or why not they got the answer correct. Keep it to 1 sentence.
 """
 
 @app.post("/review-context")
@@ -906,7 +906,7 @@ User's answer: {request.user_answer}
 {"Additional evaluation notes: " + request.additional_context if request.additional_context else ""}
 
 Evaluate the user's vocabulary knowledge. Respond with a JSON object containing:
-- "feedback": your evaluation in Spanish (2-3 sentences, encouraging). Comment on their understanding of the word's meaning and their usage in a sentence if they provided one.
+- "feedback": your evaluation in Spanish (1 sentence). Comment on their understanding of the word's meaning and their usage in a sentence if they provided one.
 - "score": one of "correct", "partial", or "incorrect"
 """
             system_prompt = VOCAB_EVALUATION_SYSTEM_PROMPT
@@ -921,7 +921,7 @@ User's answer: {request.user_answer}
 {"Video transcript context:" + chr(10) + context_text if context_text else ""}
 
 Evaluate the user's answer. Respond with a JSON object containing:
-- "feedback": your evaluation in Spanish (2-3 sentences, encouraging)
+- "feedback": your evaluation in Spanish (1 sentence)
 - "score": one of "correct", "partial", or "incorrect"
 """
             system_prompt = REVIEW_EVALUATION_SYSTEM_PROMPT

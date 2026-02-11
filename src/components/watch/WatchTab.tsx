@@ -59,6 +59,7 @@ interface WatchTabProps {
   setAutoplay: (autoplay: boolean) => void;
   refreshPlayer: () => void;
   seekToTime: (targetTime: number, targetSentenceIndex?: number) => void;
+  isActive?: boolean;
 }
 
 const WatchTab: React.FC<WatchTabProps> = ({
@@ -73,6 +74,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
   setAutoplay,
   refreshPlayer,
   seekToTime,
+  isActive = true,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const focusVocab = currentVideo?.focusVocab || [];
@@ -98,6 +100,16 @@ const WatchTab: React.FC<WatchTabProps> = ({
   const [isAutoSelectingVocab, setIsAutoSelectingVocab] = useState(
     currentVideo?.focusVocab.length === 0,
   );
+
+  // Close modals when tab becomes inactive
+  useEffect(() => {
+    if (!isActive) {
+      setIsModalVisible(false);
+      setIsVocabTestVisible(false);
+      setIsActionsModalVisible(false);
+      setShowNoVocabFoundTooltip(false);
+    }
+  }, [isActive]);
 
   const handleAddToFocusVocab = () => {
     setUserSelectedVocab(currentVideo?.focusVocab.map((v) => v.word) || []);

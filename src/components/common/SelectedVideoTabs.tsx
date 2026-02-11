@@ -12,6 +12,8 @@ import {
   Platform,
   LayoutAnimation,
   UIManager,
+  TouchableOpacity,
+  Text,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { QuizType, RootState, SegmentWord } from "../../types";
@@ -42,8 +44,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   selectedNavTab,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const [selectedQuizType, setSelectedQuizType] =
-    useState<QuizType>("Comprehension");
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
   );
@@ -76,6 +76,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
   const [currentSentence, setCurrentSentence] = useState<number>(0);
+  const [showVideo, setShowVideo] = useState<boolean>(true);
 
   // Player state
   const [playerMuted, setPlayerMuted] = useState<boolean>(false);
@@ -159,8 +160,15 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   useEffect(() => {
     if (selectedNavTab !== "review") {
       setClipOverride(null);
+      setShowVideo(true);
     }
   }, [selectedNavTab]);
+
+  useEffect(() => {
+    if (isKeyboardVisible) {
+      setShowVideo(false);
+    }
+  }, [isKeyboardVisible]);
 
   // Unified handleSetTime - mode-aware
   const handleSetTime = (newTime: number) => {
@@ -360,7 +368,11 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   if (!currentVideo) return null;
 
-  const showVideo = !(selectedNavTab === "review" && isKeyboardVisible);
+  const getTabStyle = (isActive: boolean) =>
+    ({
+      display: isActive ? "flex" : "none",
+      flex: 1,
+    }) as const;
 
   return (
     <View style={styles.container}>
@@ -383,8 +395,16 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           videoText={currentVideoText}
         />
       </View>
+      {!showVideo && !isKeyboardVisible && (
+        <TouchableOpacity
+          style={styles.showVideoButton}
+          onPress={() => setShowVideo(true)}
+        >
+          <Text style={styles.showVideoButtonText}>Show Video</Text>
+        </TouchableOpacity>
+      )}
 
-      {selectedNavTab === "watch" && (
+      <View style={getTabStyle(selectedNavTab === "watch")}>
         <WatchTab
           time={time}
           currentSentence={currentSentence}
@@ -397,9 +417,11 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setAutoplay={setAutoplay}
           refreshPlayer={refreshPlayer}
           seekToTime={seekToTime}
+          isActive={selectedNavTab === "watch"}
         />
-      )}
-      {selectedNavTab === "shadow" && (
+      </View>
+
+      <View style={getTabStyle(selectedNavTab === "shadow")}>
         <ShadowTab
           time={time}
           setTime={setTime}
@@ -422,16 +444,17 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setPlayerSpeed={setPlayerSpeed}
           refreshPlayer={refreshPlayer}
           seekToTime={seekToTime}
+          isActive={selectedNavTab === "shadow"}
         />
-      )}
-      {selectedNavTab === "review" && (
+      </View>
+
+      <View style={getTabStyle(selectedNavTab === "review")}>
         <DiscussTab
           onPlayClip={handlePlayClip}
           isKeyboardVisible={isKeyboardVisible}
-          selectedQuizType={selectedQuizType}
-          setSelectedQuizType={setSelectedQuizType}
+          setShowVideo={setShowVideo}
         />
-      )}
+      </View>
     </View>
   );
 };
@@ -447,6 +470,16 @@ const styles = StyleSheet.create({
     position: "relative",
     marginTop: 0,
     overflow: "hidden",
+  },
+  showVideoButton: {
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  showVideoButtonText: {
+    color: "black",
+    fontSize: 14,
+    opacity: 0.5,
   },
 });
 

@@ -499,6 +499,11 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           <View style={styles.questionBubble}>
             <Text style={styles.questionLabel}>Question</Text>
             <Text style={styles.questionText}>{displayQuestion}</Text>
+            {selectedQuizType === "Vocab in Context" && (
+              <Text style={styles.hintText}>
+                Hint: Try to use "{currentVocabItem?.word}"
+              </Text>
+            )}
           </View>
         ) : null}
 
@@ -737,6 +742,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: "#222",
+  },
+  hintText: {
+    fontSize: 14,
+    color: "#666",
+    fontStyle: "italic",
+    marginTop: 6,
   },
   questionLoadingRow: {
     flexDirection: "row",

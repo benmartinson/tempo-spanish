@@ -23,15 +23,13 @@ const CEFR_ORDER: Record<string, number> = {
 interface DiscussTabProps {
   onPlayClip: (segment: { start: number; end: number }) => void;
   isKeyboardVisible: boolean;
-  selectedQuizType: QuizType;
-  setSelectedQuizType: (type: QuizType) => void;
+  setShowVideo: (show: boolean) => void;
 }
 
 const DiscussTab: React.FC<DiscussTabProps> = ({
   onPlayClip,
   isKeyboardVisible,
-  selectedQuizType,
-  setSelectedQuizType,
+  setShowVideo,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVideos = useSelector((state: RootState) => state.allVideos);
@@ -40,6 +38,8 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
   const [questions, setQuestions] = useState<VideoQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [selectedQuizType, setSelectedQuizType] =
+    useState<QuizType>("Comprehension");
 
   // Look up the database record ID from the YouTube video_id
   const dbRecordId = currentVideo
@@ -90,6 +90,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
   // Handle clicking a context segment timestamp
   const handlePlayClip = useCallback(
     (segment: ContextSegment) => {
+      setShowVideo(true);
       onPlayClip({ start: segment.start, end: segment.end });
     },
     [onPlayClip],

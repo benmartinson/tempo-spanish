@@ -60,6 +60,7 @@ interface ShadowTabProps {
   setPlayerSpeed: (speed: number) => void;
   refreshPlayer: () => void;
   seekToTime: (targetTime: number, targetSentenceIndex?: number) => void;
+  isActive?: boolean;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -84,6 +85,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   setPlayerSpeed,
   refreshPlayer,
   seekToTime,
+  isActive = true,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
@@ -148,6 +150,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       onRecordingComplete: handleRecordingComplete,
       onError: (message) => setError(message),
     });
+
+  // Handle changes in active state (tab switching)
+  useEffect(() => {
+    if (!isActive) {
+      if (isRecording) {
+        stopRecording();
+      }
+      setIsRecordingMode(false);
+      setSentenceEnded(false);
+      clearRecordingTimer();
+      setIsSettingsVisible(false);
+      setShowNoVocabFoundTooltip(false);
+      shouldAutoStopRef.current = false;
+    }
+  }, [isActive, isRecording]);
 
   // Reset shadow-specific state when segment changes
   useEffect(() => {
@@ -288,6 +305,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setShowNoVocabFoundTooltip(true);
   };
 
+  const currentSentenceIndex =
+    currentVideo?.currentSegment * 3 + currentSentence;
+
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
@@ -343,7 +363,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 totalItems={currentVideo.segments.length * 3}
               >
                 <Text>
-                  Sentence {currentSentence + 1} of{" "}
+                  Sentence {currentSentenceIndex + 1} of{" "}
                   {currentVideo.segments.length * 3}
                 </Text>
               </NavSwitcher>
