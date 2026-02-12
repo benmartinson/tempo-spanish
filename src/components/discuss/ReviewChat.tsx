@@ -91,10 +91,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const [evaluating, setEvaluating] = useState(false);
   const [answered, setAnswered] = useState(false);
   const [vocabQuestionIndex, setVocabQuestionIndex] = useState<number>();
-  const [generatedQuestion, setGeneratedQuestion] = useState<string | null>(
-    null,
-  );
-  const [questionLoading, setQuestionLoading] = useState(false);
   const [userMessages, setUserMessages] = useState<string[]>([]);
   const [previousVocabIndexes, setPreviousVocabIndexes] = useState<number[]>(
     [],
@@ -150,8 +146,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     let question: string;
     if (selectedQuizType === "Vocab") {
       question = `What does "${currentVocabItem.word}" mean? Try to use it in a sentence.`;
-    } else if (selectedQuizType === "Vocab in Context" && generatedQuestion) {
-      question = generatedQuestion;
     } else {
       // Fallback while loading or if generation fails
       question = "";
@@ -163,14 +157,13 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       question,
       contextSegments: currentVocabItem.contextSegments,
     };
-  }, [currentVocabItem, selectedQuizType, generatedQuestion]);
+  }, [currentVocabItem, selectedQuizType]);
 
   // Total vocab questions count
   const vocabQuestions = vocabItems;
 
   // Determine which question set to use based on quiz type
-  const isVocabMode =
-    selectedQuizType === "Vocab" || selectedQuizType === "Vocab in Context";
+  const isVocabMode = selectedQuizType === "Vocab";
   const totalItems = isVocabMode ? vocabQuestions.length : questions.length;
   const currentIndex = isVocabMode ? vocabQuestionIndex : currentQuestionIndex;
 
@@ -194,55 +187,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setVocabQuestionIndex(newIndex);
     setPreviousVocabIndexes((prev) => [...prev, newIndex]);
   };
-
-  // Fetch generated question for "Vocab in Context" mode
-  useEffect(() => {
-    if (selectedQuizType !== "Vocab in Context" || !currentVocabItem) {
-      setGeneratedQuestion(null);
-      return;
-    }
-
-    // Get the top context segment text for the question generation
-    const topContextSegment = currentVocabItem.contextSegments[0];
-    if (!topContextSegment) {
-      setGeneratedQuestion(null);
-      return;
-    }
-
-    const fetchGeneratedQuestion = async () => {
-      setQuestionLoading(true);
-      try {
-        const response = await fetch(
-          `${BACKEND_BASE_URL}/generate-vocab-context-question`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              vocab_word: currentVocabItem.word,
-              translation: currentVocabItem.translation,
-              context_text: topContextSegment.text,
-            }),
-          },
-        );
-
-        if (!response.ok) {
-          console.error("Error generating question:", response.status);
-          return;
-        }
-
-        const data = await response.json();
-        if (data.question) {
-          setGeneratedQuestion(data.question);
-        }
-      } catch (err) {
-        console.error("Error generating vocab context question:", err);
-      } finally {
-        setQuestionLoading(false);
-      }
-    };
-
-    fetchGeneratedQuestion();
-  }, [selectedQuizType, vocabQuestionIndex, currentVocabItem]);
 
   // Fetch context segments when comprehension question changes
   useEffect(() => {
@@ -304,7 +248,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       setEvaluation(null);
       setAnswered(false);
       setContextSegments(currentVocabItem.contextSegments);
-      setGeneratedQuestion(null); // Reset generated question for new vocab item
     }
   }, [vocabQuestionIndex, isVocabMode, currentVocabItem]);
 
@@ -489,25 +432,10 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         keyboardShouldPersistTaps="handled"
       >
         {/* Question Bubble */}
-        {questionLoading ? (
-          <View style={styles.questionBubble}>
-            <Text style={styles.questionLabel}>Question</Text>
-            <View style={styles.questionLoadingRow}>
-              <ActivityIndicator size="small" color="#4a69bd" />
-              <Text style={styles.questionLoadingText}>
-                Generating question...
-              </Text>
-            </View>
-          </View>
-        ) : displayQuestion ? (
+        {displayQuestion ? (
           <View style={styles.questionBubble}>
             <Text style={styles.questionLabel}>Question</Text>
             <Text style={styles.questionText}>{displayQuestion}</Text>
-            {selectedQuizType === "Vocab in Context" && (
-              <Text style={styles.hintText}>
-                Hint: Try to use "{currentVocabItem?.word}"
-              </Text>
-            )}
           </View>
         ) : null}
 
@@ -587,16 +515,14 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
               </Text>
             </View>
             <Text style={styles.feedbackText}>{evaluation.feedback}</Text>
-            {selectedQuizType !== "Vocab in Context" && (
-              <View style={styles.idealAnswerSection}>
-                <Text style={styles.idealAnswerLabel}>
-                  {selectedQuizType === "Vocab"
-                    ? "Translation:"
-                    : "Ideal Answer:"}
-                </Text>
-                <Text style={styles.idealAnswerText}>{displayIdealAnswer}</Text>
-              </View>
-            )}
+            <View style={styles.idealAnswerSection}>
+              <Text style={styles.idealAnswerLabel}>
+                {selectedQuizType === "Vocab"
+                  ? "Translation:"
+                  : "Ideal Answer:"}
+              </Text>
+              <Text style={styles.idealAnswerText}>{displayIdealAnswer}</Text>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -755,12 +681,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: "#222",
-  },
-  hintText: {
-    fontSize: 14,
-    color: "#666",
-    fontStyle: "italic",
-    marginTop: 6,
   },
   questionLoadingRow: {
     flexDirection: "row",

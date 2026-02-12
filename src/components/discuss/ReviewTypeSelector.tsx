@@ -12,11 +12,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { QuizType } from "../../types";
 
 const QUIZ_TYPES: { value: QuizType; label: string; icon: string }[] = [
-  {
-    value: "Context",
-    label: "Context",
-    icon: "format-quote",
-  },
+  { value: "Comprehension", label: "Comprehension", icon: "format-quote" },
   { value: "Vocab", label: "Vocab", icon: "translate" },
 ];
 
@@ -90,7 +86,7 @@ const ReviewTypeSelector: React.FC<ReviewTypeSelectorProps> = ({
                     top: buttonLayout.y + buttonLayout.height + 4,
                     left: Math.max(
                       8,
-                      buttonLayout.x - (selectedQuizType === "Vocab" ? 50 : 30),
+                      buttonLayout.x - 30,
                     ),
                   },
                 ]}

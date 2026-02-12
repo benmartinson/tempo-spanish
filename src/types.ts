@@ -101,7 +101,7 @@ export interface Sentence {
   words: SegmentWord[];
 }
 
-export type QuizType = "Comprehension" | "Vocab" | "Vocab in Context";
+export type QuizType = "Comprehension" | "Vocab";
 
 export interface SegmentWord {
   word: string;
