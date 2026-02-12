@@ -400,6 +400,13 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     }
   };
 
+  const handleRetry = () => {
+    setUserAnswer("");
+    setEvaluation(null);
+    setAnswered(false);
+    setUserMessages([]);
+  };
+
   if (questionsLoading && !isVocabMode) {
     return (
       <View style={styles.centeredContainer}>
@@ -595,55 +602,64 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       </ScrollView>
 
       {/* Input Area */}
-      {/* {!answered ? ( */}
-      <View
-        style={[
-          styles.inputArea,
-          { paddingBottom: isKeyboardVisible ? 10 : 40 },
-        ]}
-      >
-        <TextInput
-          style={styles.textInput}
-          placeholder="Type your answer..."
-          placeholderTextColor="#999"
-          value={userAnswer}
-          onChangeText={setUserAnswer}
-          autoComplete="off"
-          autoCorrect={false}
-          autoCapitalize="none"
-          multiline
-          maxLength={500}
-        />
-        <TouchableOpacity
+      {!answered ? (
+        <View
           style={[
-            styles.trashButton,
-            { backgroundColor: isKeyboardVisible ? "white" : "#f0f0f0" },
+            styles.inputArea,
+            { paddingBottom: isKeyboardVisible ? 10 : 40 },
           ]}
-          onPress={handleResetAnswer}
         >
-          <FontAwesome
-            name="trash-o"
-            size={22}
-            color={isKeyboardVisible ? "red" : "#aaa"}
+          <TextInput
+            style={styles.textInput}
+            placeholder="Type your answer..."
+            placeholderTextColor="#999"
+            value={userAnswer}
+            onChangeText={setUserAnswer}
+            autoComplete="off"
+            autoCorrect={false}
+            autoCapitalize="none"
+            multiline
+            maxLength={500}
           />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            !userAnswer.trim() && styles.sendButtonDisabled,
-          ]}
-          onPress={handleSubmitAnswer}
-          disabled={!userAnswer.trim()}
-        >
-          <MaterialIcons
-            name="send"
-            size={22}
-            color={userAnswer.trim() ? "#fff" : "#aaa"}
-          />
-        </TouchableOpacity>
-      </View>
-      {/* ) : (
+          <TouchableOpacity
+            style={[
+              styles.trashButton,
+              { backgroundColor: isKeyboardVisible ? "white" : "#f0f0f0" },
+            ]}
+            onPress={handleResetAnswer}
+          >
+            <FontAwesome
+              name="trash-o"
+              size={22}
+              color={isKeyboardVisible ? "red" : "#aaa"}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              !userAnswer.trim() && styles.sendButtonDisabled,
+            ]}
+            onPress={handleSubmitAnswer}
+            disabled={!userAnswer.trim()}
+          >
+            <MaterialIcons
+              name="send"
+              size={22}
+              color={userAnswer.trim() ? "#fff" : "#aaa"}
+            />
+          </TouchableOpacity>
+        </View>
+      ) : (
         <View style={styles.nextPrompt}>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+            <MaterialIcons
+              name="refresh"
+              size={18}
+              color="black"
+              opacity={0.5}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.nextQuestionButton}
             onPress={onNextQuestion}
@@ -659,7 +675,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             )}
           </TouchableOpacity>
         </View>
-      )} */}
+      )}
     </KeyboardAvoidingView>
   );
 };
@@ -927,23 +943,48 @@ const styles = StyleSheet.create({
   },
   // Next Question Prompt
   nextPrompt: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
+    marginBottom: 12,
     borderTopColor: "#eee",
     backgroundColor: "#fafafa",
   },
   nextQuestionButton: {
+    backgroundColor: "#4a69bd",
+    justifyContent: "center",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: "#4a69bd",
-    paddingVertical: 14,
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 12,
   },
   nextQuestionButtonText: {
     color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  retryButton: {
+    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "black",
+    opacity: 0.5,
     fontSize: 16,
     fontWeight: "600",
   },
