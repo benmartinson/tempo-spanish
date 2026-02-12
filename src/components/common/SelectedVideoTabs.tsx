@@ -119,26 +119,31 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, [isKeyboardVisible]);
 
   // Unified handleSetTime - mode-aware
-  const handleSetTime = (newTime: number) => {
-    if (isTransitioningRef.current) return;
-
+  const handleSetTime = (newTime: number, force = false) => {
+    if (isTransitioningRef.current && !force) return;
+    if (force) {
+      console.log("force set time", newTime);
+    }
     const prevTime = prevTimeRef.current;
     prevTimeRef.current = newTime;
 
     if (
       prevTime !== -1 &&
       Math.abs(newTime - prevTime) > 2 &&
-      currentSentence &&
+      currentSentence !== undefined &&
       (newTime < currentSentence.start - 0.5 ||
         newTime > currentSentence.end + 0.5)
     ) {
       isTransitioningRef.current = true;
 
       dispatch(setSentenceByTime(newTime));
-      dispatch(refreshVideoPlayerAction());
+      if (force) {
+        dispatch(refreshVideoPlayerAction());
+      }
+      setTime(newTime);
       setTimeout(() => {
         isTransitioningRef.current = false;
-      }, 500);
+      }, 1500);
       return;
     }
     // Ignore time before sentence start
@@ -149,9 +154,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       if (selectedNavTab === "shadow" || selectedNavTab === "review") {
         // playerRef.current?.pause();
       } else {
-        setCurrentSentence(currentSentence.index + 1);
+        setCurrentSentence((prev) => prev + 1);
+        setTime(newTime);
+        return;
       }
-      return;
     }
     setTime(newTime);
   };
@@ -181,7 +187,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   };
 
   const handleNextSentence = useCallback(() => {
-    console.log("handleNextSentence", currentSentence.index);
     if (currentSentence.index === currentVideo?.sentences.length - 1) {
       return;
     }
@@ -196,7 +201,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, [currentSentence.index, currentVideo?.sentences.length]);
 
   const handlePreviousSentence = useCallback(() => {
-    console.log("handlePreviousSentence", currentSentence.index);
     if (currentSentence.index === 0) {
       return;
     }
@@ -211,10 +215,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, [currentSentence.index, currentVideo?.sentences]);
 
   const playSentence = useCallback(() => {
-    console.log("playSentence", currentSentence.index);
     handleTransition();
     setAutoplay(true);
-    console.log("playSentence", currentSentence.index);
     setTime(currentSentence.start);
     refreshPlayer();
   }, [currentSentence.start]);
@@ -243,11 +245,15 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   // Callback for DiscussTab to request clip playback
   const handlePlayClip = useCallback((start) => {
     setAutoplay(true);
-    handleSetTime(start);
+    isTransitioningRef.current = true;
+    setTimeout(() => {
+      isTransitioningRef.current = false;
+    }, 1500);
+    handleSetTime(start, true);
   }, []);
 
   const effectiveRefreshKey = videoRefreshKey + clipRefreshKey;
-  const effectiveAutoplay = selectedNavTab === "shadow" ? true : autoplay;
+  const effectiveAutoplay = true;
 
   const startTimeForPlayer = selectedNavTab === "watch" ? undefined : time;
 

@@ -95,16 +95,23 @@ const dataReducer = (
       };
     case "SET_SENTENCE_BY_TIME":
       if (!state.currentVideo) return state;
-      const sentenceIndex = state.currentVideo.sentences.findIndex(
+      let sentenceIndex = state.currentVideo.sentences.findIndex(
         (sentence) =>
           action.payload >= sentence.start && action.payload <= sentence.end,
       );
+
+      if (sentenceIndex === -1 && action.payload < 5) {
+        sentenceIndex = 0;
+      }
 
       return {
         ...state,
         currentVideo: {
           ...state.currentVideo,
-          currentSentence: sentenceIndex >= 0 ? sentenceIndex : state.currentVideo.currentSentence,
+          currentSentence:
+            sentenceIndex >= 0
+              ? sentenceIndex
+              : state.currentVideo.currentSentence,
         },
       };
     case "SET_CURRENT_CHAT_TYPE":

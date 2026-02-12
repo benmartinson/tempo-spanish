@@ -12,13 +12,12 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { QuizType } from "../../types";
 
 const QUIZ_TYPES: { value: QuizType; label: string; icon: string }[] = [
-  { value: "Comprehension", label: "Comprehension", icon: "psychology" },
-  { value: "Vocab", label: "Vocab", icon: "translate" },
   {
-    value: "Vocab in Context",
-    label: "Vocab in Context",
+    value: "Context",
+    label: "Context",
     icon: "format-quote",
   },
+  { value: "Vocab", label: "Vocab", icon: "translate" },
 ];
 
 interface ReviewTypeSelectorProps {

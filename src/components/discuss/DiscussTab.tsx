@@ -38,8 +38,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
   const [questions, setQuestions] = useState<VideoQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questionsLoading, setQuestionsLoading] = useState(false);
-  const [selectedQuizType, setSelectedQuizType] =
-    useState<QuizType>("Comprehension");
+  const [selectedQuizType, setSelectedQuizType] = useState<QuizType>("Vocab");
 
   // Look up the database record ID from the YouTube video_id
   const dbRecordId = currentVideo
@@ -91,6 +90,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
   const handlePlayClip = useCallback(
     (segment: ContextSegment) => {
       setShowVideo(true);
+      console.log("handlePlayClip", segment.start);
       onPlayClip(segment.start);
     },
     [onPlayClip],
