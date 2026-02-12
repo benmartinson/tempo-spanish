@@ -209,7 +209,7 @@ const AuthenticatedApp: React.FC = () => {
   // When a video is selected, reset to watch tab
   useEffect(() => {
     if (currentVideo) {
-      setSelectedNavTab("watch");
+      setSelectedNavTab("shadow");
     }
   }, [currentVideo?.videoId]);
 

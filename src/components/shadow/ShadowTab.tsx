@@ -61,6 +61,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
+  const [isLooping, setIsLooping] = useState<boolean>(true);
 
   // Speed control state (internal settings)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -80,6 +81,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
     useState<boolean>(false);
   const isTransitioningRef = useRef<boolean>(false);
+  const [nextSentenceCountdown, setNextSentenceCountdown] = useState<number>(0);
 
   // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
@@ -122,6 +124,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       onError: (message) => setError(message),
     });
 
+  const justRecordedRef = useRef(false);
+
   // Handle changes in active state (tab switching)
   useEffect(() => {
     if (!isActive) {
@@ -150,15 +154,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     };
   }, []);
 
-  // Detect when sentence ends (for CountdownTimer to show buffer)
   useEffect(() => {
     if (
       !isTransitioningRef.current &&
-      isRecording &&
       time >= currentSentence.end - 0.5 &&
       !sentenceEnded
     ) {
-      setSentenceEnded(true);
+      if (isRecording) {
+        setSentenceEnded(true);
+      } else if (isActive && isLooping && !justRecordedRef.current) {
+        setTimeout(() => {
+          handleEnterRecordingMode();
+        }, 1000);
+      }
     }
   }, [time, currentSentence.end, isRecording, sentenceEnded]);
 
@@ -170,6 +178,46 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       }
     };
   }, [currentSentence]);
+
+  const setJustRecorded = () => {
+    setTimeout(() => {
+      justRecordedRef.current = false;
+    }, 1000);
+  };
+
+  const handleShadowNextSentence = () => {
+    setPlayerSpeed(playbackSpeed);
+    setPlayerMuted(false);
+    setIsRecordingMode(false);
+    handleResetState();
+    setJustRecorded();
+    parentHandleNextSentence();
+  };
+
+  // Keep a ref to the callback to avoid stale closures in the interval
+  const handleNextRef = useRef(handleShadowNextSentence);
+  useEffect(() => {
+    handleNextRef.current = handleShadowNextSentence;
+  });
+
+  useEffect(() => {
+    if (isActive && isLooping && accuracyResult) {
+      setNextSentenceCountdown(5);
+      const interval = setInterval(() => {
+        setNextSentenceCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            handleNextRef.current();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setNextSentenceCountdown(0);
+    }
+  }, [isActive, isLooping, accuracyResult]);
 
   const handleResetState = () => {
     setError(null);
@@ -194,6 +242,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsRecordingMode(true);
     handleResetState();
     isTransitioningRef.current = true;
+    justRecordedRef.current = true;
   };
 
   // Called by CountdownTimer after 3-second countdown
@@ -207,29 +256,23 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Called by CountdownTimer after buffer countdown completes
   const handleStopRecording = async () => {
+    pausePlayer();
     setIsRecordingMode(false);
     await stopRecording();
   };
 
-  // Shadow-specific sentence navigation (wraps parent with recording state cleanup)
   const handleShadowPreviousSentence = () => {
     setIsRecordingMode(false);
+    setJustRecorded();
     setPlayerSpeed(playbackSpeed);
     setPlayerMuted(false);
     handleResetState();
     parentHandlePreviousSentence();
   };
 
-  const handleShadowNextSentence = () => {
-    setPlayerSpeed(playbackSpeed);
-    setPlayerMuted(false);
-    setIsRecordingMode(false);
-    handleResetState();
-    parentHandleNextSentence();
-  };
-
   const handlePlaySnippetAgain = () => {
     setPlayerMuted(false);
+    setJustRecorded();
     setPlayerSpeed(playbackSpeed);
     setIsRecordingMode(false);
     handleResetState();
@@ -259,12 +302,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               </Text>
             </View>
           ) : accuracyResult ? (
-            <ShadowResults
-              accuracyResult={accuracyResult}
-              handleEnterRecordingMode={handleEnterRecordingMode}
-              handleNextSentence={handleShadowNextSentence}
-              handlePlaySnippetAgain={handlePlaySnippetAgain}
-            />
+            <>
+              <ShadowResults
+                accuracyResult={accuracyResult}
+                handleEnterRecordingMode={handleEnterRecordingMode}
+                handleNextSentence={handleShadowNextSentence}
+                handlePlaySnippetAgain={handlePlaySnippetAgain}
+              />
+              {nextSentenceCountdown > 0 && (
+                <View style={styles.nextSentenceCountdownRefContainer}>
+                  <Text style={styles.nextSentenceCountdownRefText}>
+                    {nextSentenceCountdown}
+                  </Text>
+                </View>
+              )}
+            </>
           ) : isRecordingMode ? (
             <>
               <CountdownTimer
@@ -496,6 +548,15 @@ export const styles = StyleSheet.create({
   sentenceIndicator: {
     color: "#666",
     fontSize: 14,
+    fontWeight: "600",
+  },
+  nextSentenceCountdownRefContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+  nextSentenceCountdownRefText: {
+    fontSize: 24,
     fontWeight: "600",
   },
 });
