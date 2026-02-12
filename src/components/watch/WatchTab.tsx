@@ -3,62 +3,31 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import {
-  StyleSheet,
-  View,
-  ScrollView,
-  TouchableOpacity,
-  Text,
-} from "react-native";
-import {
-  RootState,
-  Segment,
-  SegmentWord,
-  VideoContext,
-  Vocabulary,
-} from "../../types";
-import { useNavigation } from "@react-navigation/native";
-import {
-  setCurrentTab,
-  refreshVideoPlayer,
-  setFocusVocab,
-  addUserKnownVocab,
-} from "../../store/actions/dataActions";
+import { StyleSheet, View, ScrollView, Text } from "react-native";
+import { RootState, Sentence, Vocabulary } from "../../types";
+import { setFocusVocab } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
-import TranscriptBubble from "./TranscriptBubble";
 import FullSegmentTranscriptBubble from "./FullSegmentTranscriptBubble";
 import TranslationBubble from "./TranslationBubble";
 import BubbleSelector from "./BubbleSelector";
 import SlideModal from "../common/Modal";
-import VocabList from "./VocabList";
 import VocabSelector from "./VocabSelector";
 import VocabReview from "./VocabReview";
-import VocabTestModal from "./VocabTestModal";
-import ActionsModal from "./ActionsModal";
 import {
   randomlySelectVocabFromVocabulary,
   normalizeWord,
   alreadyKnownVocab,
   ignoreVocab,
-  findSentenceWithVocab,
-  splitIntoSentences,
-  findNextSegmentWithVocab,
   autoSelectVocabForVideo,
 } from "../../helpers";
 import TooltipModal from "../common/TooltipModal";
 
 interface WatchTabProps {
   time: number;
-  currentSentence: number;
+  currentSentence: Sentence;
   setCurrentSentence: React.Dispatch<React.SetStateAction<number>>;
-  clip: Segment | undefined;
-  sentences: SegmentWord[][];
-  sentencesText: string[];
-  sentenceStart: number;
-  sentenceEnd: number;
   setAutoplay: (autoplay: boolean) => void;
   refreshPlayer: () => void;
-  seekToTime: (targetTime: number, targetSentenceIndex?: number) => void;
   isActive?: boolean;
 }
 
@@ -66,14 +35,8 @@ const WatchTab: React.FC<WatchTabProps> = ({
   time,
   currentSentence,
   setCurrentSentence,
-  clip,
-  sentences,
-  sentencesText,
-  sentenceStart,
-  sentenceEnd,
   setAutoplay,
   refreshPlayer,
-  seekToTime,
   isActive = true,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -82,13 +45,9 @@ const WatchTab: React.FC<WatchTabProps> = ({
   const userKnownVocab = useSelector(
     (state: RootState) => state.userKnownVocab,
   );
-  const navigation = useNavigation();
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isVocabTestVisible, setIsVocabTestVisible] = useState(false);
-  const [isActionsModalVisible, setIsActionsModalVisible] = useState(false);
+  // const [isVocabTestVisible, setIsVocabTestVisible] = useState(false);
   const dispatch = useDispatch();
-  const supabase = useSupabaseWithClerk();
-  const { userId } = useAuth();
   const allWords = useSelector(
     (state: RootState) => state.currentVideo?.allWords,
   );
@@ -105,18 +64,17 @@ const WatchTab: React.FC<WatchTabProps> = ({
   useEffect(() => {
     if (!isActive) {
       setIsModalVisible(false);
-      setIsVocabTestVisible(false);
-      setIsActionsModalVisible(false);
+      // setIsVocabTestVisible(false);
       setShowNoVocabFoundTooltip(false);
     }
   }, [isActive]);
 
-  const handleAddToFocusVocab = () => {
-    setUserSelectedVocab(currentVideo?.focusVocab.map((v) => v.word) || []);
-    setUserIgnoredVocab([]);
-    setVocabSelectionStep(1);
-    setIsModalVisible(true);
-  };
+  // const handleAddToFocusVocab = () => {
+  //   setUserSelectedVocab(currentVideo?.focusVocab.map((v) => v.word) || []);
+  //   setUserIgnoredVocab([]);
+  //   setVocabSelectionStep(1);
+  //   setIsModalVisible(true);
+  // };
 
   const uniqueWordsFromVideo = useMemo(
     () =>
@@ -235,32 +193,32 @@ const WatchTab: React.FC<WatchTabProps> = ({
     refreshPlayer();
   };
 
-  const handleOpenVocabTest = () => {
-    setIsActionsModalVisible(false);
-    setIsVocabTestVisible(true);
-  };
+  // const handleOpenVocabTest = () => {
+  //   setIsActionsModalVisible(false);
+  //   setIsVocabTestVisible(true);
+  // };
 
-  const handleSkipToVocab = (word: SegmentWord) => {
-    const [nextSegment, nextFocusVocabTime] = findNextSegmentWithVocab(
-      focusVocab,
-      word,
-      currentVideo!.segments,
-      currentVideo!.currentSegment,
-    );
-    if (nextSegment && nextFocusVocabTime) {
-      const sentence = findSentenceWithVocab(
-        nextSegment,
-        nextFocusVocabTime.start,
-      );
-      if (sentence && sentence >= 0) {
-        const sentencesInSegment = splitIntoSentences(nextSegment.words);
-        setAutoplay(true);
-        seekToTime(sentencesInSegment[sentence][0].start, sentence);
-        return;
-      }
-    }
-    setShowNoVocabFoundTooltip(true);
-  };
+  // const handleSkipToVocab = (word: SegmentWord) => {
+  //   const [nextSegment, nextFocusVocabTime] = findNextSegmentWithVocab(
+  //     focusVocab,
+  //     word,
+  //     currentVideo!.segments,
+  //     currentVideo!.currentSegment,
+  //   );
+  //   if (nextSegment && nextFocusVocabTime) {
+  //     const sentence = findSentenceWithVocab(
+  //       nextSegment,
+  //       nextFocusVocabTime.start,
+  //     );
+  //     if (sentence && sentence >= 0) {
+  //       const sentencesInSegment = splitIntoSentences(nextSegment.words);
+  //       setAutoplay(true);
+  //       seekToTime(sentencesInSegment[sentence][0].start, sentence);
+  //       return;
+  //     }
+  //   }
+  //   setShowNoVocabFoundTooltip(true);
+  // };
 
   const featuredVocab = useMemo(() => {
     // find the latest focus vocab time that is before the current time
@@ -294,14 +252,16 @@ const WatchTab: React.FC<WatchTabProps> = ({
           )} */}
           {selectedBubble === "large" && (
             <FullSegmentTranscriptBubble
-              words={clip?.words || []}
+              words={currentSentence.words || []}
               time={time}
             />
           )}
           {selectedBubble === "translation" && (
             <TranslationBubble
-              translation={clip?.full_text_translation.split(" ") || []}
-              words={clip?.words || []}
+              translation={
+                currentSentence.full_text_translation.split(" ") || []
+              }
+              words={currentSentence.words || []}
               time={time}
             />
           )}
@@ -349,11 +309,11 @@ const WatchTab: React.FC<WatchTabProps> = ({
         )}
       </SlideModal>
 
-      <VocabTestModal
+      {/* <VocabTestModal
         visible={isVocabTestVisible}
         onClose={() => setIsVocabTestVisible(false)}
         vocab={currentVideo.focusVocab}
-      />
+      /> */}
       {showNoVocabFoundTooltip && (
         <TooltipModal
           isVisible={showNoVocabFoundTooltip}

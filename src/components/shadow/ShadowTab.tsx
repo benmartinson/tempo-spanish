@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { RootState, Segment, SegmentWord } from "../../types";
+import { RootState, Segment, SegmentWord, Sentence } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
@@ -27,9 +27,7 @@ import {
 import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
 import {
-  findNextSegmentWithVocab,
   findSentenceWithVocab,
-  findTimesForVocab,
   normalizeWord,
   splitIntoSentences,
 } from "../../helpers";
@@ -40,56 +38,29 @@ import NavSwitcher from "../common/NavSwitcher";
 
 interface ShadowTabProps {
   time: number;
-  setTime: React.Dispatch<React.SetStateAction<number>>;
-  currentSentence: number;
-  setCurrentSentence: React.Dispatch<React.SetStateAction<number>>;
-  clip: Segment | undefined;
-  sentences: SegmentWord[][];
-  currentSentenceWords: SegmentWord[];
-  sentenceStart: number;
-  sentenceEnd: number;
-  sentencesText: string[];
-  isLastSentence: boolean;
-  isFirstSentence: boolean;
-  isFirstSegment: boolean;
+  currentSentence: Sentence;
   handleNextSentence: () => void;
   handlePreviousSentence: () => void;
-  handleNextSegment: () => void;
-  handlePreviousSegment: () => void;
+  isActive?: boolean;
+  playSentence: () => void;
   setPlayerMuted: (muted: boolean) => void;
   setPlayerSpeed: (speed: number) => void;
-  refreshPlayer: () => void;
-  seekToTime: (targetTime: number, targetSentenceIndex?: number) => void;
-  isActive?: boolean;
+  pausePlayer: () => void;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
   time,
-  setTime,
   currentSentence,
-  setCurrentSentence,
-  clip,
-  sentences,
-  currentSentenceWords,
-  sentenceStart,
-  sentenceEnd,
-  sentencesText,
-  isLastSentence,
-  isFirstSentence,
-  isFirstSegment,
   handleNextSentence: parentHandleNextSentence,
   handlePreviousSentence: parentHandlePreviousSentence,
-  handleNextSegment,
-  handlePreviousSegment,
+  isActive = true,
+  playSentence,
   setPlayerMuted,
   setPlayerSpeed,
-  refreshPlayer,
-  seekToTime,
-  isActive = true,
+  pausePlayer,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
-  const focusVocab = currentVideo?.focusVocab || [];
 
   // Speed control state (internal settings)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -108,7 +79,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [sentenceEnded, setSentenceEnded] = useState<boolean>(false);
   const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
     useState<boolean>(false);
-  const shouldAutoStopRef = useRef<boolean>(false);
+  const isTransitioningRef = useRef<boolean>(false);
 
   // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
@@ -119,8 +90,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       try {
         const result = await sendAudioForTranscription(audioUri);
         const spokenWords = result.transcript.split(/\s+/).filter(Boolean);
-        const targetWords = currentSentenceWords.map((w) => w.word);
-        const ignoredWords = currentSentenceWords
+        const targetWords = currentSentence.words.map((w) => w.word);
+        const ignoredWords = currentSentence.words
           .filter((w) => {
             const word = normalizeWord(w.word);
             return word.length <= 2 || normalizeWord(w.translation) === word;
@@ -142,7 +113,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setIsProcessing(false);
       }
     },
-    [currentSentenceWords],
+    [currentSentence.words],
   );
 
   const { isRecording, hasPermission, startRecording, stopRecording } =
@@ -162,36 +133,34 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       clearRecordingTimer();
       setIsSettingsVisible(false);
       setShowNoVocabFoundTooltip(false);
-      shouldAutoStopRef.current = false;
     }
   }, [isActive, isRecording]);
 
-  // Reset shadow-specific state when segment changes
   useEffect(() => {
-    setError(null);
-    setAccuracyResult(null);
-    setIsProcessing(false);
-    setPlayerMuted(false);
-    setIsRecordingMode(false);
-    shouldAutoStopRef.current = false;
-    setSentenceEnded(false);
-    if (recordingExtensionRef.current) {
-      clearTimeout(recordingExtensionRef.current);
-      recordingExtensionRef.current = null;
-    }
-  }, [currentVideo?.currentSegment]);
+    return () => {
+      isTransitioningRef.current = false;
+      clearRecordingTimer();
+      setIsRecordingMode(false);
+      setSentenceEnded(false);
+      setIsProcessing(false);
+      setAccuracyResult(null);
+      setError(null);
+      setShowNoVocabFoundTooltip(false);
+      setIsSettingsVisible(false);
+    };
+  }, []);
 
   // Detect when sentence ends (for CountdownTimer to show buffer)
   useEffect(() => {
     if (
+      !isTransitioningRef.current &&
       isRecording &&
-      time >= sentenceEnd &&
-      !sentenceEnded &&
-      shouldAutoStopRef.current
+      time >= currentSentence.end - 0.5 &&
+      !sentenceEnded
     ) {
       setSentenceEnded(true);
     }
-  }, [time, sentenceEnd, isRecording, sentenceEnded]);
+  }, [time, currentSentence.end, isRecording, sentenceEnded]);
 
   // Cleanup timer on unmount or sentence change
   useEffect(() => {
@@ -202,6 +171,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     };
   }, [currentSentence]);
 
+  const handleResetState = () => {
+    setError(null);
+    setAccuracyResult(null);
+    setSentenceEnded(false);
+    setIsProcessing(false);
+    clearRecordingTimer();
+  };
+
   const clearRecordingTimer = () => {
     if (recordingExtensionRef.current) {
       clearTimeout(recordingExtensionRef.current);
@@ -209,104 +186,55 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   };
 
-  // Helper to refresh player with specific speed and mute settings
-  const refreshVideoPlayerAndState = (speed: number, muted: boolean) => {
-    setPlayerSpeed(speed);
-    setPlayerMuted(muted);
-    refreshPlayer();
-  };
-
   // Enter recording mode (shows countdown, then starts recording)
   const handleEnterRecordingMode = () => {
-    setAccuracyResult(null);
-    setError(null);
-    setTime(sentenceStart);
-    setSentenceEnded(false);
+    pausePlayer();
+    setPlayerMuted(true);
+    setPlayerSpeed(recordSpeed);
     setIsRecordingMode(true);
-    clearRecordingTimer();
+    handleResetState();
+    isTransitioningRef.current = true;
   };
 
   // Called by CountdownTimer after 3-second countdown
   const handleActualStartRecording = async () => {
-    shouldAutoStopRef.current = true;
     await startRecording();
-    refreshVideoPlayerAndState(recordSpeed, muteVideoWhenRecording);
+    playSentence();
+    setTimeout(() => {
+      isTransitioningRef.current = false;
+    }, 1000);
   };
 
   // Called by CountdownTimer after buffer countdown completes
   const handleStopRecording = async () => {
-    shouldAutoStopRef.current = false;
     setIsRecordingMode(false);
     await stopRecording();
   };
 
   // Shadow-specific sentence navigation (wraps parent with recording state cleanup)
   const handleShadowPreviousSentence = () => {
-    if (isFirstSentence) {
-      if (!isFirstSegment) {
-        setCurrentSentence(sentences.length - 1);
-        handlePreviousSegment();
-      }
-    } else {
-      setCurrentSentence((prev) => prev - 1);
-      setAccuracyResult(null);
-      setSentenceEnded(false);
-      clearRecordingTimer();
-      refreshVideoPlayerAndState(playbackSpeed, false);
-    }
+    setIsRecordingMode(false);
+    setPlayerSpeed(playbackSpeed);
+    setPlayerMuted(false);
+    handleResetState();
+    parentHandlePreviousSentence();
   };
 
   const handleShadowNextSentence = () => {
-    if (isLastSentence) {
-      handleNextSegment();
-    } else {
-      setCurrentSentence((prev) => prev + 1);
-      setAccuracyResult(null);
-      setSentenceEnded(false);
-      clearRecordingTimer();
-      refreshVideoPlayerAndState(playbackSpeed, false);
-    }
+    setPlayerSpeed(playbackSpeed);
+    setPlayerMuted(false);
+    setIsRecordingMode(false);
+    handleResetState();
+    parentHandleNextSentence();
   };
 
   const handlePlaySnippetAgain = () => {
+    setPlayerMuted(false);
+    setPlayerSpeed(playbackSpeed);
     setIsRecordingMode(false);
-    setTime(sentenceStart);
-    setAccuracyResult(null);
-    setSentenceEnded(false);
-    clearRecordingTimer();
-    refreshVideoPlayerAndState(playbackSpeed, false);
+    handleResetState();
+    playSentence();
   };
-
-  const handleSettingsToggle = () => {
-    setIsSettingsVisible(!isSettingsVisible);
-  };
-
-  const handleSkipToVocab = (word: SegmentWord) => {
-    const [nextSegment, nextFocusVocabTime] = findNextSegmentWithVocab(
-      focusVocab,
-      word,
-      currentVideo!.segments,
-      currentVideo!.currentSegment,
-    );
-    if (nextSegment && nextFocusVocabTime) {
-      const sentence = findSentenceWithVocab(
-        nextSegment,
-        nextFocusVocabTime.start,
-      );
-      if (sentence && sentence >= 0) {
-        setAccuracyResult(null);
-        setSentenceEnded(false);
-        clearRecordingTimer();
-        const sentencesInSegment = splitIntoSentences(nextSegment.words);
-        seekToTime(sentencesInSegment[sentence][0].start, sentence);
-        return;
-      }
-    }
-    setShowNoVocabFoundTooltip(true);
-  };
-
-  const currentSentenceIndex =
-    currentVideo?.currentSegment * 3 + currentSentence;
 
   if (!currentVideo) {
     return <SelectVideoPrompt />;
@@ -347,7 +275,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 countdownDuration={3}
               />
               <FullSegmentTranscriptBubble
-                words={currentSentenceWords}
+                words={currentSentence.words}
                 time={time}
                 showFullText={true}
                 mode="video"
@@ -359,16 +287,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               <NavSwitcher
                 onPrev={handleShadowPreviousSentence}
                 onNext={handleShadowNextSentence}
-                currentIndex={currentSentence}
-                totalItems={currentVideo.segments.length * 3}
+                currentIndex={currentSentence.index}
+                totalItems={currentVideo.sentences.length}
               >
                 <Text>
-                  Sentence {currentSentenceIndex + 1} of{" "}
-                  {currentVideo.segments.length * 3}
+                  Sentence {currentSentence.index + 1} of{" "}
+                  {currentVideo.sentences.length}
                 </Text>
               </NavSwitcher>
               <FullSegmentTranscriptBubble
-                words={currentSentenceWords}
+                words={currentSentence.words}
                 time={time}
                 mode="video"
               />

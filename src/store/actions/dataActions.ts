@@ -15,18 +15,8 @@ export const setCurrentVideo = (video: VideoContext | null): DataAction => ({
   payload: video,
 });
 
-export const setNextSegment = (): DataAction => ({
-  type: "SET_NEXT_SEGMENT",
-  payload: null,
-});
-
-export const setPreviousSegment = (): DataAction => ({
-  type: "SET_PREVIOUS_SEGMENT",
-  payload: null,
-});
-
-export const setSegmentByTime = (time: number): DataAction => ({
-  type: "SET_SEGMENT_BY_TIME",
+export const setSentenceByTime = (time: number): DataAction => ({
+  type: "SET_SENTENCE_BY_TIME",
   payload: time,
 });
 

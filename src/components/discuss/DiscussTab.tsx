@@ -21,7 +21,7 @@ const CEFR_ORDER: Record<string, number> = {
 };
 
 interface DiscussTabProps {
-  onPlayClip: (segment: { start: number; end: number }) => void;
+  onPlayClip: (start: number) => void;
   isKeyboardVisible: boolean;
   setShowVideo: (show: boolean) => void;
 }
@@ -91,7 +91,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
   const handlePlayClip = useCallback(
     (segment: ContextSegment) => {
       setShowVideo(true);
-      onPlayClip({ start: segment.start, end: segment.end });
+      onPlayClip(segment.start);
     },
     [onPlayClip],
   );
@@ -130,7 +130,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
         selectedQuizType={selectedQuizType}
         onSelectQuizType={setSelectedQuizType}
         focusVocab={currentVideo.focusVocab}
-        segments={currentVideo.segments}
+        sentences={currentVideo.sentences}
       />
     </View>
   );

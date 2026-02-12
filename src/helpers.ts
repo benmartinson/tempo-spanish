@@ -1,4 +1,10 @@
-import { Segment, SegmentWord, VideoContext, Vocabulary } from "./types";
+import {
+  Segment,
+  Sentence,
+  SegmentWord,
+  VideoContext,
+  Vocabulary,
+} from "./types";
 
 export const canIgnoreVocab = (word: string) => {
   return ignoreVocab.includes(word) || alreadyKnownVocab.includes(word);
@@ -104,39 +110,39 @@ export const randomlySelectVocabFromVocabulary = (
 //   return wordTimes.sort((a, b) => a.start - b.start);
 // };
 
-export const findNextSegmentWithVocab = (
-  focusVocab: SegmentWord[],
-  word: SegmentWord,
-  segments: Segment[],
-  currentSegment: number,
-): [Segment, SegmentWord] => {
-  const nextSegmentStart = segments[currentSegment + 1].start;
-  // console.log({
-  //   focusVocabTimes: focusVocabTimes.map((v) => {
-  //     return { word: normalizeWord(v.word), start: v.start, end: v.end };
-  //   }),
-  //   nextSegmentStart,
-  //   normalizeWord: normalizeWord(word.word),
-  // });
-  const nextFocusVocabTime = focusVocab.find(
-    (v) =>
-      normalizeWord(word.word) === normalizeWord(v.word) &&
-      v.start >= nextSegmentStart,
-  );
-  if (!nextFocusVocabTime) {
-    return [null, null];
-  }
-  for (let i = currentSegment + 1; i < segments.length; i++) {
-    const segment = segments[i];
-    if (
-      nextFocusVocabTime.start >= segment.start &&
-      nextFocusVocabTime.start <= segment.end
-    ) {
-      return [segment, nextFocusVocabTime];
-    }
-  }
-  return [null, null];
-};
+// export const findNextSegmentWithVocab = (
+//   focusVocab: SegmentWord[],
+//   word: SegmentWord,
+//   segments: Segment[],
+//   currentSegment: number,
+// ): [Segment, SegmentWord] => {
+//   const nextSegmentStart = segments[currentSegment + 1].start;
+//   // console.log({
+//   //   focusVocabTimes: focusVocabTimes.map((v) => {
+//   //     return { word: normalizeWord(v.word), start: v.start, end: v.end };
+//   //   }),
+//   //   nextSegmentStart,
+//   //   normalizeWord: normalizeWord(word.word),
+//   // });
+//   const nextFocusVocabTime = focusVocab.find(
+//     (v) =>
+//       normalizeWord(word.word) === normalizeWord(v.word) &&
+//       v.start >= nextSegmentStart,
+//   );
+//   if (!nextFocusVocabTime) {
+//     return [null, null];
+//   }
+//   for (let i = currentSegment + 1; i < segments.length; i++) {
+//     const segment = segments[i];
+//     if (
+//       nextFocusVocabTime.start >= segment.start &&
+//       nextFocusVocabTime.start <= segment.end
+//     ) {
+//       return [segment, nextFocusVocabTime];
+//     }
+//   }
+//   return [null, null];
+// };
 
 // Helper function to split words into sentences based on punctuation
 export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
@@ -157,41 +163,42 @@ export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
   return sentences;
 };
 
-export const getSentenceData = (
-  clipWords: SegmentWord[],
-  currentSentence: number,
-  clipStart: number,
-  clipEnd: number,
-  currentSegment: number,
-) => {
-  const sentences = splitIntoSentences(clipWords);
-  let sentencesText = clipWords
-    .map((w) => w.word)
-    .join(" ")
-    .split(/[.!?]/)
-    .map((s) => s.trim());
-  // add period to end of each sentence
-  sentencesText = sentencesText.map((s) => s + ".");
+export const splitTranslationIntoSentences = (
+  translation: string,
+): string[] => {
+  return translation.split(/[.!?]/).map((s) => s.trim());
+};
 
-  const currentSentenceWords = sentences[currentSentence] || [];
-  const sentenceStart = currentSentenceWords[0]?.start ?? clipStart;
-  const rawEnd =
-    currentSentenceWords[currentSentenceWords.length - 1]?.end ?? clipEnd;
-  const sentenceEnd = parseFloat(rawEnd.toFixed(1)) + 0.1;
-  const isLastSentence = currentSentence >= sentences.length - 1;
-  const isFirstSentence = currentSentence === 0;
-  const isFirstSegment = currentSegment === 0;
+export const splitSegmentsIntoSentences = (segments: Segment[]): Sentence[] => {
+  const allSentences: Sentence[] = [];
 
-  return {
-    sentences,
-    currentSentenceWords,
-    sentenceStart,
-    sentenceEnd,
-    isLastSentence,
-    isFirstSentence,
-    isFirstSegment,
-    sentencesText,
-  };
+  for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+    const segment = segments[segmentIndex];
+    const sentenceWordGroups = splitIntoSentences(segment.words);
+    const sentenceTranslations = splitTranslationIntoSentences(
+      segment.full_text_translation,
+    );
+
+    for (let i = 0; i < sentenceWordGroups.length; i++) {
+      const words = sentenceWordGroups[i];
+      if (words.length === 0) continue;
+
+      const text = words.map((w) => w.word).join(" ");
+      const start = words[0].start;
+      const end = words[words.length - 1].end;
+
+      allSentences.push({
+        index: i + segmentIndex * 3,
+        start,
+        end,
+        text,
+        full_text_translation: sentenceTranslations[i],
+        words,
+      });
+    }
+  }
+
+  return allSentences;
 };
 
 export interface SegmentSeekResult {

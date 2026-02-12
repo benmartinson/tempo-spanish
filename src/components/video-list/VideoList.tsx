@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import { RootState, VideoContext, Segment } from "../../types";
+import { splitSegmentsIntoSentences } from "../../helpers";
 import { WATCH_CLIPS } from "../../data/question_clips";
 import {
   setAllChannels,
@@ -120,11 +121,11 @@ const VideoList: React.FC = () => {
 
     // const focusSentences = focusSentenceData ?? [];
 
+    const sentences = splitSegmentsIntoSentences(data.segments);
     const video: VideoContext = {
       videoId: data.video_id,
-      currentSegment: 0,
       currentSentence: 0,
-      segments: data.segments,
+      sentences,
       allWords: data.segments.flatMap((s: Segment) => s.words),
       videoViewId: String(videoViewId),
       focusVocab: [],

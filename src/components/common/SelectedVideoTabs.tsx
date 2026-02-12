@@ -16,12 +16,10 @@ import {
   Text,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { QuizType, RootState, SegmentWord } from "../../types";
+import { QuizType, RootState, SegmentWord, Sentence } from "../../types";
 import {
-  setSegmentByTime,
+  setSentenceByTime,
   setCurrentSentence as setCurrentSentenceAction,
-  setNextSegment,
-  setPreviousSegment,
   refreshVideoPlayer as refreshVideoPlayerAction,
 } from "../../store/actions/dataActions";
 import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
@@ -74,10 +72,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     };
   }, []);
 
-  const clip = currentVideo?.segments[currentVideo.currentSegment];
   const [time, setTime] = useState<number>(0);
   const currentSentence = useSelector(
-    (state: RootState) => state.currentVideo?.currentSentence ?? 0,
+    (state: RootState) =>
+      state.currentVideo?.sentences[state.currentVideo?.currentSentence ?? 0],
   );
   const setCurrentSentence = useCallback(
     (next: React.SetStateAction<number>) => {
@@ -85,19 +83,18 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     },
     [dispatch],
   );
+
+  useEffect(() => {
+    refreshPlayer();
+  }, [selectedNavTab]);
+
   const [showVideo, setShowVideo] = useState<boolean>(true);
+  const [clipRefreshKey, setClipRefreshKey] = useState(0);
 
   // Player state
   const [playerMuted, setPlayerMuted] = useState<boolean>(false);
   const [playerSpeed, setPlayerSpeed] = useState<number>(1);
   const [autoplay, setAutoplay] = useState<boolean>(false);
-
-  // For DiscussTab clip overrides
-  const [clipOverride, setClipOverride] = useState<{
-    start: number;
-    end: number;
-  } | null>(null);
-  const [clipRefreshKey, setClipRefreshKey] = useState(0);
 
   // Player ref for injecting play/pause commands without reloading
   const playerRef = useRef<YouTubePlayerHandle>(null);
@@ -105,70 +102,12 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   // Seek detection refs
   const prevTimeRef = useRef<number>(-1);
   const isTransitioningRef = useRef<boolean>(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Derived data
-  const allWords = useSelector(
-    (state: RootState) => state.currentVideo?.allWords,
-  );
-  // const focusVocabTimes = useMemo(
-  //   () => findTimesForVocab(allWords, currentVideo),
-  //   [currentVideo, allWords],
-  // );
-
-  const clipWords = clip?.words || [];
-  const {
-    sentences,
-    currentSentenceWords,
-    sentenceStart,
-    sentenceEnd,
-    isLastSentence,
-    isFirstSentence,
-    isFirstSegment,
-    sentencesText,
-  } = useMemo(
-    () =>
-      getSentenceData(
-        clipWords,
-        currentSentence,
-        clip?.start ?? 0,
-        clip?.end ?? 0,
-        currentVideo?.currentSegment ?? 0,
-      ),
-    [
-      clipWords,
-      currentSentence,
-      clip?.start,
-      clip?.end,
-      currentVideo?.currentSegment,
-    ],
-  );
-
-  // Reset on segment change
   useEffect(() => {
-    setCurrentSentence(0);
-    prevTimeRef.current = -1;
-    const transitionTimer = setTimeout(() => {
-      isTransitioningRef.current = false;
-    }, 500);
-    return () => clearTimeout(transitionTimer);
-  }, [currentVideo?.currentSegment]);
-
-  // When switching to Watch or Review, disable the relay's clip enforcement
-  // (which would otherwise keep pausing the video at the old sentence end)
-  // and resume playback. This clears the relay's intervals and sets up our
-  // own time reporter, so the video plays freely.
-  // When switching to Shadow, the video keeps playing and handleSetTime
-  // will pause it at the current sentence end.
-  useEffect(() => {
-    if (selectedNavTab === "watch") {
-      playerRef.current?.disableClipEnforcement();
-    }
-  }, [selectedNavTab]);
-
-  // Clear clip override when switching away from review tab
-  useEffect(() => {
+    setPlayerMuted(false);
+    setPlayerSpeed(1);
     if (selectedNavTab !== "review") {
-      setClipOverride(null);
       setShowVideo(true);
     }
   }, [selectedNavTab]);
@@ -186,120 +125,108 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     const prevTime = prevTimeRef.current;
     prevTimeRef.current = newTime;
 
-    if (selectedNavTab === "shadow") {
-      // Shadow mode: detect manual seek with large time jumps
-      if (
-        prevTime !== -1 &&
-        Math.abs(newTime - prevTime) > 2 &&
-        clip &&
-        (newTime < clip.start - 0.5 || newTime > clip.end + 0.5)
-      ) {
-        const result = findSegmentAndSentenceByTime(
-          newTime,
-          currentVideo!.segments,
-          currentVideo!.currentSegment,
-        );
-        if (result) {
-          isTransitioningRef.current = true;
-          dispatch(setSegmentByTime(newTime));
-          dispatch(setCurrentSentenceAction(result.sentenceIndex));
-          dispatch(refreshVideoPlayerAction());
-          return;
-        }
-      }
-      // Ignore time before sentence start
-      if (newTime < sentenceStart) return;
-      // Pause at sentence end (enforces sentence clipping without URL reload)
-      if (newTime >= sentenceEnd) {
-        playerRef.current?.pause();
-        setTime(sentenceEnd);
-        return;
-      }
-    } else if (selectedNavTab === "watch") {
-      // Watch mode: detect when time goes outside segment bounds
-      if (
-        newTime >= 1 &&
-        clip &&
-        (newTime < clip.start || newTime > clip.end)
-      ) {
-        const result = findSegmentAndSentenceByTime(
-          newTime,
-          currentVideo!.segments,
-          currentVideo!.currentSegment,
-        );
-        if (result) {
-          dispatch(setSegmentByTime(newTime));
-          dispatch(setCurrentSentenceAction(result.sentenceIndex));
-        }
-        return;
-      }
-      // Auto-detect sentence by time
-      for (let i = 0; i < sentences.length; i++) {
-        const words = sentences[i];
-        if (words.length === 0) continue;
-        const sStart = words[0].start;
-        const sEnd = words[words.length - 1].end;
-        if (newTime >= sStart && newTime <= sEnd + 0.15) {
-          if (i !== currentSentence) setCurrentSentence(i);
-          break;
-        }
-      }
+    if (
+      prevTime !== -1 &&
+      Math.abs(newTime - prevTime) > 2 &&
+      currentSentence &&
+      (newTime < currentSentence.start - 0.5 ||
+        newTime > currentSentence.end + 0.5)
+    ) {
+      isTransitioningRef.current = true;
+
+      dispatch(setSentenceByTime(newTime));
+      dispatch(refreshVideoPlayerAction());
+      setTimeout(() => {
+        isTransitioningRef.current = false;
+      }, 500);
+      return;
     }
-    // For review mode (and all modes): track time
+    // Ignore time before sentence start
+    if (newTime < currentSentence.start) return;
+    // Pause at sentence end (enforces sentence clipping without URL reload)
+
+    if (newTime >= currentSentence.end) {
+      if (selectedNavTab === "shadow" || selectedNavTab === "review") {
+        // playerRef.current?.pause();
+      } else {
+        setCurrentSentence(currentSentence.index + 1);
+      }
+      return;
+    }
     setTime(newTime);
   };
 
-  // Navigation functions
-  const handleNextSegment = useCallback(() => {
-    setPlayerMuted(false);
-    dispatch(setNextSegment());
-  }, [dispatch]);
+  // const handleSetTime = (newTime: number) => {
+  //   setTime(newTime);
+  //   if (newTime >= currentSentence.end || newTime < currentSentence.start) {
+  //     const newSentenceIndex = currentVideo?.sentences.findIndex(
+  //       (sentence) => newTime >= sentence.start && newTime <= sentence.end,
+  //     );
+  //     if (newSentenceIndex !== -1) {
+  //       setCurrentSentence(newSentenceIndex);
+  //     }
+  //   }
+  // };
 
-  const handlePreviousSegment = useCallback(() => {
-    setPlayerMuted(false);
-    dispatch(setPreviousSegment());
-  }, [dispatch]);
+  const handleTransition = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    isTransitioningRef.current = true;
+    timeoutRef.current = setTimeout(() => {
+      isTransitioningRef.current = false;
+      timeoutRef.current = null;
+    }, 1000);
+  };
 
   const handleNextSentence = useCallback(() => {
-    if (isLastSentence) {
-      handleNextSegment();
-    } else {
-      setCurrentSentence((prev) => prev + 1);
+    console.log("handleNextSentence", currentSentence.index);
+    if (currentSentence.index === currentVideo?.sentences.length - 1) {
+      return;
     }
-  }, [isLastSentence, handleNextSegment]);
+
+    handleTransition();
+    setCurrentSentence((prev) => {
+      const next = currentVideo?.sentences[prev + 1];
+      setTime(next?.start);
+      return next?.index;
+    });
+    refreshPlayer();
+  }, [currentSentence.index, currentVideo?.sentences.length]);
 
   const handlePreviousSentence = useCallback(() => {
-    if (isFirstSentence) {
-      if (!isFirstSegment) {
-        setCurrentSentence(sentences.length - 1);
-        handlePreviousSegment();
-      }
-    } else {
-      setCurrentSentence((prev) => prev - 1);
+    console.log("handlePreviousSentence", currentSentence.index);
+    if (currentSentence.index === 0) {
+      return;
     }
-  }, [
-    isFirstSentence,
-    isFirstSegment,
-    sentences.length,
-    handlePreviousSegment,
-  ]);
+    handleTransition();
+
+    setCurrentSentence((prev) => {
+      const previous = currentVideo?.sentences[prev - 1];
+      setTime(previous?.start);
+      return previous?.index;
+    });
+    refreshPlayer();
+  }, [currentSentence.index, currentVideo?.sentences]);
+
+  const playSentence = useCallback(() => {
+    console.log("playSentence", currentSentence.index);
+    handleTransition();
+    setAutoplay(true);
+    console.log("playSentence", currentSentence.index);
+    setTime(currentSentence.start);
+    refreshPlayer();
+  }, [currentSentence.start]);
 
   const refreshPlayer = useCallback(() => {
     prevTimeRef.current = -1;
     dispatch(refreshVideoPlayerAction());
-  }, [dispatch]);
+  }, [dispatch, currentSentence.start]);
 
-  // Seek to a specific time (triggers segment change if needed).
-  // In Watch/Review mode: seeks the player directly via injected JS (no reload),
-  // preserving free-play behavior.
-  // In Shadow mode: reloads the player so the URL gets the correct sentence clip.
   const seekToTime = useCallback(
     (targetTime: number, targetSentenceIndex?: number) => {
-      dispatch(setSegmentByTime(targetTime));
-      if (targetSentenceIndex !== undefined) {
-        dispatch(setCurrentSentenceAction(targetSentenceIndex));
-      }
-
+      dispatch(setSentenceByTime(targetTime));
       if (selectedNavTab === "watch" || selectedNavTab === "review") {
         // Seek directly without reloading - keeps free play intact
         playerRef.current?.seekTo(targetTime);
@@ -314,58 +241,15 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   );
 
   // Callback for DiscussTab to request clip playback
-  const handlePlayClip = useCallback(
-    (segment: { start: number; end: number }) => {
-      setClipOverride({ start: segment.start, end: segment.end });
-      setAutoplay(true);
-      setClipRefreshKey((prev) => prev + 1);
-    },
-    [],
-  );
+  const handlePlayClip = useCallback((start) => {
+    setAutoplay(true);
+    handleSetTime(start);
+  }, []);
 
-  // Determine player clip based on active tab
-  const playerClip = useMemo(() => {
-    if (!currentVideo) return undefined;
-
-    if (selectedNavTab === "shadow" && clip) {
-      return {
-        ...clip,
-        start: sentenceStart,
-        end: sentenceEnd,
-        videoId: currentVideo.videoId,
-      };
-    }
-
-    if (selectedNavTab === "review" && clipOverride) {
-      return {
-        videoId: currentVideo.videoId,
-        start: clipOverride.start,
-        end: clipOverride.end,
-        text: "",
-        full_text_translation: "",
-        words: [],
-      };
-    }
-
-    // WatchTab: no clip (free play)
-    return undefined;
-  }, [
-    selectedNavTab,
-    clip,
-    sentenceStart,
-    sentenceEnd,
-    currentVideo,
-    clipOverride,
-  ]);
-
-  // Use combined key so tab switches don't change refreshKey
   const effectiveRefreshKey = videoRefreshKey + clipRefreshKey;
   const effectiveAutoplay = selectedNavTab === "shadow" ? true : autoplay;
 
-  // When there's no clip, use the current playback time as start position.
-  // This is only used when refreshKey changes (URL recalculates), so passing
-  // `time` here doesn't cause continuous URL changes.
-  const startTimeForPlayer = playerClip ? undefined : time;
+  const startTimeForPlayer = selectedNavTab === "watch" ? undefined : time;
 
   const currentVideoText = useMemo(() => {
     if (selectedNavTab !== "watch") return "";
@@ -394,7 +278,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         <YouTubePlayer
           ref={playerRef}
           videoId={currentVideo.videoId}
-          clip={playerClip}
+          clip={{
+            index: currentSentence.index,
+            text: currentSentence.text,
+            full_text_translation: currentSentence.full_text_translation,
+            words: currentSentence.words,
+            start: currentSentence.start,
+            end: selectedNavTab === "shadow" ? currentSentence.end : undefined,
+          }}
           autoplay={effectiveAutoplay}
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
@@ -418,14 +309,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           time={time}
           currentSentence={currentSentence}
           setCurrentSentence={setCurrentSentence}
-          clip={clip}
-          sentences={sentences}
-          sentencesText={sentencesText}
-          sentenceStart={sentenceStart}
-          sentenceEnd={sentenceEnd}
           setAutoplay={setAutoplay}
           refreshPlayer={refreshPlayer}
-          seekToTime={seekToTime}
           isActive={selectedNavTab === "watch"}
         />
       </View>
@@ -433,26 +318,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       <View style={getTabStyle(selectedNavTab === "shadow")}>
         <ShadowTab
           time={time}
-          setTime={setTime}
           currentSentence={currentSentence}
-          setCurrentSentence={setCurrentSentence}
-          clip={clip}
-          sentences={sentences}
-          currentSentenceWords={currentSentenceWords}
-          sentenceStart={sentenceStart}
-          sentenceEnd={sentenceEnd}
-          sentencesText={sentencesText}
-          isLastSentence={isLastSentence}
-          isFirstSentence={isFirstSentence}
-          isFirstSegment={isFirstSegment}
           handleNextSentence={handleNextSentence}
           handlePreviousSentence={handlePreviousSentence}
-          handleNextSegment={handleNextSegment}
-          handlePreviousSegment={handlePreviousSegment}
+          playSentence={playSentence}
+          isActive={selectedNavTab === "shadow"}
           setPlayerMuted={setPlayerMuted}
           setPlayerSpeed={setPlayerSpeed}
-          refreshPlayer={refreshPlayer}
-          isActive={selectedNavTab === "shadow"}
+          pausePlayer={() => playerRef.current?.pause()}
         />
       </View>
 

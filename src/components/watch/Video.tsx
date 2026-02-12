@@ -21,7 +21,7 @@ interface VideoProps {
 
 const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
   const navigation = useNavigation();
-  const clip = video.segments[video.currentSegment];
+  const clip = video.sentences[video.currentSentence];
   const [time, setTime] = useState<number>(0);
   const timeRemaining = Math.floor(Math.max(clip.end - time, 0));
   const dispatch = useDispatch();

@@ -1,5 +1,4 @@
 import { RootState, DataAction, DataActionTypes } from "../../types";
-import { WATCH_CLIPS } from "../../data/question_clips";
 
 const initialState: RootState = {
   currentVideo: null,
@@ -94,43 +93,19 @@ const dataReducer = (
           currentSentence: nextSentence,
         },
       };
-    case "SET_NEXT_SEGMENT":
+    case "SET_SENTENCE_BY_TIME":
       if (!state.currentVideo) return state;
-      return {
-        ...state,
-        currentVideo: {
-          ...state.currentVideo,
-          currentSegment: state.currentVideo.currentSegment + 1,
-          currentSentence: 0,
-        },
-        videoRefreshKey: Date.now(),
-      };
-    case "SET_SEGMENT_BY_TIME":
-      if (!state.currentVideo) return state;
-      const index = state.currentVideo.segments.findIndex(
-        (segment) =>
-          action.payload >= segment.start && action.payload <= segment.end,
+      const sentenceIndex = state.currentVideo.sentences.findIndex(
+        (sentence) =>
+          action.payload >= sentence.start && action.payload <= sentence.end,
       );
 
-      const currentSegment = index >= 0 ? index : 0;
       return {
         ...state,
         currentVideo: {
           ...state.currentVideo,
-          currentSegment: currentSegment,
-          currentSentence: 0,
+          currentSentence: sentenceIndex >= 0 ? sentenceIndex : state.currentVideo.currentSentence,
         },
-      };
-    case "SET_PREVIOUS_SEGMENT":
-      if (!state.currentVideo) return state;
-      return {
-        ...state,
-        currentVideo: {
-          ...state.currentVideo,
-          currentSegment: state.currentVideo.currentSegment - 1,
-          currentSentence: 0,
-        },
-        videoRefreshKey: Date.now(),
       };
     case "SET_CURRENT_CHAT_TYPE":
       return {

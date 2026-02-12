@@ -16,7 +16,7 @@ import {
   ContextSegment,
   QuizType,
   SegmentWord,
-  Segment,
+  Sentence,
   RootState,
   VocabQuestion,
   EvaluationScore,
@@ -42,7 +42,7 @@ interface ReviewChatProps {
   selectedQuizType: QuizType;
   onSelectQuizType: (type: QuizType) => void;
   focusVocab: SegmentWord[];
-  segments: Segment[];
+  sentences: Sentence[];
 }
 
 const formatTimestamp = (seconds: number): string => {
@@ -81,7 +81,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   selectedQuizType,
   onSelectQuizType,
   focusVocab,
-  segments,
+  sentences,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const [contextSegments, setContextSegments] = useState<ContextSegment[]>([]);
@@ -115,18 +115,16 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     if (!focusVocab || focusVocab.length === 0) return [];
 
     return focusVocab.map((vocab) => {
-      // Find segments that contain this vocab word
-      let matchingSegment: ContextSegment = null;
-      currentVideo?.segments.forEach((segment, segIndex) => {
-        const segmentText = segment.text.toLowerCase();
-        // console.log("segmentText", segmentText);
-        // console.log("vocab.word", vocab.word);
-        if (segmentText.includes(vocab.word.toLowerCase())) {
-          matchingSegment = {
-            segment_id: segIndex,
-            start: segment.start,
-            end: segment.end,
-            text: segment.text,
+      // Find sentences that contain this vocab word
+      let matchingSentence: ContextSegment = null;
+      currentVideo?.sentences.forEach((sentence, sentIndex) => {
+        const sentenceText = sentence.text.toLowerCase();
+        if (sentenceText.includes(vocab.word.toLowerCase())) {
+          matchingSentence = {
+            segment_id: sentIndex,
+            start: sentence.start,
+            end: sentence.end,
+            text: sentence.text,
             score: 1,
           };
         }
@@ -135,10 +133,10 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       return {
         word: vocab.word,
         translation: vocab.translation,
-        contextSegments: [matchingSegment],
+        contextSegments: [matchingSentence],
       };
     });
-  }, [focusVocab, currentVideo?.segments]);
+  }, [focusVocab, currentVideo?.sentences]);
 
   const currentVocabItem =
     vocabQuestionIndex && vocabItems.length > 0
@@ -213,7 +211,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 
     const fetchGeneratedQuestion = async () => {
       setQuestionLoading(true);
-      console.log({ topContextSegment });
       try {
         const response = await fetch(
           `${BACKEND_BASE_URL}/generate-vocab-context-question`,

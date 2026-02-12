@@ -23,7 +23,6 @@ import { SuggestionBox } from "../SuggestionBox";
 import { Answer, RootState, VideoContext } from "../../types";
 import {
   setCurrentVideo,
-  setNextSegment,
   refreshVideoPlayer,
   setCurrentTab,
 } from "../../store/actions/dataActions";
@@ -115,7 +114,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     return () => {
       cleanup();
     };
-  }, [currentVideo.currentSegment]);
+  }, [currentVideo.currentSentence]);
 
   // Auto-scroll the transcription box when transcript changes
   useEffect(() => {
@@ -149,8 +148,8 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   };
 
   const fetchVocabQuestions = async (
-    keyVocabulary: (typeof currentVideo.segments)[0]["key_vocabulary"],
-    segmentText: string,
+    keyVocabulary: (typeof currentVideo.sentences)[0]["words"],
+    sentenceText: string,
   ): Promise<typeof vocabQuestions> => {
     const response = await fetch(`${BACKEND_BASE_URL}/vocab-based-question`, {
       method: "POST",
@@ -159,7 +158,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       },
       body: JSON.stringify({
         key_vocabulary: keyVocabulary,
-        context: segmentText,
+        context: sentenceText,
       }),
     });
 
@@ -177,9 +176,9 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   };
 
   const prefetchVocabQuestions = () => {
-    const segment = currentVideo?.segments[currentVideo.currentSegment];
-    const keyVocabulary = segment?.key_vocabulary || [];
-    const segmentText = segment?.text || "";
+    const sentence = currentVideo?.sentences[currentVideo.currentSentence];
+    const keyVocabulary = sentence?.words || [];
+    const sentenceText = sentence?.text || "";
 
     if (keyVocabulary.length === 0) {
       vocabQuestionsPrefetchRef.current = null;
@@ -189,13 +188,13 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     // Start prefetching vocab questions in the background
     vocabQuestionsPrefetchRef.current = fetchVocabQuestions(
       keyVocabulary,
-      segmentText,
+      sentenceText,
     );
   };
 
   const startVocabTest = async () => {
-    const segment = currentVideo?.segments[currentVideo.currentSegment];
-    const keyVocabulary = segment?.key_vocabulary || [];
+    const sentence = currentVideo?.sentences[currentVideo.currentSentence];
+    const keyVocabulary = sentence?.words || [];
 
     if (keyVocabulary.length === 0) {
       // No vocab items, go back to watch
@@ -215,8 +214,8 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
         questions = await vocabQuestionsPrefetchRef.current;
         vocabQuestionsPrefetchRef.current = null;
       } else {
-        const segmentText = segment?.text || "";
-        questions = await fetchVocabQuestions(keyVocabulary, segmentText);
+        const sentenceText = sentence?.text || "";
+        questions = await fetchVocabQuestions(keyVocabulary, sentenceText);
       }
 
       setVocabQuestions(questions);
@@ -276,7 +275,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     setVocabQuestionIndex(0);
     setVocabQuestions([]);
     vocabQuestionsPrefetchRef.current = null;
-    dispatch(setNextSegment());
+    // dispatch(setNextSegment());
     dispatch(setCurrentTab("watch"));
     // navigation.navigate("Watch" as never);
   };
@@ -287,14 +286,14 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       return;
     }
     setIsLoadingResponse(true);
-    const segment = currentVideo.segments[currentVideo.currentSegment];
+    const sentence = currentVideo.sentences[currentVideo.currentSentence];
     const body = JSON.stringify({
       segments: [
         {
-          segment_id: currentVideo.currentSegment,
-          start: segment.start,
-          end: segment.end,
-          text: segment.text,
+          segment_id: currentVideo.currentSentence,
+          start: sentence.start,
+          end: sentence.end,
+          text: sentence.text,
           key_vocabulary: currentVideo?.focusVocab.map((vocab) => vocab.word),
         },
       ],

@@ -48,7 +48,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
             duration: 500,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
       pulse.start();
       return () => pulse.stop();

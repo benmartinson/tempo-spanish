@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { StyleSheet, View, Text, Linking, Platform } from "react-native";
 import { WebView } from "react-native-webview";
-import { Segment } from "../../types";
+import { Segment, Sentence } from "../../types";
 
 export interface YouTubePlayerHandle {
   pause: () => void;
@@ -20,7 +20,7 @@ export interface YouTubePlayerHandle {
 }
 
 interface YouTubePlayerProps {
-  clip?: Segment & { videoId: string };
+  clip?: Sentence;
   videoId: string;
   autoplay: boolean;
   refreshKey: number;
@@ -95,8 +95,11 @@ const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       const YT = (window as any).YT;
 
       // Update time immediately on state change
-      if (playerRef.current && typeof playerRef.current.getCurrentTime === "function") {
-         setTime(playerRef.current.getCurrentTime());
+      if (
+        playerRef.current &&
+        typeof playerRef.current.getCurrentTime === "function"
+      ) {
+        setTime(playerRef.current.getCurrentTime());
       }
 
       if (
@@ -138,7 +141,7 @@ const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
               if (autoplay) event.target.playVideo();
               // Report initial time
               if (typeof event.target.getCurrentTime === "function") {
-                 setTime(event.target.getCurrentTime());
+                setTime(event.target.getCurrentTime());
               }
             },
             onStateChange: onPlayerStateChange,
@@ -223,13 +226,16 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
     }));
 
     const getVideoUrl = () => {
-      const baseUrl = Platform.OS === "ios" ? "https://yt-relay.vercel.app" : "http://192.168.1.100:3000";
+      const baseUrl =
+        Platform.OS === "ios"
+          ? "https://yt-relay.vercel.app"
+          : "http://192.168.1.100:3000";
       const params = new URLSearchParams({
         v: videoId,
         autoplay: autoplay ? "1" : "0",
         muted: muted ? "1" : "0",
         start: clip ? clip.start.toString() : (startTime?.toString() ?? "0"),
-        end: clip ? clip.end.toString() : null,
+        end: clip && clip.end ? clip.end.toString() : undefined,
         controls: "1",
         speed: playbackSpeed.toString(),
       });

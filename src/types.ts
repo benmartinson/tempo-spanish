@@ -19,7 +19,7 @@ export type DataActionTypes =
   | "SET_ALL_CHANNELS"
   | "SET_ALL_VIDEOS"
   | "SET_PREVIOUS_SEGMENT"
-  | "SET_SEGMENT_BY_TIME"
+  | "SET_SENTENCE_BY_TIME"
   | "SET_CURRENT_SENTENCE"
   | "SET_FOCUS_VOCAB"
   | "SET_ALL_VOCABULARY"
@@ -56,9 +56,8 @@ export interface FocusSentence {
 
 export interface VideoContext {
   videoId: string;
-  currentSegment: number;
   currentSentence: number;
-  segments: Segment[];
+  sentences: Sentence[];
   allWords: SegmentWord[];
   videoViewId: string;
   focusVocab: SegmentWord[];
@@ -89,6 +88,15 @@ export interface Segment {
   text: string;
   // cefr_level: string;
   // key_vocabulary: KeyVocabulary[];
+  full_text_translation: string;
+  words: SegmentWord[];
+}
+
+export interface Sentence {
+  index: number;
+  start: number;
+  end: number;
+  text: string;
   full_text_translation: string;
   words: SegmentWord[];
 }
