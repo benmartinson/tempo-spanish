@@ -300,6 +300,7 @@ const AuthenticatedApp: React.FC = () => {
           const sentences = splitSegmentsIntoSentences(data.segments);
           const video: VideoContext = {
             videoId: data.video_id,
+            recordId: uiState.current_video,
             currentSentence: uiState.current_sentence ?? 0,
             sentences,
             allWords: data.segments.flatMap((s: Segment) => s.words),

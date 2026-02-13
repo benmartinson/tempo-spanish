@@ -56,6 +56,7 @@ export interface FocusSentence {
 
 export interface VideoContext {
   videoId: string;
+  recordId: string;
   currentSentence: number;
   sentences: Sentence[];
   allWords: SegmentWord[];

@@ -21,6 +21,7 @@ import {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSelector, useDispatch } from "react-redux";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useAuth } from "@clerk/clerk-expo";
 import { RootState, Segment, SegmentWord, Sentence } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
@@ -41,6 +42,7 @@ import ShadowResults from "./ShadowResults";
 import VocabList from "../watch/VocabList";
 import TooltipModal from "../common/TooltipModal";
 import NavSwitcher from "../common/NavSwitcher";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
 
 interface ShadowTabProps {
   time: number;
@@ -68,6 +70,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isKeyboardVisible,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const supabase = useSupabaseWithClerk();
+  const { userId } = useAuth();
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
   const [isLooping, setIsLooping] = useState<boolean>(false);
 
@@ -112,11 +116,72 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     [currentSentence.words],
   );
 
+  // Save shadow result to database
+  const saveShadowResult = useCallback(
+    async (spokenWords: string[], recordingId?: string) => {
+      if (!supabase || !userId || !currentVideo) return;
+      console.log({
+        recordId: currentVideo.recordId,
+        sentenceIndex: currentSentence.index,
+      });
+
+      try {
+        await supabase.from("user_shadow_result").upsert(
+          {
+            user_id: userId,
+            video_id: parseInt(currentVideo.recordId),
+            sentence: currentSentence.index,
+            spoken_words: spokenWords.join(" "),
+            recording_id: recordingId || null,
+          },
+          { onConflict: "user_id,video_id,sentence" },
+        );
+      } catch (err) {
+        console.error("Failed to save shadow result:", err);
+      }
+    },
+    [supabase, userId, currentVideo, currentSentence.index],
+  );
+
+  // Fetch existing shadow result when sentence changes
+  const fetchShadowResult = useCallback(async () => {
+    if (!supabase || !userId || !currentVideo) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from("user_shadow_result")
+        .select("spoken_words")
+        .eq("user_id", userId)
+        .eq("video_id", parseInt(currentVideo.recordId))
+        .eq("sentence", currentSentence.index)
+        .single();
+
+      if (error || !data) return null;
+      return data.spoken_words;
+    } catch (err) {
+      console.error("Failed to fetch shadow result:", err);
+      return null;
+    }
+  }, [supabase, userId, currentVideo, currentSentence.index]);
+
   useEffect(() => {
     Keyboard.dismiss();
     if (hasPlayedSentence) {
       setHasPlayedSentence(false);
     }
+
+    // Fetch existing shadow result for this sentence
+    const loadExistingShadowResult = async () => {
+      const spokenWordsStr = await fetchShadowResult();
+      console.log("Spoken words string:", spokenWordsStr);
+      if (spokenWordsStr) {
+        const spokenWords = spokenWordsStr.split(/\s+/).filter(Boolean);
+        const accuracy = calculateAccuracyFromWords(spokenWords);
+        setAccuracyResult(accuracy);
+      }
+    };
+
+    loadExistingShadowResult();
   }, [currentSentence]);
 
   // Handle recording completion - send audio for transcription
@@ -130,6 +195,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         const spokenWords = result.transcript.split(/\s+/).filter(Boolean);
         const accuracy = calculateAccuracyFromWords(spokenWords);
         setAccuracyResult(accuracy);
+        // Save the shadow result to database
+        saveShadowResult(spokenWords);
       } catch (err) {
         console.error("Transcription error:", err);
         setError(
@@ -139,7 +206,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setIsProcessing(false);
       }
     },
-    [calculateAccuracyFromWords],
+    [calculateAccuracyFromWords, saveShadowResult],
   );
 
   // Handle text input submission - compare typed text with target
@@ -154,6 +221,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       const typedWords = userAnswer.trim().split(/\s+/).filter(Boolean);
       const accuracy = calculateAccuracyFromWords(typedWords);
       setAccuracyResult(accuracy);
+      // Save the shadow result to database
+      saveShadowResult(typedWords);
       setUserAnswer("");
     } catch (err) {
       console.error("Text comparison error:", err);
@@ -161,7 +230,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [userAnswer, calculateAccuracyFromWords]);
+  }, [userAnswer, calculateAccuracyFromWords, saveShadowResult]);
 
   // Handle clearing the text input
   const handleResetAnswer = useCallback(() => {
@@ -361,6 +430,18 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           style={styles.transcriptContainer}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Sentence Navigation */}
+          <NavSwitcher
+            onPrev={handleShadowPreviousSentence}
+            onNext={handleShadowNextSentence}
+            currentIndex={currentSentence.index}
+            totalItems={currentVideo.sentences.length}
+          >
+            <Text>
+              Sentence {currentSentence.index + 1} of{" "}
+              {currentVideo.sentences.length}
+            </Text>
+          </NavSwitcher>
           {/* Recording button or processing indicator */}
           {isProcessing ? (
             <View style={styles.processingContainer}>
@@ -402,18 +483,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             </>
           ) : (
             <>
-              {/* Sentence Navigation */}
-              <NavSwitcher
-                onPrev={handleShadowPreviousSentence}
-                onNext={handleShadowNextSentence}
-                currentIndex={currentSentence.index}
-                totalItems={currentVideo.sentences.length}
-              >
-                <Text>
-                  Sentence {currentSentence.index + 1} of{" "}
-                  {currentVideo.sentences.length}
-                </Text>
-              </NavSwitcher>
               {/* <FullSegmentTranscriptBubble
                 words={currentSentence.words}
                 time={time}

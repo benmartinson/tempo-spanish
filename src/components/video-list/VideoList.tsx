@@ -100,6 +100,7 @@ const VideoList: React.FC = () => {
     const sentences = splitSegmentsIntoSentences(data.segments);
     const video: VideoContext = {
       videoId: data.video_id,
+      recordId: recordId,
       currentSentence: restoredSentence,
       sentences,
       allWords: data.segments.flatMap((s: Segment) => s.words),
