@@ -91,7 +91,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const isTransitioningRef = useRef<boolean>(false);
   const [nextSentenceCountdown, setNextSentenceCountdown] = useState<number>(0);
   const [hasPlayedSentence, setHasPlayedSentence] = useState<boolean>(false);
-  const [recallStep, setRecallStep] = useState<number>(1);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -114,7 +113,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   );
 
   useEffect(() => {
-    setRecallStep(1);
     Keyboard.dismiss();
     if (hasPlayedSentence) {
       setHasPlayedSentence(false);
@@ -240,7 +238,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleShadowNextSentence = () => {
-    setRecallStep(1);
     setAccuracyResult(null);
     setUserAnswer("");
     setPlayerSpeed(playbackSpeed);
@@ -336,10 +333,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     playSentence();
   };
 
-  const handleNextStep = () => {
+  const handleRetry = () => {
     setAccuracyResult(null);
     setUserAnswer("");
-    setRecallStep((recallStep) => recallStep + 1);
   };
 
   if (!currentVideo) {
@@ -377,11 +373,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             <>
               <ShadowResults
                 accuracyResult={accuracyResult}
-                handleEnterRecordingMode={handleEnterRecordingMode}
                 handleNextSentence={handleShadowNextSentence}
-                handlePlaySnippetAgain={handlePlaySnippetAgain}
-                recallStep={recallStep}
-                handleNextStep={handleNextStep}
+                handleRetry={handleRetry}
               />
               {nextSentenceCountdown > 0 && (
                 <View style={styles.nextSentenceCountdownRefContainer}>
@@ -447,9 +440,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
               <View style={styles.instructionContainer}>
                 <Text style={styles.instructionText}>
-                  {recallStep === 1
-                    ? "Listen to the sentence and then type it out in full..."
-                    : "Now, click the microphone button and say the words out loud without replaying the clip (unless you really need to)."}
+                  Listen to the sentence and then speak or type it out in
+                  full...
                 </Text>
               </View>
               {/* <VocabList
@@ -557,10 +549,11 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
   },
   instructionText: {
     color: "#666",
+    textAlign: "center",
     fontSize: 14,
   },
   settingsButton: {

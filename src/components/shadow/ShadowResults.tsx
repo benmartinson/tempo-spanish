@@ -7,20 +7,14 @@ import { normalizeWord } from "../../helpers";
 
 interface ShadowResultsProps {
   accuracyResult: AccuracyResult;
-  handleEnterRecordingMode: () => void;
   handleNextSentence: () => void;
-  handlePlaySnippetAgain: () => void;
-  recallStep: number;
-  handleNextStep: () => void;
+  handleRetry: () => void;
 }
 
 const ShadowResults: React.FC<ShadowResultsProps> = ({
   accuracyResult,
-  handleEnterRecordingMode,
   handleNextSentence,
-  handlePlaySnippetAgain,
-  recallStep,
-  handleNextStep,
+  handleRetry,
 }) => {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const missedWords = accuracyResult.details
@@ -83,59 +77,25 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
         </Text>
       </View>
 
-      {/* Action buttons */}
-      {!isAccuracyGood && (
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.tryAgainButton]}
-            onPress={handleNextStep}
-          >
-            <MaterialIcons name="replay" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Re-Try</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      {isAccuracyGood && recallStep === 1 && (
-        <View style={styles.actionButtons}>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.tryAgainButton]}
+          onPress={handleRetry}
+        >
+          <MaterialIcons name="replay" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>Re-Try</Text>
+        </TouchableOpacity>
+
+        {isAccuracyGood && (
           <TouchableOpacity
             style={[styles.actionButton, styles.nextButton]}
-            onPress={handleNextStep}
+            onPress={handleNextSentence}
           >
+            <Text style={styles.actionButtonText}>Next Sentence</Text>
             <MaterialIcons name="arrow-forward" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Next Step</Text>
           </TouchableOpacity>
-        </View>
-      )}
-      {isAccuracyGood && recallStep >= 2 && (
-        <>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.tryAgainButton]}
-              onPress={handleEnterRecordingMode}
-            >
-              <MaterialIcons name="replay" size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>Re-Try Recording</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.nextButton]}
-              onPress={handleNextSentence}
-            >
-              <Text style={styles.actionButtonText}>Next Sentence</Text>
-              <MaterialIcons name="arrow-forward" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.playAgainButton]}
-              onPress={handlePlaySnippetAgain}
-            >
-              <Text style={styles.playAgainButtonText}>Re-Play Sentence</Text>
-              <MaterialIcons name="play-arrow" size={20} color="black" />
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
+        )}
+      </View>
       <TooltipModal
         isVisible={isTooltipVisible}
         onRequestClose={() => setIsTooltipVisible(false)}

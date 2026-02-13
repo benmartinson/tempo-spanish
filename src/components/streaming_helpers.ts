@@ -410,16 +410,6 @@ export const calculateAccuracy = (
       continue;
     }
 
-    // // Check if its translation equals the word itself
-    if (normalizedTarget === normalizedTranslation) {
-      matchedCount++;
-      details.push({
-        targetWord,
-        matched: true,
-      });
-      continue;
-    }
-
     let bestMatchIndex = -1;
     let bestMatchScore = 0;
 
