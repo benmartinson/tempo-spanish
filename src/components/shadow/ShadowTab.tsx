@@ -12,7 +12,13 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TextInput,
+  LayoutAnimation,
 } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSelector, useDispatch } from "react-redux";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { RootState, Segment, SegmentWord, Sentence } from "../../types";
@@ -22,8 +28,8 @@ import { useRecording } from "../useRecording";
 import {
   sendAudioForTranscription,
   calculateAccuracy,
-  AccuracyResult,
 } from "../streaming_helpers";
+import { AccuracyResult } from "../../types";
 import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
 import {
@@ -46,6 +52,7 @@ interface ShadowTabProps {
   setPlayerMuted: (muted: boolean) => void;
   setPlayerSpeed: (speed: number) => void;
   pausePlayer: () => void;
+  isKeyboardVisible: boolean;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -58,10 +65,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   setPlayerMuted,
   setPlayerSpeed,
   pausePlayer,
+  isKeyboardVisible,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
-  const [isLooping, setIsLooping] = useState<boolean>(true);
+  const [isLooping, setIsLooping] = useState<boolean>(false);
 
   // Speed control state (internal settings)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -82,6 +90,36 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     useState<boolean>(false);
   const isTransitioningRef = useRef<boolean>(false);
   const [nextSentenceCountdown, setNextSentenceCountdown] = useState<number>(0);
+  const [hasPlayedSentence, setHasPlayedSentence] = useState<boolean>(false);
+  const [recallStep, setRecallStep] = useState<number>(1);
+
+  // Text input state
+  const [userAnswer, setUserAnswer] = useState<string>("");
+
+  // Shared accuracy calculation logic
+  const calculateAccuracyFromWords = useCallback(
+    (spokenWords: string[]) => {
+      const targetWords = currentSentence.words.map((w) => {
+        return { word: w.word, translation: w.translation };
+      });
+
+      const accuracy = calculateAccuracy(spokenWords, targetWords);
+      return {
+        ...accuracy,
+        spokenSentence: spokenWords.join(" "),
+        targetSentence: currentSentence.text,
+      };
+    },
+    [currentSentence.words],
+  );
+
+  useEffect(() => {
+    setRecallStep(1);
+    Keyboard.dismiss();
+    if (hasPlayedSentence) {
+      setHasPlayedSentence(false);
+    }
+  }, [currentSentence]);
 
   // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
@@ -92,19 +130,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       try {
         const result = await sendAudioForTranscription(audioUri);
         const spokenWords = result.transcript.split(/\s+/).filter(Boolean);
-        const targetWords = currentSentence.words.map((w) => w.word);
-        const ignoredWords = currentSentence.words
-          .filter((w) => {
-            const word = normalizeWord(w.word);
-            return word.length <= 2 || normalizeWord(w.translation) === word;
-          })
-          .map((w) => w.word);
-
-        const accuracy = calculateAccuracy(
-          spokenWords,
-          targetWords,
-          ignoredWords,
-        );
+        const accuracy = calculateAccuracyFromWords(spokenWords);
         setAccuracyResult(accuracy);
       } catch (err) {
         console.error("Transcription error:", err);
@@ -115,8 +141,35 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setIsProcessing(false);
       }
     },
-    [currentSentence.words],
+    [calculateAccuracyFromWords],
   );
+
+  // Handle text input submission - compare typed text with target
+  const handleTextSubmit = useCallback(() => {
+    if (!userAnswer.trim()) return;
+
+    Keyboard.dismiss();
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const typedWords = userAnswer.trim().split(/\s+/).filter(Boolean);
+      const accuracy = calculateAccuracyFromWords(typedWords);
+      setAccuracyResult(accuracy);
+      setUserAnswer("");
+    } catch (err) {
+      console.error("Text comparison error:", err);
+      setError(err instanceof Error ? err.message : "Failed to process text");
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [userAnswer, calculateAccuracyFromWords]);
+
+  // Handle clearing the text input
+  const handleResetAnswer = useCallback(() => {
+    setUserAnswer("");
+    Keyboard.dismiss();
+  }, []);
 
   const { isRecording, hasPermission, startRecording, stopRecording } =
     useRecording({
@@ -162,6 +215,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     ) {
       if (isRecording) {
         setSentenceEnded(true);
+        setHasPlayedSentence(true);
       } else if (isActive && isLooping && !justRecordedRef.current) {
         setTimeout(() => {
           handleEnterRecordingMode();
@@ -186,6 +240,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleShadowNextSentence = () => {
+    setRecallStep(1);
+    setAccuracyResult(null);
+    setUserAnswer("");
     setPlayerSpeed(playbackSpeed);
     setPlayerMuted(false);
     setIsRecordingMode(false);
@@ -248,7 +305,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Called by CountdownTimer after 3-second countdown
   const handleActualStartRecording = async () => {
     await startRecording();
-    playSentence();
+    // playSentence();
     setTimeout(() => {
       isTransitioningRef.current = false;
     }, 1000);
@@ -279,20 +336,35 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     playSentence();
   };
 
+  const handleNextStep = () => {
+    setAccuracyResult(null);
+    setUserAnswer("");
+    setRecallStep((recallStep) => recallStep + 1);
+  };
+
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
 
   return (
     <>
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={
+          Platform.OS === "ios" ? (isKeyboardVisible ? 128 : 180) : 0
+        }
+      >
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
-        <ScrollView style={styles.transcriptContainer}>
+        <ScrollView
+          style={styles.transcriptContainer}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Recording button or processing indicator */}
           {isProcessing ? (
             <View style={styles.processingContainer}>
@@ -308,6 +380,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 handleEnterRecordingMode={handleEnterRecordingMode}
                 handleNextSentence={handleShadowNextSentence}
                 handlePlaySnippetAgain={handlePlaySnippetAgain}
+                recallStep={recallStep}
+                handleNextStep={handleNextStep}
               />
               {nextSentenceCountdown > 0 && (
                 <View style={styles.nextSentenceCountdownRefContainer}>
@@ -323,15 +397,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 onStartRecording={handleActualStartRecording}
                 onStopRecording={handleStopRecording}
                 sentenceEnded={sentenceEnded}
-                bufferDuration={5}
-                countdownDuration={3}
+                bufferDuration={0}
+                countdownDuration={0}
               />
-              <FullSegmentTranscriptBubble
+              {/* <FullSegmentTranscriptBubble
                 words={currentSentence.words}
                 time={time}
                 showFullText={true}
                 mode="video"
-              />
+              /> */}
             </>
           ) : (
             <>
@@ -347,29 +421,36 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   {currentVideo.sentences.length}
                 </Text>
               </NavSwitcher>
-              <FullSegmentTranscriptBubble
+              {/* <FullSegmentTranscriptBubble
                 words={currentSentence.words}
                 time={time}
                 mode="video"
-              />
+              /> */}
               <View style={styles.recordButtonContainer}>
                 <TouchableOpacity
                   style={styles.playSegmentButton}
                   onPress={handlePlaySnippetAgain}
                 >
                   <Text style={styles.playSegmentButtonText}>
-                    Play Sentence
+                    {hasPlayedSentence ? "Play Sentence" : "Replay"}
                   </Text>
                   <MaterialIcons name="play-arrow" size={20} color="black" />
                 </TouchableOpacity>
+
                 <TouchableOpacity
-                  style={styles.recordButton}
-                  onPress={handleEnterRecordingMode}
-                  disabled={!hasPermission || isProcessing}
+                  style={styles.settingsButton}
+                  onPress={() => setIsSettingsVisible(true)}
                 >
-                  <MaterialIcons name="mic" size={20} color="red" />
-                  <Text style={styles.recordButtonText}>Record Yourself</Text>
+                  <MaterialIcons name="settings" size={32} color="black" />
                 </TouchableOpacity>
+              </View>
+
+              <View style={styles.instructionContainer}>
+                <Text style={styles.instructionText}>
+                  {recallStep === 1
+                    ? "Listen to the sentence and then type it out in full..."
+                    : "Now, click the microphone button and say the words out loud without replaying the clip (unless you really need to)."}
+                </Text>
               </View>
               {/* <VocabList
                 vocab={focusVocabTimes}
@@ -380,7 +461,64 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             </>
           )}
         </ScrollView>
-      </View>
+
+        {/* Input Area - always visible when not in recording mode or showing results */}
+        {!isRecordingMode && !accuracyResult && !isProcessing && (
+          <View
+            style={[
+              styles.inputArea,
+              { paddingBottom: isKeyboardVisible ? 10 : 40 },
+            ]}
+          >
+            <TextInput
+              style={styles.textInput}
+              placeholder="Type the sentence..."
+              placeholderTextColor="#999"
+              value={userAnswer}
+              onChangeText={setUserAnswer}
+              autoComplete="off"
+              autoCorrect={false}
+              autoCapitalize="none"
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[
+                styles.trashButton,
+                { backgroundColor: isKeyboardVisible ? "white" : "#f0f0f0" },
+              ]}
+              onPress={handleResetAnswer}
+            >
+              <FontAwesome
+                name="trash-o"
+                size={22}
+                color={isKeyboardVisible ? "red" : "#aaa"}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.micButton}
+              onPress={handleEnterRecordingMode}
+              disabled={!hasPermission || isProcessing}
+            >
+              <MaterialIcons name="mic" size={22} color="red" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                !userAnswer.trim() && styles.sendButtonDisabled,
+              ]}
+              onPress={handleTextSubmit}
+              disabled={!userAnswer.trim()}
+            >
+              <MaterialIcons
+                name="send"
+                size={22}
+                color={userAnswer.trim() ? "#fff" : "#aaa"}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+      </KeyboardAvoidingView>
       {isSettingsVisible && (
         <SettingsModal
           visible={isSettingsVisible}
@@ -415,13 +553,26 @@ export const styles = StyleSheet.create({
   transcriptContainer: {
     flex: 1,
   },
+  instructionContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+    paddingHorizontal: 16,
+  },
+  instructionText: {
+    color: "#666",
+    fontSize: 14,
+  },
   settingsButton: {
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: "grey",
-    paddingHorizontal: 20,
-    paddingVertical: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 24,
+    gap: 8,
+    alignSelf: "center",
+    marginTop: 16,
   },
   errorContainer: {
     marginHorizontal: 16,
@@ -558,6 +709,58 @@ export const styles = StyleSheet.create({
   nextSentenceCountdownRefText: {
     fontSize: 24,
     fontWeight: "600",
+  },
+  // Input Area styles
+  inputArea: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    backgroundColor: "#fafafa",
+    gap: 8,
+  },
+  textInput: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: "#222",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    maxHeight: 100,
+  },
+  sendButton: {
+    backgroundColor: "#4a69bd",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendButtonDisabled: {
+    backgroundColor: "#e0e0e0",
+  },
+  trashButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+  },
+  micButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
   },
 });
 

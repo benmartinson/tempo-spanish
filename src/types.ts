@@ -159,3 +159,51 @@ export interface Evaluation {
   feedback: string;
   score: EvaluationScore;
 }
+
+export interface TranscriptionResponse {
+  transcript: string;
+  confidence: number;
+  words: TranscriptWord[];
+}
+
+/**
+ * Accuracy calculation result
+ */
+export interface AccuracyResult {
+  percentage: number;
+  matchedWords: number;
+  totalWords: number;
+  details: {
+    targetWord: string;
+    matched: boolean;
+    spokenWord?: string;
+  }[];
+  spokenSentence: string;
+  targetSentence: string;
+}
+
+export interface TranscriptWord {
+  word: string;
+  confidence: number;
+}
+
+export interface BackendMessage {
+  type: "ready" | "connected" | "transcript" | "metadata" | "error";
+  message?: string;
+  transcript?: string;
+  confidence?: number;
+  is_final?: boolean;
+  words?: TranscriptWord[];
+}
+
+export interface TranscriptCallbacks {
+  onReady?: (message: string) => void;
+  onConnected?: () => void;
+  onTranscript?: (
+    transcript: string,
+    isFinal: boolean,
+    words?: TranscriptWord[],
+  ) => void;
+  onError?: (message: string) => void;
+  onMetadata?: () => void;
+}

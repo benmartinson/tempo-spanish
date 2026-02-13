@@ -41,15 +41,12 @@ def get_soniox_config(api_key: str) -> dict:
         #
         # Use the real-time model
         # See: soniox.com/docs/stt/models
-        "model": "stt-rt-v3",
+        "model": "stt-async-v4",
         #
-        # Set language hints for Spanish (primary) and English
-        # See: soniox.com/docs/stt/concepts/language-hints
-        "language_hints": ["es", "en"],
-        #
-        # Enable language identification to detect which language is being spoken
-        # See: soniox.com/docs/stt/concepts/language-identification
-        "enable_language_identification": True,
+        # Set language to Spanish only
+        # See: https://soniox.com/docs/stt/concepts/language-restrictions
+        "language_hints": ["es"],
+        "language_hints_strict": True,
         #
         # Audio format - client sends linear16 PCM at 16kHz mono
         # See: soniox.com/docs/stt/rt/real-time-transcription#audio-formats
@@ -379,10 +376,10 @@ async def transcribe_audio(file: UploadFile = File(...)):
                 f"{SONIOX_API_BASE_URL}/v1/transcriptions",
                 headers={**headers, "Content-Type": "application/json"},
                 json={
-                    "model": "stt-async-v3",
+                    "model": "stt-async-v4",
                     "file_id": file_id,
-                    "language_hints": ["es", "en"],
-                    "enable_language_identification": True,
+                    "language_hints": ["es"],
+                    "language_hints_strict": True,
                 },
             )
             

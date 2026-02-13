@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { AccuracyResult, normalize } from "../streaming_helpers";
+import { AccuracyResult } from "../../types";
 import { MaterialIcons } from "@expo/vector-icons";
 import TooltipModal from "../common/TooltipModal";
 import { useState } from "react";
@@ -10,6 +10,8 @@ interface ShadowResultsProps {
   handleEnterRecordingMode: () => void;
   handleNextSentence: () => void;
   handlePlaySnippetAgain: () => void;
+  recallStep: number;
+  handleNextStep: () => void;
 }
 
 const ShadowResults: React.FC<ShadowResultsProps> = ({
@@ -17,11 +19,15 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   handleEnterRecordingMode,
   handleNextSentence,
   handlePlaySnippetAgain,
+  recallStep,
+  handleNextStep,
 }) => {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const missedWords = accuracyResult.details
     .filter((detail) => !detail.matched)
     .map((detail) => normalizeWord(detail.targetWord));
+
+  const isAccuracyGood = accuracyResult.percentage >= 80;
 
   return (
     <View style={styles.resultsContainer}>
@@ -47,34 +53,89 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           </TouchableOpacity>
         )}
       </View>
+      <View style={styles.spokenSentenceContainer}>
+        <Text style={styles.spokenSentenceText}>
+          <Text style={styles.labelBold}>You said: </Text>
+          {accuracyResult.details.map((detail, index) => {
+            const hasSpellingErrors =
+              detail.matched &&
+              detail.spokenWord &&
+              normalizeWord(detail.spokenWord) !==
+                normalizeWord(detail.targetWord);
+            const wordStyle = detail.matched
+              ? hasSpellingErrors
+                ? styles.wordYellow
+                : styles.wordGreen
+              : styles.wordRed;
+            return (
+              <Text key={index} style={wordStyle}>
+                {detail.spokenWord || "_"}
+                {index < accuracyResult.details.length - 1 ? " " : ""}
+              </Text>
+            );
+          })}
+        </Text>
+      </View>
+      <View style={styles.targetSentenceContainer}>
+        <Text style={styles.targetSentenceText}>
+          <Text style={styles.labelBold}>Target sentence: </Text>
+          {accuracyResult.targetSentence}
+        </Text>
+      </View>
 
       {/* Action buttons */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.tryAgainButton]}
-          onPress={handleEnterRecordingMode}
-        >
-          <MaterialIcons name="replay" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Re-Try Recording</Text>
-        </TouchableOpacity>
+      {!isAccuracyGood && (
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.tryAgainButton]}
+            onPress={handleNextStep}
+          >
+            <MaterialIcons name="replay" size={20} color="#fff" />
+            <Text style={styles.actionButtonText}>Re-Try</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {isAccuracyGood && recallStep === 1 && (
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.nextButton]}
+            onPress={handleNextStep}
+          >
+            <MaterialIcons name="arrow-forward" size={20} color="#fff" />
+            <Text style={styles.actionButtonText}>Next Step</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {isAccuracyGood && recallStep >= 2 && (
+        <>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.tryAgainButton]}
+              onPress={handleEnterRecordingMode}
+            >
+              <MaterialIcons name="replay" size={20} color="#fff" />
+              <Text style={styles.actionButtonText}>Re-Try Recording</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.actionButton, styles.nextButton]}
-          onPress={handleNextSentence}
-        >
-          <Text style={styles.actionButtonText}>Next Sentence</Text>
-          <MaterialIcons name="arrow-forward" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.playAgainButton]}
-          onPress={handlePlaySnippetAgain}
-        >
-          <Text style={styles.playAgainButtonText}>Re-Play Sentence</Text>
-          <MaterialIcons name="play-arrow" size={20} color="black" />
-        </TouchableOpacity>
-      </View>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.nextButton]}
+              onPress={handleNextSentence}
+            >
+              <Text style={styles.actionButtonText}>Next Sentence</Text>
+              <MaterialIcons name="arrow-forward" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.playAgainButton]}
+              onPress={handlePlaySnippetAgain}
+            >
+              <Text style={styles.playAgainButtonText}>Re-Play Sentence</Text>
+              <MaterialIcons name="play-arrow" size={20} color="black" />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
       <TooltipModal
         isVisible={isTooltipVisible}
         onRequestClose={() => setIsTooltipVisible(false)}
@@ -94,6 +155,43 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     marginBottom: 12,
+  },
+  spokenSentenceContainer: {
+    marginBottom: 12,
+  },
+  spokenSentenceText: {
+    color: "#666",
+    fontSize: 14,
+    textAlign: "center",
+    flexWrap: "wrap",
+  },
+  labelBold: {
+    fontWeight: "700",
+    color: "#666",
+  },
+  wordGreen: {
+    color: "#22c55e",
+  },
+  wordYellow: {
+    color: "#eab308",
+  },
+  wordRed: {
+    color: "#ef4444",
+  },
+  targetSentenceContainer: {
+    marginBottom: 12,
+  },
+  targetSentenceText: {
+    color: "#666",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  tooltipSpokenSentence: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+    textAlign: "center",
   },
   nextButton: {
     backgroundColor: "#4ade80",

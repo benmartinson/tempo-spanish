@@ -327,6 +327,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           currentSentence={currentSentence}
           handleNextSentence={handleNextSentence}
           handlePreviousSentence={handlePreviousSentence}
+          isKeyboardVisible={isKeyboardVisible}
           playSentence={playSentence}
           isActive={selectedNavTab === "shadow"}
           setPlayerMuted={setPlayerMuted}

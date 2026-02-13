@@ -1,6 +1,12 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { Audio } from "expo-av";
 import Constants from "expo-constants";
+import {
+  TranscriptCallbacks,
+  BackendMessage,
+  TranscriptionResponse,
+  AccuracyResult,
+} from "../types";
 
 // Backend URLs - all configured in app.config.js
 const config = Constants.expoConfig?.extra;
@@ -14,32 +20,6 @@ export const BACKEND_WS_URL = __DEV__
 
 // Debug: uncomment to verify which URLs are being used
 // console.log('Environment:', __DEV__ ? 'DEV' : 'PROD', 'Backend:', BACKEND_BASE_URL);
-
-export interface TranscriptWord {
-  word: string;
-  confidence: number;
-}
-
-export interface BackendMessage {
-  type: "ready" | "connected" | "transcript" | "metadata" | "error";
-  message?: string;
-  transcript?: string;
-  confidence?: number;
-  is_final?: boolean;
-  words?: TranscriptWord[];
-}
-
-export interface TranscriptCallbacks {
-  onReady?: (message: string) => void;
-  onConnected?: () => void;
-  onTranscript?: (
-    transcript: string,
-    isFinal: boolean,
-    words?: TranscriptWord[],
-  ) => void;
-  onError?: (message: string) => void;
-  onMetadata?: () => void;
-}
 
 // Global reference to currently playing sound to prevent overlapping audio
 let currentPlayingSound: Audio.Sound | null = null;
@@ -278,25 +258,6 @@ export const setAudioModeForRecording = async (
 /**
  * Response from batch transcription endpoint
  */
-export interface TranscriptionResponse {
-  transcript: string;
-  confidence: number;
-  words: TranscriptWord[];
-}
-
-/**
- * Accuracy calculation result
- */
-export interface AccuracyResult {
-  percentage: number;
-  matchedWords: number;
-  totalWords: number;
-  details: {
-    targetWord: string;
-    matched: boolean;
-    spokenWord?: string;
-  }[];
-}
 
 /**
  * Normalize a string for comparison - lowercase, remove accents and punctuation
@@ -421,9 +382,8 @@ export const sendAudioForTranscription = async (
  */
 export const calculateAccuracy = (
   spokenWords: string[],
-  targetWords: string[],
-  ignoredWords: string[],
-): AccuracyResult => {
+  targetWords: { word: string; translation: string }[],
+) => {
   if (targetWords.length === 0) {
     return {
       percentage: 100,
@@ -434,7 +394,6 @@ export const calculateAccuracy = (
   }
 
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
-  const normalizedIgnored = ignoredWords.map(normalize).filter(Boolean);
   const details: AccuracyResult["details"] = [];
   let matchedCount = 0;
 
@@ -442,15 +401,17 @@ export const calculateAccuracy = (
   const usedSpokenIndices = new Set<number>();
 
   // For each target word, try to find the best matching spoken word
-  for (const targetWord of targetWords) {
+  for (const word of targetWords) {
+    const { word: targetWord, translation: targetTranslation } = word;
     const normalizedTarget = normalize(targetWord);
+    const normalizedTranslation = normalize(targetTranslation);
     if (!normalizedTarget) {
       // Skip empty words (punctuation only)
       continue;
     }
 
-    // Check if this is an ignored word
-    if (normalizedIgnored.includes(normalizedTarget)) {
+    // // Check if its translation equals the word itself
+    if (normalizedTarget === normalizedTranslation) {
       matchedCount++;
       details.push({
         targetWord,

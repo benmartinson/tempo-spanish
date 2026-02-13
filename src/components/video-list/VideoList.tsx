@@ -138,10 +138,23 @@ const VideoList: React.FC = () => {
     setLoadingVideo(false);
   };
 
-  const recentlyWatchedVideos =
-    allVideos?.filter((video) =>
+  const recentlyWatchedVideos = allVideos
+    ?.filter((video) =>
       userVideoViews?.some((videoView) => videoView.video_id === video.id),
-    ) ?? [];
+    )
+    .map((video) => {
+      const videoView = userVideoViews?.find(
+        (videoView) => videoView.video_id === video.id,
+      );
+      return {
+        ...video,
+        watched_at: videoView?.watched_at,
+      };
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.watched_at).getTime() - new Date(a.watched_at).getTime(),
+    );
 
   return (
     <ScrollView style={styles.container}>

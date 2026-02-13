@@ -76,7 +76,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </View>
         </View>
 
-        <View style={styles.speedControlRow}>
+        {/* <View style={styles.speedControlRow}>
           <Text style={styles.speedLabel}>Record Speed:</Text>
           <View style={styles.speedOptions}>
             {speedOptions.map((speed) => (
@@ -99,7 +99,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </View> */}
       </View>
       <View style={styles.questionContainer}>
         <Text style={styles.questionText}>Mute video when recording?</Text>
