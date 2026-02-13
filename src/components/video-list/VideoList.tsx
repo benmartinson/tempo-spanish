@@ -21,13 +21,14 @@ import { useDispatch, useSelector } from "react-redux";
 import { BACKEND_BASE_URL } from "../streaming_helpers";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useNavigation } from "@react-navigation/native";
-import { useUser } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/clerk-expo";
 import HorizontalVideoScroll from "./HorizontalVideoScroll";
 import VideoSectionHeader from "./VideoSectionHeader";
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
+  const { userId } = useAuth();
   const [loadingVideo, setLoadingVideo] = useState(false);
 
   const allChannels = useSelector((state: RootState) => state.allChannels);
@@ -89,42 +90,17 @@ const VideoList: React.FC = () => {
           ignoreDuplicates: false,
         },
       )
-      .select("id");
+      .select("id, last_sentence_watched");
 
     if (videoViewError) console.error(videoViewError);
 
     const videoViewId = videoViewData?.[0]?.id ?? "";
-    // const { data: focusVocabData, error: focusVocabError } = await supabase
-    //   .from("video_view_focus_vocab")
-    //   .select(
-    //     `
-    //     vocabulary (
-    //       id,
-    //       word,
-    //       translation
-    //     )
-    //   `,
-    //   )
-    //   .eq("video_view_id", videoViewId);
-
-    // const focusVocab = (
-    //   focusVocabData?.map((item: any) => item.vocabulary) || []
-    // ).filter(Boolean);
-
-    // const { data: focusSentenceData, error: focusSentenceError } =
-    //   await supabase
-    //     .from("video_view_focus_sentence")
-    //     .select("id, text, translation, segment_index, sentence_index")
-    //     .eq("video_view_id", videoViewId);
-
-    // if (focusSentenceError) console.error(focusSentenceError);
-
-    // const focusSentences = focusSentenceData ?? [];
+    const restoredSentence = videoViewData?.[0]?.last_sentence_watched ?? 0;
 
     const sentences = splitSegmentsIntoSentences(data.segments);
     const video: VideoContext = {
       videoId: data.video_id,
-      currentSentence: 0,
+      currentSentence: restoredSentence,
       sentences,
       allWords: data.segments.flatMap((s: Segment) => s.words),
       videoViewId: String(videoViewId),
@@ -134,6 +110,21 @@ const VideoList: React.FC = () => {
 
     dispatch(setCurrentVideo(video));
     dispatch(setCurrentTab("watch"));
+
+    // Persist video selection to user_ui_state
+    if (supabase && userId) {
+      const { error } = await supabase.from("user_ui_state").upsert(
+        {
+          user_id: userId,
+          current_video: recordId,
+          current_sentence: restoredSentence,
+          updated_at: new Date(),
+        },
+        { onConflict: "user_id" },
+      );
+      if (error) console.error("Error persisting video selection:", error);
+    }
+
     // navigation.navigate("Watch" as never);
     setLoadingVideo(false);
   };

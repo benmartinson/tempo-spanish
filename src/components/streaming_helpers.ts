@@ -382,7 +382,7 @@ export const sendAudioForTranscription = async (
  */
 export const calculateAccuracy = (
   spokenWords: string[],
-  targetWords: { word: string; translation: string }[],
+  targetWords: string[],
 ) => {
   if (targetWords.length === 0) {
     return {
@@ -393,20 +393,21 @@ export const calculateAccuracy = (
     };
   }
 
+  console.log("Spoken words:", spokenWords);
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
   const details: AccuracyResult["details"] = [];
   let matchedCount = 0;
 
   // Track which spoken words have been used
   const usedSpokenIndices = new Set<number>();
+  console.log("Normalized spoken words:", normalizedSpoken);
 
   // For each target word, try to find the best matching spoken word
-  for (const word of targetWords) {
-    const { word: targetWord, translation: targetTranslation } = word;
+  for (const targetWord of targetWords) {
     const normalizedTarget = normalize(targetWord);
-    const normalizedTranslation = normalize(targetTranslation);
     if (!normalizedTarget) {
       // Skip empty words (punctuation only)
+      console.log("Skipping empty word:", targetWord);
       continue;
     }
 

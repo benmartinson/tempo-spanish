@@ -26,7 +26,6 @@ import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import WatchTab from "../watch/WatchTab";
 import ShadowTab from "../shadow/ShadowTab";
 import DiscussTab from "../discuss/DiscussTab";
-import { findSegmentAndSentenceByTime, getSentenceData } from "../../helpers";
 
 interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";

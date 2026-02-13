@@ -7,6 +7,8 @@ import {
   setCurrentTab,
 } from "../../store/actions/dataActions";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
+import { useAuth } from "@clerk/clerk-expo";
 
 type NavTab = "watch" | "shadow" | "review";
 
@@ -20,15 +22,41 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
   onTabSelect,
 }) => {
   const dispatch = useDispatch();
+  const supabase = useSupabaseWithClerk();
+  const { userId } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
   if (!currentVideo) {
     return null;
   }
 
-  const handleBackPress = () => {
+  const handleBackPress = async () => {
+    // Save last_sentence_watched before clearing
+    console.log("Saving last_sentence_watched:", currentVideo.currentSentence);
+    if (supabase && currentVideo?.videoViewId) {
+      const { error: sentenceError } = await supabase
+        .from("video_views")
+        .update({ last_sentence_watched: currentVideo.currentSentence })
+        .eq("id", currentVideo.videoViewId);
+      if (sentenceError)
+        console.error("Error saving last_sentence_watched:", sentenceError);
+    }
+
     dispatch(setCurrentVideo(null));
     dispatch(setCurrentTab("videos"));
+
+    // Persist video unselection to user_ui_state
+    if (supabase && userId) {
+      const { error } = await supabase.from("user_ui_state").upsert(
+        {
+          user_id: userId,
+          current_video: null,
+          updated_at: new Date(),
+        },
+        { onConflict: "user_id" },
+      );
+      if (error) console.error("Error persisting video unselection:", error);
+    }
   };
 
   const tabs: { key: NavTab; label: string }[] = [

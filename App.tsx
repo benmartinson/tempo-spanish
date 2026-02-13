@@ -12,12 +12,22 @@ import { Provider, useDispatch, useSelector } from "react-redux";
 import store from "./src/store/store";
 import {
   setCurrentTab,
+  setCurrentVideo,
   setAllVocabulary,
   setUserKnownVocab,
   setUserVideoViews,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
-import { VideoView, Vocabulary, RootState } from "./src/types";
+import {
+  VideoView,
+  Vocabulary,
+  RootState,
+  VideoContext,
+  Segment,
+} from "./src/types";
+import { splitSegmentsIntoSentences } from "./src/helpers";
+import { BACKEND_BASE_URL } from "./src/components/streaming_helpers";
+import { useUIStateSync } from "./src/components/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
@@ -134,10 +144,15 @@ const MainTabs: React.FC = () => {
 const AuthenticatedApp: React.FC = () => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
+  const { userId } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const [selectedNavTab, setSelectedNavTab] = useState<
     "watch" | "shadow" | "review"
   >("watch");
+  const [isRestoringState, setIsRestoringState] = useState(true);
+
+  // Sync currentSentence changes to the database
+  useUIStateSync();
 
   useEffect(() => {
     if (!supabase) return;
@@ -202,24 +217,157 @@ const AuthenticatedApp: React.FC = () => {
         const videoViews = (data as VideoView[]) ?? [];
         dispatch(setUserVideoViews(videoViews));
       });
-  }, [supabase, dispatch]);
+
+    // Fetch and restore user UI state
+    const restoreUserUIState = async () => {
+      if (!userId) {
+        setIsRestoringState(false);
+        return;
+      }
+
+      try {
+        const { data: uiState, error } = await supabase
+          .from("user_ui_state")
+          .select("*")
+          .eq("user_id", userId)
+          .single();
+
+        if (error) {
+          // No existing state is fine, just skip restoration
+          if (error.code !== "PGRST116") {
+            console.error("Error fetching user UI state:", error);
+          }
+          setIsRestoringState(false);
+          return;
+        }
+
+        if (uiState?.current_video) {
+          // Fetch the video record to get the video_id string
+          const { data: videoRecord, error: videoError } = await supabase
+            .from("video")
+            .select("video_id")
+            .eq("id", uiState.current_video)
+            .single();
+
+          if (videoError || !videoRecord) {
+            console.error("Error fetching video record:", videoError);
+            setIsRestoringState(false);
+            return;
+          }
+
+          // Fetch video segments from backend
+          const response = await fetch(
+            `${BACKEND_BASE_URL}/video-segments/${videoRecord.video_id}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          );
+
+          if (!response.ok) {
+            console.error("Failed to fetch video segments for restoration");
+            setIsRestoringState(false);
+            return;
+          }
+
+          const data = await response.json();
+          if (data.error) {
+            console.error("Error in video segments response:", data.error);
+            setIsRestoringState(false);
+            return;
+          }
+
+          // Get or create video view
+          const { data: videoViewData, error: videoViewError } = await supabase
+            .from("video_views")
+            .upsert(
+              {
+                video_id: uiState.current_video,
+                watched_at: new Date(),
+              },
+              {
+                onConflict: "user_id,video_id",
+                ignoreDuplicates: false,
+              },
+            )
+            .select("id");
+
+          if (videoViewError) console.error(videoViewError);
+          const videoViewId = videoViewData?.[0]?.id ?? "";
+
+          const sentences = splitSegmentsIntoSentences(data.segments);
+          const video: VideoContext = {
+            videoId: data.video_id,
+            currentSentence: uiState.current_sentence ?? 0,
+            sentences,
+            allWords: data.segments.flatMap((s: Segment) => s.words),
+            videoViewId: String(videoViewId),
+            focusVocab: [],
+            focusSentences: [],
+          };
+
+          dispatch(setCurrentVideo(video));
+
+          // Restore the tab if it's one of the persisted tabs
+          if (
+            uiState.current_tab &&
+            ["watch", "discuss", "shadow"].includes(uiState.current_tab)
+          ) {
+            dispatch(setCurrentTab(uiState.current_tab));
+            // Also update the local nav tab state
+            if (uiState.current_tab === "discuss") {
+              setSelectedNavTab("review");
+            } else if (
+              uiState.current_tab === "watch" ||
+              uiState.current_tab === "shadow"
+            ) {
+              setSelectedNavTab(uiState.current_tab);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error restoring user UI state:", err);
+      } finally {
+        setIsRestoringState(false);
+      }
+    };
+
+    restoreUserUIState();
+  }, [supabase, dispatch, userId]);
 
   const showTabsBelow = false;
 
-  // When a video is selected, reset to watch tab
-  useEffect(() => {
-    if (currentVideo) {
-      setSelectedNavTab("shadow");
-    }
-  }, [currentVideo?.videoId]);
+  // Track if this is first video selection after restoration
+  const isInitialVideoRef = React.useRef(true);
 
-  const handleNavTabSelect = (tab: "watch" | "shadow" | "review") => {
+  // When a video is selected (not from restoration), reset to shadow tab
+  useEffect(() => {
+    if (currentVideo && !isRestoringState) {
+      // Skip the first video set during restoration
+      if (isInitialVideoRef.current) {
+        isInitialVideoRef.current = false;
+        return;
+      }
+    }
+  }, [currentVideo?.videoId, isRestoringState]);
+
+  const handleNavTabSelect = async (tab: "watch" | "shadow" | "review") => {
     setSelectedNavTab(tab);
     // Also update redux current tab for consistency
-    if (tab === "review") {
-      dispatch(setCurrentTab("discuss"));
-    } else {
-      dispatch(setCurrentTab(tab));
+    const reduxTab = tab === "review" ? "discuss" : tab;
+    dispatch(setCurrentTab(reduxTab));
+
+    // Persist tab to database (only for watch/discuss/shadow)
+    if (supabase && userId) {
+      const { error } = await supabase
+        .from("user_ui_state")
+        .upsert(
+          { user_id: userId, current_tab: reduxTab, updated_at: new Date() },
+          { onConflict: "user_id" },
+        );
+      if (error) console.error("Error persisting tab:", error);
     }
   };
 
@@ -240,7 +388,21 @@ const AuthenticatedApp: React.FC = () => {
   return (
     <View style={{ flex: 1 }}>
       <TopNavBar />
-      {currentVideo ? (
+      {isRestoringState ? (
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "white",
+          }}
+        >
+          <ActivityIndicator size="large" color="#5a5680" />
+          <Text style={{ marginTop: 16, color: "#666" }}>
+            Loading your session...
+          </Text>
+        </View>
+      ) : currentVideo ? (
         <>
           <NavTabBanner
             selectedTab={selectedNavTab}

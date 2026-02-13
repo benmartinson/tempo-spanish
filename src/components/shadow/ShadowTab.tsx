@@ -99,7 +99,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const calculateAccuracyFromWords = useCallback(
     (spokenWords: string[]) => {
       const targetWords = currentSentence.words.map((w) => {
-        return { word: w.word, translation: w.translation };
+        return w.word;
       });
 
       const accuracy = calculateAccuracy(spokenWords, targetWords);
@@ -455,7 +455,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         </ScrollView>
 
         {/* Input Area - always visible when not in recording mode or showing results */}
-        {!isRecordingMode && !accuracyResult && !isProcessing && (
+        {!accuracyResult && !isProcessing && (
           <View
             style={[
               styles.inputArea,
@@ -473,18 +473,27 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               autoCapitalize="none"
               multiline
               maxLength={500}
+              editable={!isRecordingMode}
             />
             <TouchableOpacity
               style={[
                 styles.trashButton,
-                { backgroundColor: isKeyboardVisible ? "white" : "#f0f0f0" },
+                {
+                  backgroundColor:
+                    isKeyboardVisible || isRecordingMode ? "white" : "#f0f0f0",
+                },
               ]}
-              onPress={handleResetAnswer}
+              onPress={() => {
+                if (isRecordingMode) {
+                  handleStopRecording();
+                }
+                handleResetAnswer();
+              }}
             >
               <FontAwesome
                 name="trash-o"
                 size={22}
-                color={isKeyboardVisible ? "red" : "#aaa"}
+                color={isKeyboardVisible || isRecordingMode ? "red" : "#aaa"}
               />
             </TouchableOpacity>
             <TouchableOpacity

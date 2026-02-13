@@ -108,13 +108,13 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
 
   const renderContent = () => {
     switch (phase) {
-      case "countdown":
-        return (
-          <View style={styles.countdownPhase}>
-            <Text style={styles.countdownNumber}>{countdown}</Text>
-            <Text style={styles.countdownLabel}>Get ready to record...</Text>
-          </View>
-        );
+      // case "countdown":
+      //   return (
+      //     <View style={styles.countdownPhase}>
+      //       <Text style={styles.countdownNumber}>{countdown}</Text>
+      //       <Text style={styles.countdownLabel}>Get ready to record...</Text>
+      //     </View>
+      //   );
 
       case "recording":
         return (
@@ -140,37 +140,37 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
           </View>
         );
 
-      case "buffer":
-        return (
-          <View style={styles.bufferPhase}>
-            <View style={styles.recordingIndicatorRow}>
-              <Animated.View
-                style={[
-                  styles.recordingDot,
-                  styles.bufferDot,
-                  { transform: [{ scale: pulseAnim }] },
-                ]}
-              />
-              <Text style={styles.bufferText}>
-                Recording stopping in {bufferCountdown}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={onStopRecording}
-              style={styles.stopButton}
-            >
-              <Text style={styles.stopButtonText}>Stop Recording</Text>
-            </TouchableOpacity>
-          </View>
-        );
+      // case "buffer":
+      //   return (
+      //     <View style={styles.bufferPhase}>
+      //       <View style={styles.recordingIndicatorRow}>
+      //         <Animated.View
+      //           style={[
+      //             styles.recordingDot,
+      //             styles.bufferDot,
+      //             { transform: [{ scale: pulseAnim }] },
+      //           ]}
+      //         />
+      //         <Text style={styles.bufferText}>
+      //           Recording stopping in {bufferCountdown}
+      //         </Text>
+      //       </View>
+      //       <TouchableOpacity
+      //         onPress={onStopRecording}
+      //         style={styles.stopButton}
+      //       >
+      //         <Text style={styles.stopButtonText}>Stop Recording</Text>
+      //       </TouchableOpacity>
+      //     </View>
+      //   );
 
-      case "complete":
-        return (
-          <View style={styles.completePhase}>
-            <MaterialIcons name="check-circle" size={32} color="#4ade80" />
-            <Text style={styles.completeText}>Recording complete</Text>
-          </View>
-        );
+      // case "complete":
+      //   return (
+      //     <View style={styles.completePhase}>
+      //       <MaterialIcons name="check-circle" size={32} color="#4ade80" />
+      //       <Text style={styles.completeText}>Recording complete</Text>
+      //     </View>
+      //   );
 
       default:
         return null;
