@@ -31,7 +31,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
         </Text>
         <Text style={styles.accuracyLabel}>Accuracy</Text>
       </View>
-      <View style={styles.accuracyDetailsContainer}>
+      {/* <View style={styles.accuracyDetailsContainer}>
         <Text style={styles.accuracyDetails}>
           {accuracyResult.matchedWords} of {accuracyResult.totalWords} words
           matched
@@ -46,7 +46,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
             />
           </TouchableOpacity>
         )}
-      </View>
+      </View> */}
       <View style={styles.spokenSentenceContainer}>
         <Text style={styles.spokenSentenceText}>
           <Text style={styles.labelBold}>You said: </Text>
@@ -188,8 +188,8 @@ export const styles = StyleSheet.create({
     borderColor: "#3d3a52",
   },
   accuracyCircle: {
-    width: 120,
-    height: 120,
+    width: 90,
+    height: 90,
     borderRadius: 60,
     backgroundColor: "#2d2a40",
     justifyContent: "center",
@@ -201,7 +201,7 @@ export const styles = StyleSheet.create({
   },
   accuracyPercentage: {
     color: "#4ade80",
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: "700",
   },
   accuracyLabel: {

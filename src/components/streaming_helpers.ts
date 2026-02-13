@@ -1,12 +1,14 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { Audio } from "expo-av";
 import Constants from "expo-constants";
+import { decode } from "base64-arraybuffer";
 import {
   TranscriptCallbacks,
   BackendMessage,
   TranscriptionResponse,
   AccuracyResult,
 } from "../types";
+import { supabase } from "../../lib/supabase";
 
 // Backend URLs - all configured in app.config.js
 const config = Constants.expoConfig?.extra;
@@ -70,6 +72,78 @@ export const stopAudio = async () => {
     } catch (err) {
       console.error("Error stopping audio:", err);
     }
+  }
+};
+
+/**
+ * Play audio from Supabase storage bucket
+ * @param storagePath - The path of the file in the shadow_recordings bucket
+ */
+export const playAudioFromStorage = async (storagePath: string): Promise<void> => {
+  try {
+    // Stop any currently playing audio
+    if (currentPlayingSound) {
+      await currentPlayingSound.stopAsync();
+      await currentPlayingSound.unloadAsync();
+      currentPlayingSound = null;
+    }
+
+    // Get a signed URL for the audio file
+    const { data, error } = await supabase.storage
+      .from("shadow_recordings")
+      .createSignedUrl(storagePath, 60); // URL valid for 60 seconds
+
+    if (error || !data?.signedUrl) {
+      throw new Error(`Failed to get audio URL: ${error?.message || "No URL returned"}`);
+    }
+
+    // Configure audio mode for playback through speakers
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+    });
+
+    const { sound } = await Audio.Sound.createAsync({
+      uri: data.signedUrl,
+    });
+
+    currentPlayingSound = sound;
+
+    await sound.playAsync();
+    // Unload sound when finished to free memory
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        sound.unloadAsync();
+        if (currentPlayingSound === sound) {
+          currentPlayingSound = null;
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Error playing audio from storage:", err);
+    throw err;
+  }
+};
+
+/**
+ * Delete audio file from Supabase storage bucket
+ * @param storagePath - The path of the file in the shadow_recordings bucket
+ */
+export const deleteAudioFromStorage = async (storagePath: string): Promise<void> => {
+  try {
+    const { error } = await supabase.storage
+      .from("shadow_recordings")
+      .remove([storagePath]);
+
+    if (error) {
+      console.error("Storage delete error:", error);
+      throw new Error(`Failed to delete audio: ${error.message}`);
+    }
+
+    console.log(`Audio deleted successfully: ${storagePath}`);
+  } catch (err) {
+    console.error("Error deleting audio from storage:", err);
+    throw err;
   }
 };
 
@@ -330,6 +404,50 @@ function wordMatches(spoken: string, target: string, threshold = 0.7): boolean {
   // Fuzzy match using similarity
   return similarity(normalizedSpoken, normalizedTarget) >= threshold;
 }
+
+/**
+ * Upload audio file to Supabase storage bucket
+ * @param audioUri - Local URI of the audio file
+ * @param userId - User ID for organizing files
+ * @param videoId - Video ID for the recording
+ * @param sentenceIndex - Sentence index for the recording
+ * @returns The storage path of the uploaded file
+ */
+export const uploadAudioToStorage = async (
+  audioUri: string,
+  userId: string,
+  videoId: string,
+  sentenceIndex: number,
+): Promise<string> => {
+  try {
+    // Read the audio file as base64
+    const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
+      encoding: "base64",
+    });
+
+    // Use a consistent filename based on user/video/sentence for upsert to work
+    const filename = `${userId}/${videoId}_${sentenceIndex}.wav`;
+
+    // Upload to Supabase storage with upsert to replace existing recording
+    const { data, error } = await supabase.storage
+      .from("shadow_recordings")
+      .upload(filename, decode(base64Audio), {
+        contentType: "audio/wav",
+        upsert: true,
+      });
+
+    if (error) {
+      console.error("Storage upload error:", error);
+      throw new Error(`Failed to upload audio: ${error.message}`);
+    }
+
+    console.log(`Audio uploaded successfully: ${data.path}`);
+    return data.path;
+  } catch (err) {
+    console.error("Error uploading audio to storage:", err);
+    throw err;
+  }
+};
 
 /**
  * Send audio file to backend for batch transcription

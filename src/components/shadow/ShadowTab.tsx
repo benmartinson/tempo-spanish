@@ -29,6 +29,8 @@ import { useRecording } from "../useRecording";
 import {
   sendAudioForTranscription,
   calculateAccuracy,
+  uploadAudioToStorage,
+  playAudioFromStorage,
 } from "../streaming_helpers";
 import { AccuracyResult } from "../../types";
 import SettingsModal from "./SettingsModal";
@@ -87,6 +89,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
     null,
   );
+  const [previousResults, setPreviousResults] = useState<
+    (AccuracyResult & { recordingId: string }) | null
+  >(null);
   const [isSettingsVisible, setIsSettingsVisible] = useState<boolean>(false);
   const [isRecordingMode, setIsRecordingMode] = useState<boolean>(false);
   const [sentenceEnded, setSentenceEnded] = useState<boolean>(false);
@@ -95,6 +100,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const isTransitioningRef = useRef<boolean>(false);
   const [nextSentenceCountdown, setNextSentenceCountdown] = useState<number>(0);
   const [hasPlayedSentence, setHasPlayedSentence] = useState<boolean>(false);
+  const [currentRecordingId, setCurrentRecordingId] = useState<string | null>(
+    null,
+  );
+  const [isPlayingRecording, setIsPlayingRecording] = useState<boolean>(false);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -118,12 +127,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Save shadow result to database
   const saveShadowResult = useCallback(
-    async (spokenWords: string[], recordingId?: string) => {
+    async (spokenWords: string[], recordingPath?: string) => {
       if (!supabase || !userId || !currentVideo) return;
-      console.log({
-        recordId: currentVideo.recordId,
-        sentenceIndex: currentSentence.index,
-      });
 
       try {
         await supabase.from("user_shadow_result").upsert(
@@ -132,10 +137,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             video_id: parseInt(currentVideo.recordId),
             sentence: currentSentence.index,
             spoken_words: spokenWords.join(" "),
-            recording_id: recordingId || null,
+            recording_id: recordingPath || null,
           },
           { onConflict: "user_id,video_id,sentence" },
         );
+
+        // Update local state with new recording ID
+        if (recordingPath) {
+          setCurrentRecordingId(recordingPath);
+        }
       } catch (err) {
         console.error("Failed to save shadow result:", err);
       }
@@ -150,36 +160,46 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     try {
       const { data, error } = await supabase
         .from("user_shadow_result")
-        .select("spoken_words")
+        .select("spoken_words, recording_id")
         .eq("user_id", userId)
         .eq("video_id", parseInt(currentVideo.recordId))
         .eq("sentence", currentSentence.index)
         .single();
 
       if (error || !data) return null;
-      return data.spoken_words;
+      return { spokenWords: data.spoken_words, recordingId: data.recording_id };
     } catch (err) {
       console.error("Failed to fetch shadow result:", err);
       return null;
     }
   }, [supabase, userId, currentVideo, currentSentence.index]);
 
+  const loadExistingShadowResult = async () => {
+    if (previousResults) {
+      setAccuracyResult(previousResults);
+      setCurrentRecordingId(previousResults.recordingId || null);
+      return;
+    }
+    const result = await fetchShadowResult();
+    console.log("Shadow result:", result);
+    if (result) {
+      const spokenWords = result.spokenWords.split(/\s+/).filter(Boolean);
+      const accuracy = calculateAccuracyFromWords(spokenWords);
+      setAccuracyResult(accuracy);
+      setCurrentRecordingId(result.recordingId || null);
+    }
+  };
+
   useEffect(() => {
     Keyboard.dismiss();
     if (hasPlayedSentence) {
       setHasPlayedSentence(false);
     }
+    // Reset recording state when sentence changes
+    setCurrentRecordingId(null);
+    setIsPlayingRecording(false);
 
     // Fetch existing shadow result for this sentence
-    const loadExistingShadowResult = async () => {
-      const spokenWordsStr = await fetchShadowResult();
-      console.log("Spoken words string:", spokenWordsStr);
-      if (spokenWordsStr) {
-        const spokenWords = spokenWordsStr.split(/\s+/).filter(Boolean);
-        const accuracy = calculateAccuracyFromWords(spokenWords);
-        setAccuracyResult(accuracy);
-      }
-    };
 
     loadExistingShadowResult();
   }, [currentSentence]);
@@ -187,16 +207,32 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
     async (audioUri: string) => {
+      if (!currentVideo) return;
+
       setIsProcessing(true);
       setError(null);
 
       try {
-        const result = await sendAudioForTranscription(audioUri);
-        const spokenWords = result.transcript.split(/\s+/).filter(Boolean);
+        // Upload audio to storage and get transcription in parallel
+        const [recordingPath, transcriptionResult] = await Promise.all([
+          userId
+            ? uploadAudioToStorage(
+                audioUri,
+                userId,
+                currentVideo.recordId,
+                currentSentence.index,
+              )
+            : Promise.resolve(undefined),
+          sendAudioForTranscription(audioUri),
+        ]);
+
+        const spokenWords = transcriptionResult.transcript
+          .split(/\s+/)
+          .filter(Boolean);
         const accuracy = calculateAccuracyFromWords(spokenWords);
         setAccuracyResult(accuracy);
-        // Save the shadow result to database
-        saveShadowResult(spokenWords);
+        // Save the shadow result to database with the recording path
+        saveShadowResult(spokenWords, recordingPath);
       } catch (err) {
         console.error("Transcription error:", err);
         setError(
@@ -206,7 +242,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setIsProcessing(false);
       }
     },
-    [calculateAccuracyFromWords, saveShadowResult],
+    [
+      calculateAccuracyFromWords,
+      saveShadowResult,
+      userId,
+      currentVideo,
+      currentSentence.index,
+    ],
   );
 
   // Handle text input submission - compare typed text with target
@@ -402,9 +444,37 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     playSentence();
   };
 
+  // Play the user's recording from storage
+  const handlePlayUserRecording = useCallback(async () => {
+    if (!currentRecordingId || isPlayingRecording) return;
+
+    setIsPlayingRecording(true);
+    try {
+      await playAudioFromStorage(currentRecordingId);
+    } catch (err) {
+      console.error("Failed to play recording:", err);
+      setError(err instanceof Error ? err.message : "Failed to play recording");
+    } finally {
+      // Note: This will be set immediately, but the audio continues playing
+      // The playAudioFromStorage function handles cleanup when audio finishes
+      setTimeout(() => setIsPlayingRecording(false), 500);
+    }
+  }, [currentRecordingId, isPlayingRecording]);
+
   const handleRetry = () => {
+    const prevResult = accuracyResult;
+    if (prevResult) {
+      setPreviousResults({
+        ...prevResult,
+        recordingId: currentRecordingId || null,
+      });
+    }
     setAccuracyResult(null);
     setUserAnswer("");
+  };
+
+  const handlePreviousResults = () => {
+    loadExistingShadowResult();
   };
 
   if (!currentVideo) {
@@ -426,22 +496,22 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           </View>
         )}
 
+        {/* Sentence Navigation */}
+        <NavSwitcher
+          onPrev={handleShadowPreviousSentence}
+          onNext={handleShadowNextSentence}
+          currentIndex={currentSentence.index}
+          totalItems={currentVideo.sentences.length}
+        >
+          <Text>
+            Sentence {currentSentence.index + 1} of{" "}
+            {currentVideo.sentences.length}
+          </Text>
+        </NavSwitcher>
         <ScrollView
           style={styles.transcriptContainer}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Sentence Navigation */}
-          <NavSwitcher
-            onPrev={handleShadowPreviousSentence}
-            onNext={handleShadowNextSentence}
-            currentIndex={currentSentence.index}
-            totalItems={currentVideo.sentences.length}
-          >
-            <Text>
-              Sentence {currentSentence.index + 1} of{" "}
-              {currentVideo.sentences.length}
-            </Text>
-          </NavSwitcher>
           {/* Recording button or processing indicator */}
           {isProcessing ? (
             <View style={styles.processingContainer}>
@@ -520,6 +590,37 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 header="Skip to selected vocab"
               /> */}
             </>
+          )}
+          {/* Play user recording button - shown when a recording exists */}
+          {currentRecordingId && !isRecordingMode && !isProcessing && (
+            <View style={styles.playRecordingContainer}>
+              {!accuracyResult && (
+                <TouchableOpacity
+                  style={styles.previousResultsButton}
+                  onPress={handlePreviousResults}
+                  disabled={isPlayingRecording}
+                >
+                  <MaterialIcons name="arrow-back" size={20} color="#4a69bd" />
+                  <Text style={styles.previousResultsText}>
+                    Previous Results
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.playRecordingButton}
+                onPress={handlePlayUserRecording}
+                disabled={isPlayingRecording}
+              >
+                <MaterialIcons
+                  name={isPlayingRecording ? "pause" : "headphones"}
+                  size={20}
+                  color="#4a69bd"
+                />
+                <Text style={styles.playRecordingButtonText}>
+                  {isPlayingRecording ? "Playing..." : "Play Recording"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
         </ScrollView>
 
@@ -832,6 +933,44 @@ export const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#ddd",
+  },
+  playRecordingContainer: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  previousResultsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  previousResultsText: {
+    color: "#4a69bd",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  playRecordingButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "#e8f0fe",
+    borderWidth: 1,
+    borderColor: "#4a69bd",
+    gap: 8,
+  },
+  playRecordingButtonText: {
+    color: "#4a69bd",
+    fontSize: 14,
+    fontWeight: "500",
   },
 });
 
