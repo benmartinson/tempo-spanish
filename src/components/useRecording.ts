@@ -15,7 +15,7 @@ export interface UseRecordingReturn {
   isRecording: boolean;
   hasPermission: boolean | null;
   startRecording: () => Promise<void>;
-  stopRecording: () => Promise<string | null>;
+  stopRecording: (userTrashed?: boolean) => Promise<string | null>;
   cleanup: () => Promise<void>;
 }
 
@@ -97,32 +97,35 @@ export const useRecording = (
     }
   }, [hasPermission, cleanup]);
 
-  const stopRecording = useCallback(async (): Promise<string | null> => {
-    setIsRecording(false);
+  const stopRecording = useCallback(
+    async (userTrashed: boolean = false): Promise<string | null> => {
+      setIsRecording(false);
 
-    let audioUri: string | null = null;
-    // Stop recording and get the URI
-    if (recordingRef.current) {
-      try {
-        await recordingRef.current.stopAndUnloadAsync();
-        audioUri = recordingRef.current.getURI();
-      } catch (err) {
-        console.error("Error stopping recording:", err);
-        onErrorRef.current?.("Error stopping recording");
+      let audioUri: string | null = null;
+      // Stop recording and get the URI
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+          audioUri = recordingRef.current.getURI();
+        } catch (err) {
+          console.error("Error stopping recording:", err);
+          onErrorRef.current?.("Error stopping recording");
+        }
+        recordingRef.current = null;
       }
-      recordingRef.current = null;
-    }
 
-    // Reset audio mode
-    await setAudioModeForRecording(false);
+      // Reset audio mode
+      await setAudioModeForRecording(false);
 
-    // Notify completion with the audio URI
-    if (audioUri) {
-      onRecordingCompleteRef.current(audioUri);
-    }
-
-    return audioUri;
-  }, []);
+      // Notify completion with the audio URI
+      if (audioUri && !userTrashed) {
+        onRecordingCompleteRef.current(audioUri);
+        return audioUri;
+      }
+      return null;
+    },
+    [],
+  );
 
   return {
     isRecording,

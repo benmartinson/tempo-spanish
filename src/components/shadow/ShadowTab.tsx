@@ -31,6 +31,7 @@ import {
   calculateAccuracy,
   uploadAudioToStorage,
   playAudioFromStorage,
+  trimSilenceFromAudio,
 } from "../streaming_helpers";
 import { AccuracyResult } from "../../types";
 import SettingsModal from "./SettingsModal";
@@ -104,6 +105,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     null,
   );
   const [isPlayingRecording, setIsPlayingRecording] = useState<boolean>(false);
+  const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [isTrimmingAudio, setIsTrimmingAudio] = useState<boolean>(false);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -127,7 +130,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Save shadow result to database
   const saveShadowResult = useCallback(
-    async (spokenWords: string[], recordingPath?: string) => {
+    async (spokenWords: string[]) => {
       if (!supabase || !userId || !currentVideo) return;
 
       try {
@@ -137,15 +140,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             video_id: parseInt(currentVideo.recordId),
             sentence: currentSentence.index,
             spoken_words: spokenWords.join(" "),
-            recording_id: recordingPath || null,
           },
           { onConflict: "user_id,video_id,sentence" },
         );
-
-        // Update local state with new recording ID
-        if (recordingPath) {
-          setCurrentRecordingId(recordingPath);
-        }
       } catch (err) {
         console.error("Failed to save shadow result:", err);
       }
@@ -181,7 +178,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       return;
     }
     const result = await fetchShadowResult();
-    console.log("Shadow result:", result);
     if (result) {
       const spokenWords = result.spokenWords.split(/\s+/).filter(Boolean);
       const accuracy = calculateAccuracyFromWords(spokenWords);
@@ -199,10 +195,31 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
 
-    // Fetch existing shadow result for this sentence
-
     loadExistingShadowResult();
   }, [currentSentence]);
+
+  const handleTrimAndSaveRecording = async (audioUri: string) => {
+    setIsTrimmingAudio(true);
+    const trimmedAudioUri = trimSilenceFromAudio(audioUri);
+    const recordingPath = await uploadAudioToStorage(
+      trimmedAudioUri,
+      userId,
+      currentVideo.recordId,
+      currentSentence.index,
+    );
+    setCurrentRecordingId(recordingPath);
+
+    await supabase.from("user_shadow_result").upsert(
+      {
+        user_id: userId,
+        video_id: parseInt(currentVideo.recordId),
+        sentence: currentSentence.index,
+        recording_id: recordingPath,
+      },
+      { onConflict: "user_id,video_id,sentence" },
+    );
+    setIsTrimmingAudio(false);
+  };
 
   // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
@@ -213,26 +230,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setError(null);
 
       try {
-        // Upload audio to storage and get transcription in parallel
-        const [recordingPath, transcriptionResult] = await Promise.all([
-          userId
-            ? uploadAudioToStorage(
-                audioUri,
-                userId,
-                currentVideo.recordId,
-                currentSentence.index,
-              )
-            : Promise.resolve(undefined),
-          sendAudioForTranscription(audioUri),
-        ]);
-
+        const transcriptionResult = await sendAudioForTranscription(audioUri);
         const spokenWords = transcriptionResult.transcript
           .split(/\s+/)
           .filter(Boolean);
         const accuracy = calculateAccuracyFromWords(spokenWords);
+
         setAccuracyResult(accuracy);
-        // Save the shadow result to database with the recording path
-        saveShadowResult(spokenWords, recordingPath);
+        setAudioUri(audioUri);
+        saveShadowResult(spokenWords);
       } catch (err) {
         console.error("Transcription error:", err);
         setError(
@@ -401,6 +407,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Enter recording mode (shows countdown, then starts recording)
   const handleEnterRecordingMode = () => {
+    setPreviousResults(null);
     pausePlayer();
     setPlayerMuted(true);
     setPlayerSpeed(recordSpeed);
@@ -420,10 +427,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   // Called by CountdownTimer after buffer countdown completes
-  const handleStopRecording = async () => {
+  const handleStopRecording = async (trashed: boolean = false) => {
+    console.log("handleStopRecording", trashed);
     pausePlayer();
     setIsRecordingMode(false);
-    await stopRecording();
+    await stopRecording(trashed);
   };
 
   const handleShadowPreviousSentence = () => {
@@ -471,6 +479,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
     setAccuracyResult(null);
     setUserAnswer("");
+    setCurrentRecordingId(null);
   };
 
   const handlePreviousResults = () => {
@@ -539,7 +548,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             <>
               <CountdownTimer
                 onStartRecording={handleActualStartRecording}
-                onStopRecording={handleStopRecording}
+                onStopRecording={() => handleStopRecording(false)}
                 sentenceEnded={sentenceEnded}
                 bufferDuration={0}
                 countdownDuration={0}
@@ -592,9 +601,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             </>
           )}
           {/* Play user recording button - shown when a recording exists */}
-          {currentRecordingId && !isRecordingMode && !isProcessing && (
+          {!isRecordingMode && !isProcessing && (
             <View style={styles.playRecordingContainer}>
-              {!accuracyResult && (
+              {!accuracyResult && previousResults && (
                 <TouchableOpacity
                   style={styles.previousResultsButton}
                   onPress={handlePreviousResults}
@@ -606,20 +615,35 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   </Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                style={styles.playRecordingButton}
-                onPress={handlePlayUserRecording}
-                disabled={isPlayingRecording}
-              >
-                <MaterialIcons
-                  name={isPlayingRecording ? "pause" : "headphones"}
-                  size={20}
-                  color="#4a69bd"
-                />
-                <Text style={styles.playRecordingButtonText}>
-                  {isPlayingRecording ? "Playing..." : "Play Recording"}
-                </Text>
-              </TouchableOpacity>
+              {accuracyResult && currentRecordingId && (
+                <TouchableOpacity
+                  style={styles.playRecordingButton}
+                  onPress={handlePlayUserRecording}
+                  disabled={isPlayingRecording}
+                >
+                  <MaterialIcons
+                    name={isPlayingRecording ? "pause" : "headphones"}
+                    size={20}
+                    color="#4a69bd"
+                  />
+                  <Text style={styles.playRecordingButtonText}>
+                    {isPlayingRecording ? "Playing..." : "Play Recording"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {accuracyResult && !currentRecordingId && audioUri && (
+                <TouchableOpacity
+                  style={styles.playRecordingButton}
+                  onPress={() => handleTrimAndSaveRecording(audioUri)}
+                  disabled={isTrimmingAudio}
+                >
+                  <Text style={styles.playRecordingButtonText}>
+                    {isTrimmingAudio
+                      ? "Saving..."
+                      : "Save Recording for Playback"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </ScrollView>
@@ -655,7 +679,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               ]}
               onPress={() => {
                 if (isRecordingMode) {
-                  handleStopRecording();
+                  handleStopRecording(true);
                 }
                 handleResetAnswer();
               }}

@@ -1,7 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { Audio } from "expo-av";
 import Constants from "expo-constants";
-import { decode } from "base64-arraybuffer";
+import { decode, encode } from "base64-arraybuffer";
 import {
   TranscriptCallbacks,
   BackendMessage,
@@ -79,7 +79,9 @@ export const stopAudio = async () => {
  * Play audio from Supabase storage bucket
  * @param storagePath - The path of the file in the shadow_recordings bucket
  */
-export const playAudioFromStorage = async (storagePath: string): Promise<void> => {
+export const playAudioFromStorage = async (
+  storagePath: string,
+): Promise<void> => {
   try {
     // Stop any currently playing audio
     if (currentPlayingSound) {
@@ -94,7 +96,9 @@ export const playAudioFromStorage = async (storagePath: string): Promise<void> =
       .createSignedUrl(storagePath, 60); // URL valid for 60 seconds
 
     if (error || !data?.signedUrl) {
-      throw new Error(`Failed to get audio URL: ${error?.message || "No URL returned"}`);
+      throw new Error(
+        `Failed to get audio URL: ${error?.message || "No URL returned"}`,
+      );
     }
 
     // Configure audio mode for playback through speakers
@@ -129,7 +133,9 @@ export const playAudioFromStorage = async (storagePath: string): Promise<void> =
  * Delete audio file from Supabase storage bucket
  * @param storagePath - The path of the file in the shadow_recordings bucket
  */
-export const deleteAudioFromStorage = async (storagePath: string): Promise<void> => {
+export const deleteAudioFromStorage = async (
+  storagePath: string,
+): Promise<void> => {
   try {
     const { error } = await supabase.storage
       .from("shadow_recordings")
@@ -406,6 +412,192 @@ function wordMatches(spoken: string, target: string, threshold = 0.7): boolean {
 }
 
 /**
+ * Trim silence/low-volume sections from WAV audio data
+ * Keeps a short buffer between trimmed sections for natural sound
+ * @param audioBase64 - Base64 encoded WAV audio
+ * @param options - Configuration options for trimming
+ * @returns Trimmed audio as base64 string
+ */
+export const trimSilenceFromAudio = (
+  audioBase64: string,
+  options: {
+    /** RMS threshold below which audio is considered silence (0-1). Default: 0.01 */
+    silenceThreshold?: number;
+    /** Window size in samples for RMS calculation. Default: 1600 (100ms at 16kHz) */
+    windowSize?: number;
+    /** Buffer samples to keep before/after non-silent sections. Default: 800 (50ms at 16kHz) */
+    bufferSamples?: number;
+    /** Minimum silence duration in samples to trigger trimming. Default: 4800 (300ms at 16kHz) */
+    minSilenceDuration?: number;
+  } = {},
+): string => {
+  const {
+    silenceThreshold = 0.01,
+    windowSize = 1600, // 100ms at 16kHz
+    bufferSamples = 800, // 50ms buffer
+    minSilenceDuration = 4800, // 300ms minimum silence to trim
+  } = options;
+
+  // Decode base64 to binary using base64-arraybuffer (React Native compatible)
+  const arrayBuffer = decode(audioBase64);
+  const bytes = new Uint8Array(arrayBuffer);
+
+  // WAV header is 44 bytes
+  const headerSize = 44;
+  if (bytes.length <= headerSize) {
+    return audioBase64; // No audio data to trim
+  }
+
+  // Extract audio samples (16-bit signed PCM)
+  const audioData = bytes.slice(headerSize);
+  const sampleCount = Math.floor(audioData.length / 2);
+  const samples = new Int16Array(sampleCount);
+
+  for (let i = 0; i < sampleCount; i++) {
+    // Little-endian 16-bit signed
+    samples[i] = audioData[i * 2] | (audioData[i * 2 + 1] << 8);
+  }
+
+  // Find non-silent regions using RMS (Root Mean Square) analysis
+  const isLoud = new Array<boolean>(sampleCount).fill(false);
+
+  for (let i = 0; i < sampleCount; i += windowSize) {
+    const windowEnd = Math.min(i + windowSize, sampleCount);
+    let sumSquares = 0;
+
+    for (let j = i; j < windowEnd; j++) {
+      const normalized = samples[j] / 32768; // Normalize to -1 to 1
+      sumSquares += normalized * normalized;
+    }
+
+    const rms = Math.sqrt(sumSquares / (windowEnd - i));
+
+    if (rms > silenceThreshold) {
+      // Mark this window as loud
+      for (let j = i; j < windowEnd; j++) {
+        isLoud[j] = true;
+      }
+    }
+  }
+
+  // Find contiguous regions of silence and sound
+  const regions: { start: number; end: number; isSilent: boolean }[] = [];
+  let currentStart = 0;
+  let currentIsSilent = !isLoud[0];
+
+  for (let i = 1; i < sampleCount; i++) {
+    const isSilent = !isLoud[i];
+    if (isSilent !== currentIsSilent) {
+      regions.push({ start: currentStart, end: i, isSilent: currentIsSilent });
+      currentStart = i;
+      currentIsSilent = isSilent;
+    }
+  }
+  regions.push({
+    start: currentStart,
+    end: sampleCount,
+    isSilent: currentIsSilent,
+  });
+
+  // Determine which samples to keep:
+  // - Keep all non-silent regions
+  // - Keep short silence regions (< minSilenceDuration)
+  // - For long silence regions, only keep bufferSamples at start and end
+  const keepSamples = new Array<boolean>(sampleCount).fill(false);
+
+  for (const region of regions) {
+    const duration = region.end - region.start;
+
+    if (!region.isSilent) {
+      // Keep all non-silent samples
+      for (let i = region.start; i < region.end; i++) {
+        keepSamples[i] = true;
+      }
+    } else if (duration < minSilenceDuration) {
+      // Keep short silence regions entirely
+      for (let i = region.start; i < region.end; i++) {
+        keepSamples[i] = true;
+      }
+    } else {
+      // For long silence, keep only buffer at start and end
+      const bufferEnd = Math.min(region.start + bufferSamples, region.end);
+      const bufferStart = Math.max(region.end - bufferSamples, region.start);
+
+      for (let i = region.start; i < bufferEnd; i++) {
+        keepSamples[i] = true;
+      }
+      for (let i = bufferStart; i < region.end; i++) {
+        keepSamples[i] = true;
+      }
+    }
+  }
+
+  // Add buffer around transitions (expand non-silent regions)
+  const expandedKeep = [...keepSamples];
+  for (let i = 0; i < sampleCount; i++) {
+    if (keepSamples[i]) {
+      // Expand backwards
+      for (let j = Math.max(0, i - bufferSamples); j < i; j++) {
+        expandedKeep[j] = true;
+      }
+      // Expand forwards
+      for (
+        let j = i + 1;
+        j < Math.min(sampleCount, i + bufferSamples + 1);
+        j++
+      ) {
+        expandedKeep[j] = true;
+      }
+    }
+  }
+
+  // Collect samples to keep
+  const keptSamples: number[] = [];
+  for (let i = 0; i < sampleCount; i++) {
+    if (expandedKeep[i]) {
+      keptSamples.push(samples[i]);
+    }
+  }
+
+  // If we didn't trim anything significant, return original
+  if (keptSamples.length >= sampleCount * 0.95) {
+    return audioBase64;
+  }
+
+  // Build new WAV file
+  const newAudioDataLength = keptSamples.length * 2;
+  const newFileSize = headerSize + newAudioDataLength;
+  const newBytes = new Uint8Array(newFileSize);
+
+  // Copy original header
+  newBytes.set(bytes.slice(0, headerSize));
+
+  // Update header fields for new size
+  // Bytes 4-7: File size - 8 (little-endian)
+  const chunkSize = newFileSize - 8;
+  newBytes[4] = chunkSize & 0xff;
+  newBytes[5] = (chunkSize >> 8) & 0xff;
+  newBytes[6] = (chunkSize >> 16) & 0xff;
+  newBytes[7] = (chunkSize >> 24) & 0xff;
+
+  // Bytes 40-43: Data chunk size (little-endian)
+  newBytes[40] = newAudioDataLength & 0xff;
+  newBytes[41] = (newAudioDataLength >> 8) & 0xff;
+  newBytes[42] = (newAudioDataLength >> 16) & 0xff;
+  newBytes[43] = (newAudioDataLength >> 24) & 0xff;
+
+  // Write audio samples
+  for (let i = 0; i < keptSamples.length; i++) {
+    const sample = keptSamples[i];
+    newBytes[headerSize + i * 2] = sample & 0xff;
+    newBytes[headerSize + i * 2 + 1] = (sample >> 8) & 0xff;
+  }
+
+  // Convert back to base64 using base64-arraybuffer (React Native compatible)
+  return encode(newBytes.buffer);
+};
+
+/**
  * Upload audio file to Supabase storage bucket
  * @param audioUri - Local URI of the audio file
  * @param userId - User ID for organizing files
@@ -425,13 +617,29 @@ export const uploadAudioToStorage = async (
       encoding: "base64",
     });
 
+    // Trim silence/low-volume sections from the audio before uploading
+    // Set to false to disable trimming for debugging
+    const enableTrimming = true;
+    let audioToUpload = base64Audio;
+    if (enableTrimming) {
+      try {
+        audioToUpload = trimSilenceFromAudio(base64Audio);
+        console.log(
+          `Audio trimmed: ${base64Audio.length} -> ${audioToUpload.length} chars`,
+        );
+      } catch (trimError) {
+        console.warn("Failed to trim audio, using original:", trimError);
+        // Fall back to original audio if trimming fails
+      }
+    }
+
     // Use a consistent filename based on user/video/sentence for upsert to work
     const filename = `${userId}/${videoId}_${sentenceIndex}.wav`;
 
     // Upload to Supabase storage with upsert to replace existing recording
     const { data, error } = await supabase.storage
       .from("shadow_recordings")
-      .upload(filename, decode(base64Audio), {
+      .upload(filename, decode(audioToUpload), {
         contentType: "audio/wav",
         upsert: true,
       });
@@ -511,14 +719,12 @@ export const calculateAccuracy = (
     };
   }
 
-  console.log("Spoken words:", spokenWords);
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
   const details: AccuracyResult["details"] = [];
   let matchedCount = 0;
 
   // Track which spoken words have been used
   const usedSpokenIndices = new Set<number>();
-  console.log("Normalized spoken words:", normalizedSpoken);
 
   // For each target word, try to find the best matching spoken word
   for (const targetWord of targetWords) {
