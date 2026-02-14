@@ -54,7 +54,7 @@ export const useUIStateSync = () => {
       } catch (err) {
         console.error("Error in useUIStateSync:", err);
       }
-    }, 10000); // 10 seconds debounce
+    }, 2000); // 10 seconds debounce
 
     // Cleanup on unmount or when dependencies change
     return () => {

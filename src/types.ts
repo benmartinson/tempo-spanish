@@ -208,3 +208,9 @@ export interface TranscriptCallbacks {
   onError?: (message: string) => void;
   onMetadata?: () => void;
 }
+
+export interface UserUIState {
+  current_video: string | null;
+  current_sentence: number;
+  current_tab: "watch" | "discuss" | "shadow";
+}

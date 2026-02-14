@@ -310,7 +310,7 @@ const AuthenticatedApp: React.FC = () => {
           };
 
           dispatch(setCurrentVideo(video));
-
+          console.log("AuthenticatedApp restoredVideo", video.currentSentence);
           // Restore the tab if it's one of the persisted tabs
           if (
             uiState.current_tab &&

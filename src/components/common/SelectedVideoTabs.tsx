@@ -72,10 +72,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, []);
 
   const [time, setTime] = useState<number>(0);
-  const currentSentence = useSelector(
-    (state: RootState) =>
-      state.currentVideo?.sentences[state.currentVideo?.currentSentence ?? 0],
-  );
+  const currentSentence = currentVideo
+    ? currentVideo.sentences[currentVideo.currentSentence]
+    : null;
   const setCurrentSentence = useCallback(
     (next: React.SetStateAction<number>) => {
       dispatch(setCurrentSentenceAction(next));
@@ -128,14 +127,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
     if (
       prevTime !== -1 &&
+      prevTime !== 0 &&
       Math.abs(newTime - prevTime) > 2 &&
       currentSentence !== undefined &&
       (newTime < currentSentence.start - 0.5 ||
         newTime > currentSentence.end + 0.5)
     ) {
       isTransitioningRef.current = true;
-
-      dispatch(setSentenceByTime(newTime));
+      // dispatch(setSentenceByTime(newTime));
       if (force) {
         dispatch(refreshVideoPlayerAction());
       }
@@ -200,6 +199,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, [currentSentence.index, currentVideo?.sentences.length]);
 
   const handlePreviousSentence = useCallback(() => {
+    console.log("handlePreviousSentence", currentSentence.index);
     if (currentSentence.index === 0) {
       return;
     }
@@ -323,7 +323,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       <View style={getTabStyle(selectedNavTab === "shadow")}>
         <ShadowTab
           time={time}
-          currentSentence={currentSentence}
           handleNextSentence={handleNextSentence}
           handlePreviousSentence={handlePreviousSentence}
           isKeyboardVisible={isKeyboardVisible}

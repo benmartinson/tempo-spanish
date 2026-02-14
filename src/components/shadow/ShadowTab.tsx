@@ -49,7 +49,6 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 
 interface ShadowTabProps {
   time: number;
-  currentSentence: Sentence;
   handleNextSentence: () => void;
   handlePreviousSentence: () => void;
   isActive?: boolean;
@@ -62,7 +61,6 @@ interface ShadowTabProps {
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
   time,
-  currentSentence,
   handleNextSentence: parentHandleNextSentence,
   handlePreviousSentence: parentHandlePreviousSentence,
   isActive = true,
@@ -73,6 +71,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isKeyboardVisible,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
+  const currentSentenceObject = currentVideo
+    ? currentVideo.sentences[currentSentenceIndex]
+    : null;
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
@@ -114,7 +116,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Shared accuracy calculation logic
   const calculateAccuracyFromWords = useCallback(
     (spokenWords: string[]) => {
-      const targetWords = currentSentence.words.map((w) => {
+      const targetWords = currentSentenceObject?.words.map((w) => {
         return w.word;
       });
 
@@ -122,10 +124,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       return {
         ...accuracy,
         spokenSentence: spokenWords.join(" "),
-        targetSentence: currentSentence.text,
+        targetSentence: currentSentenceObject?.text,
       };
     },
-    [currentSentence.words],
+    [currentSentenceObject?.words],
   );
 
   // Save shadow result to database
@@ -138,7 +140,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           {
             user_id: userId,
             video_id: parseInt(currentVideo.recordId),
-            sentence: currentSentence.index,
+            sentence: currentSentenceIndex,
             spoken_words: spokenWords.join(" "),
           },
           { onConflict: "user_id,video_id,sentence" },
@@ -147,20 +149,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         console.error("Failed to save shadow result:", err);
       }
     },
-    [supabase, userId, currentVideo, currentSentence.index],
+    [supabase, userId, currentVideo, currentSentenceIndex],
   );
 
   // Fetch existing shadow result when sentence changes
   const fetchShadowResult = useCallback(async () => {
     if (!supabase || !userId || !currentVideo) return null;
 
+    console.log("fetchShadowResult", currentSentenceIndex);
     try {
       const { data, error } = await supabase
         .from("user_shadow_result")
         .select("spoken_words, recording_id")
         .eq("user_id", userId)
         .eq("video_id", parseInt(currentVideo.recordId))
-        .eq("sentence", currentSentence.index)
+        .eq("sentence", currentSentenceIndex)
         .single();
 
       if (error || !data) return null;
@@ -169,7 +172,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       console.error("Failed to fetch shadow result:", err);
       return null;
     }
-  }, [supabase, userId, currentVideo, currentSentence.index]);
+  }, [supabase, userId, currentVideo, currentSentenceIndex]);
 
   const loadExistingShadowResult = async () => {
     if (previousResults) {
@@ -194,9 +197,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     // Reset recording state when sentence changes
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
-
+    console.log("useEffect currentSentenceIndex", currentSentenceIndex);
     loadExistingShadowResult();
-  }, [currentSentence]);
+
+    return () => {
+      if (recordingExtensionRef.current) {
+        clearTimeout(recordingExtensionRef.current);
+      }
+    };
+  }, [currentSentenceIndex]);
 
   const handleTrimAndSaveRecording = async (audioUri: string) => {
     setIsTrimmingAudio(true);
@@ -205,7 +214,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       trimmedAudioUri,
       userId,
       currentVideo.recordId,
-      currentSentence.index,
+      currentSentenceIndex,
     );
     setCurrentRecordingId(recordingPath);
 
@@ -213,7 +222,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       {
         user_id: userId,
         video_id: parseInt(currentVideo.recordId),
-        sentence: currentSentence.index,
+        sentence: currentSentenceIndex,
         recording_id: recordingPath,
       },
       { onConflict: "user_id,video_id,sentence" },
@@ -253,7 +262,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       saveShadowResult,
       userId,
       currentVideo,
-      currentSentence.index,
+      currentSentenceIndex,
     ],
   );
 
@@ -325,7 +334,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   useEffect(() => {
     if (
       !isTransitioningRef.current &&
-      time >= currentSentence.end - 0.5 &&
+      time >= currentSentenceObject?.end - 0.5 &&
       !sentenceEnded
     ) {
       if (isRecording) {
@@ -337,16 +346,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         }, 1000);
       }
     }
-  }, [time, currentSentence.end, isRecording, sentenceEnded]);
-
-  // Cleanup timer on unmount or sentence change
-  useEffect(() => {
-    return () => {
-      if (recordingExtensionRef.current) {
-        clearTimeout(recordingExtensionRef.current);
-      }
-    };
-  }, [currentSentence]);
+  }, [time, currentSentenceObject?.end, isRecording, sentenceEnded]);
 
   const setJustRecorded = () => {
     setTimeout(() => {
@@ -428,7 +428,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Called by CountdownTimer after buffer countdown completes
   const handleStopRecording = async (trashed: boolean = false) => {
-    console.log("handleStopRecording", trashed);
     pausePlayer();
     setIsRecordingMode(false);
     await stopRecording(trashed);
@@ -509,11 +508,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         <NavSwitcher
           onPrev={handleShadowPreviousSentence}
           onNext={handleShadowNextSentence}
-          currentIndex={currentSentence.index}
+          currentIndex={currentSentenceIndex}
           totalItems={currentVideo.sentences.length}
         >
           <Text>
-            Sentence {currentSentence.index + 1} of{" "}
+            Sentence {currentSentenceIndex + 1} of{" "}
             {currentVideo.sentences.length}
           </Text>
         </NavSwitcher>
