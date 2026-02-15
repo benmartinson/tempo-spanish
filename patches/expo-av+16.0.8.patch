@@ -1,0 +1,20 @@
+diff --git a/node_modules/expo-av/ios/EXAV/EXAV.m b/node_modules/expo-av/ios/EXAV/EXAV.m
+index 7153d28..0c17b71 100644
+--- a/node_modules/expo-av/ios/EXAV/EXAV.m
++++ b/node_modules/expo-av/ios/EXAV/EXAV.m
+@@ -283,10 +283,11 @@ - (NSError *)_setAudioMode:(NSDictionary *)mode
+     _allowsAudioRecording = allowsRecording;
+     _staysActiveInBackground = shouldPlayInBackground;
+     
+-    if (_currentAudioSessionMode != EXAVAudioSessionModeInactive) {
+-      return [self _updateAudioSessionCategoryForAudioSessionMode:[self _getAudioSessionModeRequired]];
+-    }
+-    return nil;
++    // Always update the audio session category, even when the mode is Inactive.
++    // Without this, switching allowsRecordingIOS from true→false after a recording
++    // ends stores the new setting but never applies it to the actual AVAudioSession.
++    // The session stays in PlayAndRecord, which garbles WKWebView audio (e.g. YouTube).
++    return [self _updateAudioSessionCategoryForAudioSessionMode:[self _getAudioSessionModeRequired]];
+   }
+ }
+ 

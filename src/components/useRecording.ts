@@ -103,10 +103,11 @@ export const useRecording = (
 
       let audioUri: string | null = null;
       // Stop recording and get the URI
+
       if (recordingRef.current) {
         try {
-          await recordingRef.current.stopAndUnloadAsync();
           audioUri = recordingRef.current.getURI();
+          await recordingRef.current.stopAndUnloadAsync();
         } catch (err) {
           console.error("Error stopping recording:", err);
           onErrorRef.current?.("Error stopping recording");
@@ -114,7 +115,8 @@ export const useRecording = (
         recordingRef.current = null;
       }
 
-      // Reset audio mode
+      // Reset audio mode — this deactivates/reactivates the iOS audio
+      // session to fully clear the PlayAndRecord pipeline.
       await setAudioModeForRecording(false);
 
       // Notify completion with the audio URI

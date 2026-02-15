@@ -1,5 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { Audio } from "expo-av";
+import { Audio, InterruptionModeIOS } from "expo-av";
 import Constants from "expo-constants";
 import { decode, encode } from "base64-arraybuffer";
 import {
@@ -291,10 +291,10 @@ export const startAudioStreaming = (
  */
 export const getRecordingConfig = (): Audio.RecordingOptions => ({
   android: {
-    extension: ".wav",
+    extension: ".mp3",
     outputFormat: Audio.AndroidOutputFormat.DEFAULT,
     audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-    sampleRate: 16000,
+    sampleRate: 44100,
     numberOfChannels: 1,
     bitRate: 256000,
   },
@@ -302,7 +302,7 @@ export const getRecordingConfig = (): Audio.RecordingOptions => ({
     extension: ".wav",
     outputFormat: Audio.IOSOutputFormat.LINEARPCM,
     audioQuality: Audio.IOSAudioQuality.HIGH,
-    sampleRate: 16000,
+    sampleRate: 44100,
     numberOfChannels: 1,
     bitRate: 256000,
     linearPCMBitDepth: 16,
@@ -324,14 +324,30 @@ export const requestMicrophonePermission = async (): Promise<boolean> => {
 };
 
 /**
- * Set audio mode for recording
+ * Set audio mode for recording.
+ *
+ * NOTE: This relies on a native patch to expo-av (see patches/expo-av+16.0.8.patch).
+ * Without the patch, setting allowsRecordingIOS back to false after recording has no
+ * effect because expo-av skips the AVAudioSession category update when its internal
+ * mode is Inactive — leaving the session stuck in PlayAndRecord and garbling WebView audio.
  */
 export const setAudioModeForRecording = async (
   isRecording: boolean,
 ): Promise<void> => {
+  if (isRecording) {
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+      interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+    });
+    return;
+  }
+
   await Audio.setAudioModeAsync({
-    allowsRecordingIOS: isRecording,
-    playsInSilentModeIOS: isRecording,
+    allowsRecordingIOS: false,
+    playsInSilentModeIOS: true,
+    interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+    staysActiveInBackground: false,
   });
 };
 
