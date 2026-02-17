@@ -57,6 +57,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
   const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
     useState<boolean>(false);
   const [isAutoSelectingVocab, setIsAutoSelectingVocab] = useState(true);
+  const [selectedBubble, setSelectedBubble] = useState<string>("large");
 
   // Close modals when tab becomes inactive
   useEffect(() => {
@@ -99,7 +100,6 @@ const WatchTab: React.FC<WatchTabProps> = ({
         allVocabulary,
         userKnownVocab,
       );
-      console.log("selectedVocab", selectedVocab);
       dispatch(setFocusVocab(selectedVocab));
       setIsAutoSelectingVocab(false);
     }
@@ -170,27 +170,21 @@ const WatchTab: React.FC<WatchTabProps> = ({
     });
   }, [vocabularyForVideo, userSelectedVocab, userIgnoredVocab]);
 
-  const selectedVocabRecords = useMemo(
-    () =>
-      vocabularyForVideo.filter((v) =>
-        userSelectedVocab.some(
-          (w) => normalizeWord(w) === normalizeWord(v.word),
-        ),
-      ),
-    [vocabularyForVideo, userSelectedVocab],
-  );
+  // const selectedVocabRecords = useMemo(
+  //   () =>
+  //     vocabularyForVideo.filter((v) =>
+  //       userSelectedVocab.some(
+  //         (w) => normalizeWord(w) === normalizeWord(v.word),
+  //       ),
+  //     ),
+  //   [vocabularyForVideo, userSelectedVocab],
+  // );
 
-  const vocabLoading =
-    allWords?.length > 0 && Object.keys(allVocabulary).length === 0;
-
-  const [vocabSelectionStep, setVocabSelectionStep] = useState<number>(1);
-  const [selectedBubble, setSelectedBubble] = useState<string>("large");
-
-  const handleConfirmVocab = () => {
-    setIsModalVisible(false);
-    setAutoplay(true);
-    refreshPlayer();
-  };
+  // const handleConfirmVocab = () => {
+  //   setIsModalVisible(false);
+  //   setAutoplay(true);
+  //   refreshPlayer();
+  // };
 
   // const handleOpenVocabTest = () => {
   //   setIsActionsModalVisible(false);
@@ -257,9 +251,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
           )}
           {selectedBubble === "translation" && (
             <TranslationBubble
-              translation={
-                currentSentence.full_text_translation.split(" ") || []
-              }
+              translation={currentSentence.full_translation.split(" ") || []}
               words={currentSentence.words || []}
               time={time}
             />
@@ -279,7 +271,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
         </ScrollView>
       </View>
 
-      <SlideModal
+      {/* <SlideModal
         visible={isModalVisible}
         onRequestClose={() => setIsModalVisible(false)}
         title="Video Vocab Selection"
@@ -306,7 +298,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
             onGoBack={() => setVocabSelectionStep(1)}
           />
         )}
-      </SlideModal>
+      </SlideModal> */}
 
       {/* <VocabTestModal
         visible={isVocabTestVisible}

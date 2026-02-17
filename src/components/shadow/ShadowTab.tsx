@@ -22,7 +22,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSelector, useDispatch } from "react-redux";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useAuth } from "@clerk/clerk-expo";
-import { RootState, Segment, SegmentWord, Sentence } from "../../types";
+import { RootState } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";

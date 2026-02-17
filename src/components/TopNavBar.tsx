@@ -20,10 +20,11 @@ const TopNavBar: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.leftSpacer} />
+        <View style={styles.leftSpacer}></View>
         <View style={styles.titleContainer}>
-          <Text style={styles.appName}>Tempo Spanish</Text>
+          <Text style={styles.appName}>Tempo</Text>
           <MaterialCommunityIcons name="waves" size={26} color="#1a1a2e" />
+          <Text style={styles.countryFlag}>🇲🇽</Text>
           {/* <FontAwesome5 name="wave-square" size={24} color="#1a1a2e" /> */}
         </View>
         <TouchableOpacity
@@ -94,6 +95,10 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica",
     fontWeight: "500",
     color: "#1a1a2e",
+  },
+  countryFlag: {
+    textAlign: "center",
+    fontSize: 24,
   },
   avatarButton: {
     width: 36,

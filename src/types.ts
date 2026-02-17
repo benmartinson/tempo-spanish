@@ -89,7 +89,7 @@ export interface Segment {
   text: string;
   // cefr_level: string;
   // key_vocabulary: KeyVocabulary[];
-  full_text_translation: string;
+  full_translation: string;
   words: SegmentWord[];
 }
 
@@ -98,7 +98,7 @@ export interface Sentence {
   start: number;
   end: number;
   text: string;
-  full_text_translation: string;
+  full_translation: string;
   words: SegmentWord[];
 }
 
@@ -108,7 +108,6 @@ export interface SegmentWord {
   word: string;
   start: number;
   end: number;
-  translation: string;
   frequency: number;
 }
 

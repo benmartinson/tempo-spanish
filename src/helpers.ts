@@ -176,9 +176,8 @@ export const splitSegmentsIntoSentences = (segments: Segment[]): Sentence[] => {
     const segment = segments[segmentIndex];
     const sentenceWordGroups = splitIntoSentences(segment.words);
     const sentenceTranslations = splitTranslationIntoSentences(
-      segment.full_text_translation,
+      segment.full_translation,
     );
-
     for (let i = 0; i < sentenceWordGroups.length; i++) {
       const words = sentenceWordGroups[i];
       if (words.length === 0) continue;
@@ -192,7 +191,7 @@ export const splitSegmentsIntoSentences = (segments: Segment[]): Sentence[] => {
         start,
         end,
         text,
-        full_text_translation: sentenceTranslations[i],
+        full_translation: sentenceTranslations[i],
         words,
       });
       sentenceIndex++;
@@ -272,16 +271,17 @@ export const autoSelectVocabForVideo = (
     const lowestFrequencyWord = sentence
       .filter((w) => {
         const normalizedWord = stripPunctuation(w.word.toLowerCase()).trim();
+        const vocabulary = allVocabulary[normalizedWord];
+        if (!vocabulary) return false;
         const normalizedTranslation = stripPunctuation(
-          w.translation.toLowerCase(),
+          vocabulary.translation.toLowerCase(),
         );
 
         return (
           (latestTime === 0 || w.start > latestTime + minimumInterval) &&
           w.word.length > 3 &&
-          allVocabulary[normalizedWord] &&
           normalizedWord !== normalizedTranslation &&
-          !userKnownVocab.includes(allVocabulary[normalizedWord].id) &&
+          !userKnownVocab.includes(vocabulary.id) &&
           !ignoreVocab.includes(normalizedWord)
         );
       })
@@ -296,7 +296,7 @@ export const autoSelectVocabForVideo = (
             latestTime = word.start;
             return {
               ...word,
-              translation: normalizeWord(word.translation),
+              translation: normalizeWord(vocabulary.translation),
               word: normalizeWord(word.word),
               frequency,
             };

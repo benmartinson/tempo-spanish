@@ -62,22 +62,15 @@ const VideoList: React.FC = () => {
 
   const handleWatchPress = async (videoId: string, recordId) => {
     setLoadingVideo(true);
-    const response = await fetch(
-      `${BACKEND_BASE_URL}/video-segments/${videoId}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-    if (!response.ok) {
-      throw new Error("Failed to get initial message");
-    }
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.error);
-    }
+    const { data: transcriptSegments, error: transcriptSegmentsError } =
+      await supabase
+        .from("transcript_segment")
+        .select("*")
+        .eq("video_id", recordId)
+        .order("segment_id");
+
+    if (transcriptSegmentsError) console.error(transcriptSegmentsError);
+
     const { data: videoViewData, error: videoViewError } = await supabase
       .from("video_views")
       .upsert(
@@ -97,18 +90,17 @@ const VideoList: React.FC = () => {
     const videoViewId = videoViewData?.[0]?.id ?? "";
     const restoredSentence = videoViewData?.[0]?.last_sentence_watched ?? 0;
 
-    const sentences = splitSegmentsIntoSentences(data.segments);
+    const sentences = splitSegmentsIntoSentences(transcriptSegments);
     const video: VideoContext = {
-      videoId: data.video_id,
+      videoId: videoId,
       recordId: recordId,
       currentSentence: restoredSentence,
       sentences,
-      allWords: data.segments.flatMap((s: Segment) => s.words),
+      allWords: transcriptSegments.flatMap((s: Segment) => s.words),
       videoViewId: String(videoViewId),
       focusVocab: [],
       focusSentences: [],
     };
-
     dispatch(setCurrentVideo(video));
     dispatch(setCurrentTab("watch"));
 

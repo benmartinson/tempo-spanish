@@ -256,26 +256,13 @@ const AuthenticatedApp: React.FC = () => {
             return;
           }
 
-          // Fetch video segments from backend
-          const response = await fetch(
-            `${BACKEND_BASE_URL}/video-segments/${videoRecord.video_id}`,
-            {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-              },
-            },
-          );
+          const { data: segments, error: segmentsError } = await supabase
+            .from("transcript_segment")
+            .select("*")
+            .eq("video_id", uiState.current_video);
 
-          if (!response.ok) {
+          if (segmentsError) {
             console.error("Failed to fetch video segments for restoration");
-            setIsRestoringState(false);
-            return;
-          }
-
-          const data = await response.json();
-          if (data.error) {
-            console.error("Error in video segments response:", data.error);
             setIsRestoringState(false);
             return;
           }
@@ -298,13 +285,13 @@ const AuthenticatedApp: React.FC = () => {
           if (videoViewError) console.error(videoViewError);
           const videoViewId = videoViewData?.[0]?.id ?? "";
 
-          const sentences = splitSegmentsIntoSentences(data.segments);
+          const sentences = splitSegmentsIntoSentences(segments);
           const video: VideoContext = {
-            videoId: data.video_id,
+            videoId: videoRecord.video_id,
             recordId: uiState.current_video,
             currentSentence: uiState.current_sentence ?? 0,
             sentences,
-            allWords: data.segments.flatMap((s: Segment) => s.words),
+            allWords: segments.flatMap((s: Segment) => s.words),
             videoViewId: String(videoViewId),
             focusVocab: [],
             focusSentences: [],

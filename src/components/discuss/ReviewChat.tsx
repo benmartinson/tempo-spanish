@@ -29,6 +29,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import NavSwitcher from "../common/NavSwitcher";
 import ReviewTypeSelector from "./ReviewTypeSelector";
 import { useSelector } from "react-redux";
+import { stripPunctuation } from "../../helpers";
 
 interface ReviewChatProps {
   questions: VideoQuestion[];
@@ -96,6 +97,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     [],
   );
   const scrollViewRef = useRef<ScrollView>(null);
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
   useEffect(() => {
     if (focusVocab.length > 0) {
@@ -125,10 +127,15 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           };
         }
       });
-
+      const vocabulary =
+        allVocabulary[stripPunctuation(vocab.word.toLowerCase()).trim()];
+      if (!vocabulary) {
+        console.error(`Vocabulary not found for word: ${vocab.word}`);
+        return null;
+      }
       return {
         word: vocab.word,
-        translation: vocab.translation,
+        translation: vocabulary.translation,
         contextSegments: [matchingSentence],
       };
     });

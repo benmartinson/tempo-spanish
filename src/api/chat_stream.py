@@ -311,7 +311,7 @@ async def get_video_segments(video_id: str):
             metadata = match.metadata
             words = json.loads(metadata["words"])
             # if word is in words, add it to the vocab_map with the start and end time
-            full_text_translation = metadata.get("full_text_translation", "")
+            full_translation = metadata.get("full_translation", "")
             # this is an array of objects [{word, translations}]
             # vocab_map = []
             # # Function to check if consecutive words match a phrase
@@ -354,30 +354,30 @@ async def get_video_segments(video_id: str):
             #             "end": match["end"],
             #         })
 
-            vocab_map = []
+            # vocab_map = []
 
-            usable_words = [word.copy() for word in words if not canIgnoreVocab(word["word"].lower()) and not word["word"].lower() == word["translation"].lower() and len(word["word"]) > 3]
-            for word in usable_words:
-                word["word"] = word["word"].strip().lower().translate(str.maketrans('', '', string.punctuation))
+            # usable_words = [word.copy() for word in words if not canIgnoreVocab(word["word"].lower()) and not word["word"].lower() == word["translation"].lower() and len(word["word"]) > 3]
+            # for word in usable_words:
+            #     word["word"] = word["word"].strip().lower().translate(str.maketrans('', '', string.punctuation))
             
-            num_words = min(len(usable_words), random.randint(4, 6))
-            selected_words = random.sample(usable_words, num_words)
+            # num_words = min(len(usable_words), random.randint(4, 6))
+            # selected_words = random.sample(usable_words, num_words)
 
-            for word in selected_words:
-                vocab_map.append({
-                    "value": word["word"].capitalize(),
-                    "translations": [word["translation"].capitalize(), 'fake', 'fake'],
-                    "correct_translation": 0,
-                    "start": word["start"],
-                    "end": word["end"],
-                })
+            # for word in selected_words:
+            #     vocab_map.append({
+            #         "value": word["word"].capitalize(),
+            #         "translations": [word["translation"].capitalize(), 'fake', 'fake'],
+            #         "correct_translation": 0,
+            #         "start": word["start"],
+            #         "end": word["end"],
+            #     })
 
             segments.append({
                 "segment_id": int(metadata.get("segment_id", 0)),
                 "start": metadata.get("start"),
                 "end": metadata.get("end"),
                 "text": metadata.get("raw_text", ""),
-                "full_text_translation": full_text_translation,
+                "full_translation": full_translation,
                 # "cefr_level": metadata.get("cefr_level"),
                 # "key_vocabulary": vocab_map,
                 "words": words,

@@ -80,7 +80,7 @@ const Video: React.FC<VideoProps> = ({ video, refreshKey, isClip = false }) => {
         )}
         {bubbleSelections.includes("translation") && (
           <TranslationBubble
-            translation={clip?.full_text_translation.split(" ") || []}
+            translation={clip?.full_translation.split(" ") || []}
             words={clip?.words || []}
             time={time}
           />

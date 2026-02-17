@@ -7,9 +7,11 @@ import {
   Pressable,
   Modal,
 } from "react-native";
-import { SegmentWord } from "../../types";
+import { RootState, SegmentWord } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import TooltipModal from "../common/TooltipModal";
+import { useSelector } from "react-redux";
+import { stripPunctuation } from "../../helpers";
 
 interface FullSegmentTranscriptBubbleProps {
   words?: SegmentWord[];
@@ -41,14 +43,18 @@ const FullSegmentTranscriptBubble: React.FC<
   const [isActive, setIsActive] = useState(false);
   const prevWordsRef = useRef<SegmentWord[]>([]);
   const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
   const handleLongPress = useCallback((word: SegmentWord) => {
-    if (word.translation) {
+    const vocabulary = word.word
+      ? allVocabulary[stripPunctuation(word.word.toLowerCase()).trim()]
+      : null;
+    if (vocabulary) {
       // Strip punctuation for display in tooltip
       const cleanWord = {
         ...word,
         word: word.word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ""),
-        translation: word.translation.replace(
+        translation: vocabulary.translation.replace(
           /[.,\/#!$%\^&\*;:{}=\-_`~()]/g,
           "",
         ),
@@ -168,7 +174,10 @@ const FullSegmentTranscriptBubble: React.FC<
               onLongPress={() => handleLongPress(word)}
               delayLongPress={300}
             >
-              <Text style={[styles.word, getWordStyle()]}>{word.word}</Text>
+              <Text style={[styles.word, getWordStyle()]}>
+                {word.word.startsWith(" ") ? "" : " "}
+                {word.word}
+              </Text>
             </Pressable>
           );
         })}
@@ -179,7 +188,11 @@ const FullSegmentTranscriptBubble: React.FC<
       >
         <Text style={styles.tooltipWord}>{tooltipWord?.word}</Text>
         <Text style={styles.tooltipTranslation}>
-          {tooltipWord?.translation}
+          {tooltipWord?.word
+            ? allVocabulary[
+                stripPunctuation(tooltipWord?.word.toLowerCase()).trim()
+              ].translation
+            : ""}
         </Text>
       </TooltipModal>
     </View>

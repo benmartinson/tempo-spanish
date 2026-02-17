@@ -50,7 +50,8 @@ const VocabReview: React.FC<VocabReviewProps> = ({
     const found = allWords.find(
       (w) => stripPunctuation(w.word.toLowerCase()) === normalizedWord,
     );
-    return capitalize(stripPunctuation(found?.translation)) || "—";
+    const vocabulary = allVocabulary[found?.word.trim()];
+    return capitalize(stripPunctuation(vocabulary.translation)) || "—";
   };
 
   const handleUndo = (word: string) => {

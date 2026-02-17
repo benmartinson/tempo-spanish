@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
-import { SegmentWord } from "../../types";
+import { RootState, SegmentWord } from "../../types";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useSelector } from "react-redux";
+import { stripPunctuation } from "../../helpers";
 
 interface TranscriptBubbleProps {
   words: SegmentWord[];
@@ -13,14 +15,17 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
   const previousWords = useRef<SegmentWord[]>([]);
   const previousTime = useRef<number>(0);
   const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
   const handleLongPress = useCallback((word: SegmentWord) => {
-    if (word.translation) {
+    const vocabulary =
+      allVocabulary[stripPunctuation(word.word.toLowerCase()).trim()];
+    if (vocabulary) {
       // Strip punctuation for display in tooltip
       const cleanWord = {
         ...word,
         word: word.word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ""),
-        translation: word.translation.replace(
+        translation: vocabulary.translation.replace(
           /[.,\/#!$%\^&\*;:{}=\-_`~()]/g,
           "",
         ),
@@ -118,7 +123,11 @@ const TranscriptBubble: React.FC<TranscriptBubbleProps> = ({ words, time }) => {
           <View style={styles.tooltipContainer}>
             <Text style={styles.tooltipWord}>{tooltipWord?.word}</Text>
             <Text style={styles.tooltipTranslation}>
-              {tooltipWord?.translation}
+              {
+                allVocabulary[
+                  stripPunctuation(tooltipWord?.word.toLowerCase()).trim()
+                ].translation
+              }
             </Text>
           </View>
         </Pressable>

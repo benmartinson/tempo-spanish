@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { RootState, SegmentWord } from "../../types";
-import { capitalize, normalizeWord } from "../../helpers";
+import { capitalize, normalizeWord, stripPunctuation } from "../../helpers";
 import Entypo from "@expo/vector-icons/Entypo";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -21,6 +21,8 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({ word }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
+  const vocabulary =
+    allVocabulary[stripPunctuation(word.word.toLowerCase()).trim()];
 
   const handleMarkKnown = async (word: SegmentWord) => {
     if (!currentVideo) return;
@@ -63,7 +65,9 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({ word }) => {
       <View style={styles.card}>
         <View style={styles.textContainer}>
           <Text style={styles.word}>{capitalize(word.word)}</Text>
-          <Text style={styles.translation}>{capitalize(word.translation)}</Text>
+          <Text style={styles.translation}>
+            {capitalize(vocabulary.translation)}
+          </Text>
         </View>
         <TouchableOpacity
           style={styles.button}

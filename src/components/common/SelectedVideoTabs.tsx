@@ -16,7 +16,7 @@ import {
   Text,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { QuizType, RootState, SegmentWord, Sentence } from "../../types";
+import { RootState } from "../../types";
 import {
   setSentenceByTime,
   setCurrentSentence as setCurrentSentenceAction,
@@ -26,6 +26,7 @@ import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import WatchTab from "../watch/WatchTab";
 import ShadowTab from "../shadow/ShadowTab";
 import DiscussTab from "../discuss/DiscussTab";
+import { normalizeWord, stripPunctuation } from "../../helpers";
 
 interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";
@@ -101,6 +102,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const prevTimeRef = useRef<number>(-1);
   const isTransitioningRef = useRef<boolean>(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
   useEffect(() => {
     setPlayerMuted(false);
@@ -260,7 +263,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     const match = currentVideo?.focusVocab.find(
       (v) => time >= v.start - 1 && time <= v.start + 3,
     );
-    return match ? `${match.word} => ${match.translation}` : "";
+    let vocabulary = null;
+    if (match) {
+      vocabulary =
+        allVocabulary[stripPunctuation(match.word.toLowerCase()).trim()];
+      return `${match.word} => ${vocabulary.translation}`;
+    }
+
+    return match ? `${match.word} => ${vocabulary.translation}` : "";
   }, [currentVideo?.focusVocab, time, selectedNavTab]);
 
   if (!currentVideo) return null;
@@ -285,7 +295,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           clip={{
             index: currentSentence.index,
             text: currentSentence.text,
-            full_text_translation: currentSentence.full_text_translation,
+            full_translation: currentSentence.full_translation,
             words: currentSentence.words,
             start: currentSentence.start,
             end: selectedNavTab === "shadow" ? currentSentence.end : undefined,
