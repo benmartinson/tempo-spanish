@@ -32,7 +32,6 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
 
   const handleBackPress = async () => {
     // Save last_sentence_watched before clearing
-    console.log("Saving last_sentence_watched:", currentVideo.currentSentence);
     if (supabase && currentVideo?.videoViewId) {
       const { error: sentenceError } = await supabase
         .from("video_views")

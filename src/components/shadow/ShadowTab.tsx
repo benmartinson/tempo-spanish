@@ -156,7 +156,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const fetchShadowResult = useCallback(async () => {
     if (!supabase || !userId || !currentVideo) return null;
 
-    console.log("fetchShadowResult", currentSentenceIndex);
     try {
       const { data, error } = await supabase
         .from("user_shadow_result")
@@ -197,7 +196,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     // Reset recording state when sentence changes
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
-    console.log("useEffect currentSentenceIndex", currentSentenceIndex);
     loadExistingShadowResult();
 
     return () => {

@@ -56,9 +56,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
   const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
   const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
     useState<boolean>(false);
-  const [isAutoSelectingVocab, setIsAutoSelectingVocab] = useState(
-    currentVideo?.focusVocab.length === 0,
-  );
+  const [isAutoSelectingVocab, setIsAutoSelectingVocab] = useState(true);
 
   // Close modals when tab becomes inactive
   useEffect(() => {
@@ -101,6 +99,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
         allVocabulary,
         userKnownVocab,
       );
+      console.log("selectedVocab", selectedVocab);
       dispatch(setFocusVocab(selectedVocab));
       setIsAutoSelectingVocab(false);
     }

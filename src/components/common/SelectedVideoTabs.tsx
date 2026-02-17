@@ -196,10 +196,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       return next?.index;
     });
     refreshPlayer();
-  }, [currentSentence.index, currentVideo?.sentences.length]);
+  }, [currentSentence?.index, currentVideo?.sentences.length]);
 
   const handlePreviousSentence = useCallback(() => {
-    console.log("handlePreviousSentence", currentSentence.index);
     if (currentSentence.index === 0) {
       return;
     }
@@ -211,7 +210,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       return previous?.index;
     });
     refreshPlayer();
-  }, [currentSentence.index, currentVideo?.sentences]);
+  }, [currentSentence?.index, currentVideo?.sentences]);
 
   const playSentence = useCallback(() => {
     handleTransition();

@@ -220,6 +220,8 @@ const styles = StyleSheet.create({
   },
   word: {
     fontSize: 18,
+    marginHorizontal: -2,
+    paddingHorizontal: 0,
     fontWeight: "600",
     textAlign: "center",
     fontFamily: "Helvetica",

@@ -171,7 +171,7 @@ export const splitTranslationIntoSentences = (
 
 export const splitSegmentsIntoSentences = (segments: Segment[]): Sentence[] => {
   const allSentences: Sentence[] = [];
-
+  let sentenceIndex = 0;
   for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
     const segment = segments[segmentIndex];
     const sentenceWordGroups = splitIntoSentences(segment.words);
@@ -188,13 +188,14 @@ export const splitSegmentsIntoSentences = (segments: Segment[]): Sentence[] => {
       const end = words[words.length - 1].end;
 
       allSentences.push({
-        index: i + segmentIndex * 3,
+        index: sentenceIndex,
         start,
         end,
         text,
         full_text_translation: sentenceTranslations[i],
         words,
       });
+      sentenceIndex++;
     }
   }
 
@@ -270,10 +271,11 @@ export const autoSelectVocabForVideo = (
   for (const sentence of allSentences) {
     const lowestFrequencyWord = sentence
       .filter((w) => {
-        const normalizedWord = stripPunctuation(w.word.toLowerCase());
+        const normalizedWord = stripPunctuation(w.word.toLowerCase()).trim();
         const normalizedTranslation = stripPunctuation(
           w.translation.toLowerCase(),
         );
+
         return (
           (latestTime === 0 || w.start > latestTime + minimumInterval) &&
           w.word.length > 3 &&
@@ -285,7 +287,9 @@ export const autoSelectVocabForVideo = (
       })
       .reduce(
         (min, word) => {
-          const normalizedWord = stripPunctuation(word.word.toLowerCase());
+          const normalizedWord = stripPunctuation(
+            word.word.toLowerCase(),
+          ).trim();
           const vocabulary = allVocabulary[normalizedWord];
           const frequency = vocabulary?.frequency;
           if (frequency && frequency < min.frequency) {

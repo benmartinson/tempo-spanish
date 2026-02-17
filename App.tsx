@@ -24,6 +24,7 @@ import {
   RootState,
   VideoContext,
   Segment,
+  UserUIState,
 } from "./src/types";
 import { splitSegmentsIntoSentences } from "./src/helpers";
 import { BACKEND_BASE_URL } from "./src/components/streaming_helpers";
@@ -226,11 +227,11 @@ const AuthenticatedApp: React.FC = () => {
       }
 
       try {
-        const { data: uiState, error } = await supabase
+        const { data: uiState, error } = (await supabase
           .from("user_ui_state")
           .select("*")
           .eq("user_id", userId)
-          .single();
+          .single()) as { data: UserUIState; error: any };
 
         if (error) {
           // No existing state is fine, just skip restoration
