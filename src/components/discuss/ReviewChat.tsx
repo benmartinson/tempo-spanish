@@ -29,7 +29,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import NavSwitcher from "../common/NavSwitcher";
 import ReviewTypeSelector from "./ReviewTypeSelector";
 import { useSelector } from "react-redux";
-import { stripPunctuation } from "../../helpers";
+import { stripPunctuation, formatTimestamp } from "../../helpers";
 
 interface ReviewChatProps {
   questions: VideoQuestion[];
@@ -45,12 +45,6 @@ interface ReviewChatProps {
   focusVocab: SegmentWord[];
   sentences: Sentence[];
 }
-
-const formatTimestamp = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-};
 
 const SCORE_COLORS: Record<EvaluationScore, string> = {
   correct: "#2d8a4e",

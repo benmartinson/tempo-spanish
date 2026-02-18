@@ -10,6 +10,12 @@ export const canIgnoreVocab = (word: string) => {
   return ignoreVocab.includes(word) || alreadyKnownVocab.includes(word);
 };
 
+export const formatTimestamp = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
 export const ignoreVocab = [
   "Por",
   "La",

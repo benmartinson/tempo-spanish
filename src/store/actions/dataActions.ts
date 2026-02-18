@@ -61,6 +61,16 @@ export const setFocusVocab = (vocab: SegmentWord[]): DataAction => ({
   payload: vocab,
 });
 
+export const setCurrentSearchTerm = (term: string): DataAction => ({
+  type: "SET_CURRENT_SEARCH_TERM",
+  payload: term,
+});
+
+export const setCurrentSearchResults = (results: Segment[]): DataAction => ({
+  type: "SET_CURRENT_SEARCH_RESULTS",
+  payload: results,
+});
+
 export const setAllVocabulary = (
   vocab: Record<string, Vocabulary>,
 ): DataAction => ({

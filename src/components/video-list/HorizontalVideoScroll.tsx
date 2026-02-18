@@ -4,19 +4,25 @@ import {
   Image,
   Text,
   StyleSheet,
+  View,
 } from "react-native";
 import { Video } from "../../types";
+import { formatTimestamp } from "../../helpers";
 
 const HorizontalVideoScroll: React.FC<{
   videos: Video[];
-  handleWatchPress: (videoId: string, recordId: string) => void;
+  handleWatchPress: (videoId: string, recordId: string, clip?: number) => void;
   loadingVideo: boolean;
-}> = ({ videos, handleWatchPress, loadingVideo }) => {
+  showClips?: boolean;
+}> = ({ videos, handleWatchPress, loadingVideo, showClips = false }) => {
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.videoScrollContent}
+      contentContainerStyle={[
+        styles.videoScrollContent,
+        { marginBottom: showClips ? 20 : 0 },
+      ]}
     >
       {videos.map((video) => (
         <TouchableOpacity
@@ -32,6 +38,20 @@ const HorizontalVideoScroll: React.FC<{
           <Text style={styles.videoTitle} numberOfLines={2}>
             {video.title}
           </Text>
+          <View style={styles.videoClipsContainer}>
+            {showClips &&
+              video.clips &&
+              video.clips.slice(0, 5).map((clip) => (
+                <TouchableOpacity
+                  key={clip}
+                  onPress={() =>
+                    handleWatchPress(video.video_id, video.id, clip)
+                  }
+                >
+                  <Text style={styles.videoClips}>{formatTimestamp(clip)}</Text>
+                </TouchableOpacity>
+              ))}
+          </View>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -53,11 +73,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 4,
   },
+  videoClips: {
+    textAlign: "left",
+    lineHeight: 16,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4a69bd",
+  },
   videoTitle: {
     fontSize: 14,
     color: "black",
     textAlign: "left",
     lineHeight: 16,
+  },
+  videoClipsContainer: {
+    marginTop: 4,
+    flexDirection: "row",
+    gap: 10,
   },
 });
 

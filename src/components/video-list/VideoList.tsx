@@ -7,13 +7,16 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  TextInput,
 } from "react-native";
-import { RootState, VideoContext, Segment } from "../../types";
+import { RootState, VideoContext, Segment, Video } from "../../types";
 import { splitSegmentsIntoSentences } from "../../helpers";
 import { WATCH_CLIPS } from "../../data/question_clips";
 import {
   setAllChannels,
   setAllVideos,
+  setCurrentSearchResults,
+  setCurrentSearchTerm,
   setCurrentTab,
   setCurrentVideo,
 } from "../../store/actions/dataActions";
@@ -24,20 +27,39 @@ import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "@clerk/clerk-expo";
 import HorizontalVideoScroll from "./HorizontalVideoScroll";
 import VideoSectionHeader from "./VideoSectionHeader";
+import WordSearch from "./WordSearch";
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const [loadingVideo, setLoadingVideo] = useState(false);
-
+  const currentSearchResults = useSelector(
+    (state: RootState) => state.currentSearchResults,
+  );
   const allChannels = useSelector((state: RootState) => state.allChannels);
   const allVideos = useSelector((state: RootState) => state.allVideos);
-  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const userVideoViews = useSelector(
     (state: RootState) => state.userVideoViews,
   );
   const navigation = useNavigation();
+  const videoResults = currentSearchResults.reduce(
+    (acc, result) => {
+      const video = allVideos.find((video) => video.id === result.video_id);
+      if (!video) return acc;
+      if (video.id in acc) {
+        acc[video.id].clips.push(result.start_time);
+      } else {
+        acc[video.id] = {
+          ...video,
+          clips: [result.start_time],
+        };
+      }
+      return acc;
+    },
+    {} as Record<string, Video>,
+  );
+  const videoResultsArray = Object.values(videoResults);
 
   useEffect(() => {
     if (!supabase) return;
@@ -60,7 +82,11 @@ const VideoList: React.FC = () => {
     return { channelData, videoData };
   };
 
-  const handleWatchPress = async (videoId: string, recordId) => {
+  const handleWatchPress = async (
+    videoId: string,
+    recordId: string,
+    clip?: number,
+  ) => {
     setLoadingVideo(true);
     const { data: transcriptSegments, error: transcriptSegmentsError } =
       await supabase
@@ -89,12 +115,23 @@ const VideoList: React.FC = () => {
 
     const videoViewId = videoViewData?.[0]?.id ?? "";
     const restoredSentence = videoViewData?.[0]?.last_sentence_watched ?? 0;
-
     const sentences = splitSegmentsIntoSentences(transcriptSegments);
+
+    let clipSentenceOverride = 0;
+    if (clip) {
+      clipSentenceOverride = sentences.findIndex(
+        (sentence) => clip >= sentence.start && clip <= sentence.end,
+      );
+
+      if (clipSentenceOverride === -1) {
+        clipSentenceOverride = 0;
+      }
+    }
+
     const video: VideoContext = {
       videoId: videoId,
       recordId: recordId,
-      currentSentence: restoredSentence,
+      currentSentence: clip ? clipSentenceOverride : restoredSentence,
       sentences,
       allWords: transcriptSegments.flatMap((s: Segment) => s.words),
       videoViewId: String(videoViewId),
@@ -142,9 +179,22 @@ const VideoList: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
+      <WordSearch />
+
+      {currentSearchResults.length > 0 && (
+        <>
+          <VideoSectionHeader title="Search Results" />
+          <HorizontalVideoScroll
+            videos={videoResultsArray}
+            handleWatchPress={handleWatchPress}
+            loadingVideo={loadingVideo}
+            showClips={true}
+          />
+        </>
+      )}
       {recentlyWatchedVideos.length > 0 && (
         <>
-          <VideoSectionHeader title="Recently Watched" isFirst={true} />
+          <VideoSectionHeader title="Recently Watched" />
           <HorizontalVideoScroll
             videos={recentlyWatchedVideos}
             handleWatchPress={handleWatchPress}

@@ -5,7 +5,7 @@ const VideoSectionHeader: React.FC<{ title: string; isFirst?: boolean }> = ({
   isFirst,
 }) => {
   return (
-    <View style={[styles.container, { borderTopWidth: isFirst ? 0 : 1 }]}>
+    <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
     </View>
   );

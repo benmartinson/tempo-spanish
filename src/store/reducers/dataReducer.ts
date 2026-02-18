@@ -10,6 +10,8 @@ const initialState: RootState = {
   allVocabulary: {},
   userKnownVocab: [],
   userVideoViews: [],
+  currentSearchTerm: null,
+  currentSearchResults: [],
 };
 
 const dataReducer = (
@@ -21,6 +23,16 @@ const dataReducer = (
       return {
         ...state,
         allChannels: action.payload,
+      };
+    case "SET_CURRENT_SEARCH_TERM":
+      return {
+        ...state,
+        currentSearchTerm: action.payload,
+      };
+    case "SET_CURRENT_SEARCH_RESULTS":
+      return {
+        ...state,
+        currentSearchResults: action.payload,
       };
     case "SET_USER_VIDEO_VIEWS":
       return {

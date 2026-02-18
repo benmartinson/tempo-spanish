@@ -8,6 +8,8 @@ export interface RootState {
   allVocabulary: Record<string, Vocabulary>;
   userKnownVocab: number[];
   userVideoViews: VideoView[];
+  currentSearchTerm: string | null;
+  currentSearchResults: Segment[];
 }
 
 export type DataActionTypes =
@@ -27,7 +29,9 @@ export type DataActionTypes =
   | "ADD_USER_KNOWN_VOCAB"
   | "SET_USER_VIDEO_VIEWS"
   | "SET_FOCUS_SENTENCES"
-  | "ADD_FOCUS_SENTENCE";
+  | "ADD_FOCUS_SENTENCE"
+  | "SET_CURRENT_SEARCH_TERM"
+  | "SET_CURRENT_SEARCH_RESULTS";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -74,6 +78,7 @@ export interface Channel {
 }
 
 export interface Video {
+  clips?: number[];
   video_id: string;
   id: string;
   topic: string;
@@ -84,11 +89,11 @@ export interface Video {
 }
 
 export interface Segment {
-  start: number;
-  end: number;
+  segment_id: number;
+  start_time: number;
+  end_time: number;
   text: string;
-  // cefr_level: string;
-  // key_vocabulary: KeyVocabulary[];
+  video_id: string;
   full_translation: string;
   words: SegmentWord[];
 }
