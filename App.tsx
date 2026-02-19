@@ -259,7 +259,8 @@ const AuthenticatedApp: React.FC = () => {
           const { data: segments, error: segmentsError } = await supabase
             .from("transcript_segment")
             .select("*")
-            .eq("video_id", uiState.current_video);
+            .eq("video_id", uiState.current_video)
+            .order("segment_id");
 
           if (segmentsError) {
             console.error("Failed to fetch video segments for restoration");

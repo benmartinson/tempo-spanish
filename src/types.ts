@@ -90,8 +90,8 @@ export interface Video {
 
 export interface Segment {
   segment_id: number;
-  start_time: number;
-  end_time: number;
+  start: number;
+  end: number;
   text: string;
   video_id: string;
   full_translation: string;

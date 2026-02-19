@@ -48,11 +48,11 @@ const VideoList: React.FC = () => {
       const video = allVideos.find((video) => video.id === result.video_id);
       if (!video) return acc;
       if (video.id in acc) {
-        acc[video.id].clips.push(result.start_time);
+        acc[video.id].clips.push(result.start);
       } else {
         acc[video.id] = {
           ...video,
-          clips: [result.start_time],
+          clips: [result.start],
         };
       }
       return acc;
