@@ -16,7 +16,7 @@ import {
   Text,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "../../types";
+import { RootState, SegmentWord } from "../../types";
 import {
   setSentenceByTime,
   setCurrentSentence as setCurrentSentenceAction,
@@ -26,7 +26,12 @@ import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import WatchTab from "../watch/WatchTab";
 import ShadowTab from "../shadow/ShadowTab";
 import DiscussTab from "../discuss/DiscussTab";
-import { normalizeWord, stripPunctuation } from "../../helpers";
+import {
+  capitalize,
+  isInterestingVocab,
+  normalizeWord,
+  stripPunctuation,
+} from "../../helpers";
 
 interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";
@@ -82,6 +87,42 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     },
     [dispatch],
   );
+  const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
+  const currentSentenceObject = currentVideo
+    ? currentVideo.sentences[currentSentenceIndex]
+    : null;
+
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
+  const userKnownVocab = useSelector(
+    (state: RootState) => state.userKnownVocab,
+  );
+  const unknownWords = useMemo(() => {
+    const sentenceWords = currentSentenceObject?.words || [];
+    const knownVocabSet = new Set(userKnownVocab);
+    if (sentenceWords.length === 0) return [];
+    // get set of SegmentWOrd[]
+    const uniqueWords = [
+      ...new Map(sentenceWords.map((sw) => [sw.word, sw])).values(),
+    ];
+
+    const result: SegmentWord[] = uniqueWords
+      .map((sw) => {
+        const normalized = stripPunctuation(sw.word.toLowerCase()).trim();
+        const vocab = allVocabulary[normalized];
+        sw.word = stripPunctuation(sw.word).trim();
+        return vocab ? { sw, vocab } : null;
+      })
+      .filter(
+        (item): item is { sw: SegmentWord; vocab: any } =>
+          item?.vocab?.word &&
+          isInterestingVocab(item.vocab) &&
+          !knownVocabSet.has(item.vocab.id),
+      )
+      .sort((a, b) => b.vocab.percentile - a.vocab.percentile)
+      .map((item) => item.sw);
+
+    return result;
+  }, [currentSentenceObject, userKnownVocab, allVocabulary]);
 
   useEffect(() => {
     refreshPlayer();
@@ -97,13 +138,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   // Player ref for injecting play/pause commands without reloading
   const playerRef = useRef<YouTubePlayerHandle>(null);
+  const currentWordSnippetRef = useRef<{ start: number; end: number } | null>(
+    null,
+  );
 
   // Seek detection refs
   const prevTimeRef = useRef<number>(-1);
   const isTransitioningRef = useRef<boolean>(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
   useEffect(() => {
     setPlayerMuted(false);
@@ -119,7 +161,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     }
   }, [isKeyboardVisible]);
 
-  // Unified handleSetTime - mode-aware
   const handleSetTime = (newTime: number, force = false) => {
     if (isTransitioningRef.current && !force) return;
     if (force) {
@@ -161,18 +202,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     setTime(newTime);
   };
 
-  // const handleSetTime = (newTime: number) => {
-  //   setTime(newTime);
-  //   if (newTime >= currentSentence.end || newTime < currentSentence.start) {
-  //     const newSentenceIndex = currentVideo?.sentences.findIndex(
-  //       (sentence) => newTime >= sentence.start && newTime <= sentence.end,
-  //     );
-  //     if (newSentenceIndex !== -1) {
-  //       setCurrentSentence(newSentenceIndex);
-  //     }
-  //   }
-  // };
-
   const handleTransition = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -182,7 +211,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     timeoutRef.current = setTimeout(() => {
       isTransitioningRef.current = false;
       timeoutRef.current = null;
-    }, 1000);
+    }, 2000);
   };
 
   const handleNextSentence = useCallback(() => {
@@ -220,28 +249,24 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     refreshPlayer();
   }, [currentSentence.start]);
 
+  const playWordSnippet = useCallback(
+    (word: SegmentWord) => {
+      setAutoplay(true);
+      console.log("playing word snippet", word.start, word.end);
+      currentWordSnippetRef.current = { start: word.start, end: word.end };
+      refreshPlayer();
+      setTimeout(() => {
+        currentWordSnippetRef.current = null;
+      }, 1000);
+    },
+    [currentSentence.start],
+  );
+
   const refreshPlayer = useCallback(() => {
     prevTimeRef.current = -1;
     dispatch(refreshVideoPlayerAction());
   }, [dispatch, currentSentence.start]);
 
-  const seekToTime = useCallback(
-    (targetTime: number, targetSentenceIndex?: number) => {
-      dispatch(setSentenceByTime(targetTime));
-      if (selectedNavTab === "watch" || selectedNavTab === "review") {
-        // Seek directly without reloading - keeps free play intact
-        playerRef.current?.seekTo(targetTime);
-        prevTimeRef.current = -1;
-      } else {
-        // Shadow mode needs a reload to set sentence clip boundaries in the URL
-        isTransitioningRef.current = true;
-        dispatch(refreshVideoPlayerAction());
-      }
-    },
-    [dispatch, selectedNavTab],
-  );
-
-  // Callback for DiscussTab to request clip playback
   const handlePlayClip = useCallback((start) => {
     setAutoplay(true);
     isTransitioningRef.current = true;
@@ -258,18 +283,22 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   const currentVideoText = useMemo(() => {
     if (selectedNavTab !== "watch") return "";
-    const match = currentVideo?.focusVocab.find(
-      (v) => time >= v.start - 1 && time <= v.start + 3,
-    );
+    const topUnknownWord = unknownWords?.length ? unknownWords[0] : null;
+    if (!topUnknownWord) return "";
+
+    const match =
+      time >= topUnknownWord.start - 1 && time <= topUnknownWord.start + 3;
     let vocabulary = null;
     if (match) {
       vocabulary =
-        allVocabulary[stripPunctuation(match.word.toLowerCase()).trim()];
-      return `${match.word} => ${vocabulary.translation}`;
+        allVocabulary[
+          stripPunctuation(topUnknownWord.word.toLowerCase()).trim()
+        ];
+      return `${capitalize(topUnknownWord.word)} => ${capitalize(vocabulary.translation)}`;
     }
 
-    return match ? `${match.word} => ${vocabulary.translation}` : "";
-  }, [currentVideo?.focusVocab, time, selectedNavTab]);
+    return "";
+  }, [unknownWords, time, selectedNavTab]);
 
   if (!currentVideo) return null;
 
@@ -279,6 +308,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       flex: 1,
     }) as const;
 
+  let endTime;
+  if (selectedNavTab === "shadow") {
+    if (currentWordSnippetRef.current) {
+      endTime = currentWordSnippetRef.current.end;
+    } else {
+      endTime = currentSentence.end;
+    }
+  }
   return (
     <View style={styles.container}>
       <View
@@ -295,8 +332,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             text: currentSentence.text,
             full_translation: currentSentence.full_translation,
             words: currentSentence.words,
-            start: currentSentence.start,
-            end: selectedNavTab === "shadow" ? currentSentence.end : undefined,
+            start:
+              currentWordSnippetRef.current?.start || currentSentence.start,
+            end: endTime,
           }}
           autoplay={effectiveAutoplay}
           refreshKey={effectiveRefreshKey}
@@ -324,6 +362,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setAutoplay={setAutoplay}
           refreshPlayer={refreshPlayer}
           isActive={selectedNavTab === "watch"}
+          unknownWords={unknownWords}
+          handlePlayWordSnippet={playWordSnippet}
+          isPlayingWordSnippet={!!currentWordSnippetRef.current}
         />
       </View>
 
@@ -338,6 +379,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setPlayerMuted={setPlayerMuted}
           setPlayerSpeed={setPlayerSpeed}
           pausePlayer={() => playerRef.current?.pause()}
+          playWordSnippet={playWordSnippet}
+          isPlayingWordSnippet={!!currentWordSnippetRef.current}
+          unknownWords={unknownWords}
         />
       </View>
 

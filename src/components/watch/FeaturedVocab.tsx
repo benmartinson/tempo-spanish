@@ -10,12 +10,19 @@ import {
 } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
+import { MaterialIcons } from "@expo/vector-icons";
 
 interface FeaturedVocabProps {
   word: SegmentWord;
+  playSnippet?: (word: SegmentWord) => void;
+  isPlayingWordSnippet?: boolean;
 }
 
-const FeaturedVocab: React.FC<FeaturedVocabProps> = ({ word }) => {
+const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
+  word,
+  playSnippet,
+  isPlayingWordSnippet,
+}) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const dispatch = useDispatch();
@@ -51,7 +58,20 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({ word }) => {
     <View style={styles.container}>
       <View style={styles.card}>
         <View style={styles.textContainer}>
-          <Text style={styles.word}>{capitalize(word.word)}</Text>
+          <TouchableOpacity
+            onPress={() => playSnippet(word)}
+            style={styles.wordContainer}
+            disabled={isPlayingWordSnippet}
+          >
+            <View style={styles.hiddenPlayButton}>
+              <MaterialIcons name="play-arrow" size={20} color="black" />
+            </View>
+            <Text style={styles.word}>{capitalize(word.word)}</Text>
+            <View style={styles.playButton}>
+              <MaterialIcons name="play-arrow" size={20} color="black" />
+            </View>
+          </TouchableOpacity>
+
           <Text style={styles.translation}>
             {capitalize(vocabulary.translation)}
           </Text>
@@ -105,6 +125,23 @@ const styles = StyleSheet.create({
   textContainer: {
     alignItems: "center",
     marginBottom: 16,
+  },
+  wordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  playButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: "#f0f0f5",
+  },
+  hiddenPlayButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: "#f0f0f5",
+    opacity: 0,
   },
   word: {
     fontSize: 24,

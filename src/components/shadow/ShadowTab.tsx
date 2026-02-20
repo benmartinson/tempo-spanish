@@ -50,6 +50,7 @@ import TooltipModal from "../common/TooltipModal";
 import NavSwitcher from "../common/NavSwitcher";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import FeaturedVocab from "../watch/FeaturedVocab";
+import WordHints from "../common/WordHints";
 
 interface ShadowTabProps {
   time: number;
@@ -61,6 +62,9 @@ interface ShadowTabProps {
   setPlayerSpeed: (speed: number) => void;
   pausePlayer: () => void;
   isKeyboardVisible: boolean;
+  playWordSnippet: (word: SegmentWord) => void;
+  isPlayingWordSnippet: boolean;
+  unknownWords: SegmentWord[];
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -69,52 +73,25 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   handlePreviousSentence: parentHandlePreviousSentence,
   isActive = true,
   playSentence,
+  playWordSnippet,
   setPlayerMuted,
   setPlayerSpeed,
   pausePlayer,
   isKeyboardVisible,
+  isPlayingWordSnippet,
+  unknownWords,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const userKnownVocab = useSelector(
-    (state: RootState) => state.userKnownVocab,
-  );
+
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
     ? currentVideo.sentences[currentSentenceIndex]
     : null;
   const supabase = useSupabaseWithClerk();
-  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const { userId } = useAuth();
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
   const [isLooping, setIsLooping] = useState<boolean>(false);
   const [isShowingWordHints, setIsShowingWordHints] = useState<boolean>(true);
-  const unknownWords = useMemo(() => {
-    const sentenceWords = currentSentenceObject?.words || [];
-    const knownVocabSet = new Set(userKnownVocab);
-    if (sentenceWords.length === 0) return [];
-    // get set of SegmentWOrd[]
-    const uniqueWords = [
-      ...new Map(sentenceWords.map((sw) => [sw.word, sw])).values(),
-    ];
-
-    const result: SegmentWord[] = uniqueWords
-      .map((sw) => {
-        const normalized = stripPunctuation(sw.word.toLowerCase()).trim();
-        const vocab = allVocabulary[normalized];
-        sw.word = stripPunctuation(sw.word).trim();
-        return vocab ? { sw, vocab } : null;
-      })
-      .filter(
-        (item): item is { sw: SegmentWord; vocab: any } =>
-          item?.vocab?.word &&
-          isInterestingVocab(item.vocab) &&
-          !knownVocabSet.has(item.vocab.id),
-      )
-      .sort((a, b) => b.vocab.percentile - a.vocab.percentile)
-      .map((item) => item.sw);
-
-    return result;
-  }, [currentSentenceObject, userKnownVocab, allVocabulary]);
 
   // Speed control state (internal settings)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -477,6 +454,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     playSentence();
   };
 
+  const handlePlayWordSnippet = (word: SegmentWord) => {
+    playWordSnippet(word);
+  };
+
   const handlePlayUserRecording = useCallback(async () => {
     if (!currentRecordingId || isPlayingRecording) return;
 
@@ -686,51 +667,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 )}
               </View>
               {!accuracyResult && unknownWords.length > 0 && (
-                <View style={styles.featuredVocabContainer}>
-                  <View style={styles.featuredVocabTitleContainer}>
-                    <View style={styles.featuredVocabTitleLeft}>
-                      <Text style={styles.featuredVocabTitle}>Word Hints</Text>
-                      <TouchableOpacity
-                        onPress={() =>
-                          setIsShowingWordHints(!isShowingWordHints)
-                        }
-                      >
-                        <MaterialIcons
-                          name="visibility"
-                          size={20}
-                          color={isShowingWordHints ? "black" : "gray"}
-                        />
-                      </TouchableOpacity>
-                    </View>
-                    {isShowingWordHints && (
-                      <View style={styles.featuredVocabTitleButtons}>
-                        <TouchableOpacity
-                          onPress={() => handleWordHintChange(-1)}
-                          style={styles.featuredVocabTitleButton}
-                        >
-                          <MaterialIcons
-                            name="arrow-back"
-                            size={24}
-                            color="#5a5680"
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleWordHintChange(1)}
-                          style={styles.featuredVocabTitleButton}
-                        >
-                          <MaterialIcons
-                            name="arrow-forward"
-                            size={24}
-                            color="#5a5680"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                  {isShowingWordHints && (
-                    <FeaturedVocab word={currentUnknownWord} />
-                  )}
-                </View>
+                <WordHints
+                  unknownWords={unknownWords}
+                  handlePlayWordSnippet={handlePlayWordSnippet}
+                  isPlayingWordSnippet={isPlayingWordSnippet}
+                />
               )}
             </>
           )}
@@ -842,31 +783,7 @@ export const styles = StyleSheet.create({
     marginTop: 20,
     paddingHorizontal: 24,
   },
-  featuredVocabTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "left",
-    paddingHorizontal: 4,
-  },
-  featuredVocabTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-  },
-  featuredVocabTitleLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  featuredVocabTitleButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  featuredVocabTitleButton: {
-    paddingHorizontal: 8,
-    borderRadius: 24,
-  },
+
   instructionText: {
     color: "#666",
     textAlign: "center",
@@ -960,17 +877,6 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 24,
     gap: 8,
-  },
-  featuredVocabContainer: {
-    marginTop: 0,
-    width: "100%",
-  },
-  featuredVocabListContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  featuredVocabItem: {
-    width: 350,
   },
   playSegmentButtonText: {
     color: "black",

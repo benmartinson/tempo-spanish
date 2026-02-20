@@ -4,7 +4,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { StyleSheet, View, ScrollView, Text } from "react-native";
-import { RootState, Sentence, Vocabulary } from "../../types";
+import { RootState, SegmentWord, Sentence, Vocabulary } from "../../types";
 import { setFocusVocab } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
 import FullSegmentTranscriptBubble from "./FullSegmentTranscriptBubble";
@@ -20,6 +20,7 @@ import {
   autoSelectVocabForVideo,
 } from "../../helpers";
 import TooltipModal from "../common/TooltipModal";
+import WordHints from "../common/WordHints";
 
 interface WatchTabProps {
   time: number;
@@ -28,6 +29,9 @@ interface WatchTabProps {
   setAutoplay: (autoplay: boolean) => void;
   refreshPlayer: () => void;
   isActive?: boolean;
+  unknownWords: SegmentWord[];
+  handlePlayWordSnippet: (word: SegmentWord) => void;
+  isPlayingWordSnippet: boolean;
 }
 
 const WatchTab: React.FC<WatchTabProps> = ({
@@ -37,25 +41,14 @@ const WatchTab: React.FC<WatchTabProps> = ({
   setAutoplay,
   refreshPlayer,
   isActive = true,
+  unknownWords,
+  handlePlayWordSnippet,
+  isPlayingWordSnippet,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const focusVocab = currentVideo?.focusVocab || [];
-  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
-  const userKnownVocab = useSelector(
-    (state: RootState) => state.userKnownVocab,
-  );
   const [isModalVisible, setIsModalVisible] = useState(false);
-  // const [isVocabTestVisible, setIsVocabTestVisible] = useState(false);
-  const dispatch = useDispatch();
-  const allWords = useSelector(
-    (state: RootState) => state.currentVideo?.allWords,
-  );
-
-  const [userSelectedVocab, setUserSelectedVocab] = useState<string[]>([]);
-  const [userIgnoredVocab, setUserIgnoredVocab] = useState<string[]>([]);
   const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
     useState<boolean>(false);
-  const [isAutoSelectingVocab, setIsAutoSelectingVocab] = useState(true);
   const [selectedBubble, setSelectedBubble] = useState<string>("large");
 
   // Close modals when tab becomes inactive
@@ -66,165 +59,6 @@ const WatchTab: React.FC<WatchTabProps> = ({
       setShowNoVocabFoundTooltip(false);
     }
   }, [isActive]);
-
-  // const handleAddToFocusVocab = () => {
-  //   setUserSelectedVocab(currentVideo?.focusVocab.map((v) => v.word) || []);
-  //   setUserIgnoredVocab([]);
-  //   setVocabSelectionStep(1);
-  //   setIsModalVisible(true);
-  // };
-
-  const uniqueWordsFromVideo = useMemo(
-    () =>
-      allWords?.length
-        ? new Set(
-            allWords
-              .filter((w) => w.word.length > 3)
-              .map((w) => normalizeWord(w.word))
-              .filter(Boolean),
-          )
-        : new Set<string>(),
-    [allWords],
-  );
-
-  useEffect(() => {
-    if (
-      isAutoSelectingVocab &&
-      currentVideo &&
-      Object.keys(allVocabulary).length > 0 &&
-      currentVideo.focusVocab.length === 0
-    ) {
-      const selectedVocab = autoSelectVocabForVideo(
-        currentVideo.allWords,
-        allVocabulary,
-        userKnownVocab,
-      );
-      dispatch(setFocusVocab(selectedVocab));
-      setIsAutoSelectingVocab(false);
-    }
-  }, [isAutoSelectingVocab, currentVideo, allVocabulary, userKnownVocab]);
-
-  const vocabularyForVideo = useMemo(
-    () =>
-      Object.values(allVocabulary).filter(
-        (v) =>
-          uniqueWordsFromVideo.has(normalizeWord(v.word)) &&
-          !userKnownVocab.includes(v.id),
-      ),
-    [allVocabulary, uniqueWordsFromVideo, userKnownVocab],
-  );
-
-  const [randomlySelectedVocab, setRandomlySelectedVocab] = useState<
-    Vocabulary[]
-  >([]);
-  const vocabularyForVideoRef = useRef<Vocabulary[]>([]);
-
-  useEffect(() => {
-    const normalizedExcluded = new Set(
-      [...userSelectedVocab, ...userIgnoredVocab].map(normalizeWord),
-    );
-
-    // Check if this is a new video (vocabularyForVideo reference changed)
-    const isNewVideo = vocabularyForVideoRef.current !== vocabularyForVideo;
-    vocabularyForVideoRef.current = vocabularyForVideo;
-
-    setRandomlySelectedVocab((prev) => {
-      // If new video or no items yet, do full initialization
-      if (isNewVideo || prev.length === 0) {
-        return randomlySelectVocabFromVocabulary(vocabularyForVideo, 20, [
-          ...userSelectedVocab,
-          ...userIgnoredVocab,
-        ]);
-      }
-
-      // Otherwise, incremental update - filter out excluded items
-      const stillValid = prev.filter(
-        (v) => !normalizedExcluded.has(normalizeWord(v.word)),
-      );
-
-      const targetCount = 20;
-      const needed = targetCount - stillValid.length;
-
-      if (needed <= 0) return stillValid;
-
-      // Get available vocab that's not already displayed and not excluded
-      const currentWords = new Set(
-        stillValid.map((v) => normalizeWord(v.word)),
-      );
-      const availableVocab = vocabularyForVideo.filter(
-        (v) =>
-          !currentWords.has(normalizeWord(v.word)) &&
-          !normalizedExcluded.has(normalizeWord(v.word)) &&
-          !ignoreVocab.some((i) => i.toLowerCase() === v.word.toLowerCase()) &&
-          v.translation !== v.word,
-      );
-
-      // Add only the needed amount of new items
-      const newItems = availableVocab
-        .sort(() => Math.random() - 0.5)
-        .slice(0, needed);
-
-      return [...stillValid, ...newItems];
-    });
-  }, [vocabularyForVideo, userSelectedVocab, userIgnoredVocab]);
-
-  // const selectedVocabRecords = useMemo(
-  //   () =>
-  //     vocabularyForVideo.filter((v) =>
-  //       userSelectedVocab.some(
-  //         (w) => normalizeWord(w) === normalizeWord(v.word),
-  //       ),
-  //     ),
-  //   [vocabularyForVideo, userSelectedVocab],
-  // );
-
-  // const handleConfirmVocab = () => {
-  //   setIsModalVisible(false);
-  //   setAutoplay(true);
-  //   refreshPlayer();
-  // };
-
-  // const handleOpenVocabTest = () => {
-  //   setIsActionsModalVisible(false);
-  //   setIsVocabTestVisible(true);
-  // };
-
-  // const handleSkipToVocab = (word: SegmentWord) => {
-  //   const [nextSegment, nextFocusVocabTime] = findNextSegmentWithVocab(
-  //     focusVocab,
-  //     word,
-  //     currentVideo!.segments,
-  //     currentVideo!.currentSegment,
-  //   );
-  //   if (nextSegment && nextFocusVocabTime) {
-  //     const sentence = findSentenceWithVocab(
-  //       nextSegment,
-  //       nextFocusVocabTime.start,
-  //     );
-  //     if (sentence && sentence >= 0) {
-  //       const sentencesInSegment = splitIntoSentences(nextSegment.words);
-  //       setAutoplay(true);
-  //       seekToTime(sentencesInSegment[sentence][0].start, sentence);
-  //       return;
-  //     }
-  //   }
-  //   setShowNoVocabFoundTooltip(true);
-  // };
-
-  const featuredVocab = useMemo(() => {
-    // find the latest focus vocab time that is before the current time
-    let latest = null;
-    for (const v of focusVocab) {
-      if (
-        time >= v.start - 1 &&
-        time <= v.end + 4 &&
-        v.start > (latest?.start || 0)
-      ) {
-        latest = v;
-      }
-    }
-    return latest;
-  }, [focusVocab, time]);
 
   if (!currentVideo) {
     return <SelectVideoPrompt />;
@@ -238,71 +72,32 @@ const WatchTab: React.FC<WatchTabProps> = ({
             selectedBubble={selectedBubble}
             setSelectedBubble={setSelectedBubble}
           />
-          {/* {selectedBubble === "small" && (
-            <TranscriptBubble words={clip?.words || []} time={time} />
-          )} */}
-          {selectedBubble === "large" && (
-            <FullSegmentTranscriptBubble
-              words={currentSentence.words || []}
-              time={time}
-            />
-          )}
-          {selectedBubble === "translation" && (
-            <TranslationBubble
-              translation={currentSentence.full_translation.split(" ") || []}
-              words={currentSentence.words || []}
-              time={time}
-            />
-          )}
-          {featuredVocab && <FeaturedVocab word={featuredVocab} />}
-
-          {/* {focusVocabTimes && (
-            <>
-              <VocabList
-                vocab={focusVocabTimes}
+          <View style={styles.transcriptContentContainer}>
+            {selectedBubble === "large" && (
+              <FullSegmentTranscriptBubble
+                words={currentSentence.words || []}
                 time={time}
-                onSkipToVocab={handleSkipToVocab}
-                addToFocusVocab={handleAddToFocusVocab}
               />
-            </>
-          )} */}
+            )}
+            {selectedBubble === "translation" && (
+              <TranslationBubble
+                translation={currentSentence.full_translation.split(" ") || []}
+                words={currentSentence.words || []}
+                time={time}
+              />
+            )}
+          </View>
+          {unknownWords.length > 0 && (
+            <WordHints
+              unknownWords={unknownWords}
+              handlePlayWordSnippet={handlePlayWordSnippet}
+              isPlayingWordSnippet={isPlayingWordSnippet}
+              showSwitcher={false}
+            />
+          )}
         </ScrollView>
       </View>
 
-      {/* <SlideModal
-        visible={isModalVisible}
-        onRequestClose={() => setIsModalVisible(false)}
-        title="Video Vocab Selection"
-      >
-        {vocabSelectionStep === 1 && (
-          <VocabSelector
-            vocab={randomlySelectedVocab}
-            vocabLoading={vocabLoading}
-            userSelectedVocab={userSelectedVocab}
-            setUserSelectedVocab={setUserSelectedVocab}
-            userIgnoredVocab={userIgnoredVocab}
-            setUserIgnoredVocab={setUserIgnoredVocab}
-            onNext={() => setVocabSelectionStep(2)}
-          />
-        )}
-        {vocabSelectionStep === 2 && (
-          <VocabReview
-            selectedVocabRecords={selectedVocabRecords}
-            userSelectedVocab={userSelectedVocab}
-            userIgnoredVocab={userIgnoredVocab}
-            setUserIgnoredVocab={setUserIgnoredVocab}
-            allWords={allWords || []}
-            onConfirm={handleConfirmVocab}
-            onGoBack={() => setVocabSelectionStep(1)}
-          />
-        )}
-      </SlideModal> */}
-
-      {/* <VocabTestModal
-        visible={isVocabTestVisible}
-        onClose={() => setIsVocabTestVisible(false)}
-        vocab={currentVideo.focusVocab}
-      /> */}
       {showNoVocabFoundTooltip && (
         <TooltipModal
           isVisible={showNoVocabFoundTooltip}
@@ -331,6 +126,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     backgroundColor: "#2a2a4a",
     borderRadius: 8,
+  },
+  transcriptContentContainer: {
+    marginBottom: 32,
   },
   buttonContainer: {
     flexDirection: "row",
