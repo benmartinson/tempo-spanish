@@ -44,6 +44,15 @@ export const ignoreVocab = [
   "su",
   "uno",
   "o",
+  "esta",
+  "está",
+  "esto",
+  "estos",
+  "estas",
+  "esté",
+  "este",
+  "todo",
+  "todos",
 ];
 
 export const capitalize = (word: string) => {
@@ -273,10 +282,8 @@ export const autoSelectVocabForVideo = (
 
         return (
           (latestTime === 0 || w.start > latestTime + minimumInterval) &&
-          w.word.length > 3 &&
-          normalizedWord !== normalizedTranslation &&
-          !userKnownVocab.includes(vocabulary.id) &&
-          !ignoreVocab.includes(normalizedWord)
+          isInterestingVocab(vocabulary) &&
+          !userKnownVocab.includes(vocabulary.id)
         );
       })
       .reduce(
@@ -328,5 +335,30 @@ export const createVocabHash = (
       return acc;
     },
     {} as Record<string, Vocabulary>,
+  );
+};
+
+export const areWordsSimilar = (word1: string, word2: string) => {
+  let diffCount = 0;
+  for (let i = 0; i < word1.length; i++) {
+    if (i >= word2.length) diffCount++;
+    else if (word1[i] !== word2[i]) diffCount++;
+  }
+  return diffCount <= 2;
+};
+
+export const isInterestingVocab = (vocab: Vocabulary) => {
+  const normalizedWord = stripPunctuation(vocab.word.toLowerCase()).trim();
+  const normalizedTranslation = stripPunctuation(
+    vocab.translation.toLowerCase(),
+  );
+
+  if (normalizedTranslation === "history") {
+    console.log(areWordsSimilar(normalizedWord, normalizedTranslation));
+  }
+  return (
+    vocab.word.length > 3 &&
+    !areWordsSimilar(normalizedWord, normalizedTranslation) &&
+    !ignoreVocab.includes(vocab.word.toLowerCase())
   );
 };

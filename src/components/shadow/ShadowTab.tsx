@@ -39,6 +39,7 @@ import CountdownTimer from "./CountdownTimer";
 import {
   capitalize,
   findSentenceWithVocab,
+  isInterestingVocab,
   normalizeWord,
   splitIntoSentences,
   stripPunctuation,
@@ -86,7 +87,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const { userId } = useAuth();
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
   const [isLooping, setIsLooping] = useState<boolean>(false);
-
+  const [isShowingWordHints, setIsShowingWordHints] = useState<boolean>(true);
   const unknownWords = useMemo(() => {
     const sentenceWords = currentSentenceObject?.words || [];
     const knownVocabSet = new Set(userKnownVocab);
@@ -100,11 +101,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       .map((sw) => {
         const normalized = stripPunctuation(sw.word.toLowerCase()).trim();
         const vocab = allVocabulary[normalized];
+        sw.word = stripPunctuation(sw.word).trim();
         return vocab ? { sw, vocab } : null;
       })
       .filter(
         (item): item is { sw: SegmentWord; vocab: any } =>
-          !!item && !knownVocabSet.has(item.vocab.id),
+          item?.vocab?.word &&
+          isInterestingVocab(item.vocab) &&
+          !knownVocabSet.has(item.vocab.id),
       )
       .sort((a, b) => b.vocab.percentile - a.vocab.percentile)
       .map((item) => item.sw);
@@ -148,7 +152,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
 
-  // Shared accuracy calculation logic
   const calculateAccuracyFromWords = useCallback(
     (spokenWords: string[]) => {
       const targetWords = currentSentenceObject?.words.map((w) => {
@@ -165,7 +168,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     [currentSentenceObject?.words],
   );
 
-  // Save shadow result to database
   const saveShadowResult = useCallback(
     async (spokenWords: string[]) => {
       if (!supabase || !userId || !currentVideo) return;
@@ -187,7 +189,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     [supabase, userId, currentVideo, currentSentenceIndex],
   );
 
-  // Fetch existing shadow result when sentence changes
   const fetchShadowResult = useCallback(async () => {
     if (!supabase || !userId || !currentVideo) return null;
 
@@ -228,7 +229,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (hasPlayedSentence) {
       setHasPlayedSentence(false);
     }
-    // Reset recording state when sentence changes
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
     loadExistingShadowResult();
@@ -264,7 +264,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsTrimmingAudio(false);
   };
 
-  // Handle recording completion - send audio for transcription
   const handleRecordingComplete = useCallback(
     async (audioUri: string) => {
       if (!currentVideo) return;
@@ -300,7 +299,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     ],
   );
 
-  // Handle text input submission - compare typed text with target
   const handleTextSubmit = useCallback(() => {
     if (!userAnswer.trim()) return;
 
@@ -323,7 +321,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   }, [userAnswer, calculateAccuracyFromWords, saveShadowResult]);
 
-  // Handle clearing the text input
   const handleResetAnswer = useCallback(() => {
     setUserAnswer("");
     Keyboard.dismiss();
@@ -337,7 +334,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const justRecordedRef = useRef(false);
 
-  // Handle changes in active state (tab switching)
   useEffect(() => {
     if (!isActive) {
       if (isRecording) {
@@ -399,7 +395,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     parentHandleNextSentence();
   };
 
-  // Keep a ref to the callback to avoid stale closures in the interval
   const handleNextRef = useRef(handleShadowNextSentence);
   useEffect(() => {
     handleNextRef.current = handleShadowNextSentence;
@@ -439,7 +434,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   };
 
-  // Enter recording mode (shows countdown, then starts recording)
   const handleEnterRecordingMode = () => {
     setPreviousResults(null);
     pausePlayer();
@@ -451,7 +445,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     justRecordedRef.current = true;
   };
 
-  // Called by CountdownTimer after 3-second countdown
   const handleActualStartRecording = async () => {
     await startRecording();
     // playSentence();
@@ -460,7 +453,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }, 1000);
   };
 
-  // Called by CountdownTimer after buffer countdown completes
   const handleStopRecording = async (trashed: boolean = false) => {
     pausePlayer();
     setIsRecordingMode(false);
@@ -485,7 +477,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     playSentence();
   };
 
-  // Play the user's recording from storage
   const handlePlayUserRecording = useCallback(async () => {
     if (!currentRecordingId || isPlayingRecording) return;
 
@@ -527,7 +518,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     } else if (newIndex >= unknownWords.length) {
       newIndex = 0;
     }
-    setCurrentUnknownWordIndex(currentUnknownWordIndex + direction);
+    setCurrentUnknownWordIndex(newIndex);
   };
 
   if (!currentVideo) {
@@ -697,27 +688,48 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               {!accuracyResult && unknownWords.length > 0 && (
                 <View style={styles.featuredVocabContainer}>
                   <View style={styles.featuredVocabTitleContainer}>
-                    <Text style={styles.featuredVocabTitle}>Word Hints</Text>
-                    <View style={styles.featuredVocabTitleButtons}>
+                    <View style={styles.featuredVocabTitleLeft}>
+                      <Text style={styles.featuredVocabTitle}>Word Hints</Text>
                       <TouchableOpacity
-                        onPress={() => handleWordHintChange(-1)}
+                        onPress={() =>
+                          setIsShowingWordHints(!isShowingWordHints)
+                        }
                       >
                         <MaterialIcons
-                          name="arrow-back"
+                          name="visibility"
                           size={20}
-                          color="#4a69bd"
-                        />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleWordHintChange(1)}>
-                        <MaterialIcons
-                          name="arrow-forward"
-                          size={20}
-                          color="#4a69bd"
+                          color={isShowingWordHints ? "black" : "gray"}
                         />
                       </TouchableOpacity>
                     </View>
+                    {isShowingWordHints && (
+                      <View style={styles.featuredVocabTitleButtons}>
+                        <TouchableOpacity
+                          onPress={() => handleWordHintChange(-1)}
+                          style={styles.featuredVocabTitleButton}
+                        >
+                          <MaterialIcons
+                            name="arrow-back"
+                            size={24}
+                            color="#5a5680"
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleWordHintChange(1)}
+                          style={styles.featuredVocabTitleButton}
+                        >
+                          <MaterialIcons
+                            name="arrow-forward"
+                            size={24}
+                            color="#5a5680"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
-                  <FeaturedVocab word={currentUnknownWord} />
+                  {isShowingWordHints && (
+                    <FeaturedVocab word={currentUnknownWord} />
+                  )}
                 </View>
               )}
             </>
@@ -842,9 +854,18 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
   },
+  featuredVocabTitleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   featuredVocabTitleButtons: {
     flexDirection: "row",
     gap: 8,
+  },
+  featuredVocabTitleButton: {
+    paddingHorizontal: 8,
+    borderRadius: 24,
   },
   instructionText: {
     color: "#666",

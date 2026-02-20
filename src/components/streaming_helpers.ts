@@ -14,10 +14,10 @@ import { supabase } from "../../lib/supabase";
 const config = Constants.expoConfig?.extra;
 
 export const BACKEND_BASE_URL = __DEV__
-  ? config?.devBaseUrl
+  ? config?.productionBaseUrl
   : config?.productionBaseUrl;
 export const BACKEND_WS_URL = __DEV__
-  ? config?.devWsUrl
+  ? config?.productionWsUrl
   : config?.productionWsUrl;
 
 // Debug: uncomment to verify which URLs are being used

@@ -56,13 +56,23 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({ word }) => {
             {capitalize(vocabulary.translation)}
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => handleMarkKnown(word)}
-        >
-          <Text style={styles.buttonText}>Mark This Word as Already Known</Text>
-          <Entypo name="pencil" size={16} color="#5a5680" />
-        </TouchableOpacity>
+        <View style={styles.buttonsContainer}>
+          <TouchableOpacity
+            style={styles.knownButton}
+            onPress={() => handleMarkKnown(word)}
+          >
+            <Text style={styles.knownButtonText}>Mark as Known</Text>
+            <Entypo name="check" size={16} color="#5a5680" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.reviewButton}
+            onPress={() => handleMarkKnown(word)}
+          >
+            <Text style={styles.reviewButtonText}>Select for Review</Text>
+            <Entypo name="pencil" size={16} color="#5a5680" />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -74,6 +84,10 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     width: "100%",
     marginTop: 16,
+  },
+  buttonsContainer: {
+    flexDirection: "row",
+    gap: 12,
   },
   card: {
     backgroundColor: "white",
@@ -103,18 +117,36 @@ const styles = StyleSheet.create({
     color: "#666",
     fontStyle: "italic",
   },
-  button: {
+  knownButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
     backgroundColor: "#f0f0f5",
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    width: "100%",
+    flex: 1,
   },
-  buttonText: {
+  reviewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#5a5680",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    flex: 1,
+  },
+  knownButtonText: {
+    color: "#5a5680",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  reviewButtonText: {
     color: "#5a5680",
     fontSize: 14,
     fontWeight: "600",
