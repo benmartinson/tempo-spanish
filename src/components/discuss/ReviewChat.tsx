@@ -213,6 +213,12 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     const fetchContext = async () => {
       setContextLoading(true);
       try {
+        console.log({
+          question: currentQuestion.question,
+          answer: currentQuestion.answer,
+          video_id: videoId,
+          backend_url: BACKEND_BASE_URL,
+        });
         const response = await fetch(`${BACKEND_BASE_URL}/review-context`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

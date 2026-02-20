@@ -322,9 +322,6 @@ export const createVocabHash = (
         percentile = 1;
       }
 
-      if (index > 5500) {
-        console.log(v.word, percentile);
-      }
       v.percentile = percentile;
       acc[v.word] = v;
       index++;

@@ -22,7 +22,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSelector, useDispatch } from "react-redux";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useAuth } from "@clerk/clerk-expo";
-import { RootState } from "../../types";
+import { RootState, SegmentWord } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
@@ -41,12 +41,14 @@ import {
   findSentenceWithVocab,
   normalizeWord,
   splitIntoSentences,
+  stripPunctuation,
 } from "../../helpers";
 import ShadowResults from "./ShadowResults";
 import VocabList from "../watch/VocabList";
 import TooltipModal from "../common/TooltipModal";
 import NavSwitcher from "../common/NavSwitcher";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
+import FeaturedVocab from "../watch/FeaturedVocab";
 
 interface ShadowTabProps {
   time: number;
@@ -72,14 +74,43 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isKeyboardVisible,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const userKnownVocab = useSelector(
+    (state: RootState) => state.userKnownVocab,
+  );
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
     ? currentVideo.sentences[currentSentenceIndex]
     : null;
   const supabase = useSupabaseWithClerk();
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const { userId } = useAuth();
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
   const [isLooping, setIsLooping] = useState<boolean>(false);
+
+  const unknownWords = useMemo(() => {
+    const sentenceWords = currentSentenceObject?.words || [];
+    const knownVocabSet = new Set(userKnownVocab);
+    if (sentenceWords.length === 0) return [];
+    // get set of SegmentWOrd[]
+    const uniqueWords = [
+      ...new Map(sentenceWords.map((sw) => [sw.word, sw])).values(),
+    ];
+
+    const result: SegmentWord[] = uniqueWords
+      .map((sw) => {
+        const normalized = stripPunctuation(sw.word.toLowerCase()).trim();
+        const vocab = allVocabulary[normalized];
+        return vocab ? { sw, vocab } : null;
+      })
+      .filter(
+        (item): item is { sw: SegmentWord; vocab: any } =>
+          !!item && !knownVocabSet.has(item.vocab.id),
+      )
+      .sort((a, b) => b.vocab.percentile - a.vocab.percentile)
+      .map((item) => item.sw);
+
+    return result;
+  }, [currentSentenceObject, userKnownVocab, allVocabulary]);
 
   // Speed control state (internal settings)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -110,6 +141,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [isPlayingRecording, setIsPlayingRecording] = useState<boolean>(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [isTrimmingAudio, setIsTrimmingAudio] = useState<boolean>(false);
+  const [currentUnknownWordIndex, setCurrentUnknownWordIndex] =
+    useState<number>(0);
+  const currentUnknownWord = unknownWords[currentUnknownWordIndex];
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -199,7 +233,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsPlayingRecording(false);
     loadExistingShadowResult();
     setPreviousResults(null);
-    console.log({ currentSentenceIndex });
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -486,6 +519,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     loadExistingShadowResult();
   };
 
+  const handleWordHintChange = (direction: number) => {
+    if (unknownWords.length === 0) return;
+    let newIndex = currentUnknownWordIndex + direction;
+    if (newIndex < 0) {
+      newIndex = unknownWords.length - 1;
+    } else if (newIndex >= unknownWords.length) {
+      newIndex = 0;
+    }
+    setCurrentUnknownWordIndex(currentUnknownWordIndex + direction);
+  };
+
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
@@ -568,22 +612,38 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 mode="video"
               /> */}
               <View style={styles.recordButtonContainer}>
-                <TouchableOpacity
-                  style={styles.playSegmentButton}
-                  onPress={handlePlaySnippetAgain}
-                >
-                  <Text style={styles.playSegmentButtonText}>
-                    {hasPlayedSentence ? "Play Sentence" : "Replay"}
-                  </Text>
-                  <MaterialIcons name="play-arrow" size={20} color="black" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.settingsButton}
-                  onPress={() => setIsSettingsVisible(true)}
-                >
-                  <MaterialIcons name="settings" size={32} color="black" />
-                </TouchableOpacity>
+                <View style={styles.previousResultsButton}>
+                  {previousResults ? (
+                    <TouchableOpacity
+                      style={styles.previousResultsButtonInner}
+                      onPress={handlePreviousResults}
+                      disabled={isPlayingRecording}
+                    >
+                      <MaterialIcons
+                        name="arrow-back"
+                        size={20}
+                        color="#4a69bd"
+                      />
+                      <Text style={styles.previousResultsText}>Results</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <View style={styles.playSegmentButton}>
+                  <TouchableOpacity
+                    style={styles.playSegmentButtonInner}
+                    onPress={handlePlaySnippetAgain}
+                  >
+                    <Text style={styles.playSegmentButtonText}>
+                      {hasPlayedSentence ? "Play Sentence" : "Replay"}
+                    </Text>
+                    <MaterialIcons name="play-arrow" size={20} color="black" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.settingsButton}>
+                  <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
+                    <MaterialIcons name="settings" size={32} color="black" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.instructionContainer}>
@@ -602,49 +662,65 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           )}
           {/* Play user recording button - shown when a recording exists */}
           {!isRecordingMode && !isProcessing && (
-            <View style={styles.playRecordingContainer}>
-              {!accuracyResult && previousResults && (
-                <TouchableOpacity
-                  style={styles.previousResultsButton}
-                  onPress={handlePreviousResults}
-                  disabled={isPlayingRecording}
-                >
-                  <MaterialIcons name="arrow-back" size={20} color="#4a69bd" />
-                  <Text style={styles.previousResultsText}>
-                    Previous Results
-                  </Text>
-                </TouchableOpacity>
+            <>
+              <View style={styles.playRecordingContainer}>
+                {accuracyResult && currentRecordingId && (
+                  <TouchableOpacity
+                    style={styles.playRecordingButton}
+                    onPress={handlePlayUserRecording}
+                    disabled={isPlayingRecording}
+                  >
+                    <MaterialIcons
+                      name={isPlayingRecording ? "pause" : "headphones"}
+                      size={20}
+                      color="#4a69bd"
+                    />
+                    <Text style={styles.playRecordingButtonText}>
+                      {isPlayingRecording ? "Playing..." : "Play Recording"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {accuracyResult && !currentRecordingId && audioUri && (
+                  <TouchableOpacity
+                    style={styles.playRecordingButton}
+                    onPress={() => handleTrimAndSaveRecording(audioUri)}
+                    disabled={isTrimmingAudio}
+                  >
+                    <Text style={styles.playRecordingButtonText}>
+                      {isTrimmingAudio
+                        ? "Saving..."
+                        : "Save Recording for Playback"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {!accuracyResult && unknownWords.length > 0 && (
+                <View style={styles.featuredVocabContainer}>
+                  <View style={styles.featuredVocabTitleContainer}>
+                    <Text style={styles.featuredVocabTitle}>Word Hints</Text>
+                    <View style={styles.featuredVocabTitleButtons}>
+                      <TouchableOpacity
+                        onPress={() => handleWordHintChange(-1)}
+                      >
+                        <MaterialIcons
+                          name="arrow-back"
+                          size={20}
+                          color="#4a69bd"
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleWordHintChange(1)}>
+                        <MaterialIcons
+                          name="arrow-forward"
+                          size={20}
+                          color="#4a69bd"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <FeaturedVocab word={currentUnknownWord} />
+                </View>
               )}
-              {accuracyResult && currentRecordingId && (
-                <TouchableOpacity
-                  style={styles.playRecordingButton}
-                  onPress={handlePlayUserRecording}
-                  disabled={isPlayingRecording}
-                >
-                  <MaterialIcons
-                    name={isPlayingRecording ? "pause" : "headphones"}
-                    size={20}
-                    color="#4a69bd"
-                  />
-                  <Text style={styles.playRecordingButtonText}>
-                    {isPlayingRecording ? "Playing..." : "Play Recording"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {accuracyResult && !currentRecordingId && audioUri && (
-                <TouchableOpacity
-                  style={styles.playRecordingButton}
-                  onPress={() => handleTrimAndSaveRecording(audioUri)}
-                  disabled={isTrimmingAudio}
-                >
-                  <Text style={styles.playRecordingButtonText}>
-                    {isTrimmingAudio
-                      ? "Saving..."
-                      : "Save Recording for Playback"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            </>
           )}
         </ScrollView>
 
@@ -751,8 +827,24 @@ export const styles = StyleSheet.create({
   instructionContainer: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 16,
+    marginTop: 20,
     paddingHorizontal: 24,
+  },
+  featuredVocabTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "left",
+    paddingHorizontal: 4,
+  },
+  featuredVocabTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+  },
+  featuredVocabTitleButtons: {
+    flexDirection: "row",
+    gap: 8,
   },
   instructionText: {
     color: "#666",
@@ -760,14 +852,10 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
   settingsButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
-    alignSelf: "center",
     marginTop: 16,
   },
   errorContainer: {
@@ -831,9 +919,17 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
   },
   playSegmentButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+  playSegmentButtonInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -843,8 +939,17 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 24,
     gap: 8,
-    alignSelf: "center",
-    marginTop: 16,
+  },
+  featuredVocabContainer: {
+    marginTop: 0,
+    width: "100%",
+  },
+  featuredVocabListContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  featuredVocabItem: {
+    width: 350,
   },
   playSegmentButtonText: {
     color: "black",
@@ -967,12 +1072,20 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   previousResultsButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginTop: 16,
+  },
+  previousResultsButtonInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 24,
+    gap: 8,
   },
   previousResultsText: {
     color: "#4a69bd",

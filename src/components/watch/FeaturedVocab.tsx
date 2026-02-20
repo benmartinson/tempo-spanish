@@ -27,36 +27,23 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({ word }) => {
   const handleMarkKnown = async (word: SegmentWord) => {
     if (!currentVideo) return;
 
-    // 1. Remove from Redux focus vocab
-    const newFocusVocab = currentVideo.focusVocab.filter(
-      (v) => normalizeWord(v.word) !== normalizeWord(word.word),
-    );
-    dispatch(setFocusVocab(newFocusVocab));
-
-    // 2. Add to Redux known vocab
-    const vocabItem = currentVideo.focusVocab.find(
+    const vocabId = Object.values(allVocabulary).find(
       (v) => normalizeWord(v.word) === normalizeWord(word.word),
-    );
+    )?.id;
+    dispatch(addUserKnownVocab([vocabId]));
 
-    if (vocabItem) {
-      const vocabId = Object.values(allVocabulary).find(
-        (v) => normalizeWord(v.word) === normalizeWord(vocabItem.word),
-      )?.id;
-      dispatch(addUserKnownVocab([vocabId]));
+    // 3. Update Supabase
+    if (supabase && userId && currentVideo.videoViewId) {
+      // Add to user_known_vocab
+      const { error: insertError } = await supabase
+        .from("user_known_vocab")
+        .upsert(
+          { vocabulary_id: vocabId, user_id: userId },
+          { onConflict: "vocabulary_id,user_id" },
+        );
 
-      // 3. Update Supabase
-      if (supabase && userId && currentVideo.videoViewId) {
-        // Add to user_known_vocab
-        const { error: insertError } = await supabase
-          .from("user_known_vocab")
-          .upsert(
-            { vocabulary_id: vocabId, user_id: userId },
-            { onConflict: "vocabulary_id,user_id" },
-          );
-
-        if (insertError)
-          console.error("Error adding to known vocab:", insertError);
-      }
+      if (insertError)
+        console.error("Error adding to known vocab:", insertError);
     }
   };
 
