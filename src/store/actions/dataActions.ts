@@ -98,6 +98,11 @@ export const setFocusSentences = (sentences: FocusSentence[]): DataAction => ({
   payload: sentences,
 });
 
+export const addUserVideoView = (videoView: VideoView): DataAction => ({
+  type: "ADD_USER_VIDEO_VIEW",
+  payload: videoView,
+});
+
 export const addFocusSentence = (sentence: FocusSentence): DataAction => ({
   type: "ADD_FOCUS_SENTENCE",
   payload: sentence,

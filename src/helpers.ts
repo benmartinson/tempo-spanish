@@ -6,10 +6,6 @@ import {
   Vocabulary,
 } from "./types";
 
-export const canIgnoreVocab = (word: string) => {
-  return ignoreVocab.includes(word) || alreadyKnownVocab.includes(word);
-};
-
 export const formatTimestamp = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
@@ -17,22 +13,15 @@ export const formatTimestamp = (seconds: number): string => {
 };
 
 export const ignoreVocab = [
-  "Por",
-  "La",
-  "Los",
-  "Las",
-  "El",
-  "Un",
-  "Una",
-  "Unos",
-  "Unas",
-  "Los",
-  "Las",
-  "El",
-  "Un",
-  "Una",
-  "Unos",
-  "Unas",
+  "por",
+  "la",
+  "los",
+  "las",
+  "el",
+  "un",
+  "una",
+  "unos",
+  "unas",
   "familia",
   "de",
   "se",
@@ -46,16 +35,15 @@ export const ignoreVocab = [
   "del",
   "a",
   "no",
-];
-
-export const alreadyKnownVocab = [
-  "piso",
-  "bajo",
-  "otro",
-  "automóvil",
-  "nazi",
-  "hombre",
-  "respeto",
+  "les",
+  "le",
+  "lo",
+  "que",
+  "es",
+  "si",
+  "su",
+  "uno",
+  "o",
 ];
 
 export const capitalize = (word: string) => {
@@ -67,7 +55,7 @@ export const stripPunctuation = (word: string) => {
 };
 
 export const normalizeWord = (word: string) =>
-  capitalize(stripPunctuation(word.toLowerCase()));
+  capitalize(stripPunctuation(word.trim().toLowerCase()));
 
 export const randomlySelectVocabFromVocabulary = (
   vocab: Vocabulary[],
@@ -77,7 +65,6 @@ export const randomlySelectVocabFromVocabulary = (
   const normalizedAlready = new Set(alreadySelectedVocab.map(normalizeWord));
   const filtered = vocab.filter(
     (v) =>
-      !alreadyKnownVocab.includes(v.word.toLowerCase()) &&
       !ignoreVocab.some((i) => i.toLowerCase() === v.word.toLowerCase()) &&
       v.translation !== v.word &&
       !normalizedAlready.has(normalizeWord(v.word)),
@@ -155,6 +142,7 @@ export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
   const sentences: SegmentWord[][] = [];
   let currentSentenceWords: SegmentWord[] = [];
   for (const word of words) {
+    word.word = word.word.trim();
     currentSentenceWords.push(word);
     // Check if word ends with sentence-ending punctuation
     if (/[.!?]$/.test(word.word)) {
@@ -316,4 +304,32 @@ export const autoSelectVocabForVideo = (
     }
   }
   return selectedVocab;
+};
+
+export const createVocabHash = (
+  vocab: Vocabulary[],
+): Record<string, Vocabulary> => {
+  const vocabSortedByFrequency = vocab
+    .filter((v) => !ignoreVocab.includes(v.word.toLowerCase()))
+    .sort((a, b) => b.frequency - a.frequency);
+  const totalWords = vocabSortedByFrequency.length;
+
+  let index = 0;
+  return vocabSortedByFrequency.reduce(
+    (acc, v) => {
+      let percentile = Math.round((index / totalWords) * 100);
+      if (percentile === 0) {
+        percentile = 1;
+      }
+
+      if (index > 5500) {
+        console.log(v.word, percentile);
+      }
+      v.percentile = percentile;
+      acc[v.word] = v;
+      index++;
+      return acc;
+    },
+    {} as Record<string, Vocabulary>,
+  );
 };

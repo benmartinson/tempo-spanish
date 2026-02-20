@@ -143,54 +143,6 @@ Evaluate the user's understanding of the vocabulary word. Consider:
 Respond in Spanish with only the reasoning for your score, why or why not they got the answer correct. Keep it to 1 sentence.
 """
 
-ignoreVocab = [
-  "por",
-  "la",
-  "los",
-  "las",
-  "el",
-  "un",
-  "una",
-  "para",
-  "unos",
-  "unas",
-  "familia",
-  "de",
-  "se",
-  "y",
-  "en",
-  "con",
-  "quien",
-  "como",
-  "sin",
-  "al",
-  "del",
-  'da',
-  'dame',
-  "a",
-  'si',
-  'no',
-  'les',
-  'nos',
-  'me',
-  'te',
-  'lo',
-];
-
-alreadyKnownVocab: List[str] = [
-  "piso",
-  "bajo",
-  "otro",
-  "automóvil",
-  "nazi",
-  "hombre",
-  "respeto",
-];
-
-def canIgnoreVocab(word: str) -> bool:
-  return word in ignoreVocab or word in alreadyKnownVocab
-
-
 class ChatMessage(BaseModel):
     role: str  # "user" or "assistant"
     content: str

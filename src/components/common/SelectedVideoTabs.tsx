@@ -137,10 +137,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         newTime > currentSentence.end + 0.5)
     ) {
       isTransitioningRef.current = true;
-      // dispatch(setSentenceByTime(newTime));
-      if (force) {
-        dispatch(refreshVideoPlayerAction());
-      }
+      dispatch(setSentenceByTime(newTime));
+      dispatch(refreshVideoPlayerAction());
       setTime(newTime);
       setTimeout(() => {
         isTransitioningRef.current = false;

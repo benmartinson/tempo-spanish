@@ -39,6 +39,11 @@ const dataReducer = (
         ...state,
         userVideoViews: action.payload,
       };
+    case "ADD_USER_VIDEO_VIEW":
+      return {
+        ...state,
+        userVideoViews: [...state.userVideoViews, action.payload],
+      };
     case "SET_ALL_VIDEOS":
       return {
         ...state,

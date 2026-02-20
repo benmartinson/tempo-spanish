@@ -37,6 +37,7 @@ import { AccuracyResult } from "../../types";
 import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
 import {
+  capitalize,
   findSentenceWithVocab,
   normalizeWord,
   splitIntoSentences,
@@ -124,7 +125,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       return {
         ...accuracy,
         spokenSentence: spokenWords.join(" "),
-        targetSentence: currentSentenceObject?.text,
+        targetSentence: capitalize(currentSentenceObject?.text),
       };
     },
     [currentSentenceObject?.words],
@@ -197,6 +198,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
     loadExistingShadowResult();
+    setPreviousResults(null);
+    console.log({ currentSentenceIndex });
 
     return () => {
       if (recordingExtensionRef.current) {

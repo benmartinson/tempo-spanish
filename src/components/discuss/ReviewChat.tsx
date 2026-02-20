@@ -451,7 +451,12 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             </View>
           ) : contextSegments.length > 0 ? (
             <>
-              <Text style={styles.contextTitle}>Context Clips</Text>
+              <Text style={styles.contextTitle}>
+                Context Clips{" "}
+                <Text style={styles.contextTitleSubtext}>
+                  (ordered by relevance)
+                </Text>
+              </Text>
               <View style={styles.timestampRow}>
                 {contextSegments.map((segment, index) => (
                   <TouchableOpacity
@@ -703,6 +708,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingVertical: 8,
+  },
+  contextTitleSubtext: {
+    fontSize: 11,
+    fontWeight: "400",
+    color: "#666",
   },
   contextLoadingText: {
     fontSize: 14,

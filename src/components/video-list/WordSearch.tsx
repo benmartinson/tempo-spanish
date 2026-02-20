@@ -30,10 +30,13 @@ const WordSearch: React.FC = () => {
   return (
     <View style={styles.container}>
       <TextInput
-        placeholder="Find video with specific words or phrases..."
+        placeholder="Find video with specific word or phrase..."
         style={styles.input}
         value={currentSearchTerm}
         onChangeText={(text) => dispatch(setCurrentSearchTerm(text))}
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="off"
         onSubmitEditing={handleSearch}
       />
     </View>

@@ -16,6 +16,8 @@ import {
   setAllVocabulary,
   setUserKnownVocab,
   setUserVideoViews,
+  setAllVideos,
+  setAllChannels,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import {
@@ -26,7 +28,7 @@ import {
   Segment,
   UserUIState,
 } from "./src/types";
-import { splitSegmentsIntoSentences } from "./src/helpers";
+import { createVocabHash, splitSegmentsIntoSentences } from "./src/helpers";
 import { BACKEND_BASE_URL } from "./src/components/streaming_helpers";
 import { useUIStateSync } from "./src/components/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
@@ -155,6 +157,27 @@ const AuthenticatedApp: React.FC = () => {
   // Sync currentSentence changes to the database
   useUIStateSync();
 
+  const fetchAllVideos = async () => {
+    const { data: channelData, error: channelError } = await supabase
+      .from("channel")
+      .select("*");
+    if (channelError) console.error(channelError);
+    const { data: videoData, error: videoError } = await supabase
+      .from("video")
+      .select("*");
+    if (videoError) console.error(videoError);
+
+    return { channelData, videoData };
+  };
+
+  useEffect(() => {
+    if (!supabase) return;
+    fetchAllVideos().then(({ channelData, videoData }) => {
+      dispatch(setAllChannels(channelData));
+      dispatch(setAllVideos(videoData));
+    });
+  }, [supabase]);
+
   useEffect(() => {
     if (!supabase) return;
 
@@ -185,13 +208,7 @@ const AuthenticatedApp: React.FC = () => {
         }
       }
 
-      const vocabHash = allVocab.reduce(
-        (acc, v) => {
-          acc[v.word] = v;
-          return acc;
-        },
-        {} as Record<string, Vocabulary>,
-      );
+      const vocabHash = createVocabHash(allVocab);
       dispatch(setAllVocabulary(vocabHash));
     };
 

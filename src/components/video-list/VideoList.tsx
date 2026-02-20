@@ -9,16 +9,24 @@ import {
   Dimensions,
   TextInput,
 } from "react-native";
-import { RootState, VideoContext, Segment, Video } from "../../types";
+import {
+  RootState,
+  VideoContext,
+  Segment,
+  Video,
+  VideoView,
+} from "../../types";
 import { splitSegmentsIntoSentences } from "../../helpers";
 import { WATCH_CLIPS } from "../../data/question_clips";
 import {
+  addUserVideoView,
   setAllChannels,
   setAllVideos,
   setCurrentSearchResults,
   setCurrentSearchTerm,
   setCurrentTab,
   setCurrentVideo,
+  setUserVideoViews,
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
 import { BACKEND_BASE_URL } from "../streaming_helpers";
@@ -61,27 +69,6 @@ const VideoList: React.FC = () => {
   );
   const videoResultsArray = Object.values(videoResults);
 
-  useEffect(() => {
-    if (!supabase) return;
-    fetchAllVideos().then(({ channelData, videoData }) => {
-      dispatch(setAllChannels(channelData));
-      dispatch(setAllVideos(videoData));
-    });
-  }, [supabase]);
-
-  const fetchAllVideos = async () => {
-    const { data: channelData, error: channelError } = await supabase
-      .from("channel")
-      .select("*");
-    if (channelError) console.error(channelError);
-    const { data: videoData, error: videoError } = await supabase
-      .from("video")
-      .select("*");
-    if (videoError) console.error(videoError);
-
-    return { channelData, videoData };
-  };
-
   const handleWatchPress = async (
     videoId: string,
     recordId: string,
@@ -109,9 +96,11 @@ const VideoList: React.FC = () => {
           ignoreDuplicates: false,
         },
       )
-      .select("id, last_sentence_watched");
+      .select("id, last_sentence_watched, video_id, watched_at");
 
     if (videoViewError) console.error(videoViewError);
+
+    dispatch(addUserVideoView(videoViewData?.[0] as VideoView));
 
     const videoViewId = videoViewData?.[0]?.id ?? "";
     const restoredSentence = videoViewData?.[0]?.last_sentence_watched ?? 0;

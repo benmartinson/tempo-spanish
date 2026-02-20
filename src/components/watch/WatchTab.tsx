@@ -16,7 +16,6 @@ import VocabReview from "./VocabReview";
 import {
   randomlySelectVocabFromVocabulary,
   normalizeWord,
-  alreadyKnownVocab,
   ignoreVocab,
   autoSelectVocabForVideo,
 } from "../../helpers";
@@ -156,7 +155,6 @@ const WatchTab: React.FC<WatchTabProps> = ({
         (v) =>
           !currentWords.has(normalizeWord(v.word)) &&
           !normalizedExcluded.has(normalizeWord(v.word)) &&
-          !alreadyKnownVocab.includes(v.word.toLowerCase()) &&
           !ignoreVocab.some((i) => i.toLowerCase() === v.word.toLowerCase()) &&
           v.translation !== v.word,
       );

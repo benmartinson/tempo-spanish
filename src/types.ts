@@ -31,7 +31,8 @@ export type DataActionTypes =
   | "SET_FOCUS_SENTENCES"
   | "ADD_FOCUS_SENTENCE"
   | "SET_CURRENT_SEARCH_TERM"
-  | "SET_CURRENT_SEARCH_RESULTS";
+  | "SET_CURRENT_SEARCH_RESULTS"
+  | "ADD_USER_VIDEO_VIEW";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -48,6 +49,7 @@ export interface Vocabulary {
   word: string;
   translation: string;
   frequency: number;
+  percentile: number;
 }
 
 export interface FocusSentence {
