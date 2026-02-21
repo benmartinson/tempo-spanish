@@ -217,8 +217,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            question: currentQuestion.question,
-            answer: currentQuestion.answer,
+            search_query:
+              currentQuestion.question + "... " + currentQuestion.answer,
             video_id: videoId,
           }),
         });

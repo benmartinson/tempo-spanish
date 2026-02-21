@@ -178,6 +178,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         newTime > currentSentence.end + 0.5)
     ) {
       isTransitioningRef.current = true;
+      console.log("transitioning to new time", newTime);
       dispatch(setSentenceByTime(newTime));
       dispatch(refreshVideoPlayerAction());
       setTime(newTime);
@@ -252,6 +253,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const playWordSnippet = useCallback(
     (word: SegmentWord) => {
       setAutoplay(true);
+      handleTransition();
+      setTime(word.start);
       console.log("playing word snippet", word.start, word.end);
       currentWordSnippetRef.current = { start: word.start, end: word.end };
       refreshPlayer();
@@ -385,13 +388,15 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         />
       </View>
 
-      <View style={getTabStyle(selectedNavTab === "review")}>
-        <DiscussTab
-          onPlayClip={handlePlayClip}
-          isKeyboardVisible={isKeyboardVisible}
-          setShowVideo={setShowVideo}
-        />
-      </View>
+      {selectedNavTab === "review" && (
+        <View style={getTabStyle(selectedNavTab === "review")}>
+          <DiscussTab
+            onPlayClip={handlePlayClip}
+            isKeyboardVisible={isKeyboardVisible}
+            setShowVideo={setShowVideo}
+          />
+        </View>
+      )}
     </View>
   );
 };

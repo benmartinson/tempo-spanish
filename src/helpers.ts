@@ -344,6 +344,7 @@ export const areWordsSimilar = (word1: string, word2: string) => {
     if (i >= word2.length) diffCount++;
     else if (word1[i] !== word2[i]) diffCount++;
   }
+  diffCount += word2.length - word1.length;
   return diffCount <= 2;
 };
 

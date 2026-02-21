@@ -14,7 +14,8 @@ import { supabase } from "../../lib/supabase";
 const config = Constants.expoConfig?.extra;
 
 export const BACKEND_BASE_URL = __DEV__
-  ? config?.productionBaseUrl
+  ? // ? config?.productionBaseUrl
+    config?.devBaseUrl
   : config?.productionBaseUrl;
 export const BACKEND_WS_URL = __DEV__
   ? config?.productionWsUrl

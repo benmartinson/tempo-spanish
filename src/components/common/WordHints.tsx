@@ -20,7 +20,7 @@ const WordHints: React.FC<WordHintsProps> = ({
   const [currentUnknownWordIndex, setCurrentUnknownWordIndex] =
     useState<number>(0);
   const currentUnknownWord = unknownWords[currentUnknownWordIndex];
-  const [isShowingWordHints, setIsShowingWordHints] = useState<boolean>(true);
+  const [isShowingWordHints, setIsShowingWordHints] = useState<boolean>(false);
 
   const handleWordHintChange = (direction: number) => {
     if (unknownWords.length === 0) return;

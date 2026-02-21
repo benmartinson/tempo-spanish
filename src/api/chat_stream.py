@@ -756,7 +756,7 @@ async def review_context(request: ReviewContextRequest):
 
     try:
         # Combine question + answer into a search query
-        search_text = f"{request.question} {request.answer}"
+        search_text = f"{request.search_query}"
 
         # Generate embedding using OpenAI
         # Using text-embedding-3-small to match the model used during ingestion
