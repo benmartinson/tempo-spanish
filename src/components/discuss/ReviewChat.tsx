@@ -38,7 +38,7 @@ interface ReviewChatProps {
   videoId: string;
   onNextQuestion: () => void;
   onPrevQuestion: () => void;
-  onPlayClip: (segment: ContextSegment) => void;
+  onPlayClip: (start: number) => void;
   isKeyboardVisible: boolean;
   selectedQuizType: QuizType;
   onSelectQuizType: (type: QuizType) => void;
@@ -406,6 +406,10 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         onNext={isVocabMode ? handleVocabNext : onNextQuestion}
         currentIndex={previousVocabIndexes.length}
         totalItems={totalItems}
+        sentences={sentences}
+        onPlayClip={onPlayClip}
+        videoId={videoId}
+        hasSearch={false}
       >
         <ReviewTypeSelector
           selectedQuizType={selectedQuizType}

@@ -65,6 +65,7 @@ interface ShadowTabProps {
   playWordSnippet: (word: SegmentWord) => void;
   isPlayingWordSnippet: boolean;
   unknownWords: SegmentWord[];
+  onPlayClip?: (time: number) => void;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -80,6 +81,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isKeyboardVisible,
   isPlayingWordSnippet,
   unknownWords,
+  onPlayClip,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
@@ -210,6 +212,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsPlayingRecording(false);
     loadExistingShadowResult();
     setPreviousResults(null);
+    setAccuracyResult(null);
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -528,6 +531,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           onNext={handleShadowNextSentence}
           currentIndex={currentSentenceIndex}
           totalItems={currentVideo.sentences.length}
+          sentences={currentVideo.sentences}
+          onPlayClip={onPlayClip}
+          videoId={currentVideo.videoId}
         >
           <Text>
             Sentence {currentSentenceIndex + 1} of{" "}

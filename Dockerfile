@@ -14,4 +14,5 @@ COPY src/api/ ./
 EXPOSE 8000
 
 # Command to run the application
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "chat_stream:app", "--bind", "0.0.0.0:8000", "--workers", "2"]
+# CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "chat_stream:app", "--bind", "0.0.0.0:8000", "--workers", "2"]
+CMD ["uvicorn", "chat_stream:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

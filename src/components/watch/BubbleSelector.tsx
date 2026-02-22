@@ -1,53 +1,64 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
-interface BubbleSelectorProps {
-  selectedBubble: string;
-  setSelectedBubble: (selectedBubble: string) => void;
+interface BubbleOption {
+  key: string;
+  label: string;
 }
+
+interface BubbleSelectorProps {
+  selectedBubble?: string;
+  setSelectedBubble?: (selectedBubble: string) => void;
+  options?: BubbleOption[];
+  selectedKey?: string;
+  onSelect?: (key: string) => void;
+  allowDeselect?: boolean;
+}
+
+const DEFAULT_OPTIONS: BubbleOption[] = [
+  { key: "large", label: "Spanish" },
+  { key: "translation", label: "English" },
+];
 
 const BubbleSelector: React.FC<BubbleSelectorProps> = ({
   selectedBubble,
   setSelectedBubble,
+  options,
+  selectedKey,
+  onSelect,
+  allowDeselect = true,
 }) => {
+  const activeOptions = options || DEFAULT_OPTIONS;
+  const activeSelected = selectedKey ?? selectedBubble ?? "";
+  const activeOnSelect = onSelect || setSelectedBubble;
+
   const handleBubbleSelection = (selection: string) => {
-    if (selection === selectedBubble) {
-      setSelectedBubble("");
+    if (!activeOnSelect) return;
+    if (allowDeselect && selection === activeSelected) {
+      activeOnSelect("");
       return;
     }
-    setSelectedBubble(selection);
+    activeOnSelect(selection);
   };
+
+  const buttonWidth = `${100 / activeOptions.length}%` as const;
+
   return (
     <View style={styles.outerContainer}>
       <View style={styles.container}>
-        {/* <TouchableOpacity
-          style={[
-            styles.button,
-            selectedBubble === "small" && styles.selectedButton,
-            { borderRightWidth: 1 },
-          ]}
-          onPress={() => handleBubbleSelection("small")}
-        >
-          <Text style={styles.buttonText}>Small</Text>
-        </TouchableOpacity> */}
-        <TouchableOpacity
-          style={[
-            styles.button,
-            selectedBubble === "large" && styles.selectedButton,
-            { borderRightWidth: 1 },
-          ]}
-          onPress={() => handleBubbleSelection("large")}
-        >
-          <Text style={styles.buttonText}>Spanish</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.button,
-            selectedBubble === "translation" && styles.selectedButton,
-          ]}
-          onPress={() => handleBubbleSelection("translation")}
-        >
-          <Text style={styles.buttonText}>English</Text>
-        </TouchableOpacity>
+        {activeOptions.map((option, index) => (
+          <TouchableOpacity
+            key={option.key}
+            style={[
+              styles.button,
+              { width: buttonWidth },
+              activeSelected === option.key && styles.selectedButton,
+              index < activeOptions.length - 1 && { borderRightWidth: 1 },
+            ]}
+            onPress={() => handleBubbleSelection(option.key)}
+          >
+            <Text style={styles.buttonText}>{option.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );
@@ -65,7 +76,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: "white",
     borderRadius: 12,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "black",
     overflow: "hidden",
     width: "100%",

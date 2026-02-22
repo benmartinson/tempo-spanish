@@ -9,27 +9,29 @@ import {
 } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
 
-const SlideModal: React.FC<{ visible: boolean, onRequestClose: () => void, children: React.ReactNode, title: string }> = ({ visible, onRequestClose, children, title }) => {
+const SlideModal: React.FC<{
+  visible: boolean;
+  onRequestClose: () => void;
+  children: React.ReactNode;
+  title: string;
+}> = ({ visible, onRequestClose, children, title }) => {
   return (
     <Modal
-        visible={visible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={onRequestClose}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={onRequestClose}
-            >
-              <Entypo name="cross" size={28} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <View style={styles.closeButton} />
-          </View>
-          {children}
-        </SafeAreaView>
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onRequestClose}
+    >
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity style={styles.closeButton} onPress={onRequestClose}>
+            <Entypo name="cross" size={28} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <View style={styles.closeButton} />
+        </View>
+        {children}
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -37,7 +39,7 @@ const SlideModal: React.FC<{ visible: boolean, onRequestClose: () => void, child
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "white",
   },
   modalHeader: {
     flexDirection: "row",
@@ -57,7 +59,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#fff",
+    color: "black",
   },
 });
 

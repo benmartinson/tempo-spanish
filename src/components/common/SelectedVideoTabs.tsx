@@ -156,7 +156,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, [selectedNavTab]);
 
   useEffect(() => {
-    if (isKeyboardVisible) {
+    if (isKeyboardVisible && selectedNavTab === "review") {
       setShowVideo(false);
     }
   }, [isKeyboardVisible]);
@@ -385,6 +385,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           playWordSnippet={playWordSnippet}
           isPlayingWordSnippet={!!currentWordSnippetRef.current}
           unknownWords={unknownWords}
+          onPlayClip={handlePlayClip}
         />
       </View>
 

@@ -114,7 +114,7 @@ const dataReducer = (
       if (!state.currentVideo) return state;
       let sentenceIndex = state.currentVideo.sentences.findIndex(
         (sentence) =>
-          action.payload >= sentence.start && action.payload <= sentence.end,
+          action.payload >= sentence.start && action.payload < sentence.end,
       );
 
       if (sentenceIndex === -1 && action.payload < 5) {

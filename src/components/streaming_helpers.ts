@@ -18,7 +18,7 @@ export const BACKEND_BASE_URL = __DEV__
     config?.devBaseUrl
   : config?.productionBaseUrl;
 export const BACKEND_WS_URL = __DEV__
-  ? config?.productionWsUrl
+  ? config?.devWsUrl
   : config?.productionWsUrl;
 
 // Debug: uncomment to verify which URLs are being used

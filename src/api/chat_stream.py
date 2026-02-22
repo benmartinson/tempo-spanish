@@ -188,9 +188,9 @@ class AutocorrectRequest(BaseModel):
 
 
 class ReviewContextRequest(BaseModel):
-    question: str
-    answer: str
+    search_query: str
     video_id: str  # YouTube video_id for Pinecone metadata filter
+    min_score: float = 0.55
 
 
 class EvaluateReviewAnswerRequest(BaseModel):
@@ -784,7 +784,7 @@ async def review_context(request: ReviewContextRequest):
                   f"start={metadata.get('start')}, score={match.score:.4f}, "
                   f"text={metadata.get('raw_text', '')[:80]}...")
             
-            if match.score < 0.55:
+            if match.score < request.min_score:
                 continue
             segments.append({
                 "segment_id": int(metadata.get("segment_id", 0)),
