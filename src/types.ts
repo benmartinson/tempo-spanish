@@ -32,7 +32,8 @@ export type DataActionTypes =
   | "ADD_FOCUS_SENTENCE"
   | "SET_CURRENT_SEARCH_TERM"
   | "SET_CURRENT_SEARCH_RESULTS"
-  | "ADD_USER_VIDEO_VIEW";
+  | "ADD_USER_VIDEO_VIEW"
+  | "ADD_USER_SELECTED_VOCAB";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -67,7 +68,7 @@ export interface VideoContext {
   sentences: Sentence[];
   allWords: SegmentWord[];
   videoViewId: string;
-  focusVocab: SegmentWord[];
+  focusVocab: number[];
   focusSentences: FocusSentence[];
 }
 

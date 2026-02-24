@@ -1,11 +1,17 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { RootState, SegmentWord } from "../../types";
-import { capitalize, normalizeWord, stripPunctuation } from "../../helpers";
+import {
+  capitalize,
+  normalizeWord,
+  stripPunctuation,
+  vocabFormatWord,
+} from "../../helpers";
 import Entypo from "@expo/vector-icons/Entypo";
 import { useDispatch, useSelector } from "react-redux";
 import {
   addUserKnownVocab,
+  addUserSelectedVocab,
   setFocusVocab,
 } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
@@ -23,13 +29,18 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   playSnippet,
   isPlayingWordSnippet,
 }) => {
+  console.log({ word });
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
+  const vocabWord = allVocabulary[vocabFormatWord(word.word)];
+  const isFocused = useMemo(
+    () => currentVideo?.focusVocab.find((v) => v === vocabWord.id),
+    [currentVideo, word],
+  );
+
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
-  const vocabulary =
-    allVocabulary[stripPunctuation(word.word.toLowerCase()).trim()];
 
   const handleMarkKnown = async (word: SegmentWord) => {
     if (!currentVideo) return;
@@ -54,6 +65,39 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
     }
   };
 
+  const handleSelectForReview = async (word: SegmentWord) => {
+    if (!currentVideo) return;
+
+    const normalizedWord = normalizeWord(word.word);
+    const vocabId = Object.values(allVocabulary).find(
+      (v) => normalizeWord(v.word) === normalizedWord,
+    )?.id;
+    console.log("vocabId", vocabId);
+    console.log({
+      hasSupabase: !!supabase,
+      hasUserId: !!userId,
+      hasVideoViewId: !!currentVideo.videoViewId,
+    });
+
+    // 3. Update Supabase
+    if (supabase && userId && currentVideo.videoViewId) {
+      // Add to user_selected_vocab
+      const { data, error: insertError } = await supabase
+        .from("video_view_focus_vocab")
+        .upsert(
+          { video_view_id: currentVideo.videoViewId, vocabulary_id: vocabId },
+          { onConflict: "video_view_id,vocabulary_id" },
+        );
+
+      if (insertError)
+        console.error("Error adding to selected vocab:", insertError);
+
+      if (data) {
+        dispatch(addUserSelectedVocab([vocabId]));
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.card}>
@@ -61,7 +105,6 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
           <TouchableOpacity
             onPress={() => playSnippet(word)}
             style={styles.wordContainer}
-            disabled={isPlayingWordSnippet}
           >
             <View style={styles.hiddenPlayButton}>
               <MaterialIcons name="play-arrow" size={20} color="black" />
@@ -73,7 +116,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
           </TouchableOpacity>
 
           <Text style={styles.translation}>
-            {capitalize(vocabulary.translation)}
+            {capitalize(vocabWord.translation)}
           </Text>
         </View>
         <View style={styles.buttonsContainer}>
@@ -86,11 +129,23 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.reviewButton}
-            onPress={() => handleMarkKnown(word)}
+            style={
+              !isFocused
+                ? styles.reviewButton
+                : [styles.reviewButton, styles.selectedReviewButton]
+            }
+            onPress={() => handleSelectForReview(word)}
           >
-            <Text style={styles.reviewButtonText}>Select for Review</Text>
-            <Entypo name="pencil" size={16} color="#5a5680" />
+            <Text
+              style={
+                isFocused
+                  ? [styles.reviewButtonText, styles.selectedReviewButtonText]
+                  : styles.reviewButtonText
+              }
+            >
+              {isFocused ? "Selected for Review" : "Select for Review"}
+            </Text>
+            {!isFocused && <Entypo name="pencil" size={16} color="#5a5680" />}
           </TouchableOpacity>
         </View>
       </View>
@@ -178,6 +233,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     flex: 1,
   },
+  selectedReviewButton: {
+    borderColor: "green",
+  },
   knownButtonText: {
     color: "#5a5680",
     fontSize: 14,
@@ -187,6 +245,9 @@ const styles = StyleSheet.create({
     color: "#5a5680",
     fontSize: 14,
     fontWeight: "600",
+  },
+  selectedReviewButtonText: {
+    color: "green",
   },
 });
 

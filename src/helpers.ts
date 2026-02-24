@@ -261,6 +261,10 @@ export const findSentenceWithVocab = (
   return null;
 };
 
+export const vocabFormatWord = (word: string) => {
+  return stripPunctuation(word.toLowerCase()).trim();
+};
+
 export const autoSelectVocabForVideo = (
   allWords: SegmentWord[],
   allVocabulary: Record<string, Vocabulary>,
@@ -273,7 +277,7 @@ export const autoSelectVocabForVideo = (
   for (const sentence of allSentences) {
     const lowestFrequencyWord = sentence
       .filter((w) => {
-        const normalizedWord = stripPunctuation(w.word.toLowerCase()).trim();
+        const normalizedWord = vocabFormatWord(w.word);
         const vocabulary = allVocabulary[normalizedWord];
         if (!vocabulary) return false;
         const normalizedTranslation = stripPunctuation(
@@ -344,7 +348,7 @@ export const areWordsSimilar = (word1: string, word2: string) => {
     if (i >= word2.length) diffCount++;
     else if (word1[i] !== word2[i]) diffCount++;
   }
-  diffCount += word2.length - word1.length;
+  diffCount += Math.abs(word2.length - word1.length);
   return diffCount <= 2;
 };
 
@@ -354,9 +358,6 @@ export const isInterestingVocab = (vocab: Vocabulary) => {
     vocab.translation.toLowerCase(),
   );
 
-  if (normalizedTranslation === "history") {
-    console.log(areWordsSimilar(normalizedWord, normalizedTranslation));
-  }
   return (
     vocab.word.length > 3 &&
     !areWordsSimilar(normalizedWord, normalizedTranslation) &&

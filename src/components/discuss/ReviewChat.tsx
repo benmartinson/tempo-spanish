@@ -29,7 +29,12 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import NavSwitcher from "../common/NavSwitcher";
 import ReviewTypeSelector from "./ReviewTypeSelector";
 import { useSelector } from "react-redux";
-import { stripPunctuation, formatTimestamp } from "../../helpers";
+import {
+  stripPunctuation,
+  formatTimestamp,
+  vocabFormatWord,
+  normalizeWord,
+} from "../../helpers";
 
 interface ReviewChatProps {
   questions: VideoQuestion[];
@@ -38,11 +43,10 @@ interface ReviewChatProps {
   videoId: string;
   onNextQuestion: () => void;
   onPrevQuestion: () => void;
-  onPlayClip: (start: number) => void;
+  onPlayClip: (start: ContextSegment) => void;
   isKeyboardVisible: boolean;
   selectedQuizType: QuizType;
   onSelectQuizType: (type: QuizType) => void;
-  focusVocab: SegmentWord[];
   sentences: Sentence[];
 }
 
@@ -75,10 +79,10 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   isKeyboardVisible,
   selectedQuizType,
   onSelectQuizType,
-  focusVocab,
   sentences,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const focusVocab = currentVideo?.focusVocab;
   const [contextSegments, setContextSegments] = useState<ContextSegment[]>([]);
   const [contextLoading, setContextLoading] = useState(false);
   const [userAnswer, setUserAnswer] = useState("");
@@ -104,14 +108,31 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 
   // Generate vocab data from focusVocab (without question text for "Vocab in Context")
   const vocabItems = useMemo(() => {
-    if (!focusVocab || focusVocab.length === 0) return [];
+    if (
+      !allVocabulary ||
+      !Object.keys(allVocabulary).length ||
+      !focusVocab ||
+      focusVocab.length === 0
+    )
+      return [];
 
     return focusVocab.map((vocab) => {
       // Find sentences that contain this vocab word
+      const vocabularyWord = Object.values(allVocabulary).find(
+        (v) => v.id === vocab,
+      );
+
+      if (!vocabularyWord) {
+        console.error(`Vocabulary not found for word id: ${vocab}`);
+        return null;
+      }
+
       let matchingSentence: ContextSegment = null;
       currentVideo?.sentences.forEach((sentence, sentIndex) => {
         const sentenceText = sentence.text.toLowerCase();
-        if (sentenceText.includes(vocab.word.toLowerCase())) {
+        if (
+          sentenceText.toLowerCase().includes(vocabularyWord.word.toLowerCase())
+        ) {
           matchingSentence = {
             segment_id: sentIndex,
             start: sentence.start,
@@ -121,19 +142,13 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           };
         }
       });
-      const vocabulary =
-        allVocabulary[stripPunctuation(vocab.word.toLowerCase()).trim()];
-      if (!vocabulary) {
-        console.error(`Vocabulary not found for word: ${vocab.word}`);
-        return null;
-      }
       return {
-        word: vocab.word,
-        translation: vocabulary.translation,
+        word: vocabularyWord.word,
+        translation: vocabularyWord.translation,
         contextSegments: [matchingSentence],
       };
     });
-  }, [focusVocab, currentVideo?.sentences]);
+  }, [focusVocab, currentVideo?.sentences, allVocabulary]);
 
   const currentVocabItem =
     vocabQuestionIndex && vocabItems.length > 0
@@ -407,7 +422,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         currentIndex={previousVocabIndexes.length}
         totalItems={totalItems}
         sentences={sentences}
-        onPlayClip={onPlayClip}
         videoId={videoId}
         hasSearch={false}
       >
@@ -424,7 +438,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         )}
         {selectedQuizType === "Vocab" && currentVocabItem?.word && (
           <View style={styles.vocabBadge}>
-            <Text style={styles.vocabBadgeText}>{currentVocabItem.word}</Text>
+            <Text style={styles.vocabBadgeText}>
+              {normalizeWord(currentVocabItem.word)}
+            </Text>
           </View>
         )}
       </NavSwitcher>

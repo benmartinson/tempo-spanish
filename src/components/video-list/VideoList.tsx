@@ -26,6 +26,7 @@ import {
   setCurrentSearchTerm,
   setCurrentTab,
   setCurrentVideo,
+  setFocusVocab,
   setUserVideoViews,
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
@@ -101,8 +102,16 @@ const VideoList: React.FC = () => {
     if (videoViewError) console.error(videoViewError);
 
     dispatch(addUserVideoView(videoViewData?.[0] as VideoView));
-
     const videoViewId = videoViewData?.[0]?.id ?? "";
+
+    const { data: focusVocabData, error: focusVocabError } = await supabase
+      .from("video_view_focus_vocab")
+      .select("*")
+      .eq("video_view_id", videoViewId);
+
+    if (focusVocabError) console.error(focusVocabError);
+    const focusVocab = focusVocabData?.map((v) => v.vocabulary_id);
+
     const restoredSentence = videoViewData?.[0]?.last_sentence_watched ?? 0;
     const sentences = splitSegmentsIntoSentences(transcriptSegments);
 
@@ -124,7 +133,7 @@ const VideoList: React.FC = () => {
       sentences,
       allWords: transcriptSegments.flatMap((s: Segment) => s.words),
       videoViewId: String(videoViewId),
-      focusVocab: [],
+      focusVocab: focusVocab ?? [],
       focusSentences: [],
     };
     dispatch(setCurrentVideo(video));

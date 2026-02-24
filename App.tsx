@@ -303,6 +303,15 @@ const AuthenticatedApp: React.FC = () => {
           if (videoViewError) console.error(videoViewError);
           const videoViewId = videoViewData?.[0]?.id ?? "";
 
+          const { data: focusVocabData, error: focusVocabError } =
+            await supabase
+              .from("video_view_focus_vocab")
+              .select("*")
+              .eq("video_view_id", videoViewId);
+
+          if (focusVocabError) console.error(focusVocabError);
+          const focusVocab = focusVocabData?.map((v) => v.vocabulary_id);
+
           const sentences = splitSegmentsIntoSentences(segments);
           const video: VideoContext = {
             videoId: videoRecord.video_id,
@@ -311,7 +320,7 @@ const AuthenticatedApp: React.FC = () => {
             sentences,
             allWords: segments.flatMap((s: Segment) => s.words),
             videoViewId: String(videoViewId),
-            focusVocab: [],
+            focusVocab: focusVocab ?? [],
             focusSentences: [],
           };
 

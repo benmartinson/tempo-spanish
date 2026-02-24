@@ -31,7 +31,9 @@ import {
   isInterestingVocab,
   normalizeWord,
   stripPunctuation,
+  vocabFormatWord,
 } from "../../helpers";
+import SlideModal from "./Modal";
 
 interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";
@@ -78,6 +80,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, []);
 
   const [time, setTime] = useState<number>(0);
+  const [isConfirmingStartOver, setIsConfirmingStartOver] =
+    useState<boolean>(false);
   const currentSentence = currentVideo
     ? currentVideo.sentences[currentVideo.currentSentence]
     : null;
@@ -163,9 +167,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   const handleSetTime = (newTime: number, force = false) => {
     if (isTransitioningRef.current && !force) return;
-    if (force) {
-      console.log("force set time", newTime);
-    }
+
     const prevTime = prevTimeRef.current;
     prevTimeRef.current = newTime;
 
@@ -177,6 +179,17 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       (newTime < currentSentence.start - 0.5 ||
         newTime > currentSentence.end + 0.5)
     ) {
+      if (
+        selectedNavTab === "shadow" &&
+        newTime === 0 &&
+        !isConfirmingStartOver &&
+        currentSentence.index > 0
+      ) {
+        pausePlayer();
+        setIsConfirmingStartOver(true);
+        return;
+      }
+      setIsConfirmingStartOver(false);
       isTransitioningRef.current = true;
       console.log("transitioning to new time", newTime);
       dispatch(setSentenceByTime(newTime));
@@ -284,6 +297,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   const startTimeForPlayer = selectedNavTab === "watch" ? undefined : time;
 
+  const pausePlayer = useCallback(() => {
+    playerRef.current?.pause();
+  }, [playerRef]);
+
+  const playPlayer = useCallback(() => {
+    playerRef.current?.play();
+  }, [playerRef]);
+
   const currentVideoText = useMemo(() => {
     if (selectedNavTab !== "watch") return "";
     const topUnknownWord = unknownWords?.length ? unknownWords[0] : null;
@@ -293,10 +314,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       time >= topUnknownWord.start - 1 && time <= topUnknownWord.start + 3;
     let vocabulary = null;
     if (match) {
-      vocabulary =
-        allVocabulary[
-          stripPunctuation(topUnknownWord.word.toLowerCase()).trim()
-        ];
+      vocabulary = allVocabulary[vocabFormatWord(topUnknownWord.word)];
       return `${capitalize(topUnknownWord.word)} => ${capitalize(vocabulary.translation)}`;
     }
 
@@ -381,7 +399,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           isActive={selectedNavTab === "shadow"}
           setPlayerMuted={setPlayerMuted}
           setPlayerSpeed={setPlayerSpeed}
-          pausePlayer={() => playerRef.current?.pause()}
+          pausePlayer={pausePlayer}
           playWordSnippet={playWordSnippet}
           isPlayingWordSnippet={!!currentWordSnippetRef.current}
           unknownWords={unknownWords}
@@ -398,6 +416,35 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           />
         </View>
       )}
+
+      {isConfirmingStartOver && (
+        <SlideModal
+          visible={isConfirmingStartOver}
+          onRequestClose={() => setIsConfirmingStartOver(false)}
+          title="Confirm Restart"
+        >
+          <Text style={styles.confirmStartOverText}>
+            Do you want to start over from the beginning of the video?
+          </Text>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.yesButton}
+              onPress={() => {
+                setIsConfirmingStartOver(false);
+                playPlayer();
+              }}
+            >
+              <Text style={styles.yesButtonText}>Yes, Start Over</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.noButton}
+              onPress={() => setIsConfirmingStartOver(false)}
+            >
+              <Text style={styles.noButtonText}>No, Stay Here</Text>
+            </TouchableOpacity>
+          </View>
+        </SlideModal>
+      )}
     </View>
   );
 };
@@ -406,6 +453,43 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  yesButton: {
+    backgroundColor: "#f0f0f0",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#4a69bd",
+  },
+  noButton: {
+    backgroundColor: "#4a69bd",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  yesButtonText: {
+    color: "#4a69bd",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  noButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  confirmStartOverText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "black",
+    textAlign: "center",
+    margin: 12,
   },
   videoContainer: {
     height: 230,

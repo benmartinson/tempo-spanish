@@ -126,11 +126,9 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
         onNextQuestion={handleNextQuestion}
         onPrevQuestion={handlePrevQuestion}
         onPlayClip={handlePlayClip}
-        onSelectTime={onPlayClip}
         isKeyboardVisible={isKeyboardVisible}
         selectedQuizType={selectedQuizType}
         onSelectQuizType={setSelectedQuizType}
-        focusVocab={currentVideo.focusVocab}
         sentences={currentVideo.sentences}
       />
     </View>

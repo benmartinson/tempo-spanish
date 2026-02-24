@@ -9,7 +9,12 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { SegmentWord, Vocabulary } from "../../types";
-import { capitalize, normalizeWord, stripPunctuation } from "../../helpers";
+import {
+  capitalize,
+  normalizeWord,
+  stripPunctuation,
+  vocabFormatWord,
+} from "../../helpers";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../types";
 import {
@@ -50,7 +55,7 @@ const VocabReview: React.FC<VocabReviewProps> = ({
     const found = allWords.find(
       (w) => stripPunctuation(w.word.toLowerCase()) === normalizedWord,
     );
-    const vocabulary = allVocabulary[found?.word.trim()];
+    const vocabulary = allVocabulary[vocabFormatWord(found?.word.trim())];
     return capitalize(stripPunctuation(vocabulary.translation)) || "—";
   };
 

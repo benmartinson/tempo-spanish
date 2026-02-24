@@ -11,7 +11,7 @@ import { RootState, SegmentWord } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import TooltipModal from "../common/TooltipModal";
 import { useSelector } from "react-redux";
-import { stripPunctuation } from "../../helpers";
+import { stripPunctuation, vocabFormatWord } from "../../helpers";
 
 interface FullSegmentTranscriptBubbleProps {
   words?: SegmentWord[];
@@ -47,7 +47,7 @@ const FullSegmentTranscriptBubble: React.FC<
 
   const handleLongPress = useCallback((word: SegmentWord) => {
     const vocabulary = word.word
-      ? allVocabulary[stripPunctuation(word.word.toLowerCase()).trim()]
+      ? allVocabulary[vocabFormatWord(word.word)]
       : null;
     if (vocabulary) {
       // Strip punctuation for display in tooltip

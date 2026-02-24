@@ -449,17 +449,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     parentHandlePreviousSentence();
   };
 
-  const handlePlaySnippetAgain = () => {
+  const handlePlaySnippetAgain = (word: SegmentWord) => {
     setPlayerMuted(false);
     setJustRecorded();
     setPlayerSpeed(playbackSpeed);
     setIsRecordingMode(false);
     handleResetState();
-    playSentence();
-  };
-
-  const handlePlayWordSnippet = (word: SegmentWord) => {
-    playWordSnippet(word);
+    if (word) {
+      playWordSnippet(word);
+    } else {
+      playSentence();
+    }
   };
 
   const handlePlayUserRecording = useCallback(async () => {
@@ -610,7 +610,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 <View style={styles.playSegmentButton}>
                   <TouchableOpacity
                     style={styles.playSegmentButtonInner}
-                    onPress={handlePlaySnippetAgain}
+                    onPress={() => handlePlaySnippetAgain(null)}
                   >
                     <Text style={styles.playSegmentButtonText}>
                       {hasPlayedSentence ? "Play Sentence" : "Replay"}
@@ -676,7 +676,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               {!accuracyResult && unknownWords.length > 0 && (
                 <WordHints
                   unknownWords={unknownWords}
-                  handlePlayWordSnippet={handlePlayWordSnippet}
+                  handlePlayWordSnippet={(word) => handlePlaySnippetAgain(word)}
                   isPlayingWordSnippet={isPlayingWordSnippet}
                 />
               )}

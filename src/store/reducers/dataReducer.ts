@@ -76,6 +76,15 @@ const dataReducer = (
           focusVocab: action.payload,
         },
       };
+
+    case "ADD_USER_SELECTED_VOCAB":
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          focusVocab: [...state.currentVideo.focusVocab, ...action.payload],
+        },
+      };
     case "SET_FOCUS_SENTENCES":
       if (!state.currentVideo) return state;
       return {
