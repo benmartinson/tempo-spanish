@@ -21,6 +21,9 @@ import {
   VocabQuestion,
   EvaluationScore,
   Evaluation,
+  Vocabulary,
+  VocabEvaluation,
+  VocabEvaluationScore,
 } from "../../types";
 import { BACKEND_BASE_URL } from "../streaming_helpers";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -34,6 +37,7 @@ import {
   formatTimestamp,
   vocabFormatWord,
   normalizeWord,
+  isInterestingVocab,
 } from "../../helpers";
 
 interface ReviewChatProps {
@@ -68,6 +72,21 @@ const SCORE_LABELS: Record<EvaluationScore, string> = {
   incorrect: "Incorrect",
 };
 
+const VOCAB_SCORE_COLORS: Record<VocabEvaluationScore, string> = {
+  correct: "#2d8a4e",
+  incorrect: "#c0392b",
+};
+
+const VOCAB_SCORE_BG_COLORS: Record<VocabEvaluationScore, string> = {
+  correct: "#e8f5e9",
+  incorrect: "#ffebee",
+};
+
+const VOCAB_SCORE_LABELS: Record<VocabEvaluationScore, string> = {
+  correct: "Correct",
+  incorrect: "Incorrect",
+};
+
 const ReviewChat: React.FC<ReviewChatProps> = ({
   questions,
   currentQuestionIndex,
@@ -87,6 +106,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const [contextLoading, setContextLoading] = useState(false);
   const [userAnswer, setUserAnswer] = useState("");
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
+  const [vocabEvaluation, setVocabEvaluation] =
+    useState<VocabEvaluation | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [answered, setAnswered] = useState(false);
   const [vocabQuestionIndex, setVocabQuestionIndex] = useState<number>();
@@ -94,14 +115,32 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const [previousVocabIndexes, setPreviousVocabIndexes] = useState<number[]>(
     [],
   );
+  const [alreadySeenVocab, setAlreadySeenVocab] = useState<number[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
+  const isVocabMode =
+    selectedQuizType === "Vocab" || selectedQuizType === "Uncommon Words";
 
   useEffect(() => {
-    if (focusVocab.length > 0) {
+    if (isVocabMode && focusVocab.length > 0) {
       setRandomVocabQuestionIndex();
     }
   }, [focusVocab]);
+
+  useEffect(() => {
+    setUserAnswer("");
+    setEvaluation(null);
+    setVocabEvaluation(null);
+    setAnswered(false);
+    setUserMessages([]);
+    setPreviousVocabIndexes([]);
+    const items =
+      selectedQuizType === "Uncommon Words" ? uncommonVocabItems : vocabItems;
+    if (isVocabMode && items.length > 0) {
+      const newIndex = Math.floor(Math.random() * items.length);
+      setVocabQuestionIndex(newIndex);
+    }
+  }, [selectedQuizType]);
 
   const currentQuestion =
     questions.length > 0 ? questions[currentQuestionIndex] : null;
@@ -116,22 +155,83 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     )
       return [];
 
-    return focusVocab.map((vocab) => {
-      // Find sentences that contain this vocab word
-      const vocabularyWord = Object.values(allVocabulary).find(
-        (v) => v.id === vocab,
-      );
+    return focusVocab
+      .filter((vocab) => !alreadySeenVocab.includes(vocab))
+      .map((vocab) => {
+        // Find sentences that contain this vocab word
+        const vocabularyWord = Object.values(allVocabulary).find(
+          (v) => v.id === vocab,
+        );
 
-      if (!vocabularyWord) {
-        console.error(`Vocabulary not found for word id: ${vocab}`);
-        return null;
-      }
+        if (!vocabularyWord) {
+          console.error(`Vocabulary not found for word id: ${vocab}`);
+          return null;
+        }
 
+        let matchingSentence: ContextSegment = null;
+        currentVideo?.sentences.forEach((sentence, sentIndex) => {
+          const sentenceText = sentence.text.toLowerCase();
+          if (
+            sentenceText
+              .toLowerCase()
+              .includes(vocabularyWord.word.toLowerCase())
+          ) {
+            matchingSentence = {
+              segment_id: sentIndex,
+              start: sentence.start,
+              end: sentence.end,
+              text: sentence.text,
+              score: 1,
+            };
+          }
+        });
+        return {
+          word: vocabularyWord.word,
+          id: vocabularyWord.id,
+          translation: vocabularyWord.translation,
+          contextSegments: [matchingSentence],
+        };
+      });
+  }, [focusVocab, currentVideo?.sentences, allVocabulary, alreadySeenVocab]);
+
+  // Top 50 most infrequent words present in the video, sorted by frequency ascending
+  const uncommonVocabItems = useMemo(() => {
+    if (
+      !allVocabulary ||
+      !Object.keys(allVocabulary).length ||
+      !currentVideo?.sentences?.length
+    )
+      return [];
+
+    const seenKeys = new Set<string>();
+    const videoVocab: Vocabulary[] = [];
+
+    currentVideo.sentences.forEach((sentence) => {
+      sentence.words.forEach((segWord) => {
+        const key = vocabFormatWord(segWord.word);
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          const vocab = allVocabulary[key];
+          if (vocab) {
+            videoVocab.push(vocab);
+          }
+        }
+      });
+    });
+
+    const top50 = [...videoVocab]
+      .filter(
+        (vocab) =>
+          !alreadySeenVocab.includes(vocab.id) && isInterestingVocab(vocab),
+      )
+      .sort((a, b) => a.frequency - b.frequency)
+      .slice(0, 50);
+
+    return top50.map((vocabWord) => {
       let matchingSentence: ContextSegment = null;
-      currentVideo?.sentences.forEach((sentence, sentIndex) => {
-        const sentenceText = sentence.text.toLowerCase();
+      currentVideo.sentences.forEach((sentence, sentIndex) => {
         if (
-          sentenceText.toLowerCase().includes(vocabularyWord.word.toLowerCase())
+          sentence.text.toLowerCase().includes(vocabWord.word.toLowerCase())
         ) {
           matchingSentence = {
             segment_id: sentIndex,
@@ -143,16 +243,20 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         }
       });
       return {
-        word: vocabularyWord.word,
-        translation: vocabularyWord.translation,
+        word: vocabWord.word,
+        id: vocabWord.id,
+        translation: vocabWord.translation,
         contextSegments: [matchingSentence],
       };
     });
-  }, [focusVocab, currentVideo?.sentences, allVocabulary]);
+  }, [allVocabulary, currentVideo?.sentences, alreadySeenVocab]);
+
+  const activeVocabItems =
+    selectedQuizType === "Uncommon Words" ? uncommonVocabItems : vocabItems;
 
   const currentVocabItem =
-    vocabQuestionIndex && vocabItems.length > 0
-      ? vocabItems[vocabQuestionIndex]
+    vocabQuestionIndex !== undefined && activeVocabItems.length > 0
+      ? activeVocabItems[vocabQuestionIndex]
       : null;
 
   // Build the current vocab question object
@@ -160,38 +264,38 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     if (!currentVocabItem) return null;
 
     let question: string;
-    if (selectedQuizType === "Vocab") {
-      question = `What does "${currentVocabItem.word}" mean? Try to use it in a sentence.`;
+    if (isVocabMode) {
+      question = `What does "${currentVocabItem.word}" mean?`;
     } else {
-      // Fallback while loading or if generation fails
       question = "";
     }
 
     return {
       word: currentVocabItem.word,
       translation: currentVocabItem.translation,
+      id: currentVocabItem.id,
       question,
       contextSegments: currentVocabItem.contextSegments,
     };
   }, [currentVocabItem, selectedQuizType]);
 
   // Total vocab questions count
-  const vocabQuestions = vocabItems;
+  const vocabQuestions = activeVocabItems;
 
   // Determine which question set to use based on quiz type
-  const isVocabMode = selectedQuizType === "Vocab";
+
   const totalItems = isVocabMode ? vocabQuestions.length : questions.length;
   const currentIndex = isVocabMode ? vocabQuestionIndex : currentQuestionIndex;
 
   // Reset state when quiz type changes
-  // useEffect(() => {
-  //   setUserAnswer("");
-  //   setEvaluation(null);
-  //   setAnswered(false);
-  //   setContextSegments([]);
-  //   setRandomVocabQuestionIndex();
-  //   setGeneratedQuestion(null);
-  // }, [selectedQuizType]);
+  useEffect(() => {
+    setUserAnswer("");
+    setEvaluation(null);
+    setVocabEvaluation(null);
+    setAnswered(false);
+    setContextSegments([]);
+    setRandomVocabQuestionIndex();
+  }, [selectedQuizType]);
 
   const setRandomVocabQuestionIndex = () => {
     let newIndex = Math.floor(Math.random() * vocabQuestions.length);
@@ -204,10 +308,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setPreviousVocabIndexes((prev) => [...prev, newIndex]);
   };
 
-  // Fetch context segments when comprehension question changes
   useEffect(() => {
     if (isVocabMode) {
-      // For vocab modes, use pre-computed context segments
       if (currentVocabItem) {
         setContextSegments(currentVocabItem.contextSegments);
       }
@@ -222,6 +324,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     // Reset state for new question
     setUserAnswer("");
     setEvaluation(null);
+    setVocabEvaluation(null);
     setAnswered(false);
     setContextSegments([]);
 
@@ -262,6 +365,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     if (isVocabMode && currentVocabItem) {
       setUserAnswer("");
       setEvaluation(null);
+      setVocabEvaluation(null);
       setAnswered(false);
       setContextSegments(currentVocabItem.contextSegments);
     }
@@ -270,6 +374,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const handleResetAnswer = () => {
     setUserAnswer("");
     setEvaluation(null);
+    setVocabEvaluation(null);
     setAnswered(false);
     // close keyboard
     Keyboard.dismiss();
@@ -277,6 +382,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 
   // Navigation handlers for vocab mode
   const handleVocabNext = () => {
+    setAlreadySeenVocab((prev) => [...prev, currentVocabItem.id]);
+    handleResetAnswer();
     setRandomVocabQuestionIndex();
   };
 
@@ -300,50 +407,69 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setAnswered(true);
 
     try {
-      let requestBody;
-
       if (isVocabMode && currentVocabQuestion) {
-        // Vocab quiz evaluation
-        const additionalContext =
-          "The user may be trying to use this word in a sentence to demonstrate understanding. Evaluate both their definition and usage.";
-
-        requestBody = {
+        const translations = contextSegments.map((s) => {
+          const fullTranslation = currentVideo.sentences.find(
+            (sentence) => sentence.start === s.start && sentence.end === s.end,
+          )?.full_translation;
+          return {
+            text: `${s.text} - translation: ${fullTranslation}`,
+          };
+        });
+        const requestBody = {
           question: currentVocabQuestion.question,
-          ideal_answer: currentVocabQuestion.translation,
           user_answer: userAnswer.trim(),
-          context_segments: contextSegments.map((s) => ({ text: s.text })),
-          additional_context:
-            selectedQuizType === "Vocab" ? additionalContext : null,
-          vocab_word:
-            selectedQuizType === "Vocab" ? currentVocabQuestion.word : null,
+          context_segments: translations,
+          vocab_word: currentVocabQuestion.word,
         };
+
+        const response = await fetch(
+          `${BACKEND_BASE_URL}/evaluate-vocab-answer`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          },
+        );
+
+        if (!response.ok) {
+          console.error("Error evaluating vocab answer:", response.status);
+          return;
+        }
+
+        const data = await response.json();
+        if (data.score && data.accepted_answers) {
+          setVocabEvaluation({
+            score: data.score,
+            acceptedAnswers: data.accepted_answers,
+          });
+        }
       } else if (currentQuestion) {
-        // Comprehension quiz evaluation
-        requestBody = {
+        const requestBody = {
           question: currentQuestion.question,
           ideal_answer: currentQuestion.answer,
           user_answer: userAnswer.trim(),
           context_segments: contextSegments.map((s) => ({ text: s.text })),
         };
-      }
 
-      const response = await fetch(
-        `${BACKEND_BASE_URL}/evaluate-review-answer`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        },
-      );
+        const response = await fetch(
+          `${BACKEND_BASE_URL}/evaluate-review-answer`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          },
+        );
 
-      if (!response.ok) {
-        console.error("Error evaluating answer:", response.status);
-        return;
-      }
+        if (!response.ok) {
+          console.error("Error evaluating answer:", response.status);
+          return;
+        }
 
-      const data = await response.json();
-      if (data.feedback && data.score) {
-        setEvaluation({ feedback: data.feedback, score: data.score });
+        const data = await response.json();
+        if (data.feedback && data.score) {
+          setEvaluation({ feedback: data.feedback, score: data.score });
+        }
       }
     } catch (err) {
       console.error("Error evaluating answer:", err);
@@ -362,6 +488,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const handleRetry = () => {
     setUserAnswer("");
     setEvaluation(null);
+    setVocabEvaluation(null);
     setAnswered(false);
     setUserMessages([]);
   };
@@ -381,8 +508,20 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       <View style={styles.centeredContainer}>
         <MaterialIcons name="translate" size={48} color="#ccc" />
         <Text style={styles.emptyText}>
-          No focus vocabulary available for this video yet.
+          {selectedQuizType === "Uncommon Words" &&
+            "You've reviewed all the vocabulary for this video."}
+          {selectedQuizType === "Vocab" &&
+            (focusVocab.length === 0
+              ? "No vocabulary has been 'Selected for Review' for this video yet."
+              : "You've reviewed all the selected vocabulary for this video.")}
         </Text>
+        <TouchableOpacity
+          style={styles.restartVocabButton}
+          onPress={() => setAlreadySeenVocab([])}
+        >
+          <Text style={styles.restartVocabButtonText}>Restart</Text>
+          <MaterialIcons name="restart-alt" size={18} color="white" />
+        </TouchableOpacity>
       </View>
     );
   }
@@ -436,7 +575,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             </Text>
           </View>
         )}
-        {selectedQuizType === "Vocab" && currentVocabItem?.word && (
+        {isVocabMode && currentVocabItem?.word && (
           <View style={styles.vocabBadge}>
             <Text style={styles.vocabBadgeText}>
               {normalizeWord(currentVocabItem.word)}
@@ -516,7 +655,44 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           </View>
         )}
 
-        {/* Evaluation Feedback */}
+        {/* Vocab Evaluation */}
+        {vocabEvaluation && (
+          <View
+            style={[
+              styles.evaluationBubble,
+              { backgroundColor: VOCAB_SCORE_BG_COLORS[vocabEvaluation.score] },
+            ]}
+          >
+            <View style={styles.scoreRow}>
+              <View
+                style={[
+                  styles.scoreDot,
+                  {
+                    backgroundColor: VOCAB_SCORE_COLORS[vocabEvaluation.score],
+                  },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.scoreLabel,
+                  { color: VOCAB_SCORE_COLORS[vocabEvaluation.score] },
+                ]}
+              >
+                {VOCAB_SCORE_LABELS[vocabEvaluation.score]}
+              </Text>
+            </View>
+            <View style={styles.acceptedAnswersSection}>
+              <Text style={styles.acceptedAnswersLabel}>Accepted Answers:</Text>
+              {vocabEvaluation.acceptedAnswers.map((answer, index) => (
+                <Text key={index} style={styles.acceptedAnswerText}>
+                  • {answer}
+                </Text>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Comprehension Evaluation Feedback */}
         {evaluation && (
           <View
             style={[
@@ -542,11 +718,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             </View>
             <Text style={styles.feedbackText}>{evaluation.feedback}</Text>
             <View style={styles.idealAnswerSection}>
-              <Text style={styles.idealAnswerLabel}>
-                {selectedQuizType === "Vocab"
-                  ? "Translation:"
-                  : "Ideal Answer:"}
-              </Text>
+              <Text style={styles.idealAnswerLabel}>Ideal Answer:</Text>
               <Text style={styles.idealAnswerText}>{displayIdealAnswer}</Text>
             </View>
           </View>
@@ -614,7 +786,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.nextQuestionButton}
-            onPress={onNextQuestion}
+            onPress={isVocabMode ? handleVocabNext : onNextQuestion}
             disabled={currentQuestionIndex === questions.length - 1}
           >
             <Text style={styles.nextQuestionButtonText}>
@@ -652,6 +824,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#888",
     textAlign: "center",
+  },
+  restartVocabButton: {
+    backgroundColor: "#4a69bd",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 16,
+  },
+  restartVocabButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
   },
   cefrBadge: {
     backgroundColor: "#4a69bd",
@@ -847,6 +1034,22 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: "#444",
     fontStyle: "italic",
+  },
+  acceptedAnswersSection: {
+    marginTop: 4,
+  },
+  acceptedAnswersLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#666",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  acceptedAnswerText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#444",
   },
 
   // Input Area

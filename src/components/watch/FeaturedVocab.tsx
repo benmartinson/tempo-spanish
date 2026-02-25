@@ -29,7 +29,6 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   playSnippet,
   isPlayingWordSnippet,
 }) => {
-  console.log({ word });
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const vocabWord = allVocabulary[vocabFormatWord(word.word)];

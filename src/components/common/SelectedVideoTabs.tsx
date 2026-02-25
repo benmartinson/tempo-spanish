@@ -180,7 +180,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         newTime > currentSentence.end + 0.5)
     ) {
       if (
-        selectedNavTab === "shadow" &&
+        selectedNavTab !== "watch" &&
         newTime === 0 &&
         !isConfirmingStartOver &&
         currentSentence.index > 0
@@ -330,7 +330,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     }) as const;
 
   let endTime;
-  if (selectedNavTab === "shadow") {
+  if (selectedNavTab !== "watch") {
     if (currentWordSnippetRef.current) {
       endTime = currentWordSnippetRef.current.end;
     } else {

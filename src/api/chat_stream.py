@@ -126,21 +126,28 @@ Guidelines:
 - One of the answers NEEDS to be the correct translation of the vocabulary word."""
 
 # System prompt for evaluating vocab quiz answers
-VOCAB_EVALUATION_SYSTEM_PROMPT = """You are evaluating a Spanish language learner's vocabulary knowledge.
+VOCAB_EVALUATION_SYSTEM_PROMPT = """You are a vocabulary grading engine.
 
-You will be given:
-- The question asking about a vocabulary word
-- The correct translation of the word
-- The user's answer (which may include a definition and/or a sentence using the word)
-- Video transcript context showing how the word is used
-- The specific vocabulary word being tested
+Your job is to determine whether the user's English answer is a valid meaning of the given Spanish vocabulary word.
 
-Evaluate the user's understanding of the vocabulary word. Consider:
-- Did they correctly understand the meaning of the word?
-- If they used it in a sentence, did they use it correctly and naturally?
-- Is their understanding consistent with how the word is used in the video context?
+Rules:
 
-Respond in Spanish with only the reasoning for your score, why or why not they got the answer correct. Keep it to 1 sentence.
+1. The vocabulary word may have multiple valid meanings.
+2. The word may function as different parts of speech (noun, verb, etc.).
+3. The user's answer may be a word, phrase, or full sentence.
+4. The answer does NOT need to match the provided context meaning.
+5. If the user's answer is correct in ANY reasonable context, mark it as "correct".
+6. Only mark "incorrect" if the answer is clearly unrelated to any real meaning of the word.
+7. Be generous in accepting valid meanings.
+8. Accept semantic equivalents, not just exact dictionary wording.
+9. If uncertain, prefer marking as "correct" rather than "incorrect".
+
+Output ONLY valid JSON in this format:
+
+{
+  "score": "correct" or "incorrect",
+  "accepted_answers": array of all translations that would have been accepted as correct
+}
 """
 
 class ChatMessage(BaseModel):
@@ -195,10 +202,9 @@ class ReviewContextRequest(BaseModel):
 
 class EvaluateReviewAnswerRequest(BaseModel):
     question: str
-    ideal_answer: str
+    ideal_answer: str | None = None
     user_answer: str
     context_segments: List[dict] = []
-    additional_context: str | None = None  # Extra instructions for vocab quiz types
     vocab_word: str | None = None  # The vocab word being tested (for vocab quizzes)
 
 
@@ -725,23 +731,10 @@ Evaluate how close the user's answer is to the ideal answer. Consider:
 Respond with only the reasoning for your score, why or why not they got the answer correct. Keep it to 1 sentence.
 """
 
-# System prompt for evaluating vocab quiz answers
-VOCAB_EVALUATION_SYSTEM_PROMPT = """You are evaluating a Spanish language learner's vocabulary knowledge.
 
-You will be given:
-- The question asking about a vocabulary word
-- The correct translation of the word
-- The user's answer (which may include a definition and/or a sentence using the word)
-- Video transcript context showing how the word is used
-- The specific vocabulary word being tested
 
-Evaluate the user's understanding of the vocabulary word. Consider:
-- Did they correctly understand the meaning of the word?
-- If they used it in a sentence, did they use it correctly and naturally?
-- Is their understanding consistent with how the word is used in the video context?
 
-Respond in Spanish with only the reasoning for your score, why or why not they got the answer correct. Keep it to 1 sentence.
-"""
+
 
 @app.post("/review-context")
 async def review_context(request: ReviewContextRequest):
@@ -820,8 +813,7 @@ async def review_context(request: ReviewContextRequest):
 async def evaluate_review_answer(request: EvaluateReviewAnswerRequest):
     """
     Evaluate a user's answer against the ideal answer using GPT.
-    Returns feedback and a score classification.
-    Supports both comprehension questions and vocab quiz types.
+    Returns feedback and a score classification for comprehension questions.
     """
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
@@ -833,31 +825,7 @@ async def evaluate_review_answer(request: EvaluateReviewAnswerRequest):
             context_parts = [seg.get("text", "") for seg in request.context_segments if seg.get("text")]
             context_text = "\n".join(context_parts)
 
-        # Determine if this is a vocab quiz (has vocab_word or additional_context)
-        is_vocab_quiz = request.vocab_word is not None or request.additional_context is not None
-
-        if is_vocab_quiz:
-            # Vocab quiz evaluation prompt
-            user_prompt = f"""Question: {request.question}
-
-Correct translation of the word: {request.ideal_answer}
-
-{"Vocabulary word being tested: " + request.vocab_word if request.vocab_word else ""}
-
-User's answer: {request.user_answer}
-
-{"Video transcript context (showing how the word is used):" + chr(10) + context_text if context_text else ""}
-
-{"Additional evaluation notes: " + request.additional_context if request.additional_context else ""}
-
-Evaluate the user's vocabulary knowledge. Respond with a JSON object containing:
-- "feedback": your evaluation in Spanish (1 sentence). Comment on their understanding of the word's meaning and their usage in a sentence if they provided one.
-- "score": one of "correct", "partial", or "incorrect"
-"""
-            system_prompt = VOCAB_EVALUATION_SYSTEM_PROMPT
-        else:
-            # Comprehension quiz evaluation prompt (original behavior)
-            user_prompt = f"""Question: {request.question}
+        user_prompt = f"""Question: {request.question}
 
 Ideal answer: {request.ideal_answer}
 
@@ -869,10 +837,9 @@ Evaluate the user's answer. Respond with a JSON object containing:
 - "feedback": your evaluation in Spanish (1 sentence)
 - "score": one of "correct", "partial", or "incorrect"
 """
-            system_prompt = REVIEW_EVALUATION_SYSTEM_PROMPT
 
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": REVIEW_EVALUATION_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt}
         ]
 
@@ -908,6 +875,73 @@ Evaluate the user's answer. Respond with a JSON object containing:
         }
     except Exception as e:
         print(f"Error evaluating review answer: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/evaluate-vocab-answer")
+async def evaluate_vocab_answer(request: EvaluateReviewAnswerRequest):
+    """
+    Evaluate a user's vocabulary answer using GPT.
+    Returns score and list of accepted translations.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    try:
+        # Build context from segments
+        context_text = ""
+        if request.context_segments:
+            context_parts = [seg.get("text", "") for seg in request.context_segments if seg.get("text")]
+            context_text = "\n".join(context_parts)
+
+        user_prompt = f"""
+{"Vocabulary word: " + request.vocab_word if request.vocab_word else ""}
+
+User's answer: {request.user_answer}
+
+{"Video transcript context (optional):" + chr(10) + context_text if context_text else ""}
+"""
+
+        messages = [
+            {"role": "system", "content": VOCAB_EVALUATION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=300,
+            temperature=0.5,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "vocab_evaluation_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["score", "accepted_answers"],
+                        "properties": {
+                            "score": {"type": "string", "enum": ["correct", "incorrect"]},
+                            "accepted_answers": {
+                                "type": "array",
+                                "items": {"type": "string"}
+                            }
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
+
+        evaluation = json.loads(response.choices[0].message.content.strip())
+
+        return {
+            "score": evaluation["score"],
+            "accepted_answers": evaluation["accepted_answers"],
+            "status": "complete"
+        }
+    except Exception as e:
+        print(f"Error evaluating vocab answer: {e}")
         return {"error": str(e)}
 
 

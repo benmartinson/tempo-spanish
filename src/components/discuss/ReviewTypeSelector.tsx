@@ -13,7 +13,8 @@ import { QuizType } from "../../types";
 
 const QUIZ_TYPES: { value: QuizType; label: string; icon: string }[] = [
   { value: "Comprehension", label: "Comprehension", icon: "format-quote" },
-  { value: "Vocab", label: "Vocab", icon: "translate" },
+  { value: "Vocab", label: "Selected Words", icon: "translate" },
+  { value: "Uncommon Words", label: "Uncommon Words", icon: "sort" },
 ];
 
 interface ReviewTypeSelectorProps {
@@ -84,10 +85,7 @@ const ReviewTypeSelector: React.FC<ReviewTypeSelectorProps> = ({
                   styles.dropdown,
                   {
                     top: buttonLayout.y + buttonLayout.height + 4,
-                    left: Math.max(
-                      8,
-                      buttonLayout.x - 30,
-                    ),
+                    left: Math.max(8, buttonLayout.x - 30),
                   },
                 ]}
               >

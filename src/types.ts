@@ -110,7 +110,7 @@ export interface Sentence {
   words: SegmentWord[];
 }
 
-export type QuizType = "Comprehension" | "Vocab";
+export type QuizType = "Comprehension" | "Vocab" | "Uncommon Words";
 
 export interface SegmentWord {
   word: string;
@@ -166,6 +166,13 @@ export type EvaluationScore = "correct" | "partial" | "incorrect";
 export interface Evaluation {
   feedback: string;
   score: EvaluationScore;
+}
+
+export type VocabEvaluationScore = "correct" | "incorrect";
+
+export interface VocabEvaluation {
+  score: VocabEvaluationScore;
+  acceptedAnswers: string[];
 }
 
 export interface TranscriptionResponse {
