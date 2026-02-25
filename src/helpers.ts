@@ -4,6 +4,7 @@ import {
   SegmentWord,
   VideoContext,
   Vocabulary,
+  ContextSegment,
 } from "./types";
 
 export const formatTimestamp = (seconds: number): string => {
@@ -363,4 +364,144 @@ export const isInterestingVocab = (vocab: Vocabulary) => {
     !areWordsSimilar(normalizedWord, normalizedTranslation) &&
     !ignoreVocab.includes(vocab.word.toLowerCase())
   );
+};
+
+// Score display constants for review evaluations
+export type EvaluationScore = "correct" | "partial" | "incorrect";
+export type VocabEvaluationScore = "correct" | "incorrect";
+
+export const SCORE_COLORS: Record<EvaluationScore, string> = {
+  correct: "#2d8a4e",
+  partial: "#b8860b",
+  incorrect: "#c0392b",
+};
+
+export const SCORE_BG_COLORS: Record<EvaluationScore, string> = {
+  correct: "#e8f5e9",
+  partial: "#fff8e1",
+  incorrect: "#ffebee",
+};
+
+export const SCORE_LABELS: Record<EvaluationScore, string> = {
+  correct: "Correct",
+  partial: "Partially Correct",
+  incorrect: "Incorrect",
+};
+
+export const VOCAB_SCORE_COLORS: Record<VocabEvaluationScore, string> = {
+  correct: "#2d8a4e",
+  incorrect: "#c0392b",
+};
+
+export const VOCAB_SCORE_BG_COLORS: Record<VocabEvaluationScore, string> = {
+  correct: "#e8f5e9",
+  incorrect: "#ffebee",
+};
+
+export const VOCAB_SCORE_LABELS: Record<VocabEvaluationScore, string> = {
+  correct: "Correct",
+  incorrect: "Incorrect",
+};
+
+export const getRandomUniqueIndex = (
+  maxLength: number,
+  previousIndexes: number[],
+  maxAttempts: number = 100,
+): number => {
+  let newIndex = Math.floor(Math.random() * maxLength);
+  let count = 0;
+  while (previousIndexes.includes(newIndex) && count < maxAttempts) {
+    newIndex = Math.floor(Math.random() * maxLength);
+    count++;
+  }
+  return newIndex;
+};
+
+export const findMatchingSentencesForVocab = (
+  vocabWord: string,
+  sentences: Sentence[],
+): ContextSegment[] => {
+  const matchingSentences: ContextSegment[] = [];
+  for (let sentIndex = 0; sentIndex < sentences.length; sentIndex++) {
+    const sentenceWords = sentences[sentIndex].text
+      .split(" ")
+      .map((s) => normalizeWord(s));
+    if (sentenceWords.includes(normalizeWord(vocabWord))) {
+      matchingSentences.push({
+        segment_id: sentIndex,
+        start: sentences[sentIndex].start,
+        end: sentences[sentIndex].end,
+        text: sentences[sentIndex].text,
+        score: 1,
+      });
+    }
+  }
+  return matchingSentences;
+};
+
+export interface VocabItem {
+  word: string;
+  id: number;
+  translation: string;
+  contextSegments: ContextSegment[];
+}
+
+export const buildVocabItemsWithContext = (
+  vocabWords: Vocabulary[],
+  sentences: Sentence[],
+): VocabItem[] => {
+  return vocabWords.map((vocab) => {
+    const matchingSentences = findMatchingSentencesForVocab(
+      vocab.word,
+      sentences,
+    );
+    return {
+      word: vocab.word,
+      id: vocab.id,
+      translation: vocab.translation,
+      contextSegments: matchingSentences,
+    };
+  });
+};
+
+export const getUncommonVocabFromSentences = (
+  sentences: Sentence[],
+  allVocabulary: Record<string, Vocabulary>,
+  limit: number = 50,
+): Vocabulary[] => {
+  const seenKeys = new Set<string>();
+  const videoVocab: Vocabulary[] = [];
+
+  sentences.forEach((sentence) => {
+    sentence.words.forEach((segWord) => {
+      const key = vocabFormatWord(segWord.word);
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        const vocab = allVocabulary[key];
+        if (vocab) {
+          videoVocab.push(vocab);
+        }
+      }
+    });
+  });
+
+  return [...videoVocab]
+    .filter((vocab) => isInterestingVocab(vocab))
+    .sort((a, b) => a.frequency - b.frequency)
+    .slice(0, limit);
+};
+
+export const getFocusVocabWords = (
+  focusVocabIds: number[],
+  allVocabulary: Record<string, Vocabulary>,
+): Vocabulary[] => {
+  return focusVocabIds
+    .map((id) => Object.values(allVocabulary).find((v) => v.id === id))
+    .filter((vocab): vocab is Vocabulary => {
+      if (!vocab) {
+        console.error(`Vocabulary not found for word id`);
+        return false;
+      }
+      return true;
+    });
 };

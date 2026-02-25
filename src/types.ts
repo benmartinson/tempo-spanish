@@ -110,7 +110,7 @@ export interface Sentence {
   words: SegmentWord[];
 }
 
-export type QuizType = "Comprehension" | "Vocab" | "Uncommon Words";
+export type QuizType = "Comprehension" | "Vocab" | "Uncommon";
 
 export interface SegmentWord {
   word: string;

@@ -3,10 +3,7 @@ import {
   StyleSheet,
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
@@ -15,30 +12,42 @@ import {
   VideoQuestion,
   ContextSegment,
   QuizType,
-  SegmentWord,
   Sentence,
   RootState,
   VocabQuestion,
-  EvaluationScore,
   Evaluation,
-  Vocabulary,
   VocabEvaluation,
-  VocabEvaluationScore,
 } from "../../types";
-import { BACKEND_BASE_URL } from "../streaming_helpers";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import Feather from "@expo/vector-icons/Feather";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import NavSwitcher from "../common/NavSwitcher";
 import ReviewTypeSelector from "./ReviewTypeSelector";
 import { useSelector } from "react-redux";
 import {
-  stripPunctuation,
-  formatTimestamp,
-  vocabFormatWord,
   normalizeWord,
-  isInterestingVocab,
+  getRandomUniqueIndex,
+  buildVocabItemsWithContext,
+  getUncommonVocabFromSentences,
+  getFocusVocabWords,
 } from "../../helpers";
+import {
+  fetchReviewContext,
+  evaluateVocabAnswer,
+  evaluateReviewAnswer,
+} from "../../requests";
+import QuestionBubble from "./QuestionBubble";
+import ContextClipsSection from "./ContextClipsSection";
+import UserAnswerBubble from "./UserAnswerBubble";
+import {
+  EvaluatingBubble,
+  VocabEvaluationBubble,
+  ComprehensionEvaluationBubble,
+} from "./EvaluationBubble";
+import AnswerInput from "./AnswerInput";
+import AnswerActions from "./AnswerActions";
+import {
+  LoadingState,
+  VocabEmptyState,
+  QuestionsEmptyState,
+} from "./ReviewEmptyStates";
 
 interface ReviewChatProps {
   questions: VideoQuestion[];
@@ -53,39 +62,6 @@ interface ReviewChatProps {
   onSelectQuizType: (type: QuizType) => void;
   sentences: Sentence[];
 }
-
-const SCORE_COLORS: Record<EvaluationScore, string> = {
-  correct: "#2d8a4e",
-  partial: "#b8860b",
-  incorrect: "#c0392b",
-};
-
-const SCORE_BG_COLORS: Record<EvaluationScore, string> = {
-  correct: "#e8f5e9",
-  partial: "#fff8e1",
-  incorrect: "#ffebee",
-};
-
-const SCORE_LABELS: Record<EvaluationScore, string> = {
-  correct: "Correct",
-  partial: "Partially Correct",
-  incorrect: "Incorrect",
-};
-
-const VOCAB_SCORE_COLORS: Record<VocabEvaluationScore, string> = {
-  correct: "#2d8a4e",
-  incorrect: "#c0392b",
-};
-
-const VOCAB_SCORE_BG_COLORS: Record<VocabEvaluationScore, string> = {
-  correct: "#e8f5e9",
-  incorrect: "#ffebee",
-};
-
-const VOCAB_SCORE_LABELS: Record<VocabEvaluationScore, string> = {
-  correct: "Correct",
-  incorrect: "Incorrect",
-};
 
 const ReviewChat: React.FC<ReviewChatProps> = ({
   questions,
@@ -110,22 +86,12 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     useState<VocabEvaluation | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [answered, setAnswered] = useState(false);
-  const [vocabQuestionIndex, setVocabQuestionIndex] = useState<number>();
+  const [vocabQuestionIndex, setVocabQuestionIndex] = useState<number>(0);
   const [userMessages, setUserMessages] = useState<string[]>([]);
-  const [previousVocabIndexes, setPreviousVocabIndexes] = useState<number[]>(
-    [],
-  );
-  const [alreadySeenVocab, setAlreadySeenVocab] = useState<number[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const isVocabMode =
-    selectedQuizType === "Vocab" || selectedQuizType === "Uncommon Words";
-
-  useEffect(() => {
-    if (isVocabMode && focusVocab.length > 0) {
-      setRandomVocabQuestionIndex();
-    }
-  }, [focusVocab]);
+    selectedQuizType === "Vocab" || selectedQuizType === "Uncommon";
 
   useEffect(() => {
     setUserAnswer("");
@@ -133,9 +99,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setVocabEvaluation(null);
     setAnswered(false);
     setUserMessages([]);
-    setPreviousVocabIndexes([]);
     const items =
-      selectedQuizType === "Uncommon Words" ? uncommonVocabItems : vocabItems;
+      selectedQuizType === "Uncommon" ? uncommonVocabItems : vocabItems;
     if (isVocabMode && items.length > 0) {
       const newIndex = Math.floor(Math.random() * items.length);
       setVocabQuestionIndex(newIndex);
@@ -145,7 +110,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const currentQuestion =
     questions.length > 0 ? questions[currentQuestionIndex] : null;
 
-  // Generate vocab data from focusVocab (without question text for "Vocab in Context")
   const vocabItems = useMemo(() => {
     if (
       !allVocabulary ||
@@ -155,46 +119,13 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     )
       return [];
 
-    return focusVocab
-      .filter((vocab) => !alreadySeenVocab.includes(vocab))
-      .map((vocab) => {
-        // Find sentences that contain this vocab word
-        const vocabularyWord = Object.values(allVocabulary).find(
-          (v) => v.id === vocab,
-        );
+    const vocabWords = getFocusVocabWords(focusVocab, allVocabulary);
+    return buildVocabItemsWithContext(
+      vocabWords,
+      currentVideo?.sentences || [],
+    );
+  }, [focusVocab, currentVideo?.sentences, allVocabulary]);
 
-        if (!vocabularyWord) {
-          console.error(`Vocabulary not found for word id: ${vocab}`);
-          return null;
-        }
-
-        let matchingSentence: ContextSegment = null;
-        currentVideo?.sentences.forEach((sentence, sentIndex) => {
-          const sentenceText = sentence.text.toLowerCase();
-          if (
-            sentenceText
-              .toLowerCase()
-              .includes(vocabularyWord.word.toLowerCase())
-          ) {
-            matchingSentence = {
-              segment_id: sentIndex,
-              start: sentence.start,
-              end: sentence.end,
-              text: sentence.text,
-              score: 1,
-            };
-          }
-        });
-        return {
-          word: vocabularyWord.word,
-          id: vocabularyWord.id,
-          translation: vocabularyWord.translation,
-          contextSegments: [matchingSentence],
-        };
-      });
-  }, [focusVocab, currentVideo?.sentences, allVocabulary, alreadySeenVocab]);
-
-  // Top 50 most infrequent words present in the video, sorted by frequency ascending
   const uncommonVocabItems = useMemo(() => {
     if (
       !allVocabulary ||
@@ -203,72 +134,31 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     )
       return [];
 
-    const seenKeys = new Set<string>();
-    const videoVocab: Vocabulary[] = [];
-
-    currentVideo.sentences.forEach((sentence) => {
-      sentence.words.forEach((segWord) => {
-        const key = vocabFormatWord(segWord.word);
-        if (!seenKeys.has(key)) {
-          seenKeys.add(key);
-          const vocab = allVocabulary[key];
-          if (vocab) {
-            videoVocab.push(vocab);
-          }
-        }
-      });
-    });
-
-    const top50 = [...videoVocab]
-      .filter(
-        (vocab) =>
-          !alreadySeenVocab.includes(vocab.id) && isInterestingVocab(vocab),
-      )
-      .sort((a, b) => a.frequency - b.frequency)
-      .slice(0, 50);
-
-    return top50.map((vocabWord) => {
-      let matchingSentence: ContextSegment = null;
-      currentVideo.sentences.forEach((sentence, sentIndex) => {
-        if (
-          sentence.text.toLowerCase().includes(vocabWord.word.toLowerCase())
-        ) {
-          matchingSentence = {
-            segment_id: sentIndex,
-            start: sentence.start,
-            end: sentence.end,
-            text: sentence.text,
-            score: 1,
-          };
-        }
-      });
-      return {
-        word: vocabWord.word,
-        id: vocabWord.id,
-        translation: vocabWord.translation,
-        contextSegments: [matchingSentence],
-      };
-    });
-  }, [allVocabulary, currentVideo?.sentences, alreadySeenVocab]);
+    const uncommonVocab = getUncommonVocabFromSentences(
+      currentVideo.sentences,
+      allVocabulary,
+    );
+    return buildVocabItemsWithContext(uncommonVocab, currentVideo.sentences);
+  }, [allVocabulary, currentVideo?.sentences]);
+  console.log(
+    "uncommonVocabItems",
+    uncommonVocabItems.map((item) => item.word),
+  );
 
   const activeVocabItems =
-    selectedQuizType === "Uncommon Words" ? uncommonVocabItems : vocabItems;
+    selectedQuizType === "Uncommon" ? uncommonVocabItems : vocabItems;
 
   const currentVocabItem =
     vocabQuestionIndex !== undefined && activeVocabItems.length > 0
       ? activeVocabItems[vocabQuestionIndex]
       : null;
 
-  // Build the current vocab question object
   const currentVocabQuestion: VocabQuestion | null = useMemo(() => {
     if (!currentVocabItem) return null;
 
-    let question: string;
-    if (isVocabMode) {
-      question = `What does "${currentVocabItem.word}" mean?`;
-    } else {
-      question = "";
-    }
+    const question = isVocabMode
+      ? `What does "${currentVocabItem.word}" mean?`
+      : "";
 
     return {
       word: currentVocabItem.word,
@@ -279,34 +169,16 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     };
   }, [currentVocabItem, selectedQuizType]);
 
-  // Total vocab questions count
   const vocabQuestions = activeVocabItems;
-
-  // Determine which question set to use based on quiz type
-
   const totalItems = isVocabMode ? vocabQuestions.length : questions.length;
-  const currentIndex = isVocabMode ? vocabQuestionIndex : currentQuestionIndex;
 
-  // Reset state when quiz type changes
   useEffect(() => {
     setUserAnswer("");
     setEvaluation(null);
     setVocabEvaluation(null);
     setAnswered(false);
     setContextSegments([]);
-    setRandomVocabQuestionIndex();
   }, [selectedQuizType]);
-
-  const setRandomVocabQuestionIndex = () => {
-    let newIndex = Math.floor(Math.random() * vocabQuestions.length);
-    let count = 0;
-    while (previousVocabIndexes.includes(newIndex) && count < 100) {
-      newIndex = Math.floor(Math.random() * vocabQuestions.length);
-      count++;
-    }
-    setVocabQuestionIndex(newIndex);
-    setPreviousVocabIndexes((prev) => [...prev, newIndex]);
-  };
 
   useEffect(() => {
     if (isVocabMode) {
@@ -321,35 +193,21 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       return;
     }
 
-    // Reset state for new question
     setUserAnswer("");
     setEvaluation(null);
     setVocabEvaluation(null);
     setAnswered(false);
     setContextSegments([]);
 
-    const fetchContext = async () => {
+    const loadContext = async () => {
       setContextLoading(true);
       try {
-        const response = await fetch(`${BACKEND_BASE_URL}/review-context`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            search_query:
-              currentQuestion.question + "... " + currentQuestion.answer,
-            video_id: videoId,
-          }),
+        const segments = await fetchReviewContext({
+          searchQuery:
+            currentQuestion.question + "... " + currentQuestion.answer,
+          videoId,
         });
-
-        if (!response.ok) {
-          console.error("Error fetching context:", response.status);
-          return;
-        }
-
-        const data = await response.json();
-        if (data.segments) {
-          setContextSegments(data.segments);
-        }
+        setContextSegments(segments);
       } catch (err) {
         console.error("Error fetching review context:", err);
       } finally {
@@ -357,10 +215,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       }
     };
 
-    fetchContext();
+    loadContext();
   }, [currentQuestion?.id, videoId, isVocabMode, currentVocabItem]);
 
-  // Reset state when vocab question changes
   useEffect(() => {
     if (isVocabMode && currentVocabItem) {
       setUserAnswer("");
@@ -376,29 +233,21 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setEvaluation(null);
     setVocabEvaluation(null);
     setAnswered(false);
-    // close keyboard
     Keyboard.dismiss();
   };
 
-  // Navigation handlers for vocab mode
   const handleVocabNext = () => {
-    setAlreadySeenVocab((prev) => [...prev, currentVocabItem.id]);
     handleResetAnswer();
-    setRandomVocabQuestionIndex();
+    setVocabQuestionIndex((prev) => prev + 1);
   };
 
   const handleVocabPrev = () => {
-    setVocabQuestionIndex(
-      previousVocabIndexes[previousVocabIndexes.length - 1],
-    );
-    setPreviousVocabIndexes((prev) => prev.slice(0, -1));
+    setVocabQuestionIndex((prev) => prev - 1);
   };
 
-  // Submit answer for evaluation
   const handleSubmitAnswer = async () => {
     if (!userAnswer.trim()) return;
 
-    // Check we have a valid question based on mode
     if (isVocabMode && !currentVocabQuestion) return;
     if (!isVocabMode && !currentQuestion) return;
 
@@ -416,66 +265,33 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             text: `${s.text} - translation: ${fullTranslation}`,
           };
         });
-        const requestBody = {
+
+        const result = await evaluateVocabAnswer({
           question: currentVocabQuestion.question,
-          user_answer: userAnswer.trim(),
-          context_segments: translations,
-          vocab_word: currentVocabQuestion.word,
-        };
+          userAnswer: userAnswer.trim(),
+          contextSegments: translations,
+          vocabWord: currentVocabQuestion.word,
+        });
 
-        const response = await fetch(
-          `${BACKEND_BASE_URL}/evaluate-vocab-answer`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
-          },
-        );
-
-        if (!response.ok) {
-          console.error("Error evaluating vocab answer:", response.status);
-          return;
-        }
-
-        const data = await response.json();
-        if (data.score && data.accepted_answers) {
-          setVocabEvaluation({
-            score: data.score,
-            acceptedAnswers: data.accepted_answers,
-          });
+        if (result) {
+          setVocabEvaluation(result);
         }
       } else if (currentQuestion) {
-        const requestBody = {
+        const result = await evaluateReviewAnswer({
           question: currentQuestion.question,
-          ideal_answer: currentQuestion.answer,
-          user_answer: userAnswer.trim(),
-          context_segments: contextSegments.map((s) => ({ text: s.text })),
-        };
+          idealAnswer: currentQuestion.answer,
+          userAnswer: userAnswer.trim(),
+          contextSegments: contextSegments.map((s) => ({ text: s.text })),
+        });
 
-        const response = await fetch(
-          `${BACKEND_BASE_URL}/evaluate-review-answer`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
-          },
-        );
-
-        if (!response.ok) {
-          console.error("Error evaluating answer:", response.status);
-          return;
-        }
-
-        const data = await response.json();
-        if (data.feedback && data.score) {
-          setEvaluation({ feedback: data.feedback, score: data.score });
+        if (result) {
+          setEvaluation(result);
         }
       }
     } catch (err) {
       console.error("Error evaluating answer:", err);
     } finally {
       setEvaluating(false);
-      // Scroll to bottom to show evaluation
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -494,50 +310,22 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   };
 
   if (questionsLoading && !isVocabMode) {
-    return (
-      <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color="#4a69bd" />
-        <Text style={styles.loadingText}>Loading questions...</Text>
-      </View>
-    );
+    return <LoadingState />;
   }
 
-  // Show empty state based on quiz type
   if (isVocabMode && vocabQuestions.length === 0) {
     return (
-      <View style={styles.centeredContainer}>
-        <MaterialIcons name="translate" size={48} color="#ccc" />
-        <Text style={styles.emptyText}>
-          {selectedQuizType === "Uncommon Words" &&
-            "You've reviewed all the vocabulary for this video."}
-          {selectedQuizType === "Vocab" &&
-            (focusVocab.length === 0
-              ? "No vocabulary has been 'Selected for Review' for this video yet."
-              : "You've reviewed all the selected vocabulary for this video.")}
-        </Text>
-        <TouchableOpacity
-          style={styles.restartVocabButton}
-          onPress={() => setAlreadySeenVocab([])}
-        >
-          <Text style={styles.restartVocabButtonText}>Restart</Text>
-          <MaterialIcons name="restart-alt" size={18} color="white" />
-        </TouchableOpacity>
-      </View>
+      <VocabEmptyState
+        selectedQuizType={selectedQuizType}
+        hasFocusVocab={focusVocab.length > 0}
+      />
     );
   }
 
   if (!isVocabMode && questions.length === 0) {
-    return (
-      <View style={styles.centeredContainer}>
-        <MaterialIcons name="quiz" size={48} color="#ccc" />
-        <Text style={styles.emptyText}>
-          No review questions available for this video yet.
-        </Text>
-      </View>
-    );
+    return <QuestionsEmptyState />;
   }
 
-  // Get the current question text based on mode
   const displayQuestion = isVocabMode
     ? currentVocabQuestion?.question
     : currentQuestion?.question;
@@ -545,6 +333,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const displayIdealAnswer = isVocabMode
     ? currentVocabQuestion?.translation
     : currentQuestion?.answer;
+
+  const handleNext = isVocabMode ? handleVocabNext : onNextQuestion;
+  const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
   return (
     <KeyboardAvoidingView
@@ -554,11 +345,10 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         Platform.OS === "ios" ? (isKeyboardVisible ? 128 : 180) : 0
       }
     >
-      {/* Question Navigation Header */}
       <NavSwitcher
         onPrev={isVocabMode ? handleVocabPrev : onPrevQuestion}
-        onNext={isVocabMode ? handleVocabNext : onNextQuestion}
-        currentIndex={previousVocabIndexes.length}
+        onNext={handleNext}
+        currentIndex={vocabQuestionIndex}
         totalItems={totalItems}
         sentences={sentences}
         videoId={videoId}
@@ -584,221 +374,53 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         )}
       </NavSwitcher>
 
-      {/* Chat Area */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.chatArea}
         contentContainerStyle={styles.chatContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Question Bubble */}
-        {displayQuestion ? (
-          <View style={styles.questionBubble}>
-            <Text style={styles.questionLabel}>Question</Text>
-            <Text style={styles.questionText}>{displayQuestion}</Text>
-          </View>
-        ) : null}
+        {displayQuestion && <QuestionBubble question={displayQuestion} />}
 
-        {/* Context Clips Section */}
-        <View style={styles.contextSection}>
-          {contextLoading ? (
-            <View style={styles.contextLoadingRow}>
-              <ActivityIndicator size="small" color="#4a69bd" />
-              <Text style={styles.contextLoadingText}>
-                Loading context clips...
-              </Text>
-            </View>
-          ) : contextSegments.length > 0 ? (
-            <>
-              <Text style={styles.contextTitle}>
-                Context Clips{" "}
-                <Text style={styles.contextTitleSubtext}>
-                  (ordered by relevance)
-                </Text>
-              </Text>
-              <View style={styles.timestampRow}>
-                {contextSegments.map((segment, index) => (
-                  <TouchableOpacity
-                    key={`${segment.segment_id}-${index}`}
-                    style={styles.timestampButton}
-                    onPress={() => onPlayClip(segment)}
-                  >
-                    <MaterialIcons
-                      name="play-circle-outline"
-                      size={16}
-                      color="#4a69bd"
-                    />
-                    <Text style={styles.timestampText}>
-                      {formatTimestamp(segment.start)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          ) : null}
-        </View>
+        <ContextClipsSection
+          loading={contextLoading}
+          segments={contextSegments}
+          onPlayClip={onPlayClip}
+          isVocabMode={isVocabMode}
+        />
 
-        {/* User's Answer (shown after submission) */}
         {answered && userMessages.length > 0 && (
-          <View style={styles.userBubble}>
-            <Text style={styles.userBubbleText}>
-              {userMessages[userMessages.length - 1]}
-            </Text>
-          </View>
+          <UserAnswerBubble answer={userMessages[userMessages.length - 1]} />
         )}
 
-        {/* Evaluation Loading */}
-        {evaluating && (
-          <View style={styles.evaluatingBubble}>
-            <ActivityIndicator size="small" color="#4a69bd" />
-            <Text style={styles.evaluatingText}>Evaluating...</Text>
-          </View>
-        )}
+        <EvaluatingBubble isEvaluating={evaluating} />
 
-        {/* Vocab Evaluation */}
         {vocabEvaluation && (
-          <View
-            style={[
-              styles.evaluationBubble,
-              { backgroundColor: VOCAB_SCORE_BG_COLORS[vocabEvaluation.score] },
-            ]}
-          >
-            <View style={styles.scoreRow}>
-              <View
-                style={[
-                  styles.scoreDot,
-                  {
-                    backgroundColor: VOCAB_SCORE_COLORS[vocabEvaluation.score],
-                  },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.scoreLabel,
-                  { color: VOCAB_SCORE_COLORS[vocabEvaluation.score] },
-                ]}
-              >
-                {VOCAB_SCORE_LABELS[vocabEvaluation.score]}
-              </Text>
-            </View>
-            <View style={styles.acceptedAnswersSection}>
-              <Text style={styles.acceptedAnswersLabel}>Accepted Answers:</Text>
-              {vocabEvaluation.acceptedAnswers.map((answer, index) => (
-                <Text key={index} style={styles.acceptedAnswerText}>
-                  • {answer}
-                </Text>
-              ))}
-            </View>
-          </View>
+          <VocabEvaluationBubble evaluation={vocabEvaluation} />
         )}
 
-        {/* Comprehension Evaluation Feedback */}
         {evaluation && (
-          <View
-            style={[
-              styles.evaluationBubble,
-              { backgroundColor: SCORE_BG_COLORS[evaluation.score] },
-            ]}
-          >
-            <View style={styles.scoreRow}>
-              <View
-                style={[
-                  styles.scoreDot,
-                  { backgroundColor: SCORE_COLORS[evaluation.score] },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.scoreLabel,
-                  { color: SCORE_COLORS[evaluation.score] },
-                ]}
-              >
-                {SCORE_LABELS[evaluation.score]}
-              </Text>
-            </View>
-            <Text style={styles.feedbackText}>{evaluation.feedback}</Text>
-            <View style={styles.idealAnswerSection}>
-              <Text style={styles.idealAnswerLabel}>Ideal Answer:</Text>
-              <Text style={styles.idealAnswerText}>{displayIdealAnswer}</Text>
-            </View>
-          </View>
+          <ComprehensionEvaluationBubble
+            evaluation={evaluation}
+            idealAnswer={displayIdealAnswer || ""}
+          />
         )}
       </ScrollView>
 
-      {/* Input Area */}
       {!answered ? (
-        <View
-          style={[
-            styles.inputArea,
-            { paddingBottom: isKeyboardVisible ? 10 : 40 },
-          ]}
-        >
-          <TextInput
-            style={styles.textInput}
-            placeholder="Type your answer..."
-            placeholderTextColor="#999"
-            value={userAnswer}
-            onChangeText={setUserAnswer}
-            autoComplete="off"
-            autoCorrect={false}
-            autoCapitalize="none"
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[
-              styles.trashButton,
-              { backgroundColor: isKeyboardVisible ? "white" : "#f0f0f0" },
-            ]}
-            onPress={handleResetAnswer}
-          >
-            <FontAwesome
-              name="trash-o"
-              size={22}
-              color={isKeyboardVisible ? "red" : "#aaa"}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              !userAnswer.trim() && styles.sendButtonDisabled,
-            ]}
-            onPress={handleSubmitAnswer}
-            disabled={!userAnswer.trim()}
-          >
-            <MaterialIcons
-              name="send"
-              size={22}
-              color={userAnswer.trim() ? "#fff" : "#aaa"}
-            />
-          </TouchableOpacity>
-        </View>
+        <AnswerInput
+          value={userAnswer}
+          onChangeText={setUserAnswer}
+          onSubmit={handleSubmitAnswer}
+          onClear={handleResetAnswer}
+          isKeyboardVisible={isKeyboardVisible}
+        />
       ) : (
-        <View style={styles.nextPrompt}>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-            <MaterialIcons
-              name="refresh"
-              size={18}
-              color="black"
-              opacity={0.5}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.nextQuestionButton}
-            onPress={isVocabMode ? handleVocabNext : onNextQuestion}
-            disabled={currentQuestionIndex === questions.length - 1}
-          >
-            <Text style={styles.nextQuestionButtonText}>
-              {currentQuestionIndex === questions.length - 1
-                ? "All Questions Complete"
-                : "Next Question"}
-            </Text>
-            {currentQuestionIndex < questions.length - 1 && (
-              <MaterialIcons name="arrow-forward" size={18} color="#fff" />
-            )}
-          </TouchableOpacity>
-        </View>
+        <AnswerActions
+          onRetry={handleRetry}
+          onNext={handleNext}
+          isLastQuestion={isLastQuestion}
+        />
       )}
     </KeyboardAvoidingView>
   );
@@ -807,38 +429,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  centeredContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 40,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#666",
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#888",
-    textAlign: "center",
-  },
-  restartVocabButton: {
-    backgroundColor: "#4a69bd",
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 16,
-  },
-  restartVocabButtonText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
   },
   cefrBadge: {
     backgroundColor: "#4a69bd",
@@ -862,285 +452,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-
-  // Chat Area
   chatArea: {
     flex: 1,
   },
   chatContent: {
     padding: 16,
     paddingBottom: 20,
-  },
-
-  // Question Bubble
-  questionBubble: {
-    backgroundColor: "#f0f4ff",
-    borderRadius: 16,
-    borderBottomLeftRadius: 4,
-    padding: 16,
-    marginBottom: 12,
-    alignSelf: "flex-start",
-    maxWidth: "90%",
-  },
-  questionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#4a69bd",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  questionText: {
-    fontSize: 17,
-    lineHeight: 24,
-    color: "#222",
-  },
-  questionLoadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  questionLoadingText: {
-    fontSize: 15,
-    color: "#666",
-    fontStyle: "italic",
-  },
-
-  // Context Clips
-  contextSection: {
-    marginBottom: 16,
-  },
-  contextLoadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
-  },
-  contextTitleSubtext: {
-    fontSize: 11,
-    fontWeight: "400",
-    color: "#666",
-  },
-  contextLoadingText: {
-    fontSize: 14,
-    color: "#666",
-    fontStyle: "italic",
-  },
-  contextTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 8,
-  },
-  timestampRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  timestampButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#eef2ff",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#d0d8f0",
-  },
-  timestampText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#4a69bd",
-  },
-
-  // User Bubble
-  userBubble: {
-    backgroundColor: "#4a69bd",
-    borderRadius: 16,
-    borderBottomRightRadius: 4,
-    padding: 14,
-    marginBottom: 12,
-    alignSelf: "flex-end",
-    maxWidth: "80%",
-  },
-  userBubbleText: {
-    fontSize: 16,
-    lineHeight: 22,
-    color: "#fff",
-  },
-
-  // Evaluating
-  evaluatingBubble: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    alignSelf: "flex-start",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-  },
-  evaluatingText: {
-    fontSize: 14,
-    color: "#666",
-  },
-
-  // Evaluation Feedback
-  evaluationBubble: {
-    borderRadius: 16,
-    borderBottomLeftRadius: 4,
-    padding: 16,
-    marginBottom: 12,
-    alignSelf: "flex-start",
-    maxWidth: "90%",
-  },
-  scoreRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 8,
-  },
-  scoreDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  scoreLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  feedbackText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#333",
-    marginBottom: 12,
-  },
-  idealAnswerSection: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.1)",
-    paddingTop: 10,
-  },
-  idealAnswerLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#666",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  idealAnswerText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#444",
-    fontStyle: "italic",
-  },
-  acceptedAnswersSection: {
-    marginTop: 4,
-  },
-  acceptedAnswersLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#666",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  acceptedAnswerText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#444",
-  },
-
-  // Input Area
-  inputArea: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-    backgroundColor: "#fafafa",
-    gap: 8,
-  },
-  textInput: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: "#222",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    maxHeight: 100,
-  },
-  sendButton: {
-    backgroundColor: "#4a69bd",
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sendButtonDisabled: {
-    backgroundColor: "#e0e0e0",
-  },
-
-  trashButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f0f0f0",
-  },
-  // Next Question Prompt
-  nextPrompt: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    marginBottom: 12,
-    borderTopColor: "#eee",
-    backgroundColor: "#fafafa",
-  },
-  nextQuestionButton: {
-    backgroundColor: "#4a69bd",
-    justifyContent: "center",
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  nextQuestionButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  retryButton: {
-    justifyContent: "center",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flex: 1,
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    color: "black",
-    opacity: 0.5,
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
 
