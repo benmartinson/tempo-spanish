@@ -6,7 +6,7 @@ export default {
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
-    newArchEnabled: false,
+    newArchEnabled: true,
     plugins: ["expo-web-browser"],
     splash: {
       image: "./assets/splash-icon.png",
@@ -19,12 +19,6 @@ export default {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
-      extraPods: [
-        {
-          name: "RCT-Folly",
-          configurations: ["Debug", "Release"],
-        },
-      ],
     },
     android: {
       adaptiveIcon: {
