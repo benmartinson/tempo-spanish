@@ -51,6 +51,7 @@ import NavSwitcher from "../common/NavSwitcher";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import FeaturedVocab from "../watch/FeaturedVocab";
 import WordHints from "../common/WordHints";
+import Foundation from "@expo/vector-icons/Foundation";
 
 interface ShadowTabProps {
   time: number;
@@ -87,7 +88,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
-    ? currentVideo.sentences[currentSentenceIndex]
+    ? { ...currentVideo.sentences[currentSentenceIndex] }
     : null;
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
@@ -127,6 +128,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [currentUnknownWordIndex, setCurrentUnknownWordIndex] =
     useState<number>(0);
   const currentUnknownWord = unknownWords[currentUnknownWordIndex];
+  const [showShadowInstructions, setShowShadowInstructions] =
+    useState<boolean>(false);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -591,22 +594,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 mode="video"
               /> */}
               <View style={styles.recordButtonContainer}>
-                <View style={styles.previousResultsButton}>
-                  {previousResults ? (
-                    <TouchableOpacity
-                      style={styles.previousResultsButtonInner}
-                      onPress={handlePreviousResults}
-                      disabled={isPlayingRecording}
-                    >
-                      <MaterialIcons
-                        name="arrow-back"
-                        size={20}
-                        color="#4a69bd"
-                      />
-                      <Text style={styles.previousResultsText}>Results</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
                 <View style={styles.playSegmentButton}>
                   <TouchableOpacity
                     style={styles.playSegmentButtonInner}
@@ -619,17 +606,28 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   </TouchableOpacity>
                 </View>
                 <View style={styles.settingsButton}>
+                  {previousResults && (
+                    <TouchableOpacity
+                      style={styles.previousResultsButtonInner}
+                      onPress={handlePreviousResults}
+                      disabled={isPlayingRecording}
+                    >
+                      <Foundation
+                        name="clipboard-notes"
+                        size={32}
+                        color="#4a69bd"
+                      />
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
                     <MaterialIcons name="settings" size={32} color="black" />
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setShowShadowInstructions(true)}
+                  >
+                    <MaterialIcons name="info" size={32} color="gray" />
+                  </TouchableOpacity>
                 </View>
-              </View>
-
-              <View style={styles.instructionContainer}>
-                <Text style={styles.instructionText}>
-                  Listen to the sentence and then speak or type it out in
-                  full...
-                </Text>
               </View>
               {/* <VocabList
                 vocab={focusVocabTimes}
@@ -674,11 +672,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 )}
               </View>
               {!accuracyResult && unknownWords.length > 0 && (
-                <WordHints
-                  unknownWords={unknownWords}
-                  handlePlayWordSnippet={(word) => handlePlaySnippetAgain(word)}
-                  isPlayingWordSnippet={isPlayingWordSnippet}
-                />
+                <View style={styles.wordHintsContainer}>
+                  <WordHints
+                    unknownWords={unknownWords}
+                    handlePlayWordSnippet={(word) =>
+                      handlePlaySnippetAgain(word)
+                    }
+                    isPlayingWordSnippet={isPlayingWordSnippet}
+                  />
+                </View>
               )}
             </>
           )}
@@ -694,7 +696,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           >
             <TextInput
               style={styles.textInput}
-              placeholder="Type the sentence..."
+              placeholder=""
               placeholderTextColor="#999"
               value={userAnswer}
               onChangeText={setUserAnswer}
@@ -772,6 +774,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           </Text>
         </TooltipModal>
       )}
+      {showShadowInstructions && (
+        <TooltipModal
+          isVisible={showShadowInstructions}
+          onRequestClose={() => setShowShadowInstructions(false)}
+        >
+          <Text style={styles.shadowInstructionsText}>
+            Listen to the sentence until memorized and then press the microphone
+            button to record your pronunciation of it...
+          </Text>
+        </TooltipModal>
+      )}
     </>
   );
 };
@@ -786,21 +799,29 @@ export const styles = StyleSheet.create({
   },
   instructionContainer: {
     alignItems: "center",
+    gap: 8,
     justifyContent: "center",
     marginTop: 20,
     paddingHorizontal: 24,
   },
-
+  shadowInstructionsText: {
+    color: "white",
+    textAlign: "center",
+    fontSize: 14,
+  },
+  wordHintsContainer: {
+    marginTop: 0,
+  },
   instructionText: {
     color: "#666",
     textAlign: "center",
     fontSize: 14,
   },
   settingsButton: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 16,
     marginTop: 16,
   },
   errorContainer: {
@@ -861,14 +882,12 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   recordButtonContainer: {
+    width: "100%",
     flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
   },
   playSegmentButton: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1010,16 +1029,15 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-start",
-    marginTop: 16,
+    marginTop: 4,
   },
   previousResultsButtonInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 4,
     paddingVertical: 12,
-    paddingHorizontal: 16,
     borderRadius: 24,
-    gap: 8,
   },
   previousResultsText: {
     color: "#4a69bd",

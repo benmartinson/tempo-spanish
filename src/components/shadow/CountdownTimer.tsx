@@ -135,7 +135,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
               onPress={onStopRecording}
               style={styles.stopButton}
             >
-              <Text style={styles.stopButtonText}>Stop Recording</Text>
+              <Text style={styles.stopButtonText}>Submit</Text>
             </TouchableOpacity>
           </View>
         );

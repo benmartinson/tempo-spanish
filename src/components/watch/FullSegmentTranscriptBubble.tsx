@@ -176,7 +176,7 @@ const FullSegmentTranscriptBubble: React.FC<
             >
               <Text style={[styles.word, getWordStyle()]}>
                 {word.word.startsWith(" ") ? "" : " "}
-                {word.word}
+                {word.word.endsWith(",.") ? word.word.slice(0, -1) : word.word}
               </Text>
             </Pressable>
           );

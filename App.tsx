@@ -313,6 +313,10 @@ const AuthenticatedApp: React.FC = () => {
           const focusVocab = focusVocabData?.map((v) => v.vocabulary_id);
 
           const sentences = splitSegmentsIntoSentences(segments);
+          console.log(
+            "sentences",
+            sentences[0].words[sentences[0].words.length - 1],
+          );
           const video: VideoContext = {
             videoId: videoRecord.video_id,
             recordId: uiState.current_video,

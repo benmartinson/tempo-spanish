@@ -82,9 +82,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const [time, setTime] = useState<number>(0);
   const [isConfirmingStartOver, setIsConfirmingStartOver] =
     useState<boolean>(false);
-  const currentSentence = currentVideo
-    ? currentVideo.sentences[currentVideo.currentSentence]
-    : null;
+  // const currentSentence = currentVideo
+  //   ? { ...currentVideo.sentences[currentVideo.currentSentence] }
+  //   : null;
   const setCurrentSentence = useCallback(
     (next: React.SetStateAction<number>) => {
       dispatch(setCurrentSentenceAction(next));
@@ -93,7 +93,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   );
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
-    ? currentVideo.sentences[currentSentenceIndex]
+    ? { ...currentVideo.sentences[currentSentenceIndex] }
     : null;
 
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
@@ -113,8 +113,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       .map((sw) => {
         const normalized = stripPunctuation(sw.word.toLowerCase()).trim();
         const vocab = allVocabulary[normalized];
-        sw.word = stripPunctuation(sw.word).trim();
-        return vocab ? { sw, vocab } : null;
+        const cleanedWord = stripPunctuation(sw.word).trim();
+        return vocab ? { sw: { ...sw, word: cleanedWord }, vocab } : null;
       })
       .filter(
         (item): item is { sw: SegmentWord; vocab: any } =>
@@ -175,15 +175,15 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       prevTime !== -1 &&
       prevTime !== 0 &&
       Math.abs(newTime - prevTime) > 2 &&
-      currentSentence !== undefined &&
-      (newTime < currentSentence.start - 0.5 ||
-        newTime > currentSentence.end + 0.5)
+      currentSentenceObject !== undefined &&
+      (newTime < currentSentenceObject.start - 0.5 ||
+        newTime > currentSentenceObject.end + 0.5)
     ) {
       if (
         selectedNavTab !== "watch" &&
         newTime === 0 &&
         !isConfirmingStartOver &&
-        currentSentence.index > 0
+        currentSentenceObject?.index > 0
       ) {
         pausePlayer();
         setIsConfirmingStartOver(true);
@@ -201,10 +201,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       return;
     }
     // Ignore time before sentence start
-    if (newTime < currentSentence.start) return;
+    if (newTime < currentSentenceObject?.start) return;
     // Pause at sentence end (enforces sentence clipping without URL reload)
 
-    if (newTime >= currentSentence.end) {
+    if (newTime >= currentSentenceObject?.end) {
       if (selectedNavTab === "shadow" || selectedNavTab === "review") {
         // playerRef.current?.pause();
       } else {
@@ -229,7 +229,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   };
 
   const handleNextSentence = useCallback(() => {
-    if (currentSentence.index === currentVideo?.sentences.length - 1) {
+    if (currentSentenceObject?.index === currentVideo?.sentences.length - 1) {
       return;
     }
 
@@ -240,10 +240,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       return next?.index;
     });
     refreshPlayer();
-  }, [currentSentence?.index, currentVideo?.sentences.length]);
+  }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
 
   const handlePreviousSentence = useCallback(() => {
-    if (currentSentence.index === 0) {
+    if (currentSentenceObject?.index === 0) {
       return;
     }
     handleTransition();
@@ -254,14 +254,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       return previous?.index;
     });
     refreshPlayer();
-  }, [currentSentence?.index, currentVideo?.sentences]);
+  }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
   const playSentence = useCallback(() => {
     handleTransition();
     setAutoplay(true);
-    setTime(currentSentence.start);
+    setTime(currentSentenceObject?.start);
     refreshPlayer();
-  }, [currentSentence.start]);
+  }, [currentSentenceObject?.start]);
 
   const playWordSnippet = useCallback(
     (word: SegmentWord) => {
@@ -275,13 +275,13 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         currentWordSnippetRef.current = null;
       }, 1000);
     },
-    [currentSentence.start],
+    [currentSentenceObject?.start],
   );
 
   const refreshPlayer = useCallback(() => {
     prevTimeRef.current = -1;
     dispatch(refreshVideoPlayerAction());
-  }, [dispatch, currentSentence.start]);
+  }, [dispatch, currentSentenceObject?.start]);
 
   const handlePlayClip = useCallback((start) => {
     setAutoplay(true);
@@ -334,7 +334,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     if (currentWordSnippetRef.current) {
       endTime = currentWordSnippetRef.current.end;
     } else {
-      endTime = currentSentence.end;
+      endTime = currentSentenceObject?.end;
     }
   }
   return (
@@ -349,12 +349,13 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           ref={playerRef}
           videoId={currentVideo.videoId}
           clip={{
-            index: currentSentence.index,
-            text: currentSentence.text,
-            full_translation: currentSentence.full_translation,
-            words: currentSentence.words,
+            index: currentSentenceObject?.index,
+            text: currentSentenceObject?.text,
+            full_translation: currentSentenceObject?.full_translation,
+            words: currentSentenceObject?.words,
             start:
-              currentWordSnippetRef.current?.start || currentSentence.start,
+              currentWordSnippetRef.current?.start ||
+              currentSentenceObject?.start,
             end: endTime,
           }}
           autoplay={effectiveAutoplay}
@@ -378,7 +379,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       <View style={getTabStyle(selectedNavTab === "watch")}>
         <WatchTab
           time={time}
-          currentSentence={currentSentence}
+          currentSentence={currentSentenceObject}
           setCurrentSentence={setCurrentSentence}
           setAutoplay={setAutoplay}
           refreshPlayer={refreshPlayer}

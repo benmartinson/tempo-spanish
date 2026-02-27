@@ -60,7 +60,6 @@ interface ReviewChatProps {
   isKeyboardVisible: boolean;
   selectedQuizType: QuizType;
   onSelectQuizType: (type: QuizType) => void;
-  sentences: Sentence[];
 }
 
 const ReviewChat: React.FC<ReviewChatProps> = ({
@@ -74,9 +73,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   isKeyboardVisible,
   selectedQuizType,
   onSelectQuizType,
-  sentences,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const sentences = [...currentVideo?.sentences];
   const focusVocab = currentVideo?.focusVocab;
   const [contextSegments, setContextSegments] = useState<ContextSegment[]>([]);
   const [contextLoading, setContextLoading] = useState(false);
@@ -120,26 +119,23 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       return [];
 
     const vocabWords = getFocusVocabWords(focusVocab, allVocabulary);
-    return buildVocabItemsWithContext(
-      vocabWords,
-      currentVideo?.sentences || [],
-    );
-  }, [focusVocab, currentVideo?.sentences, allVocabulary]);
+    return buildVocabItemsWithContext(vocabWords, sentences || []);
+  }, [focusVocab, sentences, allVocabulary]);
 
   const uncommonVocabItems = useMemo(() => {
     if (
       !allVocabulary ||
       !Object.keys(allVocabulary).length ||
-      !currentVideo?.sentences?.length
+      !sentences?.length
     )
       return [];
 
     const uncommonVocab = getUncommonVocabFromSentences(
-      currentVideo.sentences,
+      sentences,
       allVocabulary,
     );
-    return buildVocabItemsWithContext(uncommonVocab, currentVideo.sentences);
-  }, [allVocabulary, currentVideo?.sentences]);
+    return buildVocabItemsWithContext(uncommonVocab, sentences);
+  }, [allVocabulary, sentences]);
   console.log(
     "uncommonVocabItems",
     uncommonVocabItems.map((item) => item.word),
@@ -258,7 +254,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     try {
       if (isVocabMode && currentVocabQuestion) {
         const translations = contextSegments.map((s) => {
-          const fullTranslation = currentVideo.sentences.find(
+          const fullTranslation = sentences.find(
             (sentence) => sentence.start === s.start && sentence.end === s.end,
           )?.full_translation;
           return {

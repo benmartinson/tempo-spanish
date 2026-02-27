@@ -129,7 +129,6 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
         isKeyboardVisible={isKeyboardVisible}
         selectedQuizType={selectedQuizType}
         onSelectQuizType={setSelectedQuizType}
-        sentences={currentVideo.sentences}
       />
     </View>
   );
