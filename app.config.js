@@ -26,6 +26,7 @@ export default {
         backgroundColor: "#ffffff",
       },
       edgeToEdgeEnabled: true,
+      package: "com.benmartinson92.tempo",
     },
     web: {
       favicon: "./assets/favicon.png",

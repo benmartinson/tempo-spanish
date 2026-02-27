@@ -6,8 +6,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
-    "postinstall": "npx patch-package"
+    "web": "expo start --web"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.19",
@@ -21,9 +20,10 @@
     "axios": "^1.13.2",
     "base64-arraybuffer": "^1.0.2",
     "expo": "~54.0.0",
+    "expo-audio": "~1.1.1",
     "expo-auth-session": "^7.0.10",
-    "expo-av": "~16.0.8",
     "expo-constants": "~18.0.13",
+    "expo-dev-client": "~6.0.20",
     "expo-file-system": "~19.0.21",
     "expo-router": "^6.0.22",
     "expo-secure-store": "^15.0.8",
@@ -49,6 +49,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@react-native-community/cli": "^20.1.2",
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
   },

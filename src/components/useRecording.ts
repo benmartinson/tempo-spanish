@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Audio } from "expo-av";
+import { useAudioRecorder, type AudioRecorder } from "expo-audio";
 import {
   getRecordingConfig,
   requestMicrophonePermission,
@@ -24,8 +24,9 @@ export const useRecording = (
 ): UseRecordingReturn => {
   const [isRecording, setIsRecording] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const recorder = useAudioRecorder(getRecordingConfig());
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recordingRef = useRef<AudioRecorder | null>(null);
 
   // Store callbacks in refs to avoid stale closures
   const onRecordingCompleteRef = useRef(options.onRecordingComplete);
@@ -65,7 +66,7 @@ export const useRecording = (
   const cleanup = useCallback(async () => {
     if (recordingRef.current) {
       try {
-        await recordingRef.current.stopAndUnloadAsync();
+        await recordingRef.current.stop();
       } catch (err) {
         // Recording may already be stopped
       }
@@ -84,11 +85,10 @@ export const useRecording = (
       await setAudioModeForRecording(true);
 
       // Create recording with PCM format
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(getRecordingConfig());
+      await recorder.prepareToRecordAsync(getRecordingConfig());
 
-      recordingRef.current = recording;
-      await recording.startAsync();
+      recordingRef.current = recorder;
+      recorder.record();
       setIsRecording(true);
     } catch (err) {
       console.error("Failed to start recording:", err);
@@ -106,8 +106,8 @@ export const useRecording = (
 
       if (recordingRef.current) {
         try {
-          audioUri = recordingRef.current.getURI();
-          await recordingRef.current.stopAndUnloadAsync();
+          await recordingRef.current.stop();
+          audioUri = recordingRef.current.uri;
         } catch (err) {
           console.error("Error stopping recording:", err);
           onErrorRef.current?.("Error stopping recording");

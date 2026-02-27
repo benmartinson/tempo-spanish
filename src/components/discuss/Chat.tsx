@@ -8,7 +8,7 @@ import {
   SafeAreaView,
   Animated,
 } from "react-native";
-import { Audio } from "expo-av";
+import { useAudioRecorder, type AudioRecorder } from "expo-audio";
 import { useSelector, useDispatch } from "react-redux";
 
 import {
@@ -85,7 +85,8 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
   const currentTab = useSelector((state: RootState) => state.currentTab);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recordingRef = useRef<AudioRecorder | null>(null);
+  const recorder = useAudioRecorder(getRecordingConfig());
   const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const finalTranscriptRef = useRef<string>("");
@@ -407,7 +408,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     autocorrect.stop();
     if (recordingRef.current) {
       try {
-        await recordingRef.current.stopAndUnloadAsync();
+        await recordingRef.current.stop();
       } catch (err) {
         // Recording may already be stopped
       }
@@ -459,11 +460,10 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
       await setAudioModeForRecording(true);
 
       // Create recording with PCM format
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(getRecordingConfig());
+      await recorder.prepareToRecordAsync(getRecordingConfig());
 
-      recordingRef.current = recording;
-      await recording.startAsync();
+      recordingRef.current = recorder;
+      recorder.record();
       setIsRecording(true);
       setIsConnecting(false);
 
@@ -498,7 +498,7 @@ const Chat: React.FC<ChatProps> = ({ chatType = null }) => {
     // Stop recording
     if (recordingRef.current) {
       try {
-        await recordingRef.current.stopAndUnloadAsync();
+        await recordingRef.current.stop();
       } catch (err) {
         console.error("Error stopping recording:", err);
       }

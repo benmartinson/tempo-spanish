@@ -1,5 +1,14 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { Audio, InterruptionModeIOS } from "expo-av";
+import {
+  createAudioPlayer,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  IOSOutputFormat,
+  AudioQuality,
+  type AudioPlayer,
+  type AudioRecorder,
+  type RecordingOptions,
+} from "expo-audio";
 import Constants from "expo-constants";
 import { decode, encode } from "base64-arraybuffer";
 import {
@@ -25,34 +34,35 @@ export const BACKEND_WS_URL = __DEV__
 // console.log('Environment:', __DEV__ ? 'DEV' : 'PROD', 'Backend:', BACKEND_BASE_URL);
 
 // Global reference to currently playing sound to prevent overlapping audio
-let currentPlayingSound: Audio.Sound | null = null;
+let currentPlayingSound: AudioPlayer | null = null;
 
 export const playAudio = async (audioBase64: string) => {
   try {
     // Stop any currently playing audio
     if (currentPlayingSound) {
-      await currentPlayingSound.stopAsync();
-      await currentPlayingSound.unloadAsync();
+      currentPlayingSound.pause();
+      currentPlayingSound.remove();
       currentPlayingSound = null;
     }
 
     // Configure audio mode for playback through speakers
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
     });
 
-    const { sound } = await Audio.Sound.createAsync({
+    const sound = createAudioPlayer({
       uri: `data:audio/mp3;base64,${audioBase64}`,
     });
 
     currentPlayingSound = sound;
 
-    await sound.playAsync();
+    sound.play();
     // Unload sound when finished to free memory
-    sound.setOnPlaybackStatusUpdate((status) => {
+    const subscription = sound.addListener("playbackStatusUpdate", (status) => {
       if (status.isLoaded && status.didJustFinish) {
-        sound.unloadAsync();
+        sound.remove();
+        subscription.remove();
         if (currentPlayingSound === sound) {
           currentPlayingSound = null;
         }
@@ -67,8 +77,8 @@ export const playAudio = async (audioBase64: string) => {
 export const stopAudio = async () => {
   if (currentPlayingSound) {
     try {
-      await currentPlayingSound.stopAsync();
-      await currentPlayingSound.unloadAsync();
+      currentPlayingSound.pause();
+      currentPlayingSound.remove();
       currentPlayingSound = null;
     } catch (err) {
       console.error("Error stopping audio:", err);
@@ -86,8 +96,8 @@ export const playAudioFromStorage = async (
   try {
     // Stop any currently playing audio
     if (currentPlayingSound) {
-      await currentPlayingSound.stopAsync();
-      await currentPlayingSound.unloadAsync();
+      currentPlayingSound.pause();
+      currentPlayingSound.remove();
       currentPlayingSound = null;
     }
 
@@ -103,22 +113,23 @@ export const playAudioFromStorage = async (
     }
 
     // Configure audio mode for playback through speakers
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
     });
 
-    const { sound } = await Audio.Sound.createAsync({
+    const sound = createAudioPlayer({
       uri: data.signedUrl,
     });
 
     currentPlayingSound = sound;
 
-    await sound.playAsync();
+    sound.play();
     // Unload sound when finished to free memory
-    sound.setOnPlaybackStatusUpdate((status) => {
+    const subscription = sound.addListener("playbackStatusUpdate", (status) => {
       if (status.isLoaded && status.didJustFinish) {
-        sound.unloadAsync();
+        sound.remove();
+        subscription.remove();
         if (currentPlayingSound === sound) {
           currentPlayingSound = null;
         }
@@ -231,7 +242,7 @@ export const connectToBackend = (
  * Returns a function to stop the streaming
  */
 export const startAudioStreaming = (
-  getRecording: () => Audio.Recording | null,
+  getRecording: () => AudioRecorder | null,
   getWebSocket: () => WebSocket | null,
 ): NodeJS.Timeout => {
   let lastBytesSent = 0;
@@ -248,7 +259,7 @@ export const startAudioStreaming = (
     if (ws.readyState !== WebSocket.OPEN) return;
 
     try {
-      const uri = recording.getURI();
+      const uri = recording.uri;
       if (!uri) return;
 
       // Read the entire file as base64
@@ -290,22 +301,19 @@ export const startAudioStreaming = (
 /**
  * Get the audio recording configuration
  */
-export const getRecordingConfig = (): Audio.RecordingOptions => ({
+export const getRecordingConfig = (): RecordingOptions => ({
+  extension: ".wav",
+  sampleRate: 44100,
+  numberOfChannels: 1,
+  bitRate: 256000,
   android: {
     extension: ".mp3",
-    outputFormat: Audio.AndroidOutputFormat.DEFAULT,
-    audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-    sampleRate: 44100,
-    numberOfChannels: 1,
-    bitRate: 256000,
+    outputFormat: "default",
+    audioEncoder: "default",
   },
   ios: {
-    extension: ".wav",
-    outputFormat: Audio.IOSOutputFormat.LINEARPCM,
-    audioQuality: Audio.IOSAudioQuality.HIGH,
-    sampleRate: 44100,
-    numberOfChannels: 1,
-    bitRate: 256000,
+    outputFormat: IOSOutputFormat.LINEARPCM,
+    audioQuality: AudioQuality.HIGH,
     linearPCMBitDepth: 16,
     linearPCMIsBigEndian: false,
     linearPCMIsFloat: false,
@@ -320,35 +328,30 @@ export const getRecordingConfig = (): Audio.RecordingOptions => ({
  * Request microphone permission
  */
 export const requestMicrophonePermission = async (): Promise<boolean> => {
-  const { status } = await Audio.requestPermissionsAsync();
-  return status === "granted";
+  const { granted } = await requestRecordingPermissionsAsync();
+  return granted;
 };
 
 /**
  * Set audio mode for recording.
- *
- * NOTE: This relies on a native patch to expo-av (see patches/expo-av+16.0.8.patch).
- * Without the patch, setting allowsRecordingIOS back to false after recording has no
- * effect because expo-av skips the AVAudioSession category update when its internal
- * mode is Inactive — leaving the session stuck in PlayAndRecord and garbling WebView audio.
  */
 export const setAudioModeForRecording = async (
   isRecording: boolean,
 ): Promise<void> => {
   if (isRecording) {
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+    await setAudioModeAsync({
+      allowsRecording: true,
+      playsInSilentMode: true,
+      interruptionMode: "mixWithOthers",
     });
     return;
   }
 
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-    playsInSilentModeIOS: true,
-    interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
-    staysActiveInBackground: false,
+  await setAudioModeAsync({
+    allowsRecording: false,
+    playsInSilentMode: true,
+    interruptionMode: "mixWithOthers",
+    shouldPlayInBackground: false,
   });
 };
 
