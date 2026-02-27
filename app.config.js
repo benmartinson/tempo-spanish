@@ -19,6 +19,12 @@ export default {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
+      extraPods: [
+        {
+          name: "RCT-Folly",
+          configurations: ["Debug", "Release"],
+        },
+      ],
     },
     android: {
       adaptiveIcon: {
