@@ -29,7 +29,6 @@ import {
   UserUIState,
 } from "./src/types";
 import { createVocabHash, splitSegmentsIntoSentences } from "./src/helpers";
-import { BACKEND_BASE_URL } from "./src/components/streaming_helpers";
 import { useUIStateSync } from "./src/components/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
