@@ -46,6 +46,10 @@ export default {
       productionBaseUrl: "https://aqgubuisev.us-west-2.awsapprunner.com",
       productionWsUrl:
         "wss://aqgubuisev.us-west-2.awsapprunner.com/ws/transcribe",
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
+        process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+      EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     },
     owner: "benmartinson92",
   },

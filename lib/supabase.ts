@@ -1,10 +1,14 @@
 import "react-native-url-polyfill/auto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import Constants from "expo-constants";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const SUPABASE_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY =
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
-export type ClerkGetToken = (opts?: { template?: string }) => Promise<string | null>;
+export type ClerkGetToken = (opts?: {
+  template?: string;
+}) => Promise<string | null>;
 
 type GlobalCache = typeof globalThis & {
   __tempoSupabase?: SupabaseClient;

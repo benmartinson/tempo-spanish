@@ -9,7 +9,6 @@ import {
   type AudioRecorder,
   type RecordingOptions,
 } from "expo-audio";
-import Constants from "expo-constants";
 import { decode, encode } from "base64-arraybuffer";
 import {
   TranscriptCallbacks,
@@ -18,6 +17,7 @@ import {
   AccuracyResult,
 } from "../types";
 import { supabase } from "../../lib/supabase";
+import Constants from "expo-constants";
 
 // Backend URLs - all configured in app.config.js
 const config = Constants.expoConfig?.extra;
