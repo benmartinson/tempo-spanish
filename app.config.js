@@ -18,6 +18,8 @@ export default {
       bundleIdentifier: "com.benmartinson92.tempo",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        NSMicrophoneUsageDescription:
+          "This app uses the microphone to record audio.",
       },
     },
     android: {
