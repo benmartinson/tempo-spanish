@@ -43,6 +43,12 @@ import SelectedVideoBanner from "./src/components/common/SelectedVideoBanner";
 import NavTabBanner from "./src/components/common/NavTabBanner";
 import ShadowTab from "./src/components/shadow/ShadowTab";
 import SelectedVideoTabs from "./src/components/common/SelectedVideoTabs";
+import Constants from "expo-constants";
+const publishableKey =
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+if (!publishableKey) {
+  throw new Error("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not set");
+}
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -474,7 +480,7 @@ const AppNavigator: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <ClerkProvider tokenCache={tokenCache}>
+    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <Provider store={store}>
         <NavigationContainer>
           <AppNavigator />
