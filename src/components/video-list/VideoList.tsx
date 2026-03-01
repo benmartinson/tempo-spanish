@@ -11,32 +11,21 @@ import {
 } from "react-native";
 import {
   RootState,
-  VideoContext,
-  Segment,
   Video,
   VideoView,
 } from "../../types";
-import { splitSegmentsIntoSentences } from "../../helpers";
-import { WATCH_CLIPS } from "../../data/question_clips";
 import {
   addUserVideoView,
-  setAllChannels,
-  setAllVideos,
-  setCurrentSearchResults,
-  setCurrentSearchTerm,
   setCurrentTab,
   setCurrentVideo,
-  setFocusVocab,
-  setUserVideoViews,
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
-import { BACKEND_BASE_URL } from "../streaming_helpers";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "@clerk/clerk-expo";
 import HorizontalVideoScroll from "./HorizontalVideoScroll";
 import VideoSectionHeader from "./VideoSectionHeader";
 import WordSearch from "./WordSearch";
+import { fetchVideoContext } from "../../requests";
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
@@ -51,7 +40,6 @@ const VideoList: React.FC = () => {
   const userVideoViews = useSelector(
     (state: RootState) => state.userVideoViews,
   );
-  const navigation = useNavigation();
   const videoResults = currentSearchResults.reduce(
     (acc, result) => {
       const video = allVideos.find((video) => video.id === result.video_id);
@@ -76,85 +64,36 @@ const VideoList: React.FC = () => {
     clip?: number,
   ) => {
     setLoadingVideo(true);
-    const { data: transcriptSegments, error: transcriptSegmentsError } =
-      await supabase
-        .from("transcript_segment")
-        .select("*")
-        .eq("video_id", recordId)
-        .order("segment_id");
+    try {
+      const { videoContext, videoView } = await fetchVideoContext({
+        supabase,
+        videoId,
+        recordId,
+        clip,
+      });
 
-    if (transcriptSegmentsError) console.error(transcriptSegmentsError);
+      dispatch(addUserVideoView(videoView));
+      dispatch(setCurrentVideo(videoContext));
+      dispatch(setCurrentTab("watch"));
 
-    const { data: videoViewData, error: videoViewError } = await supabase
-      .from("video_views")
-      .upsert(
-        {
-          video_id: recordId,
-          watched_at: new Date(),
-        },
-        {
-          onConflict: "user_id,video_id",
-          ignoreDuplicates: false,
-        },
-      )
-      .select("id, last_sentence_watched, video_id, watched_at");
-
-    if (videoViewError) console.error(videoViewError);
-
-    dispatch(addUserVideoView(videoViewData?.[0] as VideoView));
-    const videoViewId = videoViewData?.[0]?.id ?? "";
-
-    const { data: focusVocabData, error: focusVocabError } = await supabase
-      .from("video_view_focus_vocab")
-      .select("*")
-      .eq("video_view_id", videoViewId);
-
-    if (focusVocabError) console.error(focusVocabError);
-    const focusVocab = focusVocabData?.map((v) => v.vocabulary_id);
-
-    const restoredSentence = videoViewData?.[0]?.last_sentence_watched ?? 0;
-    const sentences = splitSegmentsIntoSentences(transcriptSegments);
-
-    let clipSentenceOverride = 0;
-    if (clip) {
-      clipSentenceOverride = sentences.findIndex(
-        (sentence) => clip >= sentence.start && clip <= sentence.end,
-      );
-
-      if (clipSentenceOverride === -1) {
-        clipSentenceOverride = 0;
+      // Persist video selection to user_ui_state
+      if (supabase && userId) {
+        const { error } = await supabase.from("user_ui_state").upsert(
+          {
+            user_id: userId,
+            current_video: recordId,
+            current_sentence: videoContext.currentSentence,
+            updated_at: new Date(),
+          },
+          { onConflict: "user_id" },
+        );
+        if (error) console.error("Error persisting video selection:", error);
       }
+    } catch (error) {
+      console.error("Error loading video:", error);
+    } finally {
+      setLoadingVideo(false);
     }
-
-    const video: VideoContext = {
-      videoId: videoId,
-      recordId: recordId,
-      currentSentence: clip ? clipSentenceOverride : restoredSentence,
-      sentences,
-      allWords: transcriptSegments.flatMap((s: Segment) => s.words),
-      videoViewId: String(videoViewId),
-      focusVocab: focusVocab ?? [],
-      focusSentences: [],
-    };
-    dispatch(setCurrentVideo(video));
-    dispatch(setCurrentTab("watch"));
-
-    // Persist video selection to user_ui_state
-    if (supabase && userId) {
-      const { error } = await supabase.from("user_ui_state").upsert(
-        {
-          user_id: userId,
-          current_video: recordId,
-          current_sentence: restoredSentence,
-          updated_at: new Date(),
-        },
-        { onConflict: "user_id" },
-      );
-      if (error) console.error("Error persisting video selection:", error);
-    }
-
-    // navigation.navigate("Watch" as never);
-    setLoadingVideo(false);
   };
 
   const recentlyWatchedVideos = allVideos

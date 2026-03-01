@@ -24,11 +24,18 @@ import {
   VideoView,
   Vocabulary,
   RootState,
-  VideoContext,
-  Segment,
   UserUIState,
 } from "./src/types";
-import { createVocabHash, splitSegmentsIntoSentences } from "./src/helpers";
+import { createVocabHash } from "./src/helpers";
+import {
+  fetchVideoContext,
+  fetchAllVideos,
+  fetchAllVocabulary,
+  fetchUserKnownVocab,
+  fetchUserVideoViews,
+  restoreUserUIState,
+  persistUserUITab,
+} from "./src/requests";
 import { useUIStateSync } from "./src/components/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
@@ -162,22 +169,9 @@ const AuthenticatedApp: React.FC = () => {
   // Sync currentSentence changes to the database
   useUIStateSync();
 
-  const fetchAllVideos = async () => {
-    const { data: channelData, error: channelError } = await supabase
-      .from("channel")
-      .select("*");
-    if (channelError) console.error(channelError);
-    const { data: videoData, error: videoError } = await supabase
-      .from("video")
-      .select("*");
-    if (videoError) console.error(videoError);
-
-    return { channelData, videoData };
-  };
-
   useEffect(() => {
     if (!supabase) return;
-    fetchAllVideos().then(({ channelData, videoData }) => {
+    fetchAllVideos({ supabase }).then(({ channelData, videoData }) => {
       dispatch(setAllChannels(channelData));
       dispatch(setAllVideos(videoData));
     });
@@ -187,179 +181,47 @@ const AuthenticatedApp: React.FC = () => {
     if (!supabase) return;
 
     // Fetch all vocabulary
-    const fetchAllVocabulary = async () => {
-      let allVocab: Vocabulary[] = [];
-      let from = 0;
-      const limit = 1000;
-      let fetching = true;
-
-      while (fetching) {
-        const { data, error } = await supabase
-          .from("vocabulary")
-          .select("id, word, translation, frequency")
-          .range(from, from + limit - 1);
-
-        if (error) {
-          console.error(error);
-          fetching = false;
-        } else {
-          const vocabBatch = (data as Vocabulary[]) ?? [];
-          allVocab = [...allVocab, ...vocabBatch];
-          if (vocabBatch.length < limit) {
-            fetching = false;
-          } else {
-            from += limit;
-          }
-        }
-      }
-
+    fetchAllVocabulary({ supabase }).then((allVocab) => {
       const vocabHash = createVocabHash(allVocab);
       dispatch(setAllVocabulary(vocabHash));
-    };
-
-    fetchAllVocabulary();
+    });
 
     // Fetch user's known vocabulary
-    supabase
-      .from("user_known_vocab")
-      .select("vocabulary_id")
-      .then(({ data, error }) => {
-        if (error) console.error(error);
-        const vocabIds = (data ?? []).map(
-          (row: { vocabulary_id: number }) => row.vocabulary_id,
-        );
-        dispatch(setUserKnownVocab(vocabIds));
-      });
+    fetchUserKnownVocab({ supabase }).then((vocabIds) => {
+      dispatch(setUserKnownVocab(vocabIds));
+    });
 
-    // fetch video views
-    supabase
-      .from("video_views")
-      .select("id, video_id, watched_at")
-      .then(({ data, error }) => {
-        if (error) console.error(error);
-        const videoViews = (data as VideoView[]) ?? [];
-        dispatch(setUserVideoViews(videoViews));
-      });
+    // Fetch video views
+    fetchUserVideoViews({ supabase }).then((videoViews) => {
+      dispatch(setUserVideoViews(videoViews));
+    });
 
     // Fetch and restore user UI state
-    const restoreUserUIState = async () => {
-      if (!userId) {
-        setIsRestoringState(false);
-        return;
-      }
+    const restoreState = async () => {
+      const { videoContext, currentTab } = await restoreUserUIState({
+        supabase,
+        userId,
+      });
 
-      try {
-        const { data: uiState, error } = (await supabase
-          .from("user_ui_state")
-          .select("*")
-          .eq("user_id", userId)
-          .single()) as { data: UserUIState; error: any };
+      if (videoContext) {
+        dispatch(setCurrentVideo(videoContext));
 
-        if (error) {
-          // No existing state is fine, just skip restoration
-          if (error.code !== "PGRST116") {
-            console.error("Error fetching user UI state:", error);
-          }
-          setIsRestoringState(false);
-          return;
-        }
-
-        if (uiState?.current_video) {
-          // Fetch the video record to get the video_id string
-          const { data: videoRecord, error: videoError } = await supabase
-            .from("video")
-            .select("video_id")
-            .eq("id", uiState.current_video)
-            .single();
-
-          if (videoError || !videoRecord) {
-            console.error("Error fetching video record:", videoError);
-            setIsRestoringState(false);
-            return;
-          }
-
-          const { data: segments, error: segmentsError } = await supabase
-            .from("transcript_segment")
-            .select("*")
-            .eq("video_id", uiState.current_video)
-            .order("segment_id");
-
-          if (segmentsError) {
-            console.error("Failed to fetch video segments for restoration");
-            setIsRestoringState(false);
-            return;
-          }
-
-          // Get or create video view
-          const { data: videoViewData, error: videoViewError } = await supabase
-            .from("video_views")
-            .upsert(
-              {
-                video_id: uiState.current_video,
-                watched_at: new Date(),
-              },
-              {
-                onConflict: "user_id,video_id",
-                ignoreDuplicates: false,
-              },
-            )
-            .select("id");
-
-          if (videoViewError) console.error(videoViewError);
-          const videoViewId = videoViewData?.[0]?.id ?? "";
-
-          const { data: focusVocabData, error: focusVocabError } =
-            await supabase
-              .from("video_view_focus_vocab")
-              .select("*")
-              .eq("video_view_id", videoViewId);
-
-          if (focusVocabError) console.error(focusVocabError);
-          const focusVocab = focusVocabData?.map((v) => v.vocabulary_id);
-
-          const sentences = splitSegmentsIntoSentences(segments);
-          console.log(
-            "sentences",
-            sentences[0].words[sentences[0].words.length - 1],
-          );
-          const video: VideoContext = {
-            videoId: videoRecord.video_id,
-            recordId: uiState.current_video,
-            currentSentence: uiState.current_sentence ?? 0,
-            sentences,
-            allWords: segments.flatMap((s: Segment) => s.words),
-            videoViewId: String(videoViewId),
-            focusVocab: focusVocab ?? [],
-            focusSentences: [],
-          };
-
-          dispatch(setCurrentVideo(video));
-          console.log("AuthenticatedApp restoredVideo", video.currentSentence);
-          // Restore the tab if it's one of the persisted tabs
-          if (
-            uiState.current_tab &&
-            ["watch", "discuss", "shadow"].includes(uiState.current_tab)
-          ) {
-            dispatch(setCurrentTab(uiState.current_tab));
-            // Also update the local nav tab state
-            if (uiState.current_tab === "discuss") {
-              setSelectedNavTab("review");
-            } else if (
-              uiState.current_tab === "watch" ||
-              uiState.current_tab === "shadow"
-            ) {
-              setSelectedNavTab(uiState.current_tab);
-            }
+        // Restore the tab if it's one of the persisted tabs
+        if (currentTab && ["watch", "discuss", "shadow"].includes(currentTab)) {
+          dispatch(setCurrentTab(currentTab));
+          // Also update the local nav tab state
+          if (currentTab === "discuss") {
+            setSelectedNavTab("review");
+          } else if (currentTab === "watch" || currentTab === "shadow") {
+            setSelectedNavTab(currentTab);
           }
         }
-      } catch (err) {
-        console.error("Error restoring user UI state:", err);
-      } finally {
-        setIsRestoringState(false);
       }
+
+      setIsRestoringState(false);
     };
 
-    restoreUserUIState();
+    restoreState();
   }, [supabase, dispatch, userId]);
 
   const showTabsBelow = false;
@@ -385,15 +247,7 @@ const AuthenticatedApp: React.FC = () => {
     dispatch(setCurrentTab(reduxTab));
 
     // Persist tab to database (only for watch/discuss/shadow)
-    if (supabase && userId) {
-      const { error } = await supabase
-        .from("user_ui_state")
-        .upsert(
-          { user_id: userId, current_tab: reduxTab, updated_at: new Date() },
-          { onConflict: "user_id" },
-        );
-      if (error) console.error("Error persisting tab:", error);
-    }
+    await persistUserUITab({ supabase, userId, currentTab: reduxTab });
   };
 
   const renderTabContent = () => {
