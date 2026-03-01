@@ -144,6 +144,7 @@ export interface EvaluateVocabAnswerParams {
   userAnswer: string;
   contextSegments: { text: string }[];
   vocabWord: string;
+  quizType?: "vocab" | "phrase";
 }
 
 export const evaluateVocabAnswer = async ({
@@ -151,6 +152,7 @@ export const evaluateVocabAnswer = async ({
   userAnswer,
   contextSegments,
   vocabWord,
+  quizType = "vocab",
 }: EvaluateVocabAnswerParams): Promise<VocabEvaluation | null> => {
   const response = await fetch(`${BACKEND_BASE_URL}/evaluate-vocab-answer`, {
     method: "POST",
@@ -160,6 +162,7 @@ export const evaluateVocabAnswer = async ({
       user_answer: userAnswer,
       context_segments: contextSegments,
       vocab_word: vocabWord,
+      quiz_type: quizType,
     }),
   });
 

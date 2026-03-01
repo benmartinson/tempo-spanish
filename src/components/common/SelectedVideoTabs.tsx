@@ -170,14 +170,22 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
     const prevTime = prevTimeRef.current;
     prevTimeRef.current = newTime;
-
+    // console.log(
+    //   "newTime",
+    //   newTime,
+    //   prevTime,
+    //   Math.abs(newTime - prevTime),
+    //   currentSentenceObject?.start,
+    //   currentSentenceObject?.end,
+    // );
     if (
-      prevTime !== -1 &&
-      prevTime !== 0 &&
-      Math.abs(newTime - prevTime) > 2 &&
-      currentSentenceObject !== undefined &&
-      (newTime < currentSentenceObject.start - 0.5 ||
-        newTime > currentSentenceObject.end + 0.5)
+      force ||
+      (prevTime !== -1 &&
+        prevTime !== 0 &&
+        Math.abs(newTime - prevTime) > 2 &&
+        currentSentenceObject !== undefined &&
+        (newTime < currentSentenceObject.start - 0.5 ||
+          newTime > currentSentenceObject.end + 0.5))
     ) {
       if (
         selectedNavTab !== "watch" &&
@@ -201,7 +209,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       return;
     }
     // Ignore time before sentence start
-    if (newTime < currentSentenceObject?.start) return;
+    if (newTime < currentSentenceObject?.start) {
+      return;
+    }
     // Pause at sentence end (enforces sentence clipping without URL reload)
 
     if (newTime >= currentSentenceObject?.end) {
@@ -268,7 +278,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       setAutoplay(true);
       handleTransition();
       setTime(word.start);
-      console.log("playing word snippet", word.start, word.end);
       currentWordSnippetRef.current = { start: word.start, end: word.end };
       refreshPlayer();
       setTimeout(() => {
@@ -284,11 +293,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, [dispatch, currentSentenceObject?.start]);
 
   const handlePlayClip = useCallback((start) => {
+    console.log("playing clip", start);
     setAutoplay(true);
-    isTransitioningRef.current = true;
-    setTimeout(() => {
-      isTransitioningRef.current = false;
-    }, 1500);
+    handleTransition();
     handleSetTime(start, true);
   }, []);
 

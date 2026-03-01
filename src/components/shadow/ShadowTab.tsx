@@ -52,6 +52,7 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 import FeaturedVocab from "../watch/FeaturedVocab";
 import WordHints from "../common/WordHints";
 import Foundation from "@expo/vector-icons/Foundation";
+import FocusSentenceRequest from "./FocusSentenceRequest";
 
 interface ShadowTabProps {
   time: number;
@@ -129,6 +130,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     useState<number>(0);
   const currentUnknownWord = unknownWords[currentUnknownWordIndex];
   const [showShadowInstructions, setShowShadowInstructions] =
+    useState<boolean>(false);
+  const [isFocusSentenceExpanded, setIsFocusSentenceExpanded] =
     useState<boolean>(false);
 
   // Text input state
@@ -216,6 +219,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     loadExistingShadowResult();
     setPreviousResults(null);
     setAccuracyResult(null);
+    setIsFocusSentenceExpanded(false);
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -539,7 +543,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           videoId={currentVideo.videoId}
         >
           <Text>
-            Sentence {currentSentenceIndex + 1} of{" "}
+            Segment {currentSentenceIndex + 1} of{" "}
             {currentVideo.sentences.length}
           </Text>
         </NavSwitcher>
@@ -605,7 +609,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                     <MaterialIcons name="play-arrow" size={20} color="black" />
                   </TouchableOpacity>
                 </View>
-                <View style={styles.settingsButton}>
+                <View style={styles.settingsButtonContainer}>
                   {previousResults && (
                     <TouchableOpacity
                       style={styles.previousResultsButtonInner}
@@ -619,13 +623,27 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       />
                     </TouchableOpacity>
                   )}
+                  <FocusSentenceRequest
+                    markedId={
+                      currentVideo.focusSentences.find(
+                        (s) =>
+                          s.segment_index === currentSentenceIndex &&
+                          s.sentence_index === currentSentenceIndex,
+                      )?.id ?? null
+                    }
+                    sentenceIndex={currentSentenceIndex}
+                    translation={currentSentenceObject?.full_translation}
+                    sentenceText={currentSentenceObject?.text}
+                    segmentIndex={currentSentenceIndex}
+                    videoViewId={currentVideo.videoViewId}
+                  />
                   <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
-                    <MaterialIcons name="settings" size={32} color="black" />
+                    <MaterialIcons name="settings" size={32} color="#222222" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setShowShadowInstructions(true)}
                   >
-                    <MaterialIcons name="info" size={32} color="gray" />
+                    <MaterialIcons name="info" size={32} color="#222222" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -817,7 +835,7 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 14,
   },
-  settingsButton: {
+  settingsButtonContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

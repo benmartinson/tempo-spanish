@@ -2,8 +2,12 @@ import { Text, StyleSheet, TouchableOpacity } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../types";
-import { addFocusSentence } from "../../store/actions/dataActions";
+import {
+  addFocusSentence,
+  removeFocusSentence,
+} from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
+import { useState } from "react";
 
 interface FocusSentenceRequestProps {
   sentenceIndex: number;
@@ -11,6 +15,7 @@ interface FocusSentenceRequestProps {
   sentenceText: string;
   segmentIndex: number;
   videoViewId: number;
+  markedId: number | null;
 }
 
 const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
@@ -19,77 +24,82 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
   sentenceText,
   segmentIndex,
   videoViewId,
+  markedId,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
 
-  const isMarked = useSelector((state: RootState) =>
-    state.currentVideo?.focusSentences?.some(
-      (s) =>
-        s.segment_index === segmentIndex && s.sentence_index === sentenceIndex,
-    ),
-  );
+  const isMarked = Boolean(markedId);
 
   const handlePress = async () => {
-    if (isMarked) return;
+    if (isMarked) {
+      console.log("Removing marked sentence", markedId, videoViewId);
+      const { data, error } = await supabase
+        .from("video_view_focus_sentence")
+        .delete()
+        .eq("video_view_id", videoViewId)
+        .eq("id", markedId);
+      if (error) {
+        console.error(error);
+        return;
+      }
 
-    // const { data, error } = await supabase
-    //   .from("video_view_focus_sentence")
-    //   .insert({
-    //     video_view_id: videoViewId,
-    //     text: sentenceText,
-    //     translation: translation,
-    //     segment_index: segmentIndex,
-    //     sentence_index: sentenceIndex,
-    //   })
-    //   .select("id, text, translation, segment_index, sentence_index")
-    //   .single();
+      dispatch(removeFocusSentence(markedId));
+      return;
+    }
 
-    // if (error) {
-    //   console.error(error);
-    //   return;
-    // }
+    const { data, error } = await supabase
+      .from("video_view_focus_sentence")
+      .insert({
+        video_view_id: videoViewId,
+        text: sentenceText,
+        translation: translation,
+        segment_index: segmentIndex,
+        sentence_index: sentenceIndex,
+      })
+      .select("id, text, translation, segment_index, sentence_index")
+      .single();
 
-    // dispatch(
-    //   addFocusSentence({
-    //     id: data.id,
-    //     text: data.text,
-    //     translation: data.translation,
-    //     segment_index: data.segment_index,
-    //     sentence_index: data.sentence_index,
-    //   }),
-    // );
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    dispatch(
+      addFocusSentence({
+        id: data.id,
+        text: data.text,
+        translation: data.translation,
+        segment_index: data.segment_index,
+        sentence_index: data.sentence_index,
+      }),
+    );
   };
 
   return (
-    <TouchableOpacity
-      style={[styles.container, isMarked && styles.containerMarked]}
-      onPress={handlePress}
-    >
-      <Text style={styles.title}>
-        {isMarked
-          ? "Sentence Marked for Review."
-          : "Mark this Sentence as Difficult"}
-      </Text>
-      {!isMarked && <Entypo name="pencil" size={24} color="black" />}
+    <TouchableOpacity style={styles.container} onPress={handlePress}>
+      <Entypo name="pencil" size={32} color={isMarked ? "#222222" : "gray"} />
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#3d3a52",
-    borderRadius: 16,
-    padding: 8,
-    margin: 16,
-    marginBottom: 0,
-    backgroundColor: "white",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    marginRight: 4,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  shrinkContainer: {
+    flex: 1,
+    borderColor: "#3d3a52",
+    borderRadius: 16,
+    width: 40,
+    padding: 8,
+    margin: 16,
+    marginBottom: 0,
   },
   containerMarked: {
     borderColor: "#4caf50",

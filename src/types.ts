@@ -33,7 +33,8 @@ export type DataActionTypes =
   | "SET_CURRENT_SEARCH_TERM"
   | "SET_CURRENT_SEARCH_RESULTS"
   | "ADD_USER_VIDEO_VIEW"
-  | "ADD_USER_SELECTED_VOCAB";
+  | "ADD_USER_SELECTED_VOCAB"
+  | "REMOVE_FOCUS_SENTENCE";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -67,7 +68,7 @@ export interface VideoContext {
   currentSentence: number;
   sentences: Sentence[];
   allWords: SegmentWord[];
-  videoViewId: string;
+  videoViewId: number;
   focusVocab: number[];
   focusSentences: FocusSentence[];
 }
@@ -110,7 +111,7 @@ export interface Sentence {
   words: SegmentWord[];
 }
 
-export type QuizType = "Comprehension" | "Vocab" | "Uncommon";
+export type QuizType = "Comprehension" | "Vocab" | "Uncommon" | "Phrases";
 
 export interface SegmentWord {
   word: string;

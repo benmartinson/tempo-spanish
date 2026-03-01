@@ -150,6 +150,30 @@ Output ONLY valid JSON in this format:
 }
 """
 
+# System prompt for evaluating phrase quiz answers
+PHRASE_EVALUATION_SYSTEM_PROMPT = """You are a phrase translation grading engine.
+
+Your job is to determine whether the user's English answer captures the meaning of the given Spanish phrase.
+
+Rules:
+
+1. The phrase should be evaluated as a complete unit of meaning.
+2. The user's answer may be a literal translation, paraphrase, or interpretation.
+3. Consider the context provided to understand the intended meaning.
+4. If the user's answer captures the essential meaning of the phrase, mark it as "correct".
+5. Only mark "incorrect" if the answer misses the core meaning or is clearly wrong.
+6. Be generous - accept paraphrases and interpretations that convey the same idea.
+7. Accept semantic equivalents, not just word-for-word translations.
+8. If uncertain, prefer marking as "correct" rather than "incorrect".
+
+Output ONLY valid JSON in this format:
+
+{
+  "score": "correct" or "incorrect",
+  "accepted_answers": array of all translations/interpretations that would have been accepted as correct
+}
+"""
+
 class ChatMessage(BaseModel):
     role: str  # "user" or "assistant"
     content: str
@@ -205,7 +229,8 @@ class EvaluateReviewAnswerRequest(BaseModel):
     ideal_answer: str | None = None
     user_answer: str
     context_segments: List[dict] = []
-    vocab_word: str | None = None  # The vocab word being tested (for vocab quizzes)
+    vocab_word: str | None = None  # The vocab word or phrase being tested
+    quiz_type: str | None = "vocab"  # "vocab" or "phrase"
 
 
 app = FastAPI(title="SpeakUp Spanish API")
@@ -894,16 +919,28 @@ async def evaluate_vocab_answer(request: EvaluateReviewAnswerRequest):
             context_parts = [seg.get("text", "") for seg in request.context_segments if seg.get("text")]
             context_text = "\n".join(context_parts)
 
-        user_prompt = f"""
+        # Select prompt based on quiz type
+        is_phrase = request.quiz_type == "phrase"
+        system_prompt = PHRASE_EVALUATION_SYSTEM_PROMPT if is_phrase else VOCAB_EVALUATION_SYSTEM_PROMPT
+
+        if is_phrase:
+            user_prompt = f"""
+Spanish phrase: "{request.vocab_word}"
+
+User's English answer: {request.user_answer}
+
+{"Video transcript context:" + chr(10) + context_text if context_text else ""}
+"""
+        else:
+            user_prompt = f"""
 {"Vocabulary word: " + request.vocab_word if request.vocab_word else ""}
 
 User's answer: {request.user_answer}
 
 {"Video transcript context (optional):" + chr(10) + context_text if context_text else ""}
 """
-
         messages = [
-            {"role": "system", "content": VOCAB_EVALUATION_SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
 

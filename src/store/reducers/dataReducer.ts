@@ -106,6 +106,17 @@ const dataReducer = (
           ],
         },
       };
+    case "REMOVE_FOCUS_SENTENCE":
+      if (!state.currentVideo) return state;
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          focusSentences: state.currentVideo.focusSentences.filter(
+            (sentence) => sentence.id !== action.payload,
+          ),
+        },
+      };
     case "SET_CURRENT_SENTENCE":
       if (!state.currentVideo) return state;
       const nextSentence =

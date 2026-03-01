@@ -10,6 +10,11 @@ import {
   Vocabulary,
 } from "../../types";
 
+export const removeFocusSentence = (id: number): DataAction => ({
+  type: "REMOVE_FOCUS_SENTENCE",
+  payload: id,
+});
+
 export const setCurrentVideo = (video: VideoContext | null): DataAction => ({
   type: "SET_CURRENT_VIDEO",
   payload: video,
