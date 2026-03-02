@@ -9,14 +9,9 @@ Run with the main chat_stream.py server - this module provides the transcription
 """
 
 import asyncio
-import io
 import json
 import os
-import tempfile
 import httpx
-import numpy as np
-from scipy import signal
-from scipy.io import wavfile
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request, UploadFile, File, HTTPException
@@ -71,47 +66,6 @@ def get_soniox_config(api_key: str) -> dict:
         },
     }
 
-
-def downsample_audio(audio_data: bytes, target_sample_rate: int = 16000) -> bytes:
-    """
-    Downsample audio from its original sample rate (typically 44.1kHz) to target rate (16kHz).
-    
-    Args:
-        audio_data: Raw WAV file bytes
-        target_sample_rate: Target sample rate in Hz (default 16000)
-    
-    Returns:
-        WAV file bytes at the target sample rate
-    """
-    # Read the WAV data
-    audio_file = io.BytesIO(audio_data)
-    original_sample_rate, audio_array = wavfile.read(audio_file)
-    
-    # If already at target rate, return as-is
-    if original_sample_rate == target_sample_rate:
-        return audio_data
-    
-    print(f"Downsampling audio from {original_sample_rate}Hz to {target_sample_rate}Hz")
-    
-    # Calculate the number of samples in the resampled audio
-    num_samples = int(len(audio_array) * target_sample_rate / original_sample_rate)
-    
-    # Handle stereo audio by converting to mono
-    if len(audio_array.shape) > 1:
-        audio_array = audio_array.mean(axis=1)
-    
-    # Resample the audio using scipy's resample function
-    resampled_audio = signal.resample(audio_array, num_samples)
-    
-    # Convert back to int16 (standard for 16-bit PCM WAV)
-    resampled_audio = np.clip(resampled_audio, -32768, 32767).astype(np.int16)
-    
-    # Write to a new WAV buffer
-    output_buffer = io.BytesIO()
-    wavfile.write(output_buffer, target_sample_rate, resampled_audio)
-    output_buffer.seek(0)
-    
-    return output_buffer.read()
 
 
 class SonioxProxy:
@@ -390,11 +344,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Empty audio file")
         
         print(f"Received audio file: {file.filename}, size: {len(audio_data)} bytes")
-        
-        # Downsample from 44.1kHz to 16kHz for Soniox
-        audio_data = downsample_audio(audio_data, target_sample_rate=16000)
-        print(f"After downsampling: {len(audio_data)} bytes")
-        
+
         # Use Soniox async file transcription API
         # https://soniox.com/docs/stt/async/async-transcription
         async with httpx.AsyncClient(timeout=120.0) as client:
