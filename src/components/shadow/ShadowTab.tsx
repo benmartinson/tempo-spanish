@@ -749,49 +749,47 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           )}
           {/* Play user recording button - shown when a recording exists */}
           {!isRecordingMode && !isProcessing && (
-            <>
-              <View style={styles.playRecordingContainer}>
-                {accuracyResult && currentRecordingId && (
-                  <TouchableOpacity
-                    style={styles.playRecordingButton}
-                    onPress={handlePlayUserRecording}
-                    disabled={isPlayingRecording}
-                  >
-                    <MaterialIcons
-                      name={isPlayingRecording ? "pause" : "headphones"}
-                      size={20}
-                      color="#4a69bd"
-                    />
-                    <Text style={styles.playRecordingButtonText}>
-                      {isPlayingRecording ? "Playing..." : "Play Recording"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {accuracyResult && !currentRecordingId && audioUri && (
-                  <TouchableOpacity
-                    style={styles.playRecordingButton}
-                    onPress={() => handleTrimAndSaveRecording(audioUri)}
-                    disabled={isTrimmingAudio}
-                  >
-                    <Text style={styles.playRecordingButtonText}>
-                      {isTrimmingAudio
-                        ? "Saving..."
-                        : "Save Recording for Playback"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              {!accuracyResult && (
-                <Insights
-                  isLoading={isLoadingInsights}
-                  characters={orderedCharacters}
-                  sentenceText={currentSentenceObject?.text ?? ""}
-                  unknownWords={unknownWords}
-                  handlePlayWordSnippet={(word) => handlePlaySnippetAgain(word)}
-                  isPlayingWordSnippet={isPlayingWordSnippet}
-                />
+            <View style={styles.playRecordingContainer}>
+              {accuracyResult && currentRecordingId && (
+                <TouchableOpacity
+                  style={styles.playRecordingButton}
+                  onPress={handlePlayUserRecording}
+                  disabled={isPlayingRecording}
+                >
+                  <MaterialIcons
+                    name={isPlayingRecording ? "pause" : "headphones"}
+                    size={20}
+                    color="#4a69bd"
+                  />
+                  <Text style={styles.playRecordingButtonText}>
+                    {isPlayingRecording ? "Playing..." : "Play Recording"}
+                  </Text>
+                </TouchableOpacity>
               )}
-            </>
+              {accuracyResult && !currentRecordingId && audioUri && (
+                <TouchableOpacity
+                  style={styles.playRecordingButton}
+                  onPress={() => handleTrimAndSaveRecording(audioUri)}
+                  disabled={isTrimmingAudio}
+                >
+                  <Text style={styles.playRecordingButtonText}>
+                    {isTrimmingAudio
+                      ? "Saving..."
+                      : "Save Recording for Playback"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          {!accuracyResult && (
+            <Insights
+              isLoading={isLoadingInsights}
+              characters={orderedCharacters}
+              sentenceText={currentSentenceObject?.text ?? ""}
+              unknownWords={unknownWords}
+              handlePlayWordSnippet={(word) => handlePlaySnippetAgain(word)}
+              isPlayingWordSnippet={isPlayingWordSnippet}
+            />
           )}
         </ScrollView>
 

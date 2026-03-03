@@ -14,7 +14,12 @@ interface SettingsModalProps {
   setRecordSpeed: (speed: number) => void;
   initMute: boolean;
   setMuteWhenRecording: (mute: boolean) => void;
-  onSave: (settings: { playbackSpeed: number; showWordsHints: boolean; showCharacters: boolean; showStartsOffAs: boolean }) => void;
+  onSave: (settings: {
+    playbackSpeed: number;
+    showWordsHints: boolean;
+    showCharacters: boolean;
+    showStartsOffAs: boolean;
+  }) => void;
 }
 const SettingsModal: React.FC<SettingsModalProps> = ({
   visible,
@@ -35,9 +40,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editedRecordSpeed, setEditedRecordSpeed] = useState(recordSpeed);
   const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
     useState(initMute);
-  const [editedShowWordsHints, setEditedShowWordsHints] = useState(userSettings.showWordsHints);
-  const [editedShowCharacters, setEditedShowCharacters] = useState(userSettings.showCharacters);
-  const [editedShowStartsOffAs, setEditedShowStartsOffAs] = useState(userSettings.showStartsOffAs);
+  const [editedShowWordsHints, setEditedShowWordsHints] = useState(
+    userSettings.showWordsHints,
+  );
+  const [editedShowCharacters, setEditedShowCharacters] = useState(
+    userSettings.showCharacters,
+  );
+  const [editedShowStartsOffAs, setEditedShowStartsOffAs] = useState(
+    userSettings.showStartsOffAs,
+  );
 
   const handlePlaybackSpeedChange = (speed: number) => {
     setEditedPlaybackSpeed(speed);
@@ -120,7 +131,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </View>
         </View> */}
       </View>
-        <View style={styles.togglesContainer}>
+      <View style={styles.togglesContainer}>
         <View style={styles.questionContainer}>
           <Text style={styles.questionText}>Show Word Hints by Default?</Text>
           <Switch
@@ -129,14 +140,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           />
         </View>
         <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>Show Characters List by Default?</Text>
+          <Text style={styles.questionText}>
+            Show Characters List by Default?
+          </Text>
           <Switch
             value={editedShowCharacters}
             onValueChange={setEditedShowCharacters}
           />
         </View>
         <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>Show Starts Off As by Default?</Text>
+          <Text style={styles.questionText}>
+            Show Starts Off As by Default?
+          </Text>
           <Switch
             value={editedShowStartsOffAs}
             onValueChange={setEditedShowStartsOffAs}
@@ -225,7 +240,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 16,
-    backgroundColor: "white",
+    backgroundColor: "#F8F8F8",
+    borderWidth: 1,
+    borderColor: "black",
   },
   buttonText: {
     color: "black",

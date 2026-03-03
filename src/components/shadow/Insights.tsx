@@ -30,11 +30,16 @@ const Insights: React.FC<InsightsProps> = ({
     useState<boolean>(showCharacters);
   const [isShowingStartsOff, setIsShowingStartsOff] =
     useState<boolean>(showStartsOffAs);
+  const [revealedCommas, setRevealedCommas] = useState<number>(0);
 
   useEffect(() => {
     setIsShowingCharacters(showCharacters);
     setIsShowingStartsOff(showStartsOffAs);
   }, [sentenceText]);
+
+  useEffect(() => {
+    setRevealedCommas(0);
+  }, [sentenceText, isShowingStartsOff]);
 
   if (isLoading) {
     return (
@@ -48,7 +53,29 @@ const Insights: React.FC<InsightsProps> = ({
   const firstTwo = words.slice(0, 2);
   const firstTwoCharCount = firstTwo.join("").length;
   const startsOffWords = firstTwoCharCount > 8 ? firstTwo : words.slice(0, 3);
-  const startsOffText = startsOffWords.join(" ") + "...";
+
+  const getPreviewWords = (text: string) => {
+    const w = text.trim().split(/\s+/).filter(Boolean);
+    const first2 = w.slice(0, 2);
+    const first2CharCount = first2.join("").length;
+    return first2CharCount > 8 ? first2 : w.slice(0, 3);
+  };
+
+  const commaSegments = sentenceText.split(",");
+  const hasCommas = commaSegments.length > 1;
+  const totalCommaReveals = commaSegments.length - 1;
+  const hasMoreCommas = hasCommas && revealedCommas < totalCommaReveals;
+
+  let startsOffText = startsOffWords.join(" ") + "...";
+  const revealedParts: string[] = [];
+  if (hasCommas && revealedCommas > 0) {
+    for (let i = 1; i <= revealedCommas; i++) {
+      if (commaSegments[i]) {
+        const preview = getPreviewWords(commaSegments[i]);
+        revealedParts.push(preview.join(" ") + "...");
+      }
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -112,7 +139,20 @@ const Insights: React.FC<InsightsProps> = ({
           </View>
           {isShowingStartsOff && (
             <View style={styles.charactersList}>
-              <Text style={styles.charactersText}>{startsOffText}</Text>
+              <Text style={styles.charactersText}>
+                {startsOffText}
+                {revealedParts.map((part, i) => (
+                  <Text key={i}>{", " + part}</Text>
+                ))}
+                {hasMoreCommas && (
+                  <Text
+                    onPress={() => setRevealedCommas(revealedCommas + 1)}
+                    style={styles.moreButton}
+                  >
+                    {"  More +"}
+                  </Text>
+                )}
+              </Text>
             </View>
           )}
         </>
@@ -162,6 +202,12 @@ const styles = StyleSheet.create({
   againText: {
     fontSize: 13,
     color: "#999",
+  },
+  moreButton: {
+    fontSize: 13,
+    fontWeight: "600" as const,
+    color: "#007AFF",
+    opacity: 0.8,
   },
   startsOffHeaderContainer: {
     flexDirection: "row",
