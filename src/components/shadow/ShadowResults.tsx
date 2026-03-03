@@ -9,12 +9,14 @@ interface ShadowResultsProps {
   accuracyResult: AccuracyResult;
   handleNextSentence: () => void;
   handleRetry: () => void;
+  properNouns?: string[];
 }
 
 const ShadowResults: React.FC<ShadowResultsProps> = ({
   accuracyResult,
   handleNextSentence,
   handleRetry,
+  properNouns = [],
 }) => {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const missedWords = accuracyResult.details
@@ -59,7 +61,12 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
         <Text style={styles.spokenSentenceText}>
           <Text style={styles.labelBold}>You said: </Text>
           {accuracyResult.details.map((detail, index) => {
+            const isProperNoun = properNouns.some(
+              (noun) =>
+                normalizeWord(noun) === normalizeWord(detail.targetWord),
+            );
             const hasSpellingErrors =
+              !isProperNoun &&
               detail.matched &&
               detail.spokenWord &&
               normalizeWord(detail.spokenWord) !==

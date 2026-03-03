@@ -729,6 +729,7 @@ export const sendAudioForTranscription = async (
 export const calculateAccuracy = (
   spokenWords: string[],
   targetWords: string[],
+  properNouns: string[] = [],
 ) => {
   if (targetWords.length === 0) {
     return {
@@ -740,6 +741,7 @@ export const calculateAccuracy = (
   }
 
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
+  const normalizedProperNouns = properNouns.map((n) => normalize(n));
   const details: AccuracyResult["details"] = [];
   let matchedCount = 0;
   let matchedScore = 0;
@@ -753,6 +755,35 @@ export const calculateAccuracy = (
     if (!normalizedTarget) {
       // Skip empty words (punctuation only)
       console.log("Skipping empty word:", targetWord);
+      continue;
+    }
+
+    // If this word is a proper noun, auto-accept with full score
+    const isProperNoun = normalizedProperNouns.some(
+      (noun) => noun === normalizedTarget,
+    );
+    if (isProperNoun) {
+      // Find any spoken word that loosely matches, or just accept it
+      let foundIndex = -1;
+      for (let i = 0; i < normalizedSpoken.length; i++) {
+        if (usedSpokenIndices.has(i)) continue;
+        const score = similarity(normalizedSpoken[i], normalizedTarget);
+        if (score >= 0.4) {
+          foundIndex = i;
+          break;
+        }
+      }
+      if (foundIndex !== -1) {
+        usedSpokenIndices.add(foundIndex);
+      }
+      matchedCount++;
+      matchedScore += 1;
+      details.push({
+        targetWord,
+        matched: true,
+        spokenWord: foundIndex !== -1 ? spokenWords[foundIndex] : targetWord,
+        isProperNoun: true,
+      });
       continue;
     }
 

@@ -147,7 +147,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         return w.word;
       });
 
-      const accuracy = calculateAccuracy(spokenWords, targetWords);
+      const accuracy = calculateAccuracy(spokenWords, targetWords, orderedCharacters);
       return {
         ...accuracy,
         spokenSentence: spokenWords.join(" "),
@@ -655,6 +655,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 accuracyResult={accuracyResult}
                 handleNextSentence={handleShadowNextSentence}
                 handleRetry={handleRetry}
+                properNouns={orderedCharacters}
               />
               {nextSentenceCountdown > 0 && (
                 <View style={styles.nextSentenceCountdownRefContainer}>
@@ -793,6 +794,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 <CharacterInsights
                   isLoading={isLoadingInsights}
                   characters={orderedCharacters}
+                  sentenceText={currentSentenceObject?.text ?? ""}
                 />
               )}
             </>

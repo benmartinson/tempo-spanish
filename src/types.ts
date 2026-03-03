@@ -193,6 +193,7 @@ export interface AccuracyResult {
     targetWord: string;
     matched: boolean;
     spokenWord?: string;
+    isProperNoun?: boolean;
   }[];
   spokenSentence: string;
   targetSentence: string;
