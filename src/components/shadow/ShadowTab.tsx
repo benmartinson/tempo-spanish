@@ -54,6 +54,7 @@ import Foundation from "@expo/vector-icons/Foundation";
 import FocusSentenceRequest from "./FocusSentenceRequest";
 import { fetchTranslationInsights, persistUserSettings } from "../../requests";
 import Insights from "./Insights";
+import PlayerControls from "./PlayerControls";
 
 interface ShadowTabProps {
   time: number;
@@ -64,6 +65,7 @@ interface ShadowTabProps {
   setPlayerMuted: (muted: boolean) => void;
   setPlayerSpeed: (speed: number) => void;
   pausePlayer: () => void;
+  resumePlayer: () => void;
   isKeyboardVisible: boolean;
   playWordSnippet: (word: SegmentWord) => void;
   isPlayingWordSnippet: boolean;
@@ -81,6 +83,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   setPlayerMuted,
   setPlayerSpeed,
   pausePlayer,
+  resumePlayer,
   isKeyboardVisible,
   isPlayingWordSnippet,
   unknownWords,
@@ -128,6 +131,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [isPlayingRecording, setIsPlayingRecording] = useState<boolean>(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [isTrimmingAudio, setIsTrimmingAudio] = useState<boolean>(false);
+  const [isSentencePlaying, setIsSentencePlaying] = useState<boolean>(false);
   const [currentUnknownWordIndex, setCurrentUnknownWordIndex] =
     useState<number>(0);
   const currentUnknownWord = unknownWords[currentUnknownWordIndex];
@@ -449,13 +453,25 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       if (isRecording) {
         setSentenceEnded(true);
         setHasPlayedSentence(true);
+        setIsSentencePlaying(false);
       } else if (isActive && isLooping && !justRecordedRef.current) {
+        setIsSentencePlaying(false);
         setTimeout(() => {
           handleEnterRecordingMode();
         }, 1000);
       }
     }
   }, [time, currentSentenceObject?.end, isRecording, sentenceEnded]);
+
+  useEffect(() => {
+    if (
+      currentSentenceObject?.end &&
+      time >= currentSentenceObject.end - 0.5
+    ) {
+      setSentenceEnded(true);
+      setIsSentencePlaying(false);
+    }
+  }, [time, currentSentenceObject?.end]);
 
   const setJustRecorded = () => {
     setTimeout(() => {
@@ -556,7 +572,28 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (word) {
       playWordSnippet(word);
     } else {
+      setIsSentencePlaying(true);
       playSentence();
+    }
+  };
+
+  const handlePlaySnippetSlow = () => {
+    setPlayerMuted(false);
+    setJustRecorded();
+    setPlayerSpeed(0.8);
+    setIsRecordingMode(false);
+    handleResetState();
+    setIsSentencePlaying(true);
+    playSentence();
+  };
+
+  const handlePlayPause = () => {
+    if (isSentencePlaying) {
+      pausePlayer();
+      setIsSentencePlaying(false);
+    } else {
+      resumePlayer();
+      setIsSentencePlaying(true);
     }
   };
 
@@ -690,17 +727,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 mode="video"
               /> */}
               <View style={styles.recordButtonContainer}>
-                <View style={styles.playSegmentButton}>
-                  <TouchableOpacity
-                    style={styles.playSegmentButtonInner}
-                    onPress={() => handlePlaySnippetAgain(null)}
-                  >
-                    <Text style={styles.playSegmentButtonText}>
-                      {hasPlayedSentence ? "Play Sentence" : "Replay"}
-                    </Text>
-                    <MaterialIcons name="play-arrow" size={20} color="black" />
-                  </TouchableOpacity>
-                </View>
+                <PlayerControls
+                  onReplay={() => handlePlaySnippetAgain(null)}
+                  onReplaySlow={handlePlaySnippetSlow}
+                  onPlayPause={handlePlayPause}
+                  isPlaying={isSentencePlaying}
+                  playDisabled={sentenceEnded}
+                />
                 <View style={styles.settingsButtonContainer}>
                   {previousResults && (
                     <TouchableOpacity
@@ -932,7 +965,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 16,
+    gap: 8,
     marginTop: 16,
   },
   errorContainer: {
@@ -997,28 +1030,6 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-  },
-  playSegmentButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 16,
-  },
-  playSegmentButtonInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#3d3a52",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
-  },
-  playSegmentButtonText: {
-    color: "black",
-    fontSize: 16,
-    fontWeight: "600",
   },
   sentenceNavContainer: {
     flexDirection: "row",

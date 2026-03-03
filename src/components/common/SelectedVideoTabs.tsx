@@ -408,6 +408,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setPlayerMuted={setPlayerMuted}
           setPlayerSpeed={setPlayerSpeed}
           pausePlayer={pausePlayer}
+          resumePlayer={playPlayer}
           playWordSnippet={playWordSnippet}
           isPlayingWordSnippet={!!currentWordSnippetRef.current}
           unknownWords={unknownWords}

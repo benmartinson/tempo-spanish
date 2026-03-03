@@ -4,6 +4,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSelector } from "react-redux";
 import { RootState, SegmentWord } from "../../types";
 import WordHints from "../common/WordHints";
+import { stripPunctuation } from "../../helpers";
 
 interface InsightsProps {
   isLoading: boolean;
@@ -55,7 +56,11 @@ const Insights: React.FC<InsightsProps> = ({
   const startsOffWords = firstTwoCharCount > 8 ? firstTwo : words.slice(0, 3);
 
   const getPreviewWords = (text: string) => {
-    const w = text.trim().split(/\s+/).filter(Boolean);
+    const w = text
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => stripPunctuation(word));
     const first2 = w.slice(0, 2);
     const first2CharCount = first2.join("").length;
     return first2CharCount > 8 ? first2 : w.slice(0, 3);
@@ -66,7 +71,8 @@ const Insights: React.FC<InsightsProps> = ({
   const totalCommaReveals = commaSegments.length - 1;
   const hasMoreCommas = hasCommas && revealedCommas < totalCommaReveals;
 
-  let startsOffText = startsOffWords.join(" ") + "...";
+  let startsOffText =
+    startsOffWords.map((w) => stripPunctuation(w)).join(" ") + "...";
   const revealedParts: string[] = [];
   if (hasCommas && revealedCommas > 0) {
     for (let i = 1; i <= revealedCommas; i++) {
@@ -142,7 +148,7 @@ const Insights: React.FC<InsightsProps> = ({
               <Text style={styles.charactersText}>
                 {startsOffText}
                 {revealedParts.map((part, i) => (
-                  <Text key={i}>{", " + part}</Text>
+                  <Text key={i}>{" " + part}</Text>
                 ))}
                 {hasMoreCommas && (
                   <Text
