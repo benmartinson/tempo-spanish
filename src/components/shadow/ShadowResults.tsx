@@ -23,6 +23,14 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
 
   const isAccuracyGood = accuracyResult.percentage >= 80;
 
+  const cleanUpSetence = (sentence: string) => {
+    const specialCases = [',.', '.,', '!,', '?,'];
+    return sentence
+      .split(' ')
+      .map((word) => specialCases.some((c) => word.endsWith(c)) ? word.slice(0, -1) : word)
+      .join(' ');
+  }
+
   return (
     <View style={styles.resultsContainer}>
       <View style={styles.accuracyCircle}>
@@ -73,7 +81,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       <View style={styles.targetSentenceContainer}>
         <Text style={styles.targetSentenceText}>
           <Text style={styles.labelBold}>Target sentence: </Text>
-          {accuracyResult.targetSentence}
+          {cleanUpSetence(accuracyResult.targetSentence)}
         </Text>
       </View>
 

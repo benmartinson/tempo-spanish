@@ -36,18 +36,18 @@ const WordHints: React.FC<WordHintsProps> = ({
   return (
     <View style={styles.featuredVocabContainer}>
       <View style={styles.featuredVocabTitleContainer}>
-        <View style={styles.featuredVocabTitleLeft}>
-          <Text style={styles.featuredVocabTitle}>Word Hints</Text>
           <TouchableOpacity
             onPress={() => setIsShowingWordHints(!isShowingWordHints)}
           >
+        <View style={styles.featuredVocabTitleLeft}>
+          <Text style={styles.featuredVocabTitle}>Word Hints</Text>
             <MaterialIcons
               name="visibility"
               size={20}
               color={isShowingWordHints ? "black" : "gray"}
             />
-          </TouchableOpacity>
         </View>
+          </TouchableOpacity>
         {isShowingWordHints && showSwitcher && (
           <View style={styles.featuredVocabTitleButtons}>
             <TouchableOpacity

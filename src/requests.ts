@@ -215,6 +215,36 @@ export const evaluateReviewAnswer = async ({
   return null;
 };
 
+export interface FetchTranslationInsightsParams {
+  text: string;
+  translation: string;
+}
+
+export interface TranslationInsightsResult {
+  properNouns: string[];
+}
+
+export const fetchTranslationInsights = async ({
+  text,
+  translation,
+}: FetchTranslationInsightsParams): Promise<TranslationInsightsResult | null> => {
+  const response = await fetch(`${BACKEND_BASE_URL}/translation-insights`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, translation }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error fetching translation insights: ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (data.proper_nouns) {
+    return { properNouns: data.proper_nouns };
+  }
+  return null;
+};
+
 export interface FetchAllVideosParams {
   supabase: any;
 }

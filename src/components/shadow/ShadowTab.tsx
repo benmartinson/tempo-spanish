@@ -53,6 +53,8 @@ import FeaturedVocab from "../watch/FeaturedVocab";
 import WordHints from "../common/WordHints";
 import Foundation from "@expo/vector-icons/Foundation";
 import FocusSentenceRequest from "./FocusSentenceRequest";
+import { fetchTranslationInsights } from "../../requests";
+import CharacterInsights from "./CharacterInsights";
 
 interface ShadowTabProps {
   time: number;
@@ -133,6 +135,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     useState<boolean>(false);
   const [isFocusSentenceExpanded, setIsFocusSentenceExpanded] =
     useState<boolean>(false);
+  const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(false);
+  const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -209,6 +213,91 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   };
 
+  const orderCharactersByAppearance = (
+    properNouns: string[],
+    text: string,
+  ) => {
+    const textWords = text.split(/\s+/);
+    const ordered: string[] = [];
+    for (const word of textWords) {
+      const cleanWord = word.replace(/[.,!?¿¡;:"""''()]/g, "");
+      for (const noun of properNouns) {
+        if (cleanWord.toLowerCase() === noun.toLowerCase()) {
+          ordered.push(noun);
+        }
+      }
+    }
+    return ordered;
+  };
+
+  const loadTranslationInsights = useCallback(async () => {
+    if (
+      !currentSentenceObject?.text ||
+      !currentSentenceObject?.full_translation ||
+      !supabase ||
+      !currentVideo
+    ) {
+      setOrderedCharacters([]);
+      return;
+    }
+
+    setIsLoadingInsights(true);
+    setOrderedCharacters([]);
+
+    try {
+      // Check Supabase cache first
+      const { data: cached, error: cacheError } = await supabase
+        .from("sentence_insights")
+        .select("proper_nouns")
+        .eq("video_id", parseInt(currentVideo.recordId))
+        .eq("sentence_index", currentSentenceIndex)
+        .single();
+
+      if (!cacheError && cached?.proper_nouns) {
+        const ordered = orderCharactersByAppearance(
+          cached.proper_nouns,
+          currentSentenceObject.text,
+        );
+        setOrderedCharacters(ordered);
+        return;
+      }
+
+      // Fetch from backend
+      const result = await fetchTranslationInsights({
+        text: currentSentenceObject.text,
+        translation: currentSentenceObject.full_translation,
+      });
+
+      if (result && result.properNouns.length > 0) {
+        // Save to Supabase for future lookups
+        await supabase.from("sentence_insights").upsert(
+          {
+            video_id: parseInt(currentVideo.recordId),
+            sentence_index: currentSentenceIndex,
+            proper_nouns: result.properNouns,
+          },
+          { onConflict: "video_id,sentence_index" },
+        );
+
+        const ordered = orderCharactersByAppearance(
+          result.properNouns,
+          currentSentenceObject.text,
+        );
+        setOrderedCharacters(ordered);
+      }
+    } catch (err) {
+      console.error("Failed to load translation insights:", err);
+    } finally {
+      setIsLoadingInsights(false);
+    }
+  }, [
+    currentSentenceObject?.text,
+    currentSentenceObject?.full_translation,
+    supabase,
+    currentVideo,
+    currentSentenceIndex,
+  ]);
+
   useEffect(() => {
     Keyboard.dismiss();
     if (hasPlayedSentence) {
@@ -220,6 +309,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setPreviousResults(null);
     setAccuracyResult(null);
     setIsFocusSentenceExpanded(false);
+    loadTranslationInsights();
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -690,7 +780,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 )}
               </View>
               {!accuracyResult && unknownWords.length > 0 && (
-                <View style={styles.wordHintsContainer}>
                   <WordHints
                     unknownWords={unknownWords}
                     handlePlayWordSnippet={(word) =>
@@ -698,7 +787,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                     }
                     isPlayingWordSnippet={isPlayingWordSnippet}
                   />
-                </View>
+                
+              )}
+              {!accuracyResult && (
+                <CharacterInsights
+                  isLoading={isLoadingInsights}
+                  characters={orderedCharacters}
+                />
               )}
             </>
           )}
@@ -826,9 +921,6 @@ export const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     fontSize: 14,
-  },
-  wordHintsContainer: {
-    marginTop: 0,
   },
   instructionText: {
     color: "#666",

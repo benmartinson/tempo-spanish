@@ -742,6 +742,7 @@ export const calculateAccuracy = (
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
   const details: AccuracyResult["details"] = [];
   let matchedCount = 0;
+  let matchedScore = 0;
 
   // Track which spoken words have been used
   const usedSpokenIndices = new Set<number>();
@@ -775,6 +776,7 @@ export const calculateAccuracy = (
       // Found a match
       usedSpokenIndices.add(bestMatchIndex);
       matchedCount++;
+      matchedScore += bestMatchScore;
       details.push({
         targetWord,
         matched: true,
@@ -791,7 +793,7 @@ export const calculateAccuracy = (
 
   const totalWords = details.length;
   const percentage =
-    totalWords > 0 ? Math.round((matchedCount / totalWords) * 100) : 0;
+    totalWords > 0 ? Math.round((matchedScore / totalWords) * 100) : 0;
 
   return {
     percentage,

@@ -204,6 +204,11 @@ class VocabBasedQuestionRequest(BaseModel):
     context: str | None = None  # The segment text for context
 
 
+class TranslationInsightsRequest(BaseModel):
+    text: str
+    translation: str
+
+
 class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
@@ -979,6 +984,62 @@ User's answer: {request.user_answer}
         }
     except Exception as e:
         print(f"Error evaluating vocab answer: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/translation-insights")
+async def translation_insights(request: TranslationInsightsRequest):
+    """
+    Extract proper nouns (characters, places) from a sentence.
+    Returns a list of proper nouns found in the text.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    try:
+        user_prompt = f"""Original text: "{request.text}"
+Translation: "{request.translation}"
+
+Identify all proper nouns (character names, place names, or any word that requires capitalization because it is a proper noun) in the original text. Return them as a list."""
+
+        messages = [
+            {"role": "system", "content": "You are a linguistic analysis assistant. Given a sentence and its translation, identify all proper nouns (names of people, characters, places, etc.) in the original text. Only include words that require capitalization because they are proper nouns."},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=200,
+            temperature=0.3,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "proper_nouns_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["proper_nouns"],
+                        "properties": {
+                            "proper_nouns": {
+                                "type": "array",
+                                "items": {"type": "string"}
+                            }
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
+
+        result = json.loads(response.choices[0].message.content.strip())
+
+        return {
+            "proper_nouns": result["proper_nouns"],
+            "status": "complete"
+        }
+    except Exception as e:
+        print(f"Error extracting translation insights: {e}")
         return {"error": str(e)}
 
 

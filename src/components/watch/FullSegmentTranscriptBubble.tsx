@@ -129,6 +129,10 @@ const FullSegmentTranscriptBubble: React.FC<
     });
   };
 
+  const wordEndsWithSpecialCase = (word: string) => {
+    return word.endsWith(",.") || word.endsWith(".,") || word.endsWith("?,") || word.endsWith("!,");
+  }
+
   // Show blank when not active (before first word or after words change)
   if (!isActive) {
     return (
@@ -176,7 +180,7 @@ const FullSegmentTranscriptBubble: React.FC<
             >
               <Text style={[styles.word, getWordStyle()]}>
                 {word.word.startsWith(" ") ? "" : " "}
-                {word.word.endsWith(",.") ? word.word.slice(0, -1) : word.word}
+                {wordEndsWithSpecialCase(word.word) ? word.word.slice(0, -1) : word.word}
               </Text>
             </Pressable>
           );
