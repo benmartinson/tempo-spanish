@@ -50,11 +50,10 @@ import TooltipModal from "../common/TooltipModal";
 import NavSwitcher from "../common/NavSwitcher";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import FeaturedVocab from "../watch/FeaturedVocab";
-import WordHints from "../common/WordHints";
 import Foundation from "@expo/vector-icons/Foundation";
 import FocusSentenceRequest from "./FocusSentenceRequest";
-import { fetchTranslationInsights } from "../../requests";
-import CharacterInsights from "./CharacterInsights";
+import { fetchTranslationInsights, persistUserSettings } from "../../requests";
+import Insights from "./Insights";
 
 interface ShadowTabProps {
   time: number;
@@ -97,10 +96,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const { userId } = useAuth();
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
   const [isLooping, setIsLooping] = useState<boolean>(false);
-  const [isShowingWordHints, setIsShowingWordHints] = useState<boolean>(true);
-
   // Speed control state (internal settings)
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const userSettings = useSelector((state: RootState) => state.userSettings);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(
+    userSettings.playbackSpeed,
+  );
   const [recordSpeed, setRecordSpeed] = useState<number>(0.75);
   const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
     useState<boolean>(true);
@@ -147,7 +147,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         return w.word;
       });
 
-      const accuracy = calculateAccuracy(spokenWords, targetWords, orderedCharacters);
+      const accuracy = calculateAccuracy(
+        spokenWords,
+        targetWords,
+        orderedCharacters,
+      );
       return {
         ...accuracy,
         spokenSentence: spokenWords.join(" "),
@@ -213,10 +217,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   };
 
-  const orderCharactersByAppearance = (
-    properNouns: string[],
-    text: string,
-  ) => {
+  const orderCharactersByAppearance = (properNouns: string[], text: string) => {
     const textWords = text.split(/\s+/);
     const ordered: string[] = [];
     for (const word of textWords) {
@@ -780,21 +781,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   </TouchableOpacity>
                 )}
               </View>
-              {!accuracyResult && unknownWords.length > 0 && (
-                  <WordHints
-                    unknownWords={unknownWords}
-                    handlePlayWordSnippet={(word) =>
-                      handlePlaySnippetAgain(word)
-                    }
-                    isPlayingWordSnippet={isPlayingWordSnippet}
-                  />
-                
-              )}
               {!accuracyResult && (
-                <CharacterInsights
+                <Insights
                   isLoading={isLoadingInsights}
                   characters={orderedCharacters}
                   sentenceText={currentSentenceObject?.text ?? ""}
+                  unknownWords={unknownWords}
+                  handlePlayWordSnippet={(word) => handlePlaySnippetAgain(word)}
+                  isPlayingWordSnippet={isPlayingWordSnippet}
                 />
               )}
             </>
@@ -877,6 +871,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           setRecordSpeed={setRecordSpeed}
           initMute={muteVideoWhenRecording}
           setMuteWhenRecording={setMuteVideoWhenRecording}
+          onSave={(settings) => {
+            persistUserSettings({
+              supabase,
+              userId,
+              settings,
+            });
+          }}
         />
       )}
       {showNoVocabFoundTooltip && (

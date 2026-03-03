@@ -4,6 +4,7 @@ import {
   FocusSentence,
   Segment,
   SegmentWord,
+  UserSettings,
   Video,
   VideoContext,
   VideoView,
@@ -116,4 +117,9 @@ export const addUserVideoView = (videoView: VideoView): DataAction => ({
 export const addFocusSentence = (sentence: FocusSentence): DataAction => ({
   type: "ADD_FOCUS_SENTENCE",
   payload: sentence,
+});
+
+export const setUserSettings = (settings: UserSettings): DataAction => ({
+  type: "SET_USER_SETTINGS",
+  payload: settings,
 });

@@ -9,6 +9,7 @@ interface WordHintsProps {
   handlePlayWordSnippet: (word: SegmentWord) => void;
   isPlayingWordSnippet: boolean;
   showSwitcher?: boolean;
+  showWordHints: boolean;
 }
 
 const WordHints: React.FC<WordHintsProps> = ({
@@ -16,11 +17,13 @@ const WordHints: React.FC<WordHintsProps> = ({
   handlePlayWordSnippet,
   isPlayingWordSnippet,
   showSwitcher = true,
+  showWordHints,
 }) => {
   const [currentUnknownWordIndex, setCurrentUnknownWordIndex] =
     useState<number>(0);
   const currentUnknownWord = unknownWords[currentUnknownWordIndex];
-  const [isShowingWordHints, setIsShowingWordHints] = useState<boolean>(false);
+  const [isShowingWordHints, setIsShowingWordHints] =
+    useState<boolean>(showWordHints);
 
   const handleWordHintChange = (direction: number) => {
     if (unknownWords.length === 0) return;
@@ -36,18 +39,18 @@ const WordHints: React.FC<WordHintsProps> = ({
   return (
     <View style={styles.featuredVocabContainer}>
       <View style={styles.featuredVocabTitleContainer}>
-          <TouchableOpacity
-            onPress={() => setIsShowingWordHints(!isShowingWordHints)}
-          >
-        <View style={styles.featuredVocabTitleLeft}>
-          <Text style={styles.featuredVocabTitle}>Word Hints</Text>
+        <TouchableOpacity
+          onPress={() => setIsShowingWordHints(!isShowingWordHints)}
+        >
+          <View style={styles.featuredVocabTitleLeft}>
+            <Text style={styles.featuredVocabTitle}>Word Hints</Text>
             <MaterialIcons
               name="visibility"
               size={20}
               color={isShowingWordHints ? "black" : "gray"}
             />
-        </View>
-          </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
         {isShowingWordHints && showSwitcher && (
           <View style={styles.featuredVocabTitleButtons}>
             <TouchableOpacity

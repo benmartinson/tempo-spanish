@@ -1,4 +1,4 @@
-import { RootState, DataAction, DataActionTypes } from "../../types";
+import { RootState, DataAction, DataActionTypes, DEFAULT_USER_SETTINGS } from "../../types";
 
 const initialState: RootState = {
   currentVideo: null,
@@ -12,6 +12,7 @@ const initialState: RootState = {
   userVideoViews: [],
   currentSearchTerm: null,
   currentSearchResults: [],
+  userSettings: DEFAULT_USER_SETTINGS,
 };
 
 const dataReducer = (
@@ -175,6 +176,11 @@ const dataReducer = (
       return {
         ...state,
         userKnownVocab: [...state.userKnownVocab, ...action.payload],
+      };
+    case "SET_USER_SETTINGS":
+      return {
+        ...state,
+        userSettings: action.payload,
       };
     default:
       return state;

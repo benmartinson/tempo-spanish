@@ -8,6 +8,8 @@ import {
   VideoView,
   Vocabulary,
   UserUIState,
+  UserSettings,
+  DEFAULT_USER_SETTINGS,
 } from "./types";
 import { splitSegmentsIntoSentences } from "./helpers";
 
@@ -349,14 +351,17 @@ export interface RestoreUserUIStateParams {
 export interface RestoreUserUIStateResult {
   videoContext: VideoContext | null;
   currentTab: "watch" | "discuss" | "shadow" | null;
+  settings: UserSettings;
 }
 
 export const restoreUserUIState = async ({
   supabase,
   userId,
 }: RestoreUserUIStateParams): Promise<RestoreUserUIStateResult> => {
+  const defaultResult = { videoContext: null, currentTab: null, settings: DEFAULT_USER_SETTINGS };
+
   if (!userId) {
-    return { videoContext: null, currentTab: null };
+    return defaultResult;
   }
 
   try {
@@ -371,8 +376,15 @@ export const restoreUserUIState = async ({
       if (error.code !== "PGRST116") {
         console.error("Error fetching user UI state:", error);
       }
-      return { videoContext: null, currentTab: null };
+      return defaultResult;
     }
+
+    const settings: UserSettings = {
+      playbackSpeed: uiState.playback_speed ?? DEFAULT_USER_SETTINGS.playbackSpeed,
+      showWordsHints: uiState.show_word_hints ?? DEFAULT_USER_SETTINGS.showWordsHints,
+      showCharacters: uiState.show_characters ?? DEFAULT_USER_SETTINGS.showCharacters,
+      showStartsOffAs: uiState.show_starts_off_as ?? DEFAULT_USER_SETTINGS.showStartsOffAs,
+    };
 
     if (uiState?.current_video) {
       // Fetch the video record to get the video_id string
@@ -384,7 +396,7 @@ export const restoreUserUIState = async ({
 
       if (videoError || !videoRecord) {
         console.error("Error fetching video record:", videoError);
-        return { videoContext: null, currentTab: null };
+        return { ...defaultResult, settings };
       }
 
       const { videoContext } = await fetchVideoContext({
@@ -397,13 +409,14 @@ export const restoreUserUIState = async ({
       return {
         videoContext,
         currentTab: uiState.current_tab ?? null,
+        settings,
       };
     }
 
-    return { videoContext: null, currentTab: null };
+    return { videoContext: null, currentTab: null, settings };
   } catch (err) {
     console.error("Error restoring user UI state:", err);
-    return { videoContext: null, currentTab: null };
+    return defaultResult;
   }
 };
 
@@ -428,4 +441,28 @@ export const persistUserUITab = async ({
     );
 
   if (error) console.error("Error persisting tab:", error);
+};
+
+export const persistUserSettings = async ({
+  supabase,
+  userId,
+  settings,
+}: {
+  supabase: any;
+  userId: string | null;
+  settings: Partial<UserSettings>;
+}): Promise<void> => {
+  if (!supabase || !userId) return;
+
+  const updateData: Record<string, any> = { user_id: userId, updated_at: new Date() };
+  if (settings.playbackSpeed !== undefined) updateData.playback_speed = settings.playbackSpeed;
+  if (settings.showWordsHints !== undefined) updateData.show_word_hints = settings.showWordsHints;
+  if (settings.showCharacters !== undefined) updateData.show_characters = settings.showCharacters;
+  if (settings.showStartsOffAs !== undefined) updateData.show_starts_off_as = settings.showStartsOffAs;
+
+  const { error } = await supabase
+    .from("user_ui_state")
+    .upsert(updateData, { onConflict: "user_id" });
+
+  if (error) console.error("Error persisting settings:", error);
 };

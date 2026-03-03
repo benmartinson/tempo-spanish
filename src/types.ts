@@ -1,3 +1,17 @@
+export interface UserSettings {
+  playbackSpeed: number;
+  showWordsHints: boolean;
+  showCharacters: boolean;
+  showStartsOffAs: boolean;
+}
+
+export const DEFAULT_USER_SETTINGS: UserSettings = {
+  playbackSpeed: 1,
+  showWordsHints: true,
+  showCharacters: true,
+  showStartsOffAs: true,
+};
+
 export interface RootState {
   currentVideo: VideoContext | null;
   currentChatType: "general" | "video-based" | null;
@@ -10,6 +24,7 @@ export interface RootState {
   userVideoViews: VideoView[];
   currentSearchTerm: string | null;
   currentSearchResults: Segment[];
+  userSettings: UserSettings;
 }
 
 export type DataActionTypes =
@@ -34,7 +49,8 @@ export type DataActionTypes =
   | "SET_CURRENT_SEARCH_RESULTS"
   | "ADD_USER_VIDEO_VIEW"
   | "ADD_USER_SELECTED_VOCAB"
-  | "REMOVE_FOCUS_SENTENCE";
+  | "REMOVE_FOCUS_SENTENCE"
+  | "SET_USER_SETTINGS";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -229,4 +245,8 @@ export interface UserUIState {
   current_video: string | null;
   current_sentence: number;
   current_tab: "watch" | "discuss" | "shadow";
+  playback_speed: number | null;
+  show_word_hints: boolean | null;
+  show_characters: boolean | null;
+  show_starts_off_as: boolean | null;
 }

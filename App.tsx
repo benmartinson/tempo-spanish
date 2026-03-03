@@ -18,6 +18,7 @@ import {
   setUserVideoViews,
   setAllVideos,
   setAllChannels,
+  setUserSettings,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import {
@@ -198,10 +199,12 @@ const AuthenticatedApp: React.FC = () => {
 
     // Fetch and restore user UI state
     const restoreState = async () => {
-      const { videoContext, currentTab } = await restoreUserUIState({
+      const { videoContext, currentTab, settings } = await restoreUserUIState({
         supabase,
         userId,
       });
+
+      dispatch(setUserSettings(settings));
 
       if (videoContext) {
         dispatch(setCurrentVideo(videoContext));

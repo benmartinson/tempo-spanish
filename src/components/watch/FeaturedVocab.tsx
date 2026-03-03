@@ -29,7 +29,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   word,
   playSnippet,
   isPlayingWordSnippet,
-  handleWordHintChange
+  handleWordHintChange,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
@@ -61,7 +61,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
       if (insertError)
         console.error("Error adding to known vocab:", insertError);
     }
-    handleWordHintChange(1)
+    handleWordHintChange(1);
     dispatch(addUserKnownVocab([vocabId]));
   };
 
@@ -72,7 +72,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
     const vocabId = Object.values(allVocabulary).find(
       (v) => normalizeWord(v.word) === normalizedWord,
     )?.id;
-    dispatch(addUserSelectedVocab([vocabId]))
+    dispatch(addUserSelectedVocab([vocabId]));
 
     if (supabase && userId && currentVideo.videoViewId) {
       const { data, error: insertError } = await supabase
@@ -149,7 +149,6 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
     width: "100%",
     marginTop: 16,
   },

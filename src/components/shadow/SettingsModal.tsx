@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
 import SlideModal from "../common/Modal";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../../types";
+import { setUserSettings } from "../../store/actions/dataActions";
 
 interface SettingsModalProps {
   visible: boolean;
@@ -11,6 +14,7 @@ interface SettingsModalProps {
   setRecordSpeed: (speed: number) => void;
   initMute: boolean;
   setMuteWhenRecording: (mute: boolean) => void;
+  onSave: (settings: { playbackSpeed: number; showWordsHints: boolean; showCharacters: boolean; showStartsOffAs: boolean }) => void;
 }
 const SettingsModal: React.FC<SettingsModalProps> = ({
   visible,
@@ -21,12 +25,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   setRecordSpeed,
   initMute,
   setMuteWhenRecording,
+  onSave,
 }) => {
+  const dispatch = useDispatch();
+  const userSettings = useSelector((state: RootState) => state.userSettings);
+
   const speedOptions = [0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
   const [editedPlaybackSpeed, setEditedPlaybackSpeed] = useState(playbackSpeed);
   const [editedRecordSpeed, setEditedRecordSpeed] = useState(recordSpeed);
   const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
     useState(initMute);
+  const [editedShowWordsHints, setEditedShowWordsHints] = useState(userSettings.showWordsHints);
+  const [editedShowCharacters, setEditedShowCharacters] = useState(userSettings.showCharacters);
+  const [editedShowStartsOffAs, setEditedShowStartsOffAs] = useState(userSettings.showStartsOffAs);
 
   const handlePlaybackSpeedChange = (speed: number) => {
     setEditedPlaybackSpeed(speed);
@@ -40,6 +51,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     setPlaybackSpeed(editedPlaybackSpeed);
     setRecordSpeed(editedRecordSpeed);
     setMuteWhenRecording(muteVideoWhenRecording);
+    const newSettings = {
+      playbackSpeed: editedPlaybackSpeed,
+      showWordsHints: editedShowWordsHints,
+      showCharacters: editedShowCharacters,
+      showStartsOffAs: editedShowStartsOffAs,
+    };
+    dispatch(setUserSettings(newSettings));
+    onSave(newSettings);
     onClose();
   };
   return (
@@ -101,12 +120,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </View>
         </View> */}
       </View>
-      <View style={styles.questionContainer}>
-        <Text style={styles.questionText}>Mute video when recording?</Text>
-        <Switch
-          value={muteVideoWhenRecording}
-          onValueChange={setMuteVideoWhenRecording}
-        />
+        <View style={styles.togglesContainer}>
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>Show Word Hints by Default?</Text>
+          <Switch
+            value={editedShowWordsHints}
+            onValueChange={setEditedShowWordsHints}
+          />
+        </View>
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>Show Characters List by Default?</Text>
+          <Switch
+            value={editedShowCharacters}
+            onValueChange={setEditedShowCharacters}
+          />
+        </View>
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>Show Starts Off As by Default?</Text>
+          <Switch
+            value={editedShowStartsOffAs}
+            onValueChange={setEditedShowStartsOffAs}
+          />
+        </View>
       </View>
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
@@ -130,9 +165,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   questionText: {
-    color: "white",
+    color: "black",
     fontSize: 16,
     fontWeight: "500",
+  },
+  togglesContainer: {
+    marginTop: 16,
+    paddingHorizontal: 8,
   },
   speedControlsContainer: {
     marginTop: 16,
@@ -145,7 +184,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   speedLabel: {
-    color: "white",
+    color: "black",
     fontSize: 16,
     fontWeight: "500",
     marginBottom: 4,
