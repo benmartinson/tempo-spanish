@@ -65,11 +65,12 @@ const WordHints: React.FC<WordHintsProps> = ({
           </View>
         )}
       </View>
-      {isShowingWordHints && (
+      {isShowingWordHints && currentUnknownWord && (
         <FeaturedVocab
           word={currentUnknownWord}
           playSnippet={handlePlayWordSnippet}
           isPlayingWordSnippet={isPlayingWordSnippet}
+          handleWordHintChange={handleWordHintChange}
         />
       )}
     </View>

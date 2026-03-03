@@ -234,7 +234,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
         v: videoId,
         autoplay: autoplay ? "1" : "0",
         muted: muted ? "1" : "0",
-        start: clip ? clip.start.toString() : (startTime?.toString() ?? "0"),
+        start: clip?.start ? clip.start.toString() : (startTime?.toString() ?? "0"),
         end: clip && clip.end ? clip.end.toString() : undefined,
         controls: "1",
         speed: playbackSpeed.toString(),

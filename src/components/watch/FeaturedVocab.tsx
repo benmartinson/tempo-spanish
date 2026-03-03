@@ -22,12 +22,14 @@ interface FeaturedVocabProps {
   word: SegmentWord;
   playSnippet?: (word: SegmentWord) => void;
   isPlayingWordSnippet?: boolean;
+  handleWordHintChange: (direction: number) => void;
 }
 
 const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   word,
   playSnippet,
   isPlayingWordSnippet,
+  handleWordHintChange
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
@@ -47,11 +49,8 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
     const vocabId = Object.values(allVocabulary).find(
       (v) => normalizeWord(v.word) === normalizeWord(word.word),
     )?.id;
-    dispatch(addUserKnownVocab([vocabId]));
 
-    // 3. Update Supabase
     if (supabase && userId && currentVideo.videoViewId) {
-      // Add to user_known_vocab
       const { error: insertError } = await supabase
         .from("user_known_vocab")
         .upsert(
@@ -62,6 +61,8 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
       if (insertError)
         console.error("Error adding to known vocab:", insertError);
     }
+    handleWordHintChange(1)
+    dispatch(addUserKnownVocab([vocabId]));
   };
 
   const handleSelectForReview = async (word: SegmentWord) => {
@@ -71,16 +72,9 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
     const vocabId = Object.values(allVocabulary).find(
       (v) => normalizeWord(v.word) === normalizedWord,
     )?.id;
-    console.log("vocabId", vocabId);
-    console.log({
-      hasSupabase: !!supabase,
-      hasUserId: !!userId,
-      hasVideoViewId: !!currentVideo.videoViewId,
-    });
+    dispatch(addUserSelectedVocab([vocabId]))
 
-    // 3. Update Supabase
     if (supabase && userId && currentVideo.videoViewId) {
-      // Add to user_selected_vocab
       const { data, error: insertError } = await supabase
         .from("video_view_focus_vocab")
         .upsert(
