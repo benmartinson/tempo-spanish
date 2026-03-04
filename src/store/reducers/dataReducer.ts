@@ -12,6 +12,8 @@ const initialState: RootState = {
   userVideoViews: [],
   currentSearchTerm: null,
   currentSearchResults: [],
+  isSearching: false,
+  hasSearched: false,
   userSettings: DEFAULT_USER_SETTINGS,
 };
 
@@ -34,6 +36,16 @@ const dataReducer = (
       return {
         ...state,
         currentSearchResults: action.payload,
+      };
+    case "SET_IS_SEARCHING":
+      return {
+        ...state,
+        isSearching: action.payload,
+      };
+    case "SET_HAS_SEARCHED":
+      return {
+        ...state,
+        hasSearched: action.payload,
       };
     case "SET_USER_VIDEO_VIEWS":
       return {

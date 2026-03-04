@@ -82,6 +82,16 @@ export const setCurrentSearchResults = (results: Segment[]): DataAction => ({
   payload: results,
 });
 
+export const setIsSearching = (isSearching: boolean): DataAction => ({
+  type: "SET_IS_SEARCHING",
+  payload: isSearching,
+});
+
+export const setHasSearched = (hasSearched: boolean): DataAction => ({
+  type: "SET_HAS_SEARCHED",
+  payload: hasSearched,
+});
+
 export const setAllVocabulary = (
   vocab: Record<string, Vocabulary>,
 ): DataAction => ({

@@ -24,6 +24,8 @@ export interface RootState {
   userVideoViews: VideoView[];
   currentSearchTerm: string | null;
   currentSearchResults: Segment[];
+  isSearching: boolean;
+  hasSearched: boolean;
   userSettings: UserSettings;
 }
 
@@ -50,7 +52,9 @@ export type DataActionTypes =
   | "ADD_USER_VIDEO_VIEW"
   | "ADD_USER_SELECTED_VOCAB"
   | "REMOVE_FOCUS_SENTENCE"
-  | "SET_USER_SETTINGS";
+  | "SET_USER_SETTINGS"
+  | "SET_IS_SEARCHING"
+  | "SET_HAS_SEARCHED";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;

@@ -8,12 +8,9 @@ import {
   Image,
   Dimensions,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
-import {
-  RootState,
-  Video,
-  VideoView,
-} from "../../types";
+import { RootState, Video, VideoView } from "../../types";
 import {
   addUserVideoView,
   setCurrentTab,
@@ -35,6 +32,8 @@ const VideoList: React.FC = () => {
   const currentSearchResults = useSelector(
     (state: RootState) => state.currentSearchResults,
   );
+  const isSearching = useSelector((state: RootState) => state.isSearching);
+  const hasSearched = useSelector((state: RootState) => state.hasSearched);
   const allChannels = useSelector((state: RootState) => state.allChannels);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const userVideoViews = useSelector(
@@ -118,6 +117,18 @@ const VideoList: React.FC = () => {
     <ScrollView style={styles.container}>
       <WordSearch />
 
+      {isSearching && (
+        <View style={styles.searchStatus}>
+          <ActivityIndicator size="small" color="#999" />
+        </View>
+      )}
+      {!isSearching && hasSearched && currentSearchResults.length === 0 && (
+        <View style={styles.searchStatus}>
+          <Text style={styles.emptySearchText}>
+            No Clips Found for the Word or Phrase
+          </Text>
+        </View>
+      )}
       {currentSearchResults.length > 0 && (
         <>
           <VideoSectionHeader title="Search Results" />
@@ -219,6 +230,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 8,
     paddingTop: 8,
+  },
+  searchStatus: {
+    paddingVertical: 12,
+    marginBottom: 12,
+    alignItems: "center" as const,
+  },
+  emptySearchText: {
+    fontSize: 14,
+    color: "#999",
+    textAlign: "center" as const,
+    paddingHorizontal: 16,
   },
 });
 

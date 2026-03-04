@@ -60,6 +60,9 @@ export const capitalize = (word: string) => {
   return word.charAt(0).toUpperCase() + word.slice(1);
 };
 
+export const stripDiacritics = (text: string) =>
+  text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
 export const stripPunctuation = (word: string) => {
   return word.replace(/[.,\/#!$%\^&\*\?;:{}=\-\"\'_`~()]/g, "");
 };

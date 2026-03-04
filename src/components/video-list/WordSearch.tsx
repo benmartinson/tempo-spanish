@@ -6,7 +6,10 @@ import { supabase } from "../../../lib/supabase";
 import {
   setCurrentSearchResults,
   setCurrentSearchTerm,
+  setIsSearching,
+  setHasSearched,
 } from "../../store/actions/dataActions";
+import { stripDiacritics } from "../../helpers";
 
 const WordSearch: React.FC = () => {
   const currentSearchTerm = useSelector(
@@ -15,16 +18,23 @@ const WordSearch: React.FC = () => {
   const dispatch = useDispatch();
 
   const handleSearch = async () => {
+    if (!currentSearchTerm?.trim()) return;
+    dispatch(setIsSearching(true));
+    const normalizedTerm = stripDiacritics(currentSearchTerm.toLowerCase());
     const { data, error } = await supabase
       .from("transcript_segment")
-      .select("*")
-      .ilike("text", `%${currentSearchTerm}%`);
+      .select("*");
 
     if (error) {
       console.error(error);
     } else {
-      dispatch(setCurrentSearchResults(data as Segment[]));
+      const filtered = (data as Segment[]).filter((segment) =>
+        stripDiacritics(segment.text.toLowerCase()).includes(normalizedTerm),
+      );
+      dispatch(setCurrentSearchResults(filtered));
     }
+    dispatch(setIsSearching(false));
+    dispatch(setHasSearched(true));
   };
 
   return (
