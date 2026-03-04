@@ -6,7 +6,7 @@ import FeaturedVocab from "../watch/FeaturedVocab";
 
 interface WordHintsProps {
   unknownWords: SegmentWord[];
-  handlePlayWordSnippet: (word: SegmentWord) => void;
+  handlePlayWordSnippet: (word: SegmentWord, isSlow?: boolean) => void;
   isPlayingWordSnippet: boolean;
   showSwitcher?: boolean;
   showWordHints: boolean;

@@ -11,7 +11,7 @@ interface InsightsProps {
   characters: string[];
   sentenceText: string;
   unknownWords: SegmentWord[];
-  handlePlayWordSnippet: (word: SegmentWord) => void;
+  handlePlayWordSnippet: (word: SegmentWord, isSlow?: boolean) => void;
   isPlayingWordSnippet: boolean;
 }
 

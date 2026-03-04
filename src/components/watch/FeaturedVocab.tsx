@@ -20,7 +20,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 
 interface FeaturedVocabProps {
   word: SegmentWord;
-  playSnippet?: (word: SegmentWord) => void;
+  playSnippet?: (word: SegmentWord, isSlow?: boolean) => void;
   isPlayingWordSnippet?: boolean;
   handleWordHintChange: (direction: number) => void;
 }
@@ -95,18 +95,29 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
     <View style={styles.container}>
       <View style={styles.card}>
         <View style={styles.textContainer}>
-          <TouchableOpacity
-            onPress={() => playSnippet(word)}
-            style={styles.wordContainer}
-          >
+          <View style={styles.wordContainer}>
+            <View style={styles.hiddenPlayButton}>
+              <MaterialIcons name="play-arrow" size={20} color="black" />
+            </View>
             <View style={styles.hiddenPlayButton}>
               <MaterialIcons name="play-arrow" size={20} color="black" />
             </View>
             <Text style={styles.word}>{capitalize(word.word)}</Text>
-            <View style={styles.playButton}>
-              <MaterialIcons name="play-arrow" size={20} color="black" />
-            </View>
-          </TouchableOpacity>
+            <TouchableOpacity onPress={() => playSnippet(word)}>
+              <View style={styles.playButton}>
+                <MaterialIcons name="play-arrow" size={20} color="black" />
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => playSnippet(word, true)}>
+              <View style={styles.playButton}>
+                <MaterialIcons
+                  name="slow-motion-video"
+                  size={24}
+                  color="black"
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.translation}>
             {capitalize(vocabWord.translation)}

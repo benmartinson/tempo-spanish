@@ -560,10 +560,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     parentHandlePreviousSentence();
   };
 
-  const handlePlaySnippetAgain = (word: SegmentWord) => {
+  const handlePlaySnippetAgain = (word: SegmentWord, isSlow?: boolean) => {
+    if (isSlow) {
+      setPlayerSpeed(0.7);
+    } else {
+      setPlayerSpeed(playbackSpeed);
+    }
     setPlayerMuted(false);
     setJustRecorded();
-    setPlayerSpeed(playbackSpeed);
     setIsRecordingMode(false);
     handleResetState();
     if (word) {
@@ -817,7 +821,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               characters={orderedCharacters}
               sentenceText={currentSentenceObject?.text ?? ""}
               unknownWords={unknownWords}
-              handlePlayWordSnippet={(word) => handlePlaySnippetAgain(word)}
+              handlePlayWordSnippet={handlePlaySnippetAgain}
               isPlayingWordSnippet={isPlayingWordSnippet}
             />
           )}
