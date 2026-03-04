@@ -156,9 +156,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         targetWords,
         orderedCharacters,
       );
+
       return {
         ...accuracy,
-        spokenSentence: spokenWords.join(" "),
         targetSentence: capitalize(currentSentenceObject?.text),
       };
     },
@@ -464,10 +464,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [time, currentSentenceObject?.end, isRecording, sentenceEnded]);
 
   useEffect(() => {
-    if (
-      currentSentenceObject?.end &&
-      time >= currentSentenceObject.end - 0.5
-    ) {
+    if (currentSentenceObject?.end && time >= currentSentenceObject.end - 0.5) {
       setSentenceEnded(true);
       setIsSentencePlaying(false);
     }
@@ -814,7 +811,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               )}
             </View>
           )}
-          {!accuracyResult && (
+          {!accuracyResult && !isProcessing && (
             <Insights
               isLoading={isLoadingInsights}
               characters={orderedCharacters}

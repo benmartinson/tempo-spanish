@@ -211,7 +211,6 @@ export interface AccuracyResult {
     spokenWord?: string;
     isProperNoun?: boolean;
   }[];
-  spokenSentence: string;
   targetSentence: string;
 }
 

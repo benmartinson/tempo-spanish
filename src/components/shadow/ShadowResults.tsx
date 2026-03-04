@@ -26,12 +26,14 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   const isAccuracyGood = accuracyResult.percentage >= 80;
 
   const cleanUpSetence = (sentence: string) => {
-    const specialCases = [',.', '.,', '!,', '?,'];
+    const specialCases = [",.", ".,", "!,", "?,"];
     return sentence
-      .split(' ')
-      .map((word) => specialCases.some((c) => word.endsWith(c)) ? word.slice(0, -1) : word)
-      .join(' ');
-  }
+      .split(" ")
+      .map((word) =>
+        specialCases.some((c) => word.endsWith(c)) ? word.slice(0, -1) : word,
+      )
+      .join(" ");
+  };
 
   return (
     <View style={styles.resultsContainer}>
@@ -59,7 +61,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       </View> */}
       <View style={styles.spokenSentenceContainer}>
         <Text style={styles.spokenSentenceText}>
-          <Text style={styles.labelBold}>You said: </Text>
+          <Text style={styles.labelBold}>Spoken: </Text>
           {accuracyResult.details.map((detail, index) => {
             const isProperNoun = properNouns.some(
               (noun) =>
@@ -87,7 +89,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       </View>
       <View style={styles.targetSentenceContainer}>
         <Text style={styles.targetSentenceText}>
-          <Text style={styles.labelBold}>Target sentence: </Text>
+          <Text style={styles.labelBold}>Target: </Text>
           {cleanUpSetence(accuracyResult.targetSentence)}
         </Text>
       </View>
@@ -106,7 +108,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
             style={[styles.actionButton, styles.nextButton]}
             onPress={handleNextSentence}
           >
-            <Text style={styles.actionButtonText}>Next Sentence</Text>
+            <Text style={styles.actionButtonText}>Next Segment</Text>
             <MaterialIcons name="arrow-forward" size={20} color="#fff" />
           </TouchableOpacity>
         )}

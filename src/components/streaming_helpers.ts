@@ -739,6 +739,7 @@ export const calculateAccuracy = (
       details: [],
     };
   }
+  console.log({ targetWords, spokenWords });
 
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
   const normalizedProperNouns = properNouns.map((n) => normalize(n));
@@ -781,7 +782,7 @@ export const calculateAccuracy = (
       details.push({
         targetWord,
         matched: true,
-        spokenWord: foundIndex !== -1 ? spokenWords[foundIndex] : targetWord,
+        spokenWord: targetWord,
         isProperNoun: true,
       });
       continue;
@@ -808,10 +809,12 @@ export const calculateAccuracy = (
       usedSpokenIndices.add(bestMatchIndex);
       matchedCount++;
       matchedScore += bestMatchScore;
+
       details.push({
         targetWord,
         matched: true,
-        spokenWord: spokenWords[bestMatchIndex],
+        spokenWord:
+          bestMatchScore === 1 ? targetWord : spokenWords[bestMatchIndex],
       });
     } else {
       // No match found
