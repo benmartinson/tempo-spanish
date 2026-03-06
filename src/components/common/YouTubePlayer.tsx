@@ -4,10 +4,13 @@ import React, {
   forwardRef,
   useEffect,
   useState,
+  useCallback,
 } from "react";
 import { StyleSheet, View, Text, Linking, Platform } from "react-native";
 import { WebView } from "react-native-webview";
+import YoutubeIframePlayer from "react-native-youtube-iframe";
 import { Segment, Sentence } from "../../types";
+import { useSession, useUser } from "@clerk/clerk-expo";
 
 export interface YouTubePlayerHandle {
   pause: () => void;
@@ -234,7 +237,9 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
         v: videoId,
         autoplay: autoplay ? "1" : "0",
         muted: muted ? "1" : "0",
-        start: clip?.start ? clip.start.toString() : (startTime?.toString() ?? "0"),
+        start: clip?.start
+          ? clip.start.toString()
+          : (startTime?.toString() ?? "0"),
         end: clip && clip.end ? clip.end.toString() : undefined,
         controls: "1",
         speed: playbackSpeed.toString(),
@@ -266,12 +271,15 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
           javaScriptEnabled
           domStorageEnabled
           scrollEnabled={false}
+          sharedCookiesEnabled={true}
+          thirdPartyCookiesEnabled={true}
           onMessage={(e) => {
             const msg = JSON.parse(e.nativeEvent.data);
             if (msg.type === "YT_TIME") {
               setTime(msg.time);
             }
           }}
+          userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
           onShouldStartLoadWithRequest={(request) => {
             if (request.url.includes("youtube.com/watch")) {
               Linking.openURL(request.url);
@@ -285,6 +293,18 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
             <Text style={styles.videoText}>{videoText}</Text>
           </View>
         )}
+        {/* <View style={{ height: 300, marginTop: 10 }}>
+          <YoutubeIframePlayer
+            height={300}
+            videoId={videoId}
+            play={autoplay}
+            initialPlayerParams={{
+              start: Math.floor(clip?.start ?? startTime ?? 0),
+              controls: true,
+              rel: false,
+            }}
+          />
+        </View> */}
       </View>
     );
   },

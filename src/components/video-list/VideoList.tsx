@@ -10,7 +10,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import { RootState, Video, VideoView } from "../../types";
+import { Channel, RootState, Video } from "../../types";
 import {
   addUserVideoView,
   setCurrentTab,
@@ -23,12 +23,14 @@ import HorizontalVideoScroll from "./HorizontalVideoScroll";
 import VideoSectionHeader from "./VideoSectionHeader";
 import WordSearch from "./WordSearch";
 import { fetchVideoContext } from "../../requests";
+import ChannelVideoList from "./ChannelVideoList";
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const [loadingVideo, setLoadingVideo] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const currentSearchResults = useSelector(
     (state: RootState) => state.currentSearchResults,
   );
@@ -73,7 +75,7 @@ const VideoList: React.FC = () => {
 
       dispatch(addUserVideoView(videoView));
       dispatch(setCurrentVideo(videoContext));
-      dispatch(setCurrentTab("watch"));
+      dispatch(setCurrentTab("shadow"));
 
       // Persist video selection to user_ui_state
       if (supabase && userId) {
@@ -112,6 +114,21 @@ const VideoList: React.FC = () => {
       (a, b) =>
         new Date(b.watched_at).getTime() - new Date(a.watched_at).getTime(),
     );
+
+  if (selectedChannel) {
+    const channelVideos = allVideos.filter(
+      (video) => video.channel_id === selectedChannel.channel_id,
+    );
+    return (
+      <ChannelVideoList
+        channel={selectedChannel}
+        videos={channelVideos}
+        handleWatchPress={handleWatchPress}
+        loadingVideo={loadingVideo}
+        onBack={() => setSelectedChannel(null)}
+      />
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -159,7 +176,10 @@ const VideoList: React.FC = () => {
         return (
           <View key={channel.channel_id} style={styles.channelContainer}>
             {/* Channel Header */}
-            <View style={styles.channelHeader}>
+            <TouchableOpacity
+              style={styles.channelHeader}
+              onPress={() => setSelectedChannel(channel)}
+            >
               <Image
                 source={{ uri: channel.thumbnail_url }}
                 style={styles.channelThumbnail}
@@ -171,13 +191,14 @@ const VideoList: React.FC = () => {
                   <Text>{channelVideos.length} videos available</Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
 
             {/* Horizontal Video List */}
             <HorizontalVideoScroll
               videos={channelVideos}
               handleWatchPress={handleWatchPress}
               loadingVideo={loadingVideo}
+              onViewAll={() => setSelectedChannel(channel)}
             />
           </View>
         );
