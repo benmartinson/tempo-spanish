@@ -711,7 +711,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 onStopRecording={() => handleStopRecording(false)}
                 sentenceEnded={sentenceEnded}
                 bufferDuration={0}
-                countdownDuration={0}
               />
               {/* <FullSegmentTranscriptBubble
                 words={currentSentence.words}

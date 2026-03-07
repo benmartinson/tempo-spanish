@@ -16,6 +16,7 @@ interface CountdownTimerProps {
   sentenceEnded: boolean;
   bufferDuration?: number;
   countdownDuration?: number;
+  maxRecordingDuration?: number;
 }
 
 const CountdownTimer: React.FC<CountdownTimerProps> = ({
@@ -23,15 +24,19 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   onStopRecording,
   sentenceEnded,
   bufferDuration = 5,
-  countdownDuration = 3,
+  countdownDuration = 0,
+  maxRecordingDuration = 60,
 }) => {
   const [phase, setPhase] = useState<RecordingPhase>("countdown");
   const [countdown, setCountdown] = useState<number>(countdownDuration);
   const [bufferCountdown, setBufferCountdown] =
     useState<number>(bufferDuration);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const hasStartedRecording = useRef(false);
   const hasStoppedRecording = useRef(false);
+  const remainingSeconds = maxRecordingDuration - elapsedSeconds;
+  const showTimeWarning = phase === "recording" && remainingSeconds <= 10;
 
   // Pulse animation for recording indicator
   useEffect(() => {
@@ -55,8 +60,20 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     }
   }, [phase, pulseAnim]);
 
+  // Track elapsed recording time
+  useEffect(() => {
+    if (phase !== "recording") return;
+
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [phase]);
+
   // Pre-recording countdown (3, 2, 1)
   useEffect(() => {
+    console.log({ phase, countdown });
     if (phase !== "countdown") return;
     if (countdown <= 0) {
       // Start recording when countdown reaches 0
@@ -128,9 +145,15 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
               />
               <Text style={styles.recordingText}>Recording</Text>
             </View>
-            <Text style={styles.recordingInstructions}>
-              Read aloud the highlighted words
-            </Text>
+            {showTimeWarning ? (
+              <Text style={styles.timeWarningText}>
+                Stopping in {remainingSeconds}s
+              </Text>
+            ) : (
+              <Text style={styles.recordingInstructions}>
+                Read aloud the highlighted words
+              </Text>
+            )}
             <TouchableOpacity
               onPress={onStopRecording}
               style={styles.stopButton}
@@ -268,6 +291,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "white",
+  },
+  timeWarningText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#ff4757",
+    marginTop: 12,
   },
 });
 
