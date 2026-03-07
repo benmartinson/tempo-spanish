@@ -42,8 +42,11 @@ export default function OAuthButton({ strategy, children }: Props) {
       } else {
         throw new Error("Failed to create session");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error during SSO flow:", err);
+      if (err?.clerkError) {
+        console.error("Clerk errors:", JSON.stringify(err.errors, null, 2));
+      }
       console.error(JSON.stringify(err, null, 2));
     }
   }, [startSSOFlow, strategy]);

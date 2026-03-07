@@ -19,25 +19,33 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      <View style={styles.controlsRow}>
-        <TouchableOpacity style={styles.button} onPress={onReplay}>
-          <MaterialIcons name="replay" size={24} color="black" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={onReplaySlow}>
-          <MaterialIcons name="slow-motion-video" size={24} color="black" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, playDisabled && { opacity: 0.4 }]}
-          onPress={onPlayPause}
-          disabled={playDisabled && !isPlaying}
-        >
-          <MaterialIcons
-            name={isPlaying ? "pause" : "play-arrow"}
-            size={24}
-            color={playDisabled && !isPlaying ? "#ccc" : "black"}
-          />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={[styles.button, styles.buttonLeft]}
+        onPress={onReplay}
+      >
+        <MaterialIcons name="replay" size={24} color="black" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.button, styles.buttonMiddle]}
+        onPress={onReplaySlow}
+      >
+        <MaterialIcons name="slow-motion-video" size={24} color="black" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.button,
+          styles.buttonRight,
+          playDisabled && { opacity: 0.4 },
+        ]}
+        onPress={onPlayPause}
+        disabled={playDisabled && !isPlaying}
+      >
+        <MaterialIcons
+          name={isPlaying ? "pause" : "play-arrow"}
+          size={24}
+          color={playDisabled && !isPlaying ? "#ccc" : "black"}
+        />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -46,22 +54,25 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    alignSelf: "center",
     marginTop: 16,
-  },
-  controlsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
     borderWidth: 1,
     borderColor: "#3d3a52",
     borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 24,
   },
   button: {
-    padding: 4,
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  buttonLeft: {
+    borderTopLeftRadius: 24,
+    borderBottomLeftRadius: 24,
+  },
+  buttonMiddle: {},
+  buttonRight: {
+    borderTopRightRadius: 24,
+    borderBottomRightRadius: 24,
   },
 });
 
