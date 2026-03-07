@@ -90,7 +90,15 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       <View style={styles.targetSentenceContainer}>
         <Text style={styles.targetSentenceText}>
           <Text style={styles.labelBold}>Target: </Text>
-          {cleanUpSetence(accuracyResult.targetSentence)}
+          {accuracyResult.details.map((detail, index) => (
+            <Text
+              key={index}
+              style={!detail.matched ? styles.wordRed : undefined}
+            >
+              {detail.targetWord}
+              {index < accuracyResult.details.length - 1 ? " " : ""}
+            </Text>
+          ))}
         </Text>
       </View>
 
