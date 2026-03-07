@@ -30,11 +30,12 @@ export default function OAuthButton({ strategy, children }: Props) {
 
   const onPress = useCallback(async () => {
     try {
+      const redirectUrl = AuthSession.makeRedirectUri();
+      console.log("Redirect URI:", redirectUrl);
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy,
-        redirectUrl: AuthSession.makeRedirectUri(),
+        redirectUrl,
       });
-      console.log({ createdSessionId, setActive });
 
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
