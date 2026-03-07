@@ -3,7 +3,7 @@ import {
   StyleSheet,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Image,
   ViewStyle,
 } from "react-native";
@@ -18,10 +18,15 @@ const VideoCard: React.FC<{
   thumbnailStyle?: ViewStyle;
 }> = ({ video, onPress, disabled, style, thumbnailStyle }) => {
   return (
-    <TouchableOpacity
-      style={[styles.videoItem, style]}
+    <Pressable
+      style={({ pressed }) => [
+        styles.videoItem,
+        style,
+        pressed && { opacity: 0.6 },
+      ]}
       onPress={onPress}
       disabled={disabled}
+      unstable_pressDelay={150}
     >
       <View>
         <Image
@@ -39,7 +44,7 @@ const VideoCard: React.FC<{
       <Text style={styles.videoTitle} numberOfLines={2}>
         {video.title}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

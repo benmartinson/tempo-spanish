@@ -22,7 +22,8 @@ import { useAuth } from "@clerk/clerk-expo";
 import HorizontalVideoScroll from "./HorizontalVideoScroll";
 import VideoSectionHeader from "./VideoSectionHeader";
 import WordSearch from "./WordSearch";
-import { fetchVideoContext } from "../../requests";
+import { fetchVideoContext, fetchUserVideoViews } from "../../requests";
+import { setUserVideoViews } from "../../store/actions/dataActions";
 import ChannelVideoList from "./ChannelVideoList";
 
 const VideoList: React.FC = () => {
@@ -41,6 +42,13 @@ const VideoList: React.FC = () => {
   const userVideoViews = useSelector(
     (state: RootState) => state.userVideoViews,
   );
+  const currentVideo = useSelector((state: RootState) => state.currentVideo);
+
+  useEffect(() => {
+    fetchUserVideoViews({ supabase }).then((videoViews) => {
+      dispatch(setUserVideoViews(videoViews));
+    });
+  }, [currentVideo]);
   const videoResults = currentSearchResults.reduce(
     (acc, result) => {
       const video = allVideos.find((video) => video.id === result.video_id);
