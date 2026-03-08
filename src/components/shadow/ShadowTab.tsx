@@ -131,7 +131,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [isPlayingRecording, setIsPlayingRecording] = useState<boolean>(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [isTrimmingAudio, setIsTrimmingAudio] = useState<boolean>(false);
-  const [isSentencePlaying, setIsSentencePlaying] = useState<boolean>(false);
+  const [isSentencePlaying, setIsSentencePlaying] = useState<boolean>(true);
   const [currentUnknownWordIndex, setCurrentUnknownWordIndex] =
     useState<number>(0);
   const currentUnknownWord = unknownWords[currentUnknownWordIndex];
@@ -207,17 +207,22 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [supabase, userId, currentVideo, currentSentenceIndex]);
 
   const loadExistingShadowResult = async () => {
-    if (previousResults) {
-      setAccuracyResult(previousResults);
-      setCurrentRecordingId(previousResults.recordingId || null);
-      return;
-    }
+    console.log({ previousResults });
+    // if (previousResults) {
+    //   setAccuracyResult(previousResults);
+    //   setCurrentRecordingId(previousResults.recordingId || null);
+    //   return;
+    // }
     const result = await fetchShadowResult();
     if (result) {
       const spokenWords = result.spokenWords.split(/\s+/).filter(Boolean);
       const accuracy = calculateAccuracyFromWords(spokenWords);
       setAccuracyResult(accuracy);
+      setPreviousResults({ ...accuracy, recordingId: result.recordingId });
       setCurrentRecordingId(result.recordingId || null);
+    } else {
+      setPreviousResults(null);
+      setAccuracyResult(null);
     }
   };
 
@@ -311,10 +316,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
     loadExistingShadowResult();
-    setPreviousResults(null);
-    setAccuracyResult(null);
     setIsFocusSentenceExpanded(false);
     loadTranslationInsights();
+    setIsSentencePlaying(true);
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -464,7 +468,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [time, currentSentenceObject?.end, isRecording, sentenceEnded]);
 
   useEffect(() => {
-    if (currentSentenceObject?.end && time >= currentSentenceObject.end - 0.5) {
+    if (currentSentenceObject?.end && time >= currentSentenceObject.end) {
       setSentenceEnded(true);
       setIsSentencePlaying(false);
     }
@@ -477,6 +481,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleShadowNextSentence = () => {
+    setPreviousResults(null);
     setAccuracyResult(null);
     setUserAnswer("");
     setPlayerSpeed(playbackSpeed);
@@ -527,7 +532,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleEnterRecordingMode = () => {
-    setPreviousResults(null);
+    // setPreviousResults(null);
     pausePlayer();
     setPlayerMuted(true);
     setPlayerSpeed(recordSpeed);
@@ -552,6 +557,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleShadowPreviousSentence = () => {
+    setPreviousResults(null);
     setIsRecordingMode(false);
     setJustRecorded();
     setPlayerSpeed(playbackSpeed);

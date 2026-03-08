@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   button: {
     alignItems: "center",
     paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   buttonLeft: {
     borderTopLeftRadius: 24,
