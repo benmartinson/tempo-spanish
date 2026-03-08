@@ -60,6 +60,16 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     }
   }, [phase, pulseAnim]);
 
+  useEffect(() => {
+    if (remainingSeconds <= 0 && phase === "recording") {
+      if (!hasStoppedRecording.current) {
+        hasStoppedRecording.current = true;
+        setPhase("complete");
+        onStopRecording();
+      }
+    }
+  }, [remainingSeconds]);
+
   // Track elapsed recording time
   useEffect(() => {
     if (phase !== "recording") return;
@@ -145,7 +155,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
               />
               <Text style={styles.recordingText}>Recording</Text>
             </View>
-            {showTimeWarning ? (
+            {showTimeWarning && remainingSeconds > 0 ? (
               <Text style={styles.timeWarningText}>
                 Stopping in {remainingSeconds}s
               </Text>
