@@ -25,6 +25,7 @@ import WordSearch from "./WordSearch";
 import { fetchVideoContext, fetchUserVideoViews } from "../../requests";
 import { setUserVideoViews } from "../../store/actions/dataActions";
 import ChannelVideoList from "./ChannelVideoList";
+import FilterVideos from "./FilterVideos";
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
@@ -38,6 +39,8 @@ const VideoList: React.FC = () => {
   const isSearching = useSelector((state: RootState) => state.isSearching);
   const hasSearched = useSelector((state: RootState) => state.hasSearched);
   const allChannels = useSelector((state: RootState) => state.allChannels);
+  const allTopics = useSelector((state: RootState) => state.allTopics);
+  const channelTopics = useSelector((state: RootState) => state.channelTopics);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const userVideoViews = useSelector(
     (state: RootState) => state.userVideoViews,
@@ -176,41 +179,66 @@ const VideoList: React.FC = () => {
         </>
       )}
       {/* <VideoSectionHeader title="Recommended" /> */}
-      <VideoSectionHeader title="All Channels" />
-      {(allChannels || []).map((channel) => {
-        const channelVideos = allVideos.filter(
-          (video) => video.channel_id === channel.channel_id,
-        );
-        return (
-          <View key={channel.channel_id} style={styles.channelContainer}>
-            {/* Channel Header */}
-            <TouchableOpacity
-              style={styles.channelHeader}
-              onPress={() => setSelectedChannel(channel)}
-            >
-              <Image
-                source={{ uri: channel.thumbnail_url }}
-                style={styles.channelThumbnail}
-              />
-              <View style={styles.channelInfo}>
-                <Text style={styles.channelTitle}>{channel.title}</Text>
-                <View style={styles.channelBadges}>
-                  {channel.topic && <Text>{channel.topic}</Text>}
-                  <Text>{channelVideos.length} videos available</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+      <FilterVideos videos={allVideos}>
+        {({ filteredVideos, filterButton, activeFilterBar }) => {
+          const filteredChannels = (allChannels || []).filter((channel) =>
+            filteredVideos.some(
+              (video) => video.channel_id === channel.channel_id,
+            ),
+          );
+          console.log({ filteredChannels });
+          return (
+            <>
+              <VideoSectionHeader title="All Channels">
+                {filterButton}
+              </VideoSectionHeader>
+              {activeFilterBar}
+              {filteredChannels.map((channel) => {
+                const channelVideos = filteredVideos.filter(
+                  (video) => video.channel_id === channel.channel_id,
+                );
+                return (
+                  <View key={channel.id} style={styles.channelContainer}>
+                    <TouchableOpacity
+                      style={styles.channelHeader}
+                      onPress={() => setSelectedChannel(channel)}
+                    >
+                      <Image
+                        source={{ uri: channel.thumbnail_url }}
+                        style={styles.channelThumbnail}
+                      />
+                      <View style={styles.channelInfo}>
+                        <Text style={styles.channelTitle}>{channel.title}</Text>
+                        <View style={styles.channelBadges}>
+                          {(() => {
+                            const topicIds = channelTopics
+                              .filter((ct) => ct.channel_id === channel.id)
+                              .map((ct) => ct.topic_id);
+                            const topicNames = allTopics
+                              .filter((t) => topicIds.includes(t.id))
+                              .map((t) => t.description);
+                            return topicNames.length > 0 ? (
+                              <Text>{topicNames.join(", ")}</Text>
+                            ) : null;
+                          })()}
+                          <Text>{channelVideos.length} videos available</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
 
-            {/* Horizontal Video List */}
-            <HorizontalVideoScroll
-              videos={channelVideos}
-              handleWatchPress={handleWatchPress}
-              loadingVideo={loadingVideo}
-              onViewAll={() => setSelectedChannel(channel)}
-            />
-          </View>
-        );
-      })}
+                    <HorizontalVideoScroll
+                      videos={channelVideos}
+                      handleWatchPress={handleWatchPress}
+                      loadingVideo={loadingVideo}
+                      onViewAll={() => setSelectedChannel(channel)}
+                    />
+                  </View>
+                );
+              })}
+            </>
+          );
+        }}
+      </FilterVideos>
     </ScrollView>
   );
 };
@@ -252,8 +280,9 @@ const styles = StyleSheet.create({
   },
   channelBadges: {
     alignItems: "flex-start",
-    marginTop: 4,
-    gap: 2,
+    marginTop: 6,
+    gap: 4,
+    opacity: 0.65,
   },
   channelInfo: {
     flex: 1,

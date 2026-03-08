@@ -4,16 +4,21 @@ const VideoSectionHeader: React.FC<{
   title: string;
   isFirst?: boolean;
   removeBorderTop?: boolean;
-}> = ({ title, isFirst, removeBorderTop }) => {
+  children?: React.ReactNode;
+}> = ({ title, isFirst, removeBorderTop, children }) => {
   return (
     <View style={[styles.container, removeBorderTop && styles.noBorderTop]}>
       <Text style={styles.title}>{title}</Text>
+      {children}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,

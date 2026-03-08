@@ -164,7 +164,7 @@ const FilterVideos: React.FC<{
 
 const styles = StyleSheet.create({
   filterButton: {
-    padding: 8,
+    paddingHorizontal: 8,
   },
   activeFilterBar: {
     flexDirection: "row",

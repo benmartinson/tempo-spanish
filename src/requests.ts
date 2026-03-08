@@ -88,7 +88,8 @@ export const fetchVideoContext = async ({
   const focusSentences = focusSentenceData ?? [];
   const sentences = splitSegmentsIntoSentences(transcriptSegments);
 
-  let currentSentence = initialSentence ?? videoViewData?.[0]?.last_sentence_watched ?? 0;
+  let currentSentence =
+    initialSentence ?? videoViewData?.[0]?.last_sentence_watched ?? 0;
 
   if (clip !== undefined) {
     const clipSentenceIndex = sentences.findIndex(
@@ -254,6 +255,8 @@ export interface FetchAllVideosParams {
 export interface FetchAllVideosResult {
   channelData: any[];
   videoData: any[];
+  topicData: any[];
+  channelTopicData: any[];
 }
 
 export const fetchAllVideos = async ({
@@ -269,7 +272,24 @@ export const fetchAllVideos = async ({
     .select("*");
   if (videoError) console.error(videoError);
 
-  return { channelData: channelData ?? [], videoData: videoData ?? [] };
+  const { data: topicData, error: topicError } = await supabase
+    .from("topic")
+    .select("*");
+  if (topicError) console.error(topicError);
+  console.log({ topicData });
+
+  const { data: channelTopicData, error: channelTopicError } = await supabase
+    .from("channel_topic")
+    .select("*");
+  if (channelTopicError) console.error(channelTopicError);
+  console.log({ channelTopicData });
+
+  return {
+    channelData: channelData ?? [],
+    videoData: videoData ?? [],
+    topicData: topicData ?? [],
+    channelTopicData: channelTopicData ?? [],
+  };
 };
 
 export interface FetchAllVocabularyParams {
@@ -358,7 +378,11 @@ export const restoreUserUIState = async ({
   supabase,
   userId,
 }: RestoreUserUIStateParams): Promise<RestoreUserUIStateResult> => {
-  const defaultResult = { videoContext: null, currentTab: null, settings: DEFAULT_USER_SETTINGS };
+  const defaultResult = {
+    videoContext: null,
+    currentTab: null,
+    settings: DEFAULT_USER_SETTINGS,
+  };
 
   if (!userId) {
     return defaultResult;
@@ -380,10 +404,14 @@ export const restoreUserUIState = async ({
     }
 
     const settings: UserSettings = {
-      playbackSpeed: uiState.playback_speed ?? DEFAULT_USER_SETTINGS.playbackSpeed,
-      showWordsHints: uiState.show_word_hints ?? DEFAULT_USER_SETTINGS.showWordsHints,
-      showCharacters: uiState.show_characters ?? DEFAULT_USER_SETTINGS.showCharacters,
-      showStartsOffAs: uiState.show_starts_off_as ?? DEFAULT_USER_SETTINGS.showStartsOffAs,
+      playbackSpeed:
+        uiState.playback_speed ?? DEFAULT_USER_SETTINGS.playbackSpeed,
+      showWordsHints:
+        uiState.show_word_hints ?? DEFAULT_USER_SETTINGS.showWordsHints,
+      showCharacters:
+        uiState.show_characters ?? DEFAULT_USER_SETTINGS.showCharacters,
+      showStartsOffAs:
+        uiState.show_starts_off_as ?? DEFAULT_USER_SETTINGS.showStartsOffAs,
     };
 
     if (uiState?.current_video) {
@@ -454,11 +482,18 @@ export const persistUserSettings = async ({
 }): Promise<void> => {
   if (!supabase || !userId) return;
 
-  const updateData: Record<string, any> = { user_id: userId, updated_at: new Date() };
-  if (settings.playbackSpeed !== undefined) updateData.playback_speed = settings.playbackSpeed;
-  if (settings.showWordsHints !== undefined) updateData.show_word_hints = settings.showWordsHints;
-  if (settings.showCharacters !== undefined) updateData.show_characters = settings.showCharacters;
-  if (settings.showStartsOffAs !== undefined) updateData.show_starts_off_as = settings.showStartsOffAs;
+  const updateData: Record<string, any> = {
+    user_id: userId,
+    updated_at: new Date(),
+  };
+  if (settings.playbackSpeed !== undefined)
+    updateData.playback_speed = settings.playbackSpeed;
+  if (settings.showWordsHints !== undefined)
+    updateData.show_word_hints = settings.showWordsHints;
+  if (settings.showCharacters !== undefined)
+    updateData.show_characters = settings.showCharacters;
+  if (settings.showStartsOffAs !== undefined)
+    updateData.show_starts_off_as = settings.showStartsOffAs;
 
   const { error } = await supabase
     .from("user_ui_state")

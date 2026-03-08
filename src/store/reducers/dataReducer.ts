@@ -6,6 +6,8 @@ const initialState: RootState = {
   videoRefreshKey: Date.now(),
   currentTab: "discuss",
   allChannels: [],
+  allTopics: [],
+  channelTopics: [],
   allVideos: [],
   allVocabulary: {},
   userKnownVocab: [],
@@ -26,6 +28,16 @@ const dataReducer = (
       return {
         ...state,
         allChannels: action.payload,
+      };
+    case "SET_ALL_TOPICS":
+      return {
+        ...state,
+        allTopics: action.payload,
+      };
+    case "SET_CHANNEL_TOPICS":
+      return {
+        ...state,
+        channelTopics: action.payload,
       };
     case "SET_CURRENT_SEARCH_TERM":
       return {

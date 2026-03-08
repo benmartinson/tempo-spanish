@@ -7,10 +7,11 @@ import {
   ScrollView,
   Image,
 } from "react-native";
-import { Channel, Video } from "../../types";
+import { Channel, RootState, Video } from "../../types";
 import { Ionicons } from "@expo/vector-icons";
 import VideoCard from "./VideoCard";
 import FilterVideos from "./FilterVideos";
+import { useSelector } from "react-redux";
 
 const ChannelVideoList: React.FC<{
   channel: Channel;
@@ -19,6 +20,15 @@ const ChannelVideoList: React.FC<{
   loadingVideo: boolean;
   onBack: () => void;
 }> = ({ channel, videos, handleWatchPress, loadingVideo, onBack }) => {
+  const allTopics = useSelector((state: RootState) => state.allTopics);
+  const channelTopics = useSelector((state: RootState) => state.channelTopics);
+
+  const topicIds = channelTopics
+    .filter((ct) => ct.channel_id === channel.id)
+    .map((ct) => ct.topic_id);
+  const topicNames = allTopics
+    .filter((t) => topicIds.includes(t.id))
+    .map((t) => t.description);
   return (
     <FilterVideos videos={videos}>
       {({ filteredVideos, filterButton, activeFilterBar }) => (
@@ -39,7 +49,7 @@ const ChannelVideoList: React.FC<{
             <View style={styles.channelInfo}>
               <Text style={styles.channelTitle}>{channel.title}</Text>
               <View style={styles.channelBadges}>
-                {channel.topic && <Text>{channel.topic}</Text>}
+                {topicNames.length > 0 && <Text>{topicNames.join(", ")}</Text>}
                 <Text>{videos.length} videos</Text>
               </View>
             </View>

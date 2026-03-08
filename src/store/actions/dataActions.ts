@@ -1,9 +1,11 @@
 import {
   Channel,
+  ChannelTopic,
   DataAction,
   FocusSentence,
   Segment,
   SegmentWord,
+  Topic,
   UserSettings,
   Video,
   VideoContext,
@@ -55,6 +57,16 @@ export const setCurrentTab = (
 export const setAllChannels = (channels: Channel[]): DataAction => ({
   type: "SET_ALL_CHANNELS",
   payload: channels,
+});
+
+export const setAllTopics = (topics: Topic[]): DataAction => ({
+  type: "SET_ALL_TOPICS",
+  payload: topics,
+});
+
+export const setChannelTopics = (channelTopics: ChannelTopic[]): DataAction => ({
+  type: "SET_CHANNEL_TOPICS",
+  payload: channelTopics,
 });
 
 export const setAllVideos = (videos: Video[]): DataAction => ({

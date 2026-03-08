@@ -18,6 +18,8 @@ export interface RootState {
   videoRefreshKey: number;
   currentTab: "home" | "videos" | "watch" | "discuss" | "shadow";
   allChannels: Channel[];
+  allTopics: Topic[];
+  channelTopics: ChannelTopic[];
   allVideos: Video[];
   allVocabulary: Record<string, Vocabulary>;
   userKnownVocab: number[];
@@ -36,6 +38,8 @@ export type DataActionTypes =
   | "REFRESH_VIDEO_PLAYER"
   | "SET_CURRENT_TAB"
   | "SET_ALL_CHANNELS"
+  | "SET_ALL_TOPICS"
+  | "SET_CHANNEL_TOPICS"
   | "SET_ALL_VIDEOS"
   | "SET_PREVIOUS_SEGMENT"
   | "SET_SENTENCE_BY_TIME"
@@ -94,11 +98,21 @@ export interface VideoContext {
 }
 
 export interface Channel {
+  id: string;
   channel_id: string;
   title: string;
   thumbnail_url: string;
-  topic: string;
   difficulty: string;
+}
+
+export interface Topic {
+  id: number;
+  description: string;
+}
+
+export interface ChannelTopic {
+  channel_id: string;
+  topic_id: number;
 }
 
 export interface Video {

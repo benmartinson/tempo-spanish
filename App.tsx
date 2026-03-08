@@ -18,6 +18,8 @@ import {
   setUserVideoViews,
   setAllVideos,
   setAllChannels,
+  setAllTopics,
+  setChannelTopics,
   setUserSettings,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
@@ -172,9 +174,11 @@ const AuthenticatedApp: React.FC = () => {
 
   useEffect(() => {
     if (!supabase) return;
-    fetchAllVideos({ supabase }).then(({ channelData, videoData }) => {
+    fetchAllVideos({ supabase }).then(({ channelData, videoData, topicData, channelTopicData }) => {
       dispatch(setAllChannels(channelData));
       dispatch(setAllVideos(videoData));
+      dispatch(setAllTopics(topicData));
+      dispatch(setChannelTopics(channelTopicData));
     });
   }, [supabase]);
 
