@@ -140,7 +140,7 @@ const VideoList: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <WordSearch />
+      {/* <WordSearch /> */}
 
       {isSearching && (
         <View style={styles.searchStatus}>
@@ -167,7 +167,7 @@ const VideoList: React.FC = () => {
       )}
       {recentlyWatchedVideos.length > 0 && (
         <>
-          <VideoSectionHeader title="Recently Watched" />
+          <VideoSectionHeader title="Recently Watched" removeBorderTop />
           <HorizontalVideoScroll
             videos={recentlyWatchedVideos}
             handleWatchPress={handleWatchPress}

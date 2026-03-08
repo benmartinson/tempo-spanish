@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet } from "react-native";
 
-const VideoSectionHeader: React.FC<{ title: string; isFirst?: boolean }> = ({
-  title,
-  isFirst,
-}) => {
+const VideoSectionHeader: React.FC<{
+  title: string;
+  isFirst?: boolean;
+  removeBorderTop?: boolean;
+}> = ({ title, isFirst, removeBorderTop }) => {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, removeBorderTop && styles.noBorderTop]}>
       <Text style={styles.title}>{title}</Text>
     </View>
   );
@@ -20,6 +21,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#e0e0e0",
     marginBottom: 16,
+  },
+  noBorderTop: {
+    borderTopWidth: 0,
   },
   title: {
     fontSize: 16,
