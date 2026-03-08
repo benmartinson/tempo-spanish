@@ -7,7 +7,7 @@ import {
   Modal,
   TextInput,
 } from "react-native";
-import { Video } from "../../types";
+import { Channel, ChannelTopic, Topic, Video } from "../../types";
 import { Ionicons } from "@expo/vector-icons";
 
 const DURATION_FILTERS = [
@@ -20,20 +20,32 @@ const DURATION_FILTERS = [
 
 const FilterVideos: React.FC<{
   videos: Video[];
+  mode?: "duration" | "topics";
+  topics?: Topic[];
+  channelTopics?: ChannelTopic[];
+  channels?: Channel[];
   children: (props: {
     filteredVideos: Video[];
     filterButton: React.ReactNode;
     activeFilterBar: React.ReactNode;
   }) => React.ReactNode;
-}> = ({ videos, children }) => {
+}> = ({
+  videos,
+  mode = "duration",
+  topics,
+  channelTopics,
+  channels,
+  children,
+}) => {
   const [filterVisible, setFilterVisible] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [selectedDuration, setSelectedDuration] = useState(0);
+  const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
   const [draftSearchText, setDraftSearchText] = useState("");
   const [draftDuration, setDraftDuration] = useState(0);
+  const [draftTopicId, setDraftTopicId] = useState<number | null>(null);
 
   const filteredVideos = useMemo(() => {
-    const filter = DURATION_FILTERS[selectedDuration];
     return videos.filter((video) => {
       if (
         searchText &&
@@ -41,35 +53,66 @@ const FilterVideos: React.FC<{
       ) {
         return false;
       }
-      if (filter.min === 0 && filter.max === Infinity) return true;
-      if (video.duration == null) return selectedDuration === 0;
-      return video.duration >= filter.min && video.duration < filter.max;
+      if (mode === "topics") {
+        if (selectedTopicId == null) return true;
+        const matchingChannelDbIds = channelTopics
+          ?.filter((ct) => ct.topic_id === selectedTopicId)
+          .map((ct) => ct.channel_id);
+        const matchingChannelIds = channels
+          ?.filter((ch) => matchingChannelDbIds?.includes(ch.id))
+          .map((ch) => ch.channel_id);
+        return matchingChannelIds?.includes(video.channel_id) ?? true;
+      } else {
+        const filter = DURATION_FILTERS[selectedDuration];
+        if (filter.min === 0 && filter.max === Infinity) return true;
+        if (video.duration == null) return selectedDuration === 0;
+        return video.duration >= filter.min && video.duration < filter.max;
+      }
     });
-  }, [videos, searchText, selectedDuration]);
+  }, [
+    videos,
+    searchText,
+    selectedDuration,
+    selectedTopicId,
+    mode,
+    channelTopics,
+  ]);
 
-  const hasActiveFilters = searchText !== "" || selectedDuration !== 0;
+  const hasActiveFilters =
+    searchText !== "" ||
+    (mode === "duration" && selectedDuration !== 0) ||
+    (mode === "topics" && selectedTopicId != null);
 
   const openFilter = () => {
     setDraftSearchText(searchText);
     setDraftDuration(selectedDuration);
+    setDraftTopicId(selectedTopicId);
     setFilterVisible(true);
   };
 
   const applyFilters = () => {
     setSearchText(draftSearchText);
     setSelectedDuration(draftDuration);
+    setSelectedTopicId(draftTopicId);
     setFilterVisible(false);
   };
 
   const clearFilters = () => {
     setSearchText("");
     setSelectedDuration(0);
+    setSelectedTopicId(null);
   };
 
   const filterDescriptions: string[] = [];
   if (searchText) filterDescriptions.push(`"${searchText}"`);
-  if (selectedDuration !== 0)
+  if (mode === "duration" && selectedDuration !== 0)
     filterDescriptions.push(DURATION_FILTERS[selectedDuration].label);
+  if (mode === "topics" && selectedTopicId != null) {
+    const topicName = topics?.find(
+      (t) => t.id === selectedTopicId,
+    )?.description;
+    if (topicName) filterDescriptions.push(topicName);
+  }
 
   const filterButton = (
     <TouchableOpacity style={styles.filterButton} onPress={openFilter}>
@@ -84,7 +127,7 @@ const FilterVideos: React.FC<{
   const activeFilterBar = hasActiveFilters ? (
     <View style={styles.activeFilterBar}>
       <Text style={styles.activeFilterText}>
-        Filtered: {filterDescriptions.join(", ")} ({filteredVideos.length})
+        Filtered: {filterDescriptions.join(", ")}
       </Text>
       <TouchableOpacity onPress={clearFilters}>
         <Ionicons name="close-circle" size={20} color="#666" />
@@ -129,28 +172,75 @@ const FilterVideos: React.FC<{
               autoComplete="off"
             />
 
-            <Text style={styles.filterLabel}>Duration</Text>
-            <View style={styles.durationOptions}>
-              {DURATION_FILTERS.map((filter, index) => (
-                <TouchableOpacity
-                  key={filter.label}
-                  style={[
-                    styles.durationChip,
-                    draftDuration === index && styles.durationChipActive,
-                  ]}
-                  onPress={() => setDraftDuration(index)}
-                >
-                  <Text
+            {mode === "duration" ? (
+              <>
+                <Text style={styles.filterLabel}>Duration</Text>
+                <View style={styles.durationOptions}>
+                  {DURATION_FILTERS.map((filter, index) => (
+                    <TouchableOpacity
+                      key={filter.label}
+                      style={[
+                        styles.durationChip,
+                        draftDuration === index && styles.durationChipActive,
+                      ]}
+                      onPress={() => setDraftDuration(index)}
+                    >
+                      <Text
+                        style={[
+                          styles.durationChipText,
+                          draftDuration === index &&
+                            styles.durationChipTextActive,
+                        ]}
+                      >
+                        {filter.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.filterLabel}>Topic</Text>
+                <View style={styles.durationOptions}>
+                  <TouchableOpacity
                     style={[
-                      styles.durationChipText,
-                      draftDuration === index && styles.durationChipTextActive,
+                      styles.durationChip,
+                      draftTopicId == null && styles.durationChipActive,
                     ]}
+                    onPress={() => setDraftTopicId(null)}
                   >
-                    {filter.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <Text
+                      style={[
+                        styles.durationChipText,
+                        draftTopicId == null && styles.durationChipTextActive,
+                      ]}
+                    >
+                      All
+                    </Text>
+                  </TouchableOpacity>
+                  {topics?.map((topic) => (
+                    <TouchableOpacity
+                      key={topic.id}
+                      style={[
+                        styles.durationChip,
+                        draftTopicId === topic.id && styles.durationChipActive,
+                      ]}
+                      onPress={() => setDraftTopicId(topic.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.durationChipText,
+                          draftTopicId === topic.id &&
+                            styles.durationChipTextActive,
+                        ]}
+                      >
+                        {topic.description}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
 
             <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
               <Text style={styles.applyButtonText}>Apply</Text>

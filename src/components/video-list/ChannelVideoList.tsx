@@ -65,6 +65,7 @@ const ChannelVideoList: React.FC<{
                 onPress={() => handleWatchPress(video.video_id, video.id)}
                 disabled={loadingVideo}
                 style={styles.videoItem}
+                fullWidth
               />
             ))}
           </View>
@@ -125,7 +126,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   videoList: {
-    paddingHorizontal: 16,
+    gap: 16,
   },
   videoItem: {
     marginBottom: 16,
