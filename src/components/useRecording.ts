@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAudioRecorder, type AudioRecorder } from "expo-audio";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import {
   getRecordingConfig,
   requestMicrophonePermission,
@@ -71,6 +72,7 @@ export const useRecording = (
         // Recording may already be stopped
       }
       recordingRef.current = null;
+      deactivateKeepAwake("recording");
     }
   }, []);
 
@@ -90,6 +92,7 @@ export const useRecording = (
       recordingRef.current = recorder;
       recorder.record();
       setIsRecording(true);
+      activateKeepAwakeAsync("recording");
     } catch (err) {
       console.error("Failed to start recording:", err);
       onErrorRef.current?.("Failed to start recording. Please try again.");
@@ -100,6 +103,7 @@ export const useRecording = (
   const stopRecording = useCallback(
     async (userTrashed: boolean = false): Promise<string | null> => {
       setIsRecording(false);
+      deactivateKeepAwake("recording");
 
       let audioUri: string | null = null;
       // Stop recording and get the URI
