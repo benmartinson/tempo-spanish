@@ -100,7 +100,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const userKnownVocab = useSelector(
     (state: RootState) => state.userKnownVocab,
   );
-  const unknownWords = useMemo(() => {
+  const hintWords = useMemo(() => {
     const sentenceWords = currentSentenceObject?.words || [];
     const knownVocabSet = new Set(userKnownVocab);
     if (sentenceWords.length === 0) return [];
@@ -118,12 +118,13 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       })
       .filter(
         (item): item is { sw: SegmentWord; vocab: any } =>
-          item?.vocab?.word &&
-          isInterestingVocab(item.vocab) &&
-          !knownVocabSet.has(item.vocab.id),
+          item?.vocab?.word && isInterestingVocab(item.vocab),
       )
       .sort((a, b) => b.vocab.percentile - a.vocab.percentile)
-      .map((item) => item.sw);
+      .map((item) => ({
+        ...item.sw,
+        isKnown: knownVocabSet.has(item.vocab.id),
+      }));
 
     return result;
   }, [currentSentenceObject, userKnownVocab, allVocabulary]);
@@ -314,19 +315,19 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   const currentVideoText = useMemo(() => {
     if (selectedNavTab !== "watch") return "";
-    const topUnknownWord = unknownWords?.length ? unknownWords[0] : null;
-    if (!topUnknownWord) return "";
+    const topHintWord = hintWords?.length ? hintWords[0] : null;
+    if (!topHintWord) return "";
 
     const match =
-      time >= topUnknownWord.start - 1 && time <= topUnknownWord.start + 3;
+      time >= topHintWord.start - 1 && time <= topHintWord.start + 3;
     let vocabulary = null;
     if (match) {
-      vocabulary = allVocabulary[vocabFormatWord(topUnknownWord.word)];
-      return `${capitalize(topUnknownWord.word)} => ${capitalize(vocabulary.translation)}`;
+      vocabulary = allVocabulary[vocabFormatWord(topHintWord.word)];
+      return `${capitalize(topHintWord.word)} => ${capitalize(vocabulary.translation)}`;
     }
 
     return "";
-  }, [unknownWords, time, selectedNavTab]);
+  }, [hintWords, time, selectedNavTab]);
 
   if (!currentVideo) return null;
 
@@ -391,7 +392,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setAutoplay={setAutoplay}
           refreshPlayer={refreshPlayer}
           isActive={selectedNavTab === "watch"}
-          unknownWords={unknownWords}
+          hintWords={hintWords}
           handlePlayWordSnippet={playWordSnippet}
           isPlayingWordSnippet={!!currentWordSnippetRef.current}
         />
@@ -411,7 +412,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           resumePlayer={playPlayer}
           playWordSnippet={playWordSnippet}
           isPlayingWordSnippet={!!currentWordSnippetRef.current}
-          unknownWords={unknownWords}
+          hintWords={hintWords}
           onPlayClip={handlePlayClip}
         />
       </View>

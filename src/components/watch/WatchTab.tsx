@@ -29,7 +29,7 @@ interface WatchTabProps {
   setAutoplay: (autoplay: boolean) => void;
   refreshPlayer: () => void;
   isActive?: boolean;
-  unknownWords: SegmentWord[];
+  hintWords: SegmentWord[];
   handlePlayWordSnippet: (word: SegmentWord) => void;
   isPlayingWordSnippet: boolean;
 }
@@ -41,7 +41,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
   setAutoplay,
   refreshPlayer,
   isActive = true,
-  unknownWords,
+  hintWords,
   handlePlayWordSnippet,
   isPlayingWordSnippet,
 }) => {
@@ -87,9 +87,9 @@ const WatchTab: React.FC<WatchTabProps> = ({
               />
             )}
           </View>
-          {unknownWords.length > 0 && (
+          {hintWords.length > 0 && (
             <WordHints
-              unknownWords={unknownWords}
+              hintWords={hintWords}
               handlePlayWordSnippet={handlePlayWordSnippet}
               isPlayingWordSnippet={isPlayingWordSnippet}
               showSwitcher={false}

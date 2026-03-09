@@ -5,7 +5,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import FeaturedVocab from "../watch/FeaturedVocab";
 
 interface WordHintsProps {
-  unknownWords: SegmentWord[];
+  hintWords: SegmentWord[];
   handlePlayWordSnippet: (word: SegmentWord, isSlow?: boolean) => void;
   isPlayingWordSnippet: boolean;
   showSwitcher?: boolean;
@@ -13,27 +13,27 @@ interface WordHintsProps {
 }
 
 const WordHints: React.FC<WordHintsProps> = ({
-  unknownWords,
+  hintWords,
   handlePlayWordSnippet,
   isPlayingWordSnippet,
   showSwitcher = true,
   showWordHints,
 }) => {
-  const [currentUnknownWordIndex, setCurrentUnknownWordIndex] =
+  const [currentHintIndex, setCurrentHintIndex] =
     useState<number>(0);
-  const currentUnknownWord = unknownWords[currentUnknownWordIndex];
+  const currentHintWord = hintWords[currentHintIndex];
   const [isShowingWordHints, setIsShowingWordHints] =
     useState<boolean>(showWordHints);
 
   const handleWordHintChange = (direction: number) => {
-    if (unknownWords.length === 0) return;
-    let newIndex = currentUnknownWordIndex + direction;
+    if (hintWords.length === 0) return;
+    let newIndex = currentHintIndex + direction;
     if (newIndex < 0) {
-      newIndex = unknownWords.length - 1;
-    } else if (newIndex >= unknownWords.length) {
+      newIndex = hintWords.length - 1;
+    } else if (newIndex >= hintWords.length) {
       newIndex = 0;
     }
-    setCurrentUnknownWordIndex(newIndex);
+    setCurrentHintIndex(newIndex);
   };
 
   return (
@@ -68,9 +68,9 @@ const WordHints: React.FC<WordHintsProps> = ({
           </View>
         )}
       </View>
-      {isShowingWordHints && currentUnknownWord && (
+      {isShowingWordHints && currentHintWord && (
         <FeaturedVocab
-          word={currentUnknownWord}
+          word={currentHintWord}
           playSnippet={handlePlayWordSnippet}
           isPlayingWordSnippet={isPlayingWordSnippet}
           handleWordHintChange={handleWordHintChange}

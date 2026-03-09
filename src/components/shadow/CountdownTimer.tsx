@@ -155,13 +155,9 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
               />
               <Text style={styles.recordingText}>Recording</Text>
             </View>
-            {showTimeWarning && remainingSeconds > 0 ? (
+            {showTimeWarning && remainingSeconds > 0 && (
               <Text style={styles.timeWarningText}>
                 Stopping in {remainingSeconds}s
-              </Text>
-            ) : (
-              <Text style={styles.recordingInstructions}>
-                Read aloud the highlighted words
               </Text>
             )}
             <TouchableOpacity
@@ -221,7 +217,6 @@ const styles = StyleSheet.create({
     margin: 16,
     backgroundColor: "#2d2a40",
     borderRadius: 16,
-    minHeight: 120,
   },
   countdownPhase: {
     alignItems: "center",
@@ -244,6 +239,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingTop: 8,
   },
   recordingDot: {
     width: 16,

@@ -58,7 +58,9 @@ export type DataActionTypes =
   | "REMOVE_FOCUS_SENTENCE"
   | "SET_USER_SETTINGS"
   | "SET_IS_SEARCHING"
-  | "SET_HAS_SEARCHED";
+  | "SET_HAS_SEARCHED"
+  | "REMOVE_USER_KNOWN_VOCAB"
+  | "REMOVE_USER_SELECTED_VOCAB";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -153,6 +155,7 @@ export interface SegmentWord {
   start: number;
   end: number;
   frequency: number;
+  isKnown?: boolean;
 }
 
 export interface KeyVocabulary {

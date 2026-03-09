@@ -201,6 +201,28 @@ const dataReducer = (
         ...state,
         userKnownVocab: [...state.userKnownVocab, ...action.payload],
       };
+    case "REMOVE_USER_KNOWN_VOCAB": {
+      const removeSet = new Set(action.payload);
+      return {
+        ...state,
+        userKnownVocab: state.userKnownVocab.filter(
+          (id: number) => !removeSet.has(id),
+        ),
+      };
+    }
+    case "REMOVE_USER_SELECTED_VOCAB": {
+      if (!state.currentVideo) return state;
+      const removeSet = new Set(action.payload);
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          focusVocab: state.currentVideo.focusVocab.filter(
+            (id: number) => !removeSet.has(id),
+          ),
+        },
+      };
+    }
     case "SET_USER_SETTINGS":
       return {
         ...state,

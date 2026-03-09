@@ -1,5 +1,11 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Pressable,
+} from "react-native";
 import { RootState, SegmentWord } from "../../types";
 import {
   capitalize,
@@ -12,6 +18,8 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   addUserKnownVocab,
   addUserSelectedVocab,
+  removeUserKnownVocab,
+  removeUserSelectedVocab,
   setFocusVocab,
 } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
@@ -34,7 +42,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const vocabWord = allVocabulary[vocabFormatWord(word.word)];
-  const isFocused = useMemo(
+  const isSelectedForReview = useMemo(
     () => currentVideo?.focusVocab.find((v) => v === vocabWord.id),
     [currentVideo, word],
   );
@@ -61,8 +69,47 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
       if (insertError)
         console.error("Error adding to known vocab:", insertError);
     }
-    handleWordHintChange(1);
     dispatch(addUserKnownVocab([vocabId]));
+  };
+
+  const handleUnmarkKnown = async (word: SegmentWord) => {
+    if (!currentVideo) return;
+
+    const vocabId = Object.values(allVocabulary).find(
+      (v) => normalizeWord(v.word) === normalizeWord(word.word),
+    )?.id;
+
+    if (supabase && userId) {
+      const { error } = await supabase
+        .from("user_known_vocab")
+        .delete()
+        .match({ vocabulary_id: vocabId, user_id: userId });
+
+      if (error) console.error("Error removing from known vocab:", error);
+    }
+    dispatch(removeUserKnownVocab([vocabId]));
+  };
+
+  const handleUnselectForReview = async (word: SegmentWord) => {
+    if (!currentVideo) return;
+
+    const normalizedWord = normalizeWord(word.word);
+    const vocabId = Object.values(allVocabulary).find(
+      (v) => normalizeWord(v.word) === normalizedWord,
+    )?.id;
+
+    if (supabase && userId && currentVideo.videoViewId) {
+      const { error } = await supabase
+        .from("video_view_focus_vocab")
+        .delete()
+        .match({
+          video_view_id: currentVideo.videoViewId,
+          vocabulary_id: vocabId,
+        });
+
+      if (error) console.error("Error removing from selected vocab:", error);
+    }
+    dispatch(removeUserSelectedVocab([vocabId]));
   };
 
   const handleSelectForReview = async (word: SegmentWord) => {
@@ -124,33 +171,55 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
           </Text>
         </View>
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity
-            style={styles.knownButton}
-            onPress={() => handleMarkKnown(word)}
-          >
-            <Text style={styles.knownButtonText}>Mark as Known</Text>
-            <Entypo name="check" size={16} color="#5a5680" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
+          <Pressable
             style={
-              !isFocused
+              !word.isKnown
                 ? styles.reviewButton
                 : [styles.reviewButton, styles.selectedReviewButton]
             }
-            onPress={() => handleSelectForReview(word)}
+            onPress={() =>
+              word.isKnown ? handleUnmarkKnown(word) : handleMarkKnown(word)
+            }
           >
             <Text
               style={
-                isFocused
+                word.isKnown
                   ? [styles.reviewButtonText, styles.selectedReviewButtonText]
                   : styles.reviewButtonText
               }
             >
-              {isFocused ? "Selected for Review" : "Select for Review"}
+              {word.isKnown ? "Marked as Known" : "Mark as Known"}
             </Text>
-            {!isFocused && <Entypo name="pencil" size={16} color="#5a5680" />}
-          </TouchableOpacity>
+            {!word.isKnown && <Entypo name="check" size={16} color="#5a5680" />}
+          </Pressable>
+
+          <Pressable
+            style={
+              !isSelectedForReview
+                ? styles.reviewButton
+                : [styles.reviewButton, styles.selectedReviewButton]
+            }
+            onPress={() =>
+              isSelectedForReview
+                ? handleUnselectForReview(word)
+                : handleSelectForReview(word)
+            }
+          >
+            <Text
+              style={
+                isSelectedForReview
+                  ? [styles.reviewButtonText, styles.selectedReviewButtonText]
+                  : styles.reviewButtonText
+              }
+            >
+              {isSelectedForReview
+                ? "Selected for Review"
+                : "Select for Review"}
+            </Text>
+            {!isSelectedForReview && (
+              <Entypo name="pencil" size={16} color="#5a5680" />
+            )}
+          </Pressable>
         </View>
       </View>
     </View>
@@ -241,6 +310,14 @@ const styles = StyleSheet.create({
   },
   knownButtonText: {
     color: "#5a5680",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  markedKnownButton: {
+    backgroundColor: "#e8e8ec",
+  },
+  markedKnownButtonText: {
+    color: "#888",
     fontSize: 14,
     fontWeight: "600",
   },

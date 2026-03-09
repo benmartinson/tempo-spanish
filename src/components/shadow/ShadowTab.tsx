@@ -69,7 +69,7 @@ interface ShadowTabProps {
   isKeyboardVisible: boolean;
   playWordSnippet: (word: SegmentWord) => void;
   isPlayingWordSnippet: boolean;
-  unknownWords: SegmentWord[];
+  hintWords: SegmentWord[];
   onPlayClip?: (time: number) => void;
 }
 
@@ -86,7 +86,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   resumePlayer,
   isKeyboardVisible,
   isPlayingWordSnippet,
-  unknownWords,
+  hintWords,
   onPlayClip,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -134,7 +134,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [isSentencePlaying, setIsSentencePlaying] = useState<boolean>(true);
   const [currentUnknownWordIndex, setCurrentUnknownWordIndex] =
     useState<number>(0);
-  const currentUnknownWord = unknownWords[currentUnknownWordIndex];
+  const currentUnknownWord = hintWords[currentUnknownWordIndex];
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
   const [isFocusSentenceExpanded, setIsFocusSentenceExpanded] =
@@ -637,17 +637,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     loadExistingShadowResult();
   };
 
-  const handleWordHintChange = (direction: number) => {
-    if (unknownWords.length === 0) return;
-    let newIndex = currentUnknownWordIndex + direction;
-    if (newIndex < 0) {
-      newIndex = unknownWords.length - 1;
-    } else if (newIndex >= unknownWords.length) {
-      newIndex = 0;
-    }
-    setCurrentUnknownWordIndex(newIndex);
-  };
-
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
@@ -682,6 +671,22 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             {currentVideo.sentences.length}
           </Text>
         </NavSwitcher>
+        {isRecordingMode && (
+          <>
+            <CountdownTimer
+              onStartRecording={handleActualStartRecording}
+              onStopRecording={() => handleStopRecording(false)}
+              sentenceEnded={sentenceEnded}
+              bufferDuration={0}
+            />
+            {/* <FullSegmentTranscriptBubble
+                words={currentSentence.words}
+                time={time}
+                showFullText={true}
+                mode="video"
+              /> */}
+          </>
+        )}
         <ScrollView
           style={styles.transcriptContainer}
           keyboardShouldPersistTaps="handled"
@@ -710,81 +715,74 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 </View>
               )}
             </>
-          ) : isRecordingMode ? (
-            <>
-              <CountdownTimer
-                onStartRecording={handleActualStartRecording}
-                onStopRecording={() => handleStopRecording(false)}
-                sentenceEnded={sentenceEnded}
-                bufferDuration={0}
-              />
-              {/* <FullSegmentTranscriptBubble
-                words={currentSentence.words}
-                time={time}
-                showFullText={true}
-                mode="video"
-              /> */}
-            </>
           ) : (
-            <>
-              {/* <FullSegmentTranscriptBubble
+            !isRecordingMode && (
+              <>
+                {/* <FullSegmentTranscriptBubble
                 words={currentSentence.words}
                 time={time}
                 mode="video"
               /> */}
-              <View style={styles.recordButtonContainer}>
-                <PlayerControls
-                  onReplay={() => handlePlaySnippetAgain(null)}
-                  onReplaySlow={handlePlaySnippetSlow}
-                  onPlayPause={handlePlayPause}
-                  isPlaying={isSentencePlaying}
-                  playDisabled={sentenceEnded}
-                />
-                <View style={styles.settingsButtonContainer}>
-                  {previousResults && (
+                <View style={styles.recordButtonContainer}>
+                  <PlayerControls
+                    onReplay={() => handlePlaySnippetAgain(null)}
+                    onReplaySlow={handlePlaySnippetSlow}
+                    onPlayPause={handlePlayPause}
+                    isPlaying={isSentencePlaying}
+                    playDisabled={sentenceEnded}
+                  />
+                  <View style={styles.settingsButtonContainer}>
+                    {previousResults && (
+                      <TouchableOpacity
+                        style={styles.previousResultsButtonInner}
+                        onPress={handlePreviousResults}
+                        disabled={isPlayingRecording}
+                      >
+                        <Foundation
+                          name="clipboard-notes"
+                          size={32}
+                          color="#4a69bd"
+                        />
+                      </TouchableOpacity>
+                    )}
+                    <FocusSentenceRequest
+                      markedId={
+                        currentVideo.focusSentences.find(
+                          (s) =>
+                            s.segment_index === currentSentenceIndex &&
+                            s.sentence_index === currentSentenceIndex,
+                        )?.id ?? null
+                      }
+                      sentenceIndex={currentSentenceIndex}
+                      translation={currentSentenceObject?.full_translation}
+                      sentenceText={currentSentenceObject?.text}
+                      segmentIndex={currentSentenceIndex}
+                      videoViewId={currentVideo.videoViewId}
+                    />
                     <TouchableOpacity
-                      style={styles.previousResultsButtonInner}
-                      onPress={handlePreviousResults}
-                      disabled={isPlayingRecording}
+                      onPress={() => setIsSettingsVisible(true)}
                     >
-                      <Foundation
-                        name="clipboard-notes"
+                      <MaterialIcons
+                        name="settings"
                         size={32}
-                        color="#4a69bd"
+                        color="#222222"
                       />
                     </TouchableOpacity>
-                  )}
-                  <FocusSentenceRequest
-                    markedId={
-                      currentVideo.focusSentences.find(
-                        (s) =>
-                          s.segment_index === currentSentenceIndex &&
-                          s.sentence_index === currentSentenceIndex,
-                      )?.id ?? null
-                    }
-                    sentenceIndex={currentSentenceIndex}
-                    translation={currentSentenceObject?.full_translation}
-                    sentenceText={currentSentenceObject?.text}
-                    segmentIndex={currentSentenceIndex}
-                    videoViewId={currentVideo.videoViewId}
-                  />
-                  <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
-                    <MaterialIcons name="settings" size={32} color="#222222" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setShowShadowInstructions(true)}
-                  >
-                    <MaterialIcons name="info" size={32} color="#222222" />
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setShowShadowInstructions(true)}
+                    >
+                      <MaterialIcons name="info" size={32} color="#222222" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-              {/* <VocabList
+                {/* <VocabList
                 vocab={focusVocabTimes}
                 time={time}
                 onSkipToVocab={handleSkipToVocab}
                 header="Skip to selected vocab"
               /> */}
-            </>
+              </>
+            )
           )}
           {/* Play user recording button - shown when a recording exists */}
           {!isRecordingMode && !isProcessing && (
@@ -825,7 +823,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               isLoading={isLoadingInsights}
               characters={orderedCharacters}
               sentenceText={currentSentenceObject?.text ?? ""}
-              unknownWords={unknownWords}
+              hintWords={hintWords}
               handlePlayWordSnippet={handlePlaySnippetAgain}
               isPlayingWordSnippet={isPlayingWordSnippet}
             />

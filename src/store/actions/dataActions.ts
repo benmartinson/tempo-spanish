@@ -121,6 +121,16 @@ export const addUserKnownVocab = (vocabIds: number[]): DataAction => ({
   payload: vocabIds,
 });
 
+export const removeUserKnownVocab = (vocabIds: number[]): DataAction => ({
+  type: "REMOVE_USER_KNOWN_VOCAB",
+  payload: vocabIds,
+});
+
+export const removeUserSelectedVocab = (vocabIds: number[]): DataAction => ({
+  type: "REMOVE_USER_SELECTED_VOCAB",
+  payload: vocabIds,
+});
+
 export const setUserVideoViews = (videoViews: VideoView[]): DataAction => ({
   type: "SET_USER_VIDEO_VIEWS",
   payload: videoViews,

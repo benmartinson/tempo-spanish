@@ -10,7 +10,7 @@ interface InsightsProps {
   isLoading: boolean;
   characters: string[];
   sentenceText: string;
-  unknownWords: SegmentWord[];
+  hintWords: SegmentWord[];
   handlePlayWordSnippet: (word: SegmentWord, isSlow?: boolean) => void;
   isPlayingWordSnippet: boolean;
 }
@@ -19,7 +19,7 @@ const Insights: React.FC<InsightsProps> = ({
   isLoading,
   characters,
   sentenceText,
-  unknownWords,
+  hintWords,
   handlePlayWordSnippet,
   isPlayingWordSnippet,
 }) => {
@@ -85,36 +85,41 @@ const Insights: React.FC<InsightsProps> = ({
 
   return (
     <View style={styles.container}>
-      {unknownWords.length > 0 && (
+      {hintWords.length > 0 && (
         <WordHints
-          unknownWords={unknownWords}
+          hintWords={hintWords}
           handlePlayWordSnippet={handlePlayWordSnippet}
           isPlayingWordSnippet={isPlayingWordSnippet}
           showWordHints={showWordsHints}
         />
       )}
       <>
-        <View style={styles.headerContainer}>
-          <TouchableOpacity
-            onPress={() => setIsShowingCharacters(!isShowingCharacters)}
-          >
-            <View style={styles.headerLeft}>
-              <Text style={styles.headerTitle}>Characters</Text>
-              <MaterialIcons
-                name="visibility"
-                size={20}
-                color={isShowingCharacters ? "black" : "gray"}
-              />
-            </View>
-          </TouchableOpacity>
-        </View>
-        {isShowingCharacters && (
+        {characters.length > 0 && (
+          <View style={styles.headerContainer}>
+            <TouchableOpacity
+              onPress={() => setIsShowingCharacters(!isShowingCharacters)}
+            >
+              <View style={styles.headerLeft}>
+                <Text style={styles.headerTitle}>Characters</Text>
+                <MaterialIcons
+                  name="visibility"
+                  size={20}
+                  color={isShowingCharacters ? "black" : "gray"}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+        {isShowingCharacters && characters.length > 0 && (
           <View style={styles.charactersList}>
             <Text style={styles.charactersText}>
               {characters.length === 0
                 ? "None"
                 : characters.map((name, index) => {
                     const seen = characters.slice(0, index).includes(name);
+                    if (seen) {
+                      return null;
+                    }
                     return (
                       <Text key={index}>
                         {index > 0 ? ", " : ""}
