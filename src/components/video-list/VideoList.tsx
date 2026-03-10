@@ -3,9 +3,11 @@ import {
   StyleSheet,
   View,
   Text,
+  Image,
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import { Channel, RootState, Video } from "../../types";
 import {
@@ -185,34 +187,59 @@ const VideoList: React.FC = () => {
         channels={allChannels}
       >
         {({ filteredVideos, filterButton, activeFilterBar }) => {
+          const filteredChannels = (allChannels || []).filter((channel) =>
+            filteredVideos.some(
+              (video) => video.channel_id === channel.channel_id,
+            ),
+          );
           return (
             <>
               <VideoSectionHeader title="All Channels">
                 {filterButton}
               </VideoSectionHeader>
               {activeFilterBar}
-              <View style={styles.allVideosList}>
-                {filteredVideos.map((video) => {
-                  const channel = allChannels?.find(
-                    (c) => c.channel_id === video.channel_id,
-                  );
-                  return (
-                    <VideoCard
-                      key={video.id}
-                      video={video}
-                      channel={channel}
-                      onPress={() => handleWatchPress(video.video_id, video.id)}
-                      onChannelPress={
-                        channel
-                          ? () => setSelectedChannel(channel)
-                          : undefined
-                      }
-                      disabled={loadingVideo}
-                      fullWidth
+              {filteredChannels.map((channel) => {
+                const channelVideos = filteredVideos.filter(
+                  (video) => video.channel_id === channel.channel_id,
+                );
+                return (
+                  <View key={channel.id} style={styles.channelContainer}>
+                    <TouchableOpacity
+                      style={styles.channelHeader}
+                      onPress={() => setSelectedChannel(channel)}
+                    >
+                      <Image
+                        source={{ uri: channel.thumbnail_url }}
+                        style={styles.channelThumbnail}
+                      />
+                      <View style={styles.channelInfo}>
+                        <Text style={styles.channelTitle}>{channel.title}</Text>
+                        <View style={styles.channelBadges}>
+                          {(() => {
+                            const topicIds = channelTopics
+                              .filter((ct) => ct.channel_id === channel.id)
+                              .map((ct) => ct.topic_id);
+                            const topicNames = allTopics
+                              .filter((t) => topicIds.includes(t.id))
+                              .map((t) => t.description);
+                            return topicNames.length > 0 ? (
+                              <Text>{topicNames.join(", ")}</Text>
+                            ) : null;
+                          })()}
+                          <Text>{channelVideos.length} videos available</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+
+                    <HorizontalVideoScroll
+                      videos={channelVideos}
+                      handleWatchPress={handleWatchPress}
+                      loadingVideo={loadingVideo}
+                      onViewAll={() => setSelectedChannel(channel)}
                     />
-                  );
-                })}
-              </View>
+                  </View>
+                );
+              })}
             </>
           );
         }}
@@ -238,6 +265,38 @@ const styles = StyleSheet.create({
   allVideosList: {
     gap: 24,
     paddingBottom: 24,
+  },
+  channelContainer: {
+    marginBottom: 2,
+  },
+  channelHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  channelThumbnail: {
+    width: 100,
+    height: 100,
+    borderRadius: 100,
+    marginRight: 10,
+  },
+  channelTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "black",
+    flexShrink: 1,
+  },
+  channelBadges: {
+    alignItems: "flex-start",
+    marginTop: 6,
+    gap: 4,
+    opacity: 0.65,
+  },
+  channelInfo: {
+    flex: 1,
+    paddingRight: 8,
+    paddingTop: 8,
   },
   searchStatus: {
     paddingVertical: 12,
