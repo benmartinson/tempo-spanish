@@ -182,9 +182,6 @@ export const splitSegmentsIntoSentences = (segments: Segment[]): Sentence[] => {
   for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
     const segment = segments[segmentIndex];
     const sentenceWordGroups = splitIntoSentences(segment.words);
-    const sentenceTranslations = splitTranslationIntoSentences(
-      segment.full_translation,
-    );
     for (let i = 0; i < sentenceWordGroups.length; i++) {
       const words = sentenceWordGroups[i];
       if (words.length === 0) continue;
@@ -198,7 +195,6 @@ export const splitSegmentsIntoSentences = (segments: Segment[]): Sentence[] => {
         start,
         end,
         text,
-        full_translation: sentenceTranslations[i],
         words,
       });
       sentenceIndex++;

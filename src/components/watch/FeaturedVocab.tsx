@@ -31,6 +31,7 @@ interface FeaturedVocabProps {
   playSnippet?: (word: SegmentWord, isSlow?: boolean) => void;
   isPlayingWordSnippet?: boolean;
   handleWordHintChange: (direction: number) => void;
+  showSlowPlay?: boolean;
 }
 
 const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
@@ -38,6 +39,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   playSnippet,
   isPlayingWordSnippet,
   handleWordHintChange,
+  showSlowPlay = true,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
@@ -155,8 +157,14 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
                 <MaterialIcons name="play-arrow" size={20} color="black" />
               </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => playSnippet(word, true)}>
-              <View style={styles.playButton}>
+            <TouchableOpacity
+              onPress={showSlowPlay ? () => playSnippet(word, true) : () => {}}
+            >
+              <View
+                style={
+                  showSlowPlay ? styles.playButton : styles.hiddenPlayButton
+                }
+              >
                 <MaterialIcons
                   name="slow-motion-video"
                   size={24}

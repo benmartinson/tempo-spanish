@@ -359,7 +359,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           clip={{
             index: currentSentenceObject?.index,
             text: currentSentenceObject?.text,
-            full_translation: currentSentenceObject?.full_translation,
             words: currentSentenceObject?.words,
             start:
               currentWordSnippetRef.current?.start ||

@@ -83,7 +83,6 @@ export interface Vocabulary {
 export interface FocusSentence {
   id?: number;
   text: string;
-  translation: string;
   segment_index: number;
   sentence_index: number;
 }
@@ -135,7 +134,6 @@ export interface Segment {
   end: number;
   text: string;
   video_id: string;
-  full_translation: string;
   words: SegmentWord[];
 }
 
@@ -144,7 +142,6 @@ export interface Sentence {
   start: number;
   end: number;
   text: string;
-  full_translation: string;
   words: SegmentWord[];
 }
 

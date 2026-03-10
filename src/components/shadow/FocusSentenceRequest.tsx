@@ -11,7 +11,6 @@ import { useState } from "react";
 
 interface FocusSentenceRequestProps {
   sentenceIndex: number;
-  translation: string;
   sentenceText: string;
   segmentIndex: number;
   videoViewId: number;
@@ -20,7 +19,6 @@ interface FocusSentenceRequestProps {
 
 const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
   sentenceIndex,
-  translation,
   sentenceText,
   segmentIndex,
   videoViewId,
@@ -53,11 +51,10 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
       .insert({
         video_view_id: videoViewId,
         text: sentenceText,
-        translation: translation,
         segment_index: segmentIndex,
         sentence_index: sentenceIndex,
       })
-      .select("id, text, translation, segment_index, sentence_index")
+      .select("id, text, segment_index, sentence_index")
       .single();
 
     if (error) {
@@ -69,7 +66,6 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
       addFocusSentence({
         id: data.id,
         text: data.text,
-        translation: data.translation,
         segment_index: data.segment_index,
         sentence_index: data.sentence_index,
       }),

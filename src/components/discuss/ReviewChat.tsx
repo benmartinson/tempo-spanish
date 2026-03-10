@@ -218,11 +218,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 
     try {
       const translations = contextSegments.map((s) => {
-        const fullTranslation = sentences.find(
-          (sentence) => sentence.start === s.start && sentence.end === s.end,
-        )?.full_translation;
         return {
-          text: `${s.text} - translation: ${fullTranslation}`,
+          text: `${s.text}`,
         };
       });
 

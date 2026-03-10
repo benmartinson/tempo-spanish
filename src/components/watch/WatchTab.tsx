@@ -68,20 +68,9 @@ const WatchTab: React.FC<WatchTabProps> = ({
     <>
       <View style={styles.container}>
         <ScrollView style={styles.transcriptContainer}>
-          <BubbleSelector
-            selectedBubble={selectedBubble}
-            setSelectedBubble={setSelectedBubble}
-          />
           <View style={styles.transcriptContentContainer}>
             {selectedBubble === "large" && (
               <FullSegmentTranscriptBubble
-                words={currentSentence.words || []}
-                time={time}
-              />
-            )}
-            {selectedBubble === "translation" && (
-              <TranslationBubble
-                translation={currentSentence.full_translation.split(" ") || []}
                 words={currentSentence.words || []}
                 time={time}
               />
@@ -93,6 +82,8 @@ const WatchTab: React.FC<WatchTabProps> = ({
               handlePlayWordSnippet={handlePlayWordSnippet}
               isPlayingWordSnippet={isPlayingWordSnippet}
               showSwitcher={false}
+              showWordHints={false}
+              showSlowPlay={false}
             />
           )}
         </ScrollView>

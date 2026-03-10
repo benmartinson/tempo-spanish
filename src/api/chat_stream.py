@@ -201,7 +201,6 @@ class VocabBasedQuestionRequest(BaseModel):
 
 class TranslationInsightsRequest(BaseModel):
     text: str
-    translation: str
 
 
 class ChatRequest(BaseModel):
@@ -791,7 +790,6 @@ async def translation_insights(request: TranslationInsightsRequest):
 
     try:
         user_prompt = f"""Original text: "{request.text}"
-Translation: "{request.translation}"
 
 Identify all proper nouns (character names, place names, or any word that requires capitalization because it is a proper noun) in the original text. Return them as a list."""
 

@@ -241,12 +241,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const loadTranslationInsights = useCallback(async () => {
-    if (
-      !currentSentenceObject?.text ||
-      !currentSentenceObject?.full_translation ||
-      !supabase ||
-      !currentVideo
-    ) {
+    if (!currentSentenceObject?.text || !supabase || !currentVideo) {
       setOrderedCharacters([]);
       return;
     }
@@ -275,7 +270,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       // Fetch from backend
       const result = await fetchTranslationInsights({
         text: currentSentenceObject.text,
-        translation: currentSentenceObject.full_translation,
       });
 
       if (result && result.properNouns.length > 0) {
@@ -302,7 +296,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   }, [
     currentSentenceObject?.text,
-    currentSentenceObject?.full_translation,
     supabase,
     currentVideo,
     currentSentenceIndex,
@@ -754,7 +747,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                         )?.id ?? null
                       }
                       sentenceIndex={currentSentenceIndex}
-                      translation={currentSentenceObject?.full_translation}
                       sentenceText={currentSentenceObject?.text}
                       segmentIndex={currentSentenceIndex}
                       videoViewId={currentVideo.videoViewId}
