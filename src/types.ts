@@ -148,7 +148,7 @@ export interface Sentence {
   words: SegmentWord[];
 }
 
-export type QuizType = "Comprehension" | "Vocab" | "Uncommon" | "Phrases";
+export type QuizType = "Vocab" | "Uncommon" | "Phrases";
 
 export interface SegmentWord {
   word: string;
@@ -177,14 +177,6 @@ export interface VideoView {
   watched_at: Date;
 }
 
-export interface VideoQuestion {
-  id: number;
-  video_id: number;
-  cefr_level: string;
-  question: string;
-  answer: string;
-}
-
 export interface ContextSegment {
   segment_id: number;
   start: number;
@@ -198,13 +190,6 @@ export interface VocabQuestion {
   translation: string;
   question: string;
   contextSegments: ContextSegment[];
-}
-
-export type EvaluationScore = "correct" | "partial" | "incorrect";
-
-export interface Evaluation {
-  feedback: string;
-  score: EvaluationScore;
 }
 
 export type VocabEvaluationScore = "correct" | "incorrect";

@@ -12,7 +12,6 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { QuizType } from "../../types";
 
 const QUIZ_TYPES: { value: QuizType; label: string; icon: string }[] = [
-  { value: "Comprehension", label: "Comprehension", icon: "format-quote" },
   { value: "Vocab", label: "Selected Words", icon: "translate" },
   { value: "Phrases", label: "Selected Segments", icon: "short-text" },
   { value: "Uncommon", label: "Uncommon Words", icon: "sort" },

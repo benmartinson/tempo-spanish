@@ -4,25 +4,9 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { QuizType } from "../../types";
-
-interface LoadingStateProps {
-  message?: string;
-}
-
-export const LoadingState: React.FC<LoadingStateProps> = ({
-  message = "Loading questions...",
-}) => {
-  return (
-    <View style={styles.centeredContainer}>
-      <ActivityIndicator size="large" color="#4a69bd" />
-      <Text style={styles.loadingText}>{message}</Text>
-    </View>
-  );
-};
 
 interface VocabEmptyStateProps {
   selectedQuizType: QuizType;
@@ -54,28 +38,12 @@ export const VocabEmptyState: React.FC<VocabEmptyStateProps> = ({
   );
 };
 
-export const QuestionsEmptyState: React.FC = () => {
-  return (
-    <View style={styles.centeredContainer}>
-      <MaterialIcons name="quiz" size={48} color="#ccc" />
-      <Text style={styles.emptyText}>
-        No review questions available for this video yet.
-      </Text>
-    </View>
-  );
-};
-
 const styles = StyleSheet.create({
   centeredContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 40,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#666",
   },
   emptyText: {
     marginTop: 16,

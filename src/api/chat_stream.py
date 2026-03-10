@@ -21,7 +21,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
 from elevenlabs.client import ElevenLabs
-from pinecone import Pinecone
 
 # Import the transcription router
 from soniox_transcription import router as transcription_router
@@ -36,10 +35,6 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 # ElevenLabs configuration
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY) if ELEVENLABS_API_KEY else None
-
-# Pinecone configuration
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-pinecone_client = Pinecone(api_key=PINECONE_API_KEY) if PINECONE_API_KEY else None
 
 
 def generate_tts_audio(text: str) -> str | None:
@@ -223,10 +218,6 @@ class AutocorrectRequest(BaseModel):
     transcript: str
 
 
-class ReviewContextRequest(BaseModel):
-    search_query: str
-    video_id: str  # YouTube video_id for Pinecone metadata filter
-    min_score: float = 0.55
 
 
 class EvaluateReviewAnswerRequest(BaseModel):
@@ -268,202 +259,7 @@ async def health():
         "soniox_configured": bool(SONIOX_API_KEY),
         "openai_configured": bool(OPENAI_API_KEY),
         "elevenlabs_configured": bool(ELEVENLABS_API_KEY),
-        "pinecone_configured": bool(PINECONE_API_KEY)
     }
-
-
-@app.get("/video-segments/{video_id}")
-async def get_video_segments(video_id: str):
-    """
-    Fetch all segments for a video from Pinecone.
-    Returns segments sorted by segment_id.
-    """
-    if not pinecone_client:
-        return {"error": "Pinecone API key not configured"}
-
-    try:
-        index = pinecone_client.Index("spanish-video-transcripts")
-        results = index.query(
-            vector=[0.0] * 1536,  # Dummy vector - we're filtering by metadata only
-            filter={"video_id": {"$eq": video_id}},
-            top_k=500,
-            include_metadata=True
-        )
-        
-        if not results.matches:
-            return {"error": f"No segments found for video_id: {video_id}", "segments": []}
-        
-        # Extract and format segments
-        segments = []
-        for match in results.matches:
-            metadata = match.metadata
-            words = json.loads(metadata["words"])
-            # if word is in words, add it to the vocab_map with the start and end time
-            full_translation = metadata.get("full_translation", "")
-            # this is an array of objects [{word, translations}]
-            # vocab_map = []
-            # # Function to check if consecutive words match a phrase
-            # def find_phrase_matches(words_list, phrase):
-            #     phrase_words = [w.strip(".,!?") for w in phrase.lower().split()]
-            #     phrase_len = len(phrase_words)
-            #     # also need to strip punctuation from the words
-            #     words_list = [{**word, "word": word["word"].strip(".,!?")} for word in words_list]
-
-            #     for i in range(len(words_list) - phrase_len + 1):
-            #         # Check if consecutive words match the phrase
-            #         if all(words_list[i + j]["word"].lower() == phrase_words[j]
-            #                for j in range(phrase_len)):
-            #             # Return the start time of first word and end time of last word
-            #             return {
-            #                 "start": words_list[i]["start"],
-            #                 "end": words_list[i + phrase_len - 1]["end"],
-            #                 "matched_words": [w["word"] for w in words_list[i:i + phrase_len]]
-            #             }
-            #     return None
-
-            # Check each phrase in key_vocabulary
-            # for vocab_item in key_vocabulary:
-            #     word = vocab_item["word"]
-            #     translations = vocab_item["translations"]
-            #     # remove repeats from translations
-            #     correct_translation_text = translations[-1]
-            #     random.shuffle(translations)
-            #     correct_translation_index = translations.index(correct_translation_text)
-            #     if (len(translations) == 1):
-            #         continue
-            #     match = find_phrase_matches(words, word)
-
-            #     if match:
-            #         vocab_map.append({
-            #             "value": word.capitalize(),
-            #             "translations": translations,
-            #             "correct_translation": correct_translation_index,
-            #             "start": match["start"],
-            #             "end": match["end"],
-            #         })
-
-            # vocab_map = []
-
-            # usable_words = [word.copy() for word in words if not canIgnoreVocab(word["word"].lower()) and not word["word"].lower() == word["translation"].lower() and len(word["word"]) > 3]
-            # for word in usable_words:
-            #     word["word"] = word["word"].strip().lower().translate(str.maketrans('', '', string.punctuation))
-            
-            # num_words = min(len(usable_words), random.randint(4, 6))
-            # selected_words = random.sample(usable_words, num_words)
-
-            # for word in selected_words:
-            #     vocab_map.append({
-            #         "value": word["word"].capitalize(),
-            #         "translations": [word["translation"].capitalize(), 'fake', 'fake'],
-            #         "correct_translation": 0,
-            #         "start": word["start"],
-            #         "end": word["end"],
-            #     })
-
-            segments.append({
-                "segment_id": int(metadata.get("segment_id", 0)),
-                "start": metadata.get("start"),
-                "end": metadata.get("end"),
-                "text": metadata.get("raw_text", ""),
-                "full_translation": full_translation,
-                # "cefr_level": metadata.get("cefr_level"),
-                # "key_vocabulary": vocab_map,
-                "words": words,
-            })
-        
-        # Sort by segment_id
-        segments.sort(key=lambda x: x["segment_id"])
-        
-        return {
-            "video_id": video_id,
-            "segments": segments,
-            "count": len(segments)
-        }
-    except Exception as e:
-        print(f"Error fetching video segments: {e}")
-        return {"error": str(e), "segments": []}
-
-@app.post("/video-based-question")
-async def video_based_question(request: VideoBasedQuestionRequest):
-    """
-    Generate a video-based question with TTS audio.
-    Expects segments array to be provided in the request.
-    Uses the first segment as the main segment and the second (if provided) as previous context.
-    """
-    if not openai_client:
-        return {"error": "OpenAI API key not configured"}
-
-    if not request.segments or len(request.segments) == 0:
-        return {"error": "No segments provided"}
-
-    try:
-        # Use the first segment as the main segment for the question
-        segments = request.segments
-        text = ""
-        for segment in segments:
-            text += segment.text
-
-        if not text:
-            return {"error": "Segment has no text"}
-
-        user_prompt = f"""Transcript segment: "{text}"
-
-Generate a comprehension question in Spanish for this video segment transcript.
- Then generate 3 multiple choice answers to the question. Answer choices should be in Spanish. Provide the correct answer in the response."""
-
-        messages = [
-            {"role": "system", "content": VIDEO_QUESTION_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
-        ]
-
-        response = openai_client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=messages,
-            max_tokens=300,
-            temperature=0.7,
-            response_format={
-                "type": "json_schema", 
-                "json_schema": {
-                    "name": "question_data",
-                    "strict": True,
-                    "schema": {
-                        "type": "object",
-                        "required": ["question", "answers", "correct_answer"],
-                        "properties": {
-                            "question": {"type": "string"},
-                            "answers": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
-                            "correct_answer": {"type": "integer", "minimum": 0, "maximum": 2}
-                        },
-                        "additionalProperties": False
-                    }
-                }
-            }
-        )
-
-        question_data = json.loads(response.choices[0].message.content.strip())
-
-        # Track the correct answer before shuffling
-        correct_answer_text = question_data["answers"][question_data["correct_answer"]]
-        random.shuffle(question_data["answers"])
-        question_data["correct_answer"] = question_data["answers"].index(correct_answer_text)
-
-        # Generate TTS audio for the question
-        audio_base64 = generate_tts_audio(question_data["question"])
-        audio_base64_answers = [generate_tts_audio(answer) for answer in question_data["answers"]]
-
-        response_data = {
-            "question": question_data["question"],
-            "answers": question_data["answers"],
-            "correct_answer": question_data["correct_answer"],
-            "audio": audio_base64,
-            "audio_answers": audio_base64_answers,
-            "status": "complete"
-        }
-
-        return response_data
-    except Exception as e:
-        print(f"Error generating video-based question: {e}")
-        return {"error": str(e)}
 
 
 @app.post("/vocab-based-question")
@@ -763,80 +559,77 @@ Respond with only the reasoning for your score, why or why not they got the answ
 
 
 
+# @app.post("/review-context")
+# async def review_context(request: ReviewContextRequest):
+#     """
+#     Perform semantic search on Pinecone to find transcript segments
+#     relevant to a question and its answer for a given video.
+#     """
+#     if not openai_client:
+#         return {"error": "OpenAI API key not configured"}
+#     if not pinecone_client:
+#         return {"error": "Pinecone API key not configured"}
 
+#     try:
+#         # Combine question + answer into a search query
+#         search_text = f"{request.search_query}"
 
+#         # Generate embedding using OpenAI
+#         # Using text-embedding-3-small to match the model used during ingestion
+#         embedding_response = openai_client.embeddings.create(
+#             model="text-embedding-3-large",
+#             input=search_text,
+#             dimensions=1536
+#         )
+#         query_vector = embedding_response.data[0].embedding
 
-@app.post("/review-context")
-async def review_context(request: ReviewContextRequest):
-    """
-    Perform semantic search on Pinecone to find transcript segments
-    relevant to a question and its answer for a given video.
-    """
-    if not openai_client:
-        return {"error": "OpenAI API key not configured"}
-    if not pinecone_client:
-        return {"error": "Pinecone API key not configured"}
+#         # Query Pinecone with the real embedding vector
+#         index = pinecone_client.Index("spanish-video-transcripts")
+#         results = index.query(
+#             vector=query_vector,
+#             filter={"video_id": {"$eq": request.video_id}},
+#             top_k=4,
+#             include_metadata=True
+#         )
 
-    try:
-        # Combine question + answer into a search query
-        search_text = f"{request.search_query}"
-
-        # Generate embedding using OpenAI
-        # Using text-embedding-3-small to match the model used during ingestion
-        embedding_response = openai_client.embeddings.create(
-            model="text-embedding-3-large",
-            input=search_text,
-            dimensions=1536
-        )
-        query_vector = embedding_response.data[0].embedding
-
-        # Query Pinecone with the real embedding vector
-        index = pinecone_client.Index("spanish-video-transcripts")
-        results = index.query(
-            vector=query_vector,
-            filter={"video_id": {"$eq": request.video_id}},
-            top_k=4,
-            include_metadata=True
-        )
-
-        # Extract matching segments
-        segments = []
-        for match in results.matches:
-            metadata = match.metadata
-            print(f"[review-context] Match: segment_id={metadata.get('segment_id')}, "
-                  f"start={metadata.get('start')}, score={match.score:.4f}, "
-                  f"text={metadata.get('raw_text', '')[:80]}...")
+#         # Extract matching segments
+#         segments = []
+#         for match in results.matches:
+#             metadata = match.metadata
+#             print(f"[review-context] Match: segment_id={metadata.get('segment_id')}, "
+#                   f"start={metadata.get('start')}, score={match.score:.4f}, "
+#                   f"text={metadata.get('raw_text', '')[:80]}...")
             
-            if match.score < request.min_score:
-                continue
-            segments.append({
-                "segment_id": int(metadata.get("segment_id", 0)),
-                "start": metadata.get("start"),
-                "end": metadata.get("end"),
-                "text": metadata.get("raw_text", ""),
-                "score": match.score,
-            })
+#             if match.score < request.min_score:
+#                 continue
+#             segments.append({
+#                 "segment_id": int(metadata.get("segment_id", 0)),
+#                 "start": metadata.get("start"),
+#                 "end": metadata.get("end"),
+#                 "text": metadata.get("raw_text", ""),
+#                 "score": match.score,
+#             })
 
-        if len(segments) == 0:
-            max_score = max(match.score for match in results.matches)
-            max_score_match = next((match for match in results.matches if match.score == max_score), None)
-            segments.append({
-                "segment_id": int(max_score_match.metadata.get("segment_id", 0)),
-                "start": max_score_match.metadata.get("start"),
-                "end": max_score_match.metadata.get("end"),
-                "text": max_score_match.metadata.get("raw_text", ""),
-                "score": max_score,
-            })
-        # Sort by score descending (most relevant first)
-        segments.sort(key=lambda x: x["score"], reverse=True)
+#         if len(segments) == 0:
+#             max_score = max(match.score for match in results.matches)
+#             max_score_match = next((match for match in results.matches if match.score == max_score), None)
+#             segments.append({
+#                 "segment_id": int(max_score_match.metadata.get("segment_id", 0)),
+#                 "start": max_score_match.metadata.get("start"),
+#                 "end": max_score_match.metadata.get("end"),
+#                 "text": max_score_match.metadata.get("raw_text", ""),
+#                 "score": max_score,
+#             })
+#         # Sort by score descending (most relevant first)
+#         segments.sort(key=lambda x: x["score"], reverse=True)
 
-        return {
-            "segments": segments,
-            "status": "complete"
-        }
-    except Exception as e:
-        print(f"Error in review context search: {e}")
-        return {"error": str(e), "segments": []}
+#         return {
+#             "segments": segments,
+#             "status": "complete"
+#         }
+#     except Exception as e:
+#         print(f"Error in review context search: {e}")
+#         return {"error": str(e), "segments": []}
 
 
 @app.post("/evaluate-review-answer")

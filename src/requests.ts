@@ -1,7 +1,6 @@
 import { BACKEND_BASE_URL } from "./components/streaming_helpers";
 import {
   ContextSegment,
-  Evaluation,
   Segment,
   VocabEvaluation,
   VideoContext,
@@ -116,32 +115,6 @@ export const fetchVideoContext = async ({
   return { videoContext, videoView };
 };
 
-export interface FetchReviewContextParams {
-  searchQuery: string;
-  videoId: string;
-}
-
-export const fetchReviewContext = async ({
-  searchQuery,
-  videoId,
-}: FetchReviewContextParams): Promise<ContextSegment[]> => {
-  const response = await fetch(`${BACKEND_BASE_URL}/review-context`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      search_query: searchQuery,
-      video_id: videoId,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Error fetching context: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.segments || [];
-};
-
 export interface EvaluateVocabAnswerParams {
   question: string;
   userAnswer: string;
@@ -179,41 +152,6 @@ export const evaluateVocabAnswer = async ({
       score: data.score,
       acceptedAnswers: data.accepted_answers,
     };
-  }
-  return null;
-};
-
-export interface EvaluateReviewAnswerParams {
-  question: string;
-  idealAnswer: string;
-  userAnswer: string;
-  contextSegments: { text: string }[];
-}
-
-export const evaluateReviewAnswer = async ({
-  question,
-  idealAnswer,
-  userAnswer,
-  contextSegments,
-}: EvaluateReviewAnswerParams): Promise<Evaluation | null> => {
-  const response = await fetch(`${BACKEND_BASE_URL}/evaluate-review-answer`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question,
-      ideal_answer: idealAnswer,
-      user_answer: userAnswer,
-      context_segments: contextSegments,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Error evaluating answer: ${response.status}`);
-  }
-
-  const data = await response.json();
-  if (data.feedback && data.score) {
-    return { feedback: data.feedback, score: data.score };
   }
   return null;
 };

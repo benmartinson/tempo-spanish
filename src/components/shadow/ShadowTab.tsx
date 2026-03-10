@@ -552,8 +552,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleStopRecording = async (trashed: boolean = false) => {
     pausePlayer();
-    setIsRecordingMode(false);
     await stopRecording(trashed);
+    setIsRecordingMode(false);
   };
 
   const handleShadowPreviousSentence = () => {

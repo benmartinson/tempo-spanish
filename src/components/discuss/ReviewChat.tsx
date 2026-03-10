@@ -9,13 +9,10 @@ import {
   Keyboard,
 } from "react-native";
 import {
-  VideoQuestion,
   ContextSegment,
   QuizType,
-  Sentence,
   RootState,
   VocabQuestion,
-  Evaluation,
   VocabEvaluation,
   FocusSentence,
 } from "../../types";
@@ -24,39 +21,20 @@ import ReviewTypeSelector from "./ReviewTypeSelector";
 import { useSelector } from "react-redux";
 import {
   normalizeWord,
-  getRandomUniqueIndex,
   buildVocabItemsWithContext,
   getUncommonVocabFromSentences,
   getFocusVocabWords,
 } from "../../helpers";
-import {
-  fetchReviewContext,
-  evaluateVocabAnswer,
-  evaluateReviewAnswer,
-} from "../../requests";
+import { evaluateVocabAnswer } from "../../requests";
 import QuestionBubble from "./QuestionBubble";
 import ContextClipsSection from "./ContextClipsSection";
 import UserAnswerBubble from "./UserAnswerBubble";
-import {
-  EvaluatingBubble,
-  VocabEvaluationBubble,
-  ComprehensionEvaluationBubble,
-} from "./EvaluationBubble";
+import { EvaluatingBubble, VocabEvaluationBubble } from "./EvaluationBubble";
 import AnswerInput from "./AnswerInput";
 import AnswerActions from "./AnswerActions";
-import {
-  LoadingState,
-  VocabEmptyState,
-  QuestionsEmptyState,
-} from "./ReviewEmptyStates";
 
 interface ReviewChatProps {
-  questions: VideoQuestion[];
-  currentQuestionIndex: number;
-  questionsLoading: boolean;
   videoId: string;
-  onNextQuestion: () => void;
-  onPrevQuestion: () => void;
   onPlayClip: (start: ContextSegment) => void;
   isKeyboardVisible: boolean;
   selectedQuizType: QuizType;
@@ -64,12 +42,7 @@ interface ReviewChatProps {
 }
 
 const ReviewChat: React.FC<ReviewChatProps> = ({
-  questions,
-  currentQuestionIndex,
-  questionsLoading,
   videoId,
-  onNextQuestion,
-  onPrevQuestion,
   onPlayClip,
   isKeyboardVisible,
   selectedQuizType,
@@ -80,9 +53,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const focusVocab = currentVideo?.focusVocab;
   const focusSentences = currentVideo?.focusSentences ?? [];
   const [contextSegments, setContextSegments] = useState<ContextSegment[]>([]);
-  const [contextLoading, setContextLoading] = useState(false);
   const [userAnswer, setUserAnswer] = useState("");
-  const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [vocabEvaluation, setVocabEvaluation] =
     useState<VocabEvaluation | null>(null);
   const [evaluating, setEvaluating] = useState(false);
@@ -94,11 +65,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const isVocabMode =
     selectedQuizType === "Vocab" || selectedQuizType === "Uncommon";
   const isPhraseMode = selectedQuizType === "Phrases";
-  const isVocabOrPhraseMode = isVocabMode || isPhraseMode;
 
   useEffect(() => {
     setUserAnswer("");
-    setEvaluation(null);
     setVocabEvaluation(null);
     setAnswered(false);
     setUserMessages([]);
@@ -108,14 +77,11 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         : selectedQuizType === "Phrases"
           ? phraseItems
           : vocabItems;
-    if (isVocabOrPhraseMode && items.length > 0) {
+    if (items.length > 0) {
       const newIndex = Math.floor(Math.random() * items.length);
       setVocabQuestionIndex(newIndex);
     }
   }, [selectedQuizType]);
-
-  const currentQuestion =
-    questions.length > 0 ? questions[currentQuestionIndex] : null;
 
   const vocabItems = useMemo(() => {
     if (
@@ -212,70 +178,26 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     };
   }, [currentVocabItem, selectedQuizType, isVocabMode, isPhraseMode]);
 
-  const vocabQuestions = activeVocabItems;
-  const totalItems = isVocabOrPhraseMode
-    ? vocabQuestions.length
-    : questions.length;
+  const totalItems = activeVocabItems.length;
 
   useEffect(() => {
     setUserAnswer("");
-    setEvaluation(null);
     setVocabEvaluation(null);
     setAnswered(false);
     setContextSegments([]);
   }, [selectedQuizType]);
 
   useEffect(() => {
-    if (isVocabOrPhraseMode) {
-      if (currentVocabItem) {
-        setContextSegments(currentVocabItem.contextSegments);
-      }
-      return;
-    }
-
-    if (!currentQuestion) {
-      setContextSegments([]);
-      return;
-    }
-
-    setUserAnswer("");
-    setEvaluation(null);
-    setVocabEvaluation(null);
-    setAnswered(false);
-    setContextSegments([]);
-
-    const loadContext = async () => {
-      setContextLoading(true);
-      try {
-        const segments = await fetchReviewContext({
-          searchQuery:
-            currentQuestion.question + "... " + currentQuestion.answer,
-          videoId,
-        });
-        setContextSegments(segments);
-      } catch (err) {
-        console.error("Error fetching review context:", err);
-      } finally {
-        setContextLoading(false);
-      }
-    };
-
-    loadContext();
-  }, [currentQuestion?.id, videoId, isVocabOrPhraseMode, currentVocabItem]);
-
-  useEffect(() => {
-    if (isVocabOrPhraseMode && currentVocabItem) {
+    if (currentVocabItem) {
       setUserAnswer("");
-      setEvaluation(null);
       setVocabEvaluation(null);
       setAnswered(false);
       setContextSegments(currentVocabItem.contextSegments);
     }
-  }, [vocabQuestionIndex, isVocabOrPhraseMode, currentVocabItem]);
+  }, [vocabQuestionIndex, currentVocabItem]);
 
   const handleResetAnswer = () => {
     setUserAnswer("");
-    setEvaluation(null);
     setVocabEvaluation(null);
     setAnswered(false);
     Keyboard.dismiss();
@@ -292,47 +214,32 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 
   const handleSubmitAnswer = async () => {
     if (!userAnswer.trim()) return;
-
-    if (isVocabOrPhraseMode && !currentVocabQuestion) return;
-    if (!isVocabOrPhraseMode && !currentQuestion) return;
+    if (!currentVocabQuestion) return;
 
     Keyboard.dismiss();
     setEvaluating(true);
     setAnswered(true);
 
     try {
-      if (isVocabOrPhraseMode && currentVocabQuestion) {
-        const translations = contextSegments.map((s) => {
-          const fullTranslation = sentences.find(
-            (sentence) => sentence.start === s.start && sentence.end === s.end,
-          )?.full_translation;
-          return {
-            text: `${s.text} - translation: ${fullTranslation}`,
-          };
-        });
+      const translations = contextSegments.map((s) => {
+        const fullTranslation = sentences.find(
+          (sentence) => sentence.start === s.start && sentence.end === s.end,
+        )?.full_translation;
+        return {
+          text: `${s.text} - translation: ${fullTranslation}`,
+        };
+      });
 
-        const result = await evaluateVocabAnswer({
-          question: currentVocabQuestion.question,
-          userAnswer: userAnswer.trim(),
-          contextSegments: translations,
-          vocabWord: currentVocabQuestion.word,
-          quizType: isPhraseMode ? "phrase" : "vocab",
-        });
+      const result = await evaluateVocabAnswer({
+        question: currentVocabQuestion.question,
+        userAnswer: userAnswer.trim(),
+        contextSegments: translations,
+        vocabWord: currentVocabQuestion.word,
+        quizType: isPhraseMode ? "phrase" : "vocab",
+      });
 
-        if (result) {
-          setVocabEvaluation(result);
-        }
-      } else if (currentQuestion) {
-        const result = await evaluateReviewAnswer({
-          question: currentQuestion.question,
-          idealAnswer: currentQuestion.answer,
-          userAnswer: userAnswer.trim(),
-          contextSegments: contextSegments.map((s) => ({ text: s.text })),
-        });
-
-        if (result) {
-          setEvaluation(result);
-        }
+      if (result) {
+        setVocabEvaluation(result);
       }
     } catch (err) {
       console.error("Error evaluating answer:", err);
@@ -349,39 +256,12 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 
   const handleRetry = () => {
     setUserAnswer("");
-    setEvaluation(null);
     setVocabEvaluation(null);
     setAnswered(false);
     setUserMessages([]);
   };
 
-  if (questionsLoading && !isVocabOrPhraseMode) {
-    return <LoadingState />;
-  }
-
-  if (isVocabOrPhraseMode && vocabQuestions.length === 0) {
-    return (
-      <VocabEmptyState
-        selectedQuizType={selectedQuizType}
-        hasFocusVocab={focusVocab.length > 0}
-      />
-    );
-  }
-
-  if (!isVocabOrPhraseMode && questions.length === 0) {
-    return <QuestionsEmptyState />;
-  }
-
-  const displayQuestion = isVocabOrPhraseMode
-    ? currentVocabQuestion?.question
-    : currentQuestion?.question;
-
-  const displayIdealAnswer = isVocabOrPhraseMode
-    ? currentVocabQuestion?.translation
-    : currentQuestion?.answer;
-
-  const handleNext = isVocabOrPhraseMode ? handleVocabNext : onNextQuestion;
-  const isLastQuestion = currentQuestionIndex === questions.length - 1;
+  const displayQuestion = currentVocabQuestion?.question;
 
   return (
     <KeyboardAvoidingView
@@ -392,8 +272,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       }
     >
       <NavSwitcher
-        onPrev={isVocabOrPhraseMode ? handleVocabPrev : onPrevQuestion}
-        onNext={handleNext}
+        onPrev={handleVocabPrev}
+        onNext={handleVocabNext}
         currentIndex={vocabQuestionIndex}
         totalItems={totalItems}
         sentences={sentences}
@@ -404,13 +284,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           selectedQuizType={selectedQuizType}
           onSelectQuizType={onSelectQuizType}
         />
-        {!isVocabOrPhraseMode && currentQuestion?.cefr_level && (
-          <View style={styles.cefrBadge}>
-            <Text style={styles.cefrBadgeText}>
-              {currentQuestion.cefr_level}
-            </Text>
-          </View>
-        )}
         {isVocabMode && currentVocabItem?.word && (
           <View style={styles.vocabBadge}>
             <Text style={styles.vocabBadgeText}>
@@ -429,7 +302,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         {displayQuestion && <QuestionBubble question={displayQuestion} />}
 
         <ContextClipsSection
-          loading={contextLoading}
+          loading={false}
           segments={contextSegments}
           onPlayClip={onPlayClip}
           isVocabMode={isVocabMode}
@@ -444,13 +317,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         {vocabEvaluation && (
           <VocabEvaluationBubble evaluation={vocabEvaluation} />
         )}
-
-        {evaluation && (
-          <ComprehensionEvaluationBubble
-            evaluation={evaluation}
-            idealAnswer={displayIdealAnswer || ""}
-          />
-        )}
       </ScrollView>
 
       {!answered ? (
@@ -464,8 +330,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       ) : (
         <AnswerActions
           onRetry={handleRetry}
-          onNext={handleNext}
-          isLastQuestion={isLastQuestion}
+          onNext={handleVocabNext}
+          isLastQuestion={vocabQuestionIndex >= totalItems - 1}
         />
       )}
     </KeyboardAvoidingView>
@@ -475,17 +341,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  cefrBadge: {
-    backgroundColor: "#4a69bd",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  cefrBadgeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
   },
   vocabBadge: {
     backgroundColor: "#2d8a4e",

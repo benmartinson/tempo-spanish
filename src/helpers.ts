@@ -370,26 +370,7 @@ export const isInterestingVocab = (vocab: Vocabulary) => {
 };
 
 // Score display constants for review evaluations
-export type EvaluationScore = "correct" | "partial" | "incorrect";
 export type VocabEvaluationScore = "correct" | "incorrect";
-
-export const SCORE_COLORS: Record<EvaluationScore, string> = {
-  correct: "#2d8a4e",
-  partial: "#b8860b",
-  incorrect: "#c0392b",
-};
-
-export const SCORE_BG_COLORS: Record<EvaluationScore, string> = {
-  correct: "#e8f5e9",
-  partial: "#fff8e1",
-  incorrect: "#ffebee",
-};
-
-export const SCORE_LABELS: Record<EvaluationScore, string> = {
-  correct: "Correct",
-  partial: "Partially Correct",
-  incorrect: "Incorrect",
-};
 
 export const VOCAB_SCORE_COLORS: Record<VocabEvaluationScore, string> = {
   correct: "#2d8a4e",
@@ -507,4 +488,25 @@ export const getFocusVocabWords = (
       }
       return true;
     });
+};
+
+export const removeSpecialPunctuation = (word: string) => {
+  if (word.endsWith("...,") || word.endsWith(",...")) {
+    return word.slice(0, -4);
+  }
+  if (word.startsWith("...")) {
+    return word.slice(3);
+  }
+  if (word.endsWith("...")) {
+    return word.slice(0, -3);
+  }
+  if (
+    word.endsWith(".,") ||
+    word.endsWith(",.") ||
+    word.endsWith("!,") ||
+    word.endsWith("?,")
+  ) {
+    return word.slice(0, -1);
+  }
+  return word;
 };

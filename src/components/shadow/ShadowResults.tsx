@@ -3,7 +3,7 @@ import { AccuracyResult } from "../../types";
 import { MaterialIcons } from "@expo/vector-icons";
 import TooltipModal from "../common/TooltipModal";
 import { useState } from "react";
-import { normalizeWord } from "../../helpers";
+import { normalizeWord, removeSpecialPunctuation } from "../../helpers";
 
 interface ShadowResultsProps {
   accuracyResult: AccuracyResult;
@@ -95,7 +95,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
               key={index}
               style={!detail.matched ? styles.wordRed : undefined}
             >
-              {detail.targetWord}
+              {removeSpecialPunctuation(detail.targetWord)}
               {index < accuracyResult.details.length - 1 ? " " : ""}
             </Text>
           ))}

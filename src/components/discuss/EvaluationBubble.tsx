@@ -1,13 +1,9 @@
 import React from "react";
 import { StyleSheet, View, Text, ActivityIndicator } from "react-native";
 import {
-  Evaluation,
   VocabEvaluation,
 } from "../../types";
 import {
-  SCORE_COLORS,
-  SCORE_BG_COLORS,
-  SCORE_LABELS,
   VOCAB_SCORE_COLORS,
   VOCAB_SCORE_BG_COLORS,
   VOCAB_SCORE_LABELS,
@@ -72,43 +68,6 @@ export const VocabEvaluationBubble: React.FC<VocabEvaluationBubbleProps> = ({
   );
 };
 
-interface ComprehensionEvaluationBubbleProps {
-  evaluation: Evaluation;
-  idealAnswer: string;
-}
-
-export const ComprehensionEvaluationBubble: React.FC<
-  ComprehensionEvaluationBubbleProps
-> = ({ evaluation, idealAnswer }) => {
-  return (
-    <View
-      style={[
-        styles.evaluationBubble,
-        { backgroundColor: SCORE_BG_COLORS[evaluation.score] },
-      ]}
-    >
-      <View style={styles.scoreRow}>
-        <View
-          style={[
-            styles.scoreDot,
-            { backgroundColor: SCORE_COLORS[evaluation.score] },
-          ]}
-        />
-        <Text
-          style={[styles.scoreLabel, { color: SCORE_COLORS[evaluation.score] }]}
-        >
-          {SCORE_LABELS[evaluation.score]}
-        </Text>
-      </View>
-      <Text style={styles.feedbackText}>{evaluation.feedback}</Text>
-      <View style={styles.idealAnswerSection}>
-        <Text style={styles.idealAnswerLabel}>Ideal Answer:</Text>
-        <Text style={styles.idealAnswerText}>{idealAnswer}</Text>
-      </View>
-    </View>
-  );
-};
-
 const styles = StyleSheet.create({
   evaluatingBubble: {
     flexDirection: "row",
@@ -146,31 +105,6 @@ const styles = StyleSheet.create({
   scoreLabel: {
     fontSize: 14,
     fontWeight: "700",
-  },
-  feedbackText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#333",
-    marginBottom: 12,
-  },
-  idealAnswerSection: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.1)",
-    paddingTop: 10,
-  },
-  idealAnswerLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#666",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  idealAnswerText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#444",
-    fontStyle: "italic",
   },
   acceptedAnswersSection: {
     marginTop: 4,
