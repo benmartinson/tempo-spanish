@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ActivityIndicator,
 } from "react-native";
 import {
   ContextSegment,
@@ -62,41 +63,20 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const [userMessages, setUserMessages] = useState<string[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
-  const isVocabMode =
-    selectedQuizType === "Vocab" || selectedQuizType === "Uncommon";
+  const isVocabMode = selectedQuizType === "Vocab";
   const isPhraseMode = selectedQuizType === "Phrases";
+  const vocabLoading =
+    !allVocabulary || !Object.keys(allVocabulary).length || !sentences?.length;
 
   useEffect(() => {
     setUserAnswer("");
     setVocabEvaluation(null);
     setAnswered(false);
     setUserMessages([]);
-    const items =
-      selectedQuizType === "Uncommon"
-        ? uncommonVocabItems
-        : selectedQuizType === "Phrases"
-          ? phraseItems
-          : vocabItems;
-    if (items.length > 0) {
-      const newIndex = Math.floor(Math.random() * items.length);
-      setVocabQuestionIndex(newIndex);
-    }
+    setVocabQuestionIndex(0);
   }, [selectedQuizType]);
 
   const vocabItems = useMemo(() => {
-    if (
-      !allVocabulary ||
-      !Object.keys(allVocabulary).length ||
-      !focusVocab ||
-      focusVocab.length === 0
-    )
-      return [];
-
-    const vocabWords = getFocusVocabWords(focusVocab, allVocabulary);
-    return buildVocabItemsWithContext(vocabWords, sentences || []);
-  }, [focusVocab, sentences, allVocabulary]);
-
-  const uncommonVocabItems = useMemo(() => {
     if (
       !allVocabulary ||
       !Object.keys(allVocabulary).length ||
@@ -104,12 +84,32 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     )
       return [];
 
-    const uncommonVocab = getUncommonVocabFromSentences(
+    const shuffle = <T,>(arr: T[]): T[] => {
+      const shuffled = [...arr];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+
+    const focusWords = focusVocab?.length
+      ? getFocusVocabWords(focusVocab, allVocabulary)
+      : [];
+    const uncommonWords = getUncommonVocabFromSentences(
       sentences,
       allVocabulary,
     );
-    return buildVocabItemsWithContext(uncommonVocab, sentences);
-  }, [allVocabulary, sentences]);
+
+    // Deduplicate uncommon words that are already in focus words
+    const focusSet = new Set(focusWords.map((w) => w.word));
+    const uniqueUncommon = uncommonWords.filter((w) => !focusSet.has(w.word));
+
+    // Shuffle each group, then show focus words first
+    const combined = [...shuffle(focusWords), ...shuffle(uniqueUncommon)];
+
+    return buildVocabItemsWithContext(combined, sentences);
+  }, [focusVocab, sentences, allVocabulary]);
 
   const phraseItems = useMemo(() => {
     if (!focusSentences || focusSentences.length === 0 || !sentences?.length)
@@ -143,11 +143,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   }, [focusSentences, sentences]);
 
   const activeVocabItems =
-    selectedQuizType === "Uncommon"
-      ? uncommonVocabItems
-      : selectedQuizType === "Phrases"
-        ? phraseItems
-        : vocabItems;
+    selectedQuizType === "Phrases" ? phraseItems : vocabItems;
 
   const currentVocabItem =
     vocabQuestionIndex !== undefined && activeVocabItems.length > 0
@@ -261,6 +257,14 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setUserMessages([]);
   };
 
+  if (vocabLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4a69bd" />
+      </View>
+    );
+  }
+
   const displayQuestion = currentVocabQuestion?.question;
 
   return (
@@ -293,6 +297,14 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         )}
       </NavSwitcher>
 
+      {isPhraseMode && !phraseItems.length && (
+        <View style={styles.emptyMessageContainer}>
+          <Text style={{ fontSize: 16, color: "#555", textAlign: "center" }}>
+            No focus phrases found for this video. Switch to 'Shadow' mode to
+            select phrases to focus on (using pencil icon).
+          </Text>
+        </View>
+      )}
       <ScrollView
         ref={scrollViewRef}
         style={styles.chatArea}
@@ -341,6 +353,17 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  emptyMessageContainer: {
+    flex: 1,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    padding: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
   },
   vocabBadge: {
     backgroundColor: "#2d8a4e",

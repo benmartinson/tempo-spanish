@@ -6,25 +6,8 @@ import {
   TouchableOpacity,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { QuizType } from "../../types";
-
-interface VocabEmptyStateProps {
-  selectedQuizType: QuizType;
-  hasFocusVocab: boolean;
-}
-
-export const VocabEmptyState: React.FC<VocabEmptyStateProps> = ({
-  selectedQuizType,
-  hasFocusVocab,
-}) => {
-  let message = "";
-  if (selectedQuizType === "Uncommon") {
-    message = "You've reviewed all the vocabulary for this video.";
-  } else if (selectedQuizType === "Vocab") {
-    message = hasFocusVocab
-      ? "You've reviewed all the selected vocabulary for this video."
-      : "No vocabulary has been 'Selected for Review' for this video yet.";
-  }
+export const VocabEmptyState: React.FC = () => {
+  const message = "No vocabulary found for this video.";
 
   return (
     <View style={styles.centeredContainer}>

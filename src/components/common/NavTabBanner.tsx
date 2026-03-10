@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Pressable } from "react-native";
 import { RootState } from "../../types";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -71,24 +71,25 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
       </TouchableOpacity>
       <View style={styles.tabsContainer}>
         {tabs.map((tab, index) => (
-          <TouchableOpacity
+          <Pressable
             key={tab.key}
-            style={[
+            style={({ pressed }) => [
               styles.tabButton,
               index > 0 && styles.tabButtonWithBorder,
               selectedTab === tab.key && styles.tabButtonSelected,
+              pressed && { opacity: 0.6 },
             ]}
             onPress={() => onTabSelect(tab.key)}
           >
             <Text
               style={[
-                styles.tabText,
+                selectedTab !== tab.key && styles.tabText,
                 selectedTab === tab.key && styles.tabTextSelected,
               ]}
             >
               {tab.label}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
     </View>
