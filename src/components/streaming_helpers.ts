@@ -723,6 +723,95 @@ export const sendAudioForTranscription = async (
 };
 
 /**
+ * When no match is found for a target word, check if a previous non-perfect match
+ * claimed a spoken word that actually matches the current target better.
+ * If so, steal it and try to re-match the previous target with remaining words.
+ */
+function tryStealBetterMatch(
+  details: AccuracyResult["details"],
+  normalizedSpoken: string[],
+  normalizedTarget: string,
+  usedSpokenIndices: Set<number>,
+  spokenWords: string[],
+): {
+  bestMatchIndex: number;
+  bestMatchScore: number;
+  matchedCountDelta: number;
+  matchedScoreDelta: number;
+} | null {
+  let stealFrom = -1;
+  let stealScore = 0;
+
+  for (let d = 0; d < details.length; d++) {
+    const prev = details[d];
+    if (!prev.matched || prev.isProperNoun || prev._spokenIndex == null)
+      continue;
+    if (prev._matchScore === 1) continue; // don't steal perfect matches
+
+    const scoreForCurrent = similarity(
+      normalizedSpoken[prev._spokenIndex],
+      normalizedTarget,
+    );
+    if (
+      scoreForCurrent >= 0.6 &&
+      scoreForCurrent > prev._matchScore! &&
+      scoreForCurrent > stealScore
+    ) {
+      stealFrom = d;
+      stealScore = scoreForCurrent;
+    }
+  }
+
+  if (stealFrom === -1) return null;
+
+  const prev = details[stealFrom];
+  const stolenIndex = prev._spokenIndex!;
+  let matchedCountDelta = 0;
+  let matchedScoreDelta = 0;
+
+  // Try to find a new match for the previous target among remaining words
+  usedSpokenIndices.delete(stolenIndex);
+  const prevNormTarget = normalize(prev.targetWord);
+  let newBestIndex = -1;
+  let newBestScore = 0;
+
+  for (let i = 0; i < normalizedSpoken.length; i++) {
+    if (usedSpokenIndices.has(i) || i === stolenIndex) continue;
+    const s = similarity(normalizedSpoken[i], prevNormTarget);
+    if (s > newBestScore && s >= 0.6) {
+      newBestScore = s;
+      newBestIndex = i;
+    }
+  }
+
+  if (newBestIndex !== -1) {
+    // Previous target gets a new (worse) match
+    usedSpokenIndices.add(newBestIndex);
+    prev.spokenWord =
+      newBestScore === 1 ? prev.targetWord : spokenWords[newBestIndex];
+    prev._spokenIndex = newBestIndex;
+    matchedScoreDelta -= prev._matchScore!;
+    matchedScoreDelta += newBestScore;
+    prev._matchScore = newBestScore;
+  } else {
+    // Previous target becomes unmatched
+    prev.matched = false;
+    prev.spokenWord = undefined;
+    prev._spokenIndex = undefined;
+    matchedCountDelta--;
+    matchedScoreDelta -= prev._matchScore!;
+    prev._matchScore = undefined;
+  }
+
+  return {
+    bestMatchIndex: stolenIndex,
+    bestMatchScore: stealScore,
+    matchedCountDelta,
+    matchedScoreDelta,
+  };
+}
+
+/**
  * Calculate accuracy by comparing spoken words against target words
  * Uses a greedy matching approach that finds the best match for each target word
  */
@@ -804,6 +893,22 @@ export const calculateAccuracy = (
       }
     }
 
+    if (bestMatchIndex === -1) {
+      const result = tryStealBetterMatch(
+        details,
+        normalizedSpoken,
+        normalizedTarget,
+        usedSpokenIndices,
+        spokenWords,
+      );
+      if (result) {
+        bestMatchIndex = result.bestMatchIndex;
+        bestMatchScore = result.bestMatchScore;
+        matchedCount += result.matchedCountDelta;
+        matchedScore += result.matchedScoreDelta;
+      }
+    }
+
     if (bestMatchIndex !== -1) {
       // Found a match
       usedSpokenIndices.add(bestMatchIndex);
@@ -815,6 +920,8 @@ export const calculateAccuracy = (
         matched: true,
         spokenWord:
           bestMatchScore === 1 ? targetWord : spokenWords[bestMatchIndex],
+        _spokenIndex: bestMatchIndex,
+        _matchScore: bestMatchScore,
       });
     } else {
       // No match found
@@ -823,6 +930,30 @@ export const calculateAccuracy = (
         matched: false,
       });
     }
+  }
+
+  // Second pass: match remaining unmatched targets with unused spoken words by order
+  const unmatchedDetailIndices = details
+    .map((d, i) => (!d.matched ? i : -1))
+    .filter((i) => i !== -1);
+  const unusedSpokenIndices = normalizedSpoken
+    .map((_, i) => (!usedSpokenIndices.has(i) ? i : -1))
+    .filter((i) => i !== -1);
+
+  const pairCount = Math.min(
+    unmatchedDetailIndices.length,
+    unusedSpokenIndices.length,
+  );
+  for (let p = 0; p < pairCount; p++) {
+    const detailIdx = unmatchedDetailIndices[p];
+    const spokenIdx = unusedSpokenIndices[p];
+    const detail = details[detailIdx];
+
+    detail.matched = true;
+    detail.spokenWord = spokenWords[spokenIdx];
+    detail._spokenIndex = spokenIdx;
+    detail._matchScore = 0;
+    usedSpokenIndices.add(spokenIdx);
   }
 
   const totalWords = details.length;

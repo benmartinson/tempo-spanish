@@ -73,11 +73,12 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
               detail.spokenWord &&
               normalizeWord(detail.spokenWord) !==
                 normalizeWord(detail.targetWord);
-            const wordStyle = detail.matched
-              ? hasSpellingErrors
+            const isLooseMatch = detail._matchScore === 0;
+            const wordStyle = !detail.matched || isLooseMatch
+              ? styles.wordRed
+              : hasSpellingErrors
                 ? styles.wordYellow
-                : styles.wordGreen
-              : styles.wordRed;
+                : styles.wordGreen;
             return (
               <Text key={index} style={wordStyle}>
                 {detail.spokenWord || "_"}
@@ -93,7 +94,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           {accuracyResult.details.map((detail, index) => (
             <Text
               key={index}
-              style={!detail.matched ? styles.wordRed : undefined}
+              style={!detail.matched || detail._matchScore === 0 ? styles.wordRed : undefined}
             >
               {removeSpecialPunctuation(detail.targetWord)}
               {index < accuracyResult.details.length - 1 ? " " : ""}

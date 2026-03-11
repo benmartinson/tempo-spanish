@@ -214,6 +214,8 @@ export interface AccuracyResult {
     matched: boolean;
     spokenWord?: string;
     isProperNoun?: boolean;
+    _spokenIndex?: number;
+    _matchScore?: number;
   }[];
   targetSentence: string;
 }
