@@ -71,6 +71,7 @@ interface ShadowTabProps {
   isPlayingWordSnippet: boolean;
   hintWords: SegmentWord[];
   onPlayClip?: (time: number) => void;
+  playerIsPlaying: boolean;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -88,6 +89,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isPlayingWordSnippet,
   hintWords,
   onPlayClip,
+  playerIsPlaying,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
@@ -131,7 +133,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [isPlayingRecording, setIsPlayingRecording] = useState<boolean>(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [isTrimmingAudio, setIsTrimmingAudio] = useState<boolean>(false);
-  const [isSentencePlaying, setIsSentencePlaying] = useState<boolean>(true);
   const [currentUnknownWordIndex, setCurrentUnknownWordIndex] =
     useState<number>(0);
   const currentUnknownWord = hintWords[currentUnknownWordIndex];
@@ -311,7 +312,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     loadExistingShadowResult();
     setIsFocusSentenceExpanded(false);
     loadTranslationInsights();
-    setIsSentencePlaying(true);
+
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -450,9 +451,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       if (isRecording) {
         setSentenceEnded(true);
         setHasPlayedSentence(true);
-        setIsSentencePlaying(false);
+
       } else if (isActive && isLooping && !justRecordedRef.current) {
-        setIsSentencePlaying(false);
+
         setTimeout(() => {
           handleEnterRecordingMode();
         }, 1000);
@@ -463,7 +464,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   useEffect(() => {
     if (currentSentenceObject?.end && time >= currentSentenceObject.end) {
       setSentenceEnded(true);
-      setIsSentencePlaying(false);
     }
   }, [time, currentSentenceObject?.end]);
 
@@ -572,7 +572,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (word) {
       playWordSnippet(word);
     } else {
-      setIsSentencePlaying(true);
+  
       playSentence();
     }
   };
@@ -583,17 +583,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setPlayerSpeed(0.8);
     setIsRecordingMode(false);
     handleResetState();
-    setIsSentencePlaying(true);
+
     playSentence();
   };
 
   const handlePlayPause = () => {
-    if (isSentencePlaying) {
+    if (playerIsPlaying) {
       pausePlayer();
-      setIsSentencePlaying(false);
     } else {
       resumePlayer();
-      setIsSentencePlaying(true);
     }
   };
 
@@ -721,7 +719,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                     onReplay={() => handlePlaySnippetAgain(null)}
                     onReplaySlow={handlePlaySnippetSlow}
                     onPlayPause={handlePlayPause}
-                    isPlaying={isSentencePlaying}
+                    isPlaying={playerIsPlaying}
                     playDisabled={sentenceEnded}
                   />
                   <View style={styles.settingsButtonContainer}>

@@ -140,6 +140,30 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const [playerMuted, setPlayerMuted] = useState<boolean>(false);
   const [playerSpeed, setPlayerSpeed] = useState<number>(1);
   const [autoplay, setAutoplay] = useState<boolean>(false);
+  const [playerIsPlaying, setPlayerIsPlaying] = useState<boolean>(false);
+  const playingStateQueueRef = useRef<boolean[]>([]);
+  const playingStateTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handlePlayingStateChange = useCallback((isPlaying: boolean) => {
+    if (playingStateTimerRef.current) {
+      // Timer is running, queue the state change
+      playingStateQueueRef.current.push(isPlaying);
+      return;
+    }
+
+    // No timer running, apply immediately and start the cooldown
+    setPlayerIsPlaying(isPlaying);
+    playingStateTimerRef.current = setTimeout(() => {
+      playingStateTimerRef.current = null;
+      const queue = playingStateQueueRef.current;
+      if (queue.length > 0) {
+        const latest = queue[queue.length - 1];
+        queue.length = 0;
+        // Only trigger a state change + new cooldown if value actually changed
+        handlePlayingStateChange(latest);
+      }
+    }, 1500);
+  }, []);
 
   // Player ref for injecting play/pause commands without reloading
   const playerRef = useRef<YouTubePlayerHandle>(null);
@@ -290,6 +314,13 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   const refreshPlayer = useCallback(() => {
     prevTimeRef.current = -1;
+    setPlayerIsPlaying(true);
+    // Clear any pending queue/timer so the refresh doesn't get overridden
+    playingStateQueueRef.current.length = 0;
+    if (playingStateTimerRef.current) {
+      clearTimeout(playingStateTimerRef.current);
+      playingStateTimerRef.current = null;
+    }
     dispatch(refreshVideoPlayerAction());
   }, [dispatch, currentSentenceObject?.start]);
 
@@ -372,6 +403,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           playbackSpeed={playerSpeed}
           startTime={startTimeForPlayer}
           videoText={currentVideoText}
+          onPlayingStateChange={handlePlayingStateChange}
         />
       </View>
       {!showVideo && !isKeyboardVisible && (
@@ -413,6 +445,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           isPlayingWordSnippet={!!currentWordSnippetRef.current}
           hintWords={hintWords}
           onPlayClip={handlePlayClip}
+          playerIsPlaying={playerIsPlaying}
         />
       </View>
 

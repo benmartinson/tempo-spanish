@@ -32,6 +32,7 @@ interface YouTubePlayerProps {
   videoText?: string;
   playbackSpeed?: number;
   startTime?: number;
+  onPlayingStateChange?: (isPlaying: boolean) => void;
 }
 
 const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
@@ -45,6 +46,7 @@ const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       playbackSpeed = 1,
       startTime,
       videoText,
+      onPlayingStateChange,
     },
     ref,
   ) => {
@@ -114,10 +116,12 @@ const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
 
       if (state === YT.PlayerState.PLAYING) {
         startTimePolling();
+        onPlayingStateChange?.(true);
       }
 
       if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.ENDED) {
         stopTimePolling();
+        onPlayingStateChange?.(false);
       }
 
       previousStateRef.current = state;
@@ -202,8 +206,20 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       muted = false,
       playbackSpeed = 1,
       startTime,
+      onPlayingStateChange,
     } = props;
     const webViewRef = useRef<WebView>(null);
+    const lastTimeRef = useRef<number>(-1);
+    const playingRef = useRef<boolean>(false);
+    const staleTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const mountedRef = useRef<boolean>(true);
+
+    useEffect(() => {
+      return () => {
+        mountedRef.current = false;
+        if (staleTimerRef.current) clearTimeout(staleTimerRef.current);
+      };
+    }, []);
 
     useImperativeHandle(ref, () => ({
       pause: () => {
@@ -277,6 +293,24 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
             const msg = JSON.parse(e.nativeEvent.data);
             if (msg.type === "YT_TIME") {
               setTime(msg.time);
+
+              // Detect playing state from time advancing
+              const timeChanged = msg.time !== lastTimeRef.current;
+              lastTimeRef.current = msg.time;
+
+              if (timeChanged && !playingRef.current) {
+                playingRef.current = true;
+                if (mountedRef.current) onPlayingStateChange?.(true);
+              }
+
+              // Reset stale timer — if no new time update arrives, player is paused
+              if (staleTimerRef.current) clearTimeout(staleTimerRef.current);
+              staleTimerRef.current = setTimeout(() => {
+                if (playingRef.current && mountedRef.current) {
+                  playingRef.current = false;
+                  onPlayingStateChange?.(false);
+                }
+              }, 300);
             }
           }}
           userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
