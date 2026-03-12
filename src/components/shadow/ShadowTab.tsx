@@ -141,6 +141,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [isFocusSentenceExpanded, setIsFocusSentenceExpanded] =
     useState<boolean>(false);
   const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(false);
+  const [isLoadingShadowResult, setIsLoadingShadowResult] =
+    useState<boolean>(true);
   const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
 
   // Text input state
@@ -163,7 +165,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         targetSentence: capitalize(currentSentenceObject?.text),
       };
     },
-    [currentSentenceObject?.words],
+    [currentSentenceObject?.words, orderedCharacters],
   );
 
   const saveShadowResult = useCallback(
@@ -209,21 +211,23 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const loadExistingShadowResult = async () => {
     console.log({ previousResults });
-    // if (previousResults) {
-    //   setAccuracyResult(previousResults);
-    //   setCurrentRecordingId(previousResults.recordingId || null);
-    //   return;
-    // }
-    const result = await fetchShadowResult();
-    if (result) {
-      const spokenWords = result.spokenWords.split(/\s+/).filter(Boolean);
-      const accuracy = calculateAccuracyFromWords(spokenWords);
-      setAccuracyResult(accuracy);
-      setPreviousResults({ ...accuracy, recordingId: result.recordingId });
-      setCurrentRecordingId(result.recordingId || null);
-    } else {
-      setPreviousResults(null);
-      setAccuracyResult(null);
+    setIsLoadingShadowResult(true);
+    try {
+      const result = await fetchShadowResult();
+      if (result) {
+        const spokenWords = result.spokenWords.split(/\s+/).filter(Boolean);
+        const accuracy = calculateAccuracyFromWords(spokenWords);
+        setAccuracyResult(accuracy);
+        setPreviousResults({ ...accuracy, recordingId: result.recordingId });
+        setCurrentRecordingId(result.recordingId || null);
+      } else {
+        setPreviousResults(null);
+        setAccuracyResult(null);
+      }
+    } finally {
+      setTimeout(() => {
+        setIsLoadingShadowResult(false);
+      }, 500);
     }
   };
 
@@ -303,16 +307,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   ]);
 
   useEffect(() => {
+    if (isLoadingInsights) return;
+    loadExistingShadowResult();
+  }, [currentSentenceIndex, isLoadingInsights]);
+
+  useEffect(() => {
     Keyboard.dismiss();
     if (hasPlayedSentence) {
       setHasPlayedSentence(false);
     }
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
-    loadExistingShadowResult();
     setIsFocusSentenceExpanded(false);
     loadTranslationInsights();
-
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -451,9 +458,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       if (isRecording) {
         setSentenceEnded(true);
         setHasPlayedSentence(true);
-
       } else if (isActive && isLooping && !justRecordedRef.current) {
-
         setTimeout(() => {
           handleEnterRecordingMode();
         }, 1000);
@@ -572,7 +577,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (word) {
       playWordSnippet(word);
     } else {
-  
       playSentence();
     }
   };
@@ -683,7 +687,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           keyboardShouldPersistTaps="handled"
         >
           {/* Recording button or processing indicator */}
-          {isProcessing ? (
+          {isLoadingShadowResult ? (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator size="large" color="#999" />
+            </View>
+          ) : isProcessing ? (
             <View style={styles.processingContainer}>
               <ActivityIndicator size="large" color="#4ade80" />
               <Text style={styles.processingText}>
@@ -810,7 +818,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           )}
           {!accuracyResult && !isProcessing && (
             <Insights
-              isLoading={isLoadingInsights}
+              isLoading={isLoadingInsights || isLoadingShadowResult}
               characters={orderedCharacters}
               sentenceText={currentSentenceObject?.text ?? ""}
               hintWords={hintWords}

@@ -120,6 +120,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
   },
   videoTitle: {
+    paddingTop: 4,
     fontSize: 14,
     color: "black",
     lineHeight: 16,

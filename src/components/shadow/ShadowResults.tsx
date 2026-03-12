@@ -74,15 +74,23 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
               normalizeWord(detail.spokenWord) !==
                 normalizeWord(detail.targetWord);
             const isLooseMatch = detail._matchScore === 0;
-            const wordStyle = !detail.matched || isLooseMatch
-              ? styles.wordRed
-              : hasSpellingErrors
-                ? styles.wordYellow
-                : styles.wordGreen;
+            const wordStyle =
+              !detail.matched || isLooseMatch
+                ? styles.wordRed
+                : hasSpellingErrors
+                  ? styles.wordYellow
+                  : styles.wordGreen;
+            const isLast = index === accuracyResult.details.length - 1;
+            let spokenText = detail.spokenWord
+              ? removeSpecialPunctuation(detail.spokenWord)
+              : "_";
+            if (isLast && spokenText.endsWith(",")) {
+              spokenText = spokenText.slice(0, -1) + "...";
+            }
             return (
               <Text key={index} style={wordStyle}>
-                {detail.spokenWord || "_"}
-                {index < accuracyResult.details.length - 1 ? " " : ""}
+                {spokenText}
+                {!isLast ? " " : ""}
               </Text>
             );
           })}
@@ -91,15 +99,26 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       <View style={styles.targetSentenceContainer}>
         <Text style={styles.targetSentenceText}>
           <Text style={styles.labelBold}>Target: </Text>
-          {accuracyResult.details.map((detail, index) => (
-            <Text
-              key={index}
-              style={!detail.matched || detail._matchScore === 0 ? styles.wordRed : undefined}
-            >
-              {removeSpecialPunctuation(detail.targetWord)}
-              {index < accuracyResult.details.length - 1 ? " " : ""}
-            </Text>
-          ))}
+          {accuracyResult.details.map((detail, index) => {
+            const isLast = index === accuracyResult.details.length - 1;
+            let targetText = removeSpecialPunctuation(detail.targetWord);
+            if (isLast && targetText.endsWith(",")) {
+              targetText = targetText.slice(0, -1) + "...";
+            }
+            return (
+              <Text
+                key={index}
+                style={
+                  !detail.matched || detail._matchScore === 0
+                    ? styles.wordRed
+                    : undefined
+                }
+              >
+                {targetText}
+                {!isLast ? " " : ""}
+              </Text>
+            );
+          })}
         </Text>
       </View>
 

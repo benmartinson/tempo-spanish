@@ -828,7 +828,7 @@ export const calculateAccuracy = (
       details: [],
     };
   }
-  console.log({ targetWords, spokenWords });
+  console.log({ targetWords, spokenWords, properNouns });
 
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
   const normalizedProperNouns = properNouns.map((n) => normalize(n));
@@ -871,6 +871,7 @@ export const calculateAccuracy = (
       details.push({
         targetWord,
         matched: true,
+        _matchScore: 1,
         spokenWord: targetWord,
         isProperNoun: true,
       });

@@ -126,6 +126,7 @@ export interface Video {
   channel_id: string;
   thumbnail_url: string;
   duration?: number;
+  created_at?: string;
 }
 
 export interface Segment {

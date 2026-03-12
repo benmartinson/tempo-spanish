@@ -23,12 +23,7 @@ import {
   setUserSettings,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
-import {
-  VideoView,
-  Vocabulary,
-  RootState,
-  UserUIState,
-} from "./src/types";
+import { VideoView, Vocabulary, RootState, UserUIState } from "./src/types";
 import { createVocabHash } from "./src/helpers";
 import {
   fetchVideoContext,
@@ -174,12 +169,14 @@ const AuthenticatedApp: React.FC = () => {
 
   useEffect(() => {
     if (!supabase) return;
-    fetchAllVideos({ supabase }).then(({ channelData, videoData, topicData, channelTopicData }) => {
-      dispatch(setAllChannels(channelData));
-      dispatch(setAllVideos(videoData));
-      dispatch(setAllTopics(topicData));
-      dispatch(setChannelTopics(channelTopicData));
-    });
+    fetchAllVideos({ supabase }).then(
+      ({ channelData, videoData, topicData, channelTopicData }) => {
+        dispatch(setAllChannels(channelData));
+        dispatch(setAllVideos(videoData));
+        dispatch(setAllTopics(topicData));
+        dispatch(setChannelTopics(channelTopicData));
+      },
+    );
   }, [supabase]);
 
   useEffect(() => {

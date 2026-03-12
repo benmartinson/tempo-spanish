@@ -43,11 +43,7 @@ const Insights: React.FC<InsightsProps> = ({
   }, [sentenceText, isShowingStartsOff]);
 
   if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading Insights...</Text>
-      </View>
-    );
+    return;
   }
 
   const words = sentenceText.split(/\s+/).filter(Boolean);
