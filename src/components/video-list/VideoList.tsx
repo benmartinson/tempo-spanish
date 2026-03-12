@@ -127,9 +127,15 @@ const VideoList: React.FC = () => {
     );
 
   if (selectedChannel) {
-    const channelVideos = allVideos.filter(
-      (video) => video.channel_id === selectedChannel.channel_id,
-    );
+    const channelVideos = allVideos
+      .filter(
+        (video) => video.channel_id === selectedChannel.channel_id,
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.created_at ?? 0).getTime() -
+          new Date(a.created_at ?? 0).getTime(),
+      );
     return (
       <ChannelVideoList
         channel={selectedChannel}
@@ -199,9 +205,15 @@ const VideoList: React.FC = () => {
               </VideoSectionHeader>
               {activeFilterBar}
               {filteredChannels.map((channel) => {
-                const channelVideos = filteredVideos.filter(
-                  (video) => video.channel_id === channel.channel_id,
-                );
+                const channelVideos = filteredVideos
+                  .filter(
+                    (video) => video.channel_id === channel.channel_id,
+                  )
+                  .sort(
+                    (a, b) =>
+                      new Date(b.created_at ?? 0).getTime() -
+                      new Date(a.created_at ?? 0).getTime(),
+                  );
                 return (
                   <View key={channel.id} style={styles.channelContainer}>
                     <TouchableOpacity
