@@ -171,6 +171,7 @@ const Insights: React.FC<InsightsProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
+    paddingTop: 8,
     paddingBottom: 20,
   },
   loadingText: {
@@ -184,7 +185,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginTop: 12,
   },
   headerLeft: {
     flexDirection: "row",

@@ -32,7 +32,7 @@ const ChannelVideoList: React.FC<{
   return (
     <FilterVideos videos={videos}>
       {({ filteredVideos, filterButton, activeFilterBar }) => (
-        <ScrollView style={styles.container}>
+        <View style={styles.allContainer}>
           <View style={styles.topBar}>
             <TouchableOpacity style={styles.backButton} onPress={onBack}>
               <Ionicons name="arrow-back" size={24} color="black" />
@@ -40,7 +40,6 @@ const ChannelVideoList: React.FC<{
             </TouchableOpacity>
             {filterButton}
           </View>
-
           <View style={styles.channelHeader}>
             <Image
               source={{ uri: channel.thumbnail_url }}
@@ -57,31 +56,38 @@ const ChannelVideoList: React.FC<{
 
           {activeFilterBar}
 
-          <View style={styles.videoList}>
-            {filteredVideos.map((video) => (
-              <VideoCard
-                key={video.video_id}
-                video={video}
-                onPress={() => handleWatchPress(video.video_id, video.id)}
-                disabled={loadingVideo}
-                style={styles.videoItem}
-                fullWidth
-              />
-            ))}
-          </View>
-        </ScrollView>
+          <ScrollView style={styles.listContainer}>
+            <View style={styles.videoList}>
+              {filteredVideos.map((video) => (
+                <VideoCard
+                  key={video.video_id}
+                  video={video}
+                  onPress={() => handleWatchPress(video.video_id, video.id)}
+                  disabled={loadingVideo}
+                  style={styles.videoItem}
+                  fullWidth
+                />
+              ))}
+            </View>
+          </ScrollView>
+        </View>
       )}
     </FilterVideos>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  allContainer: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  listContainer: {
     flex: 1,
     backgroundColor: "white",
   },
   topBar: {
     flexDirection: "row",
+    backgroundColor: "white",
     justifyContent: "space-between",
     alignItems: "center",
     paddingRight: 16,
@@ -103,7 +109,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     paddingHorizontal: 16,
-    marginVertical: 16,
+    marginVertical: 8,
   },
   channelThumbnail: {
     width: 80,

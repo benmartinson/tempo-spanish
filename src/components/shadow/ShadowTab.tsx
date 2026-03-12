@@ -666,6 +666,51 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             {currentVideo.sentences.length}
           </Text>
         </NavSwitcher>
+        {!isRecordingMode && (
+          <View style={styles.recordButtonContainer}>
+            <PlayerControls
+              onReplay={() => handlePlaySnippetAgain(null)}
+              onReplaySlow={handlePlaySnippetSlow}
+              onPlayPause={handlePlayPause}
+              isPlaying={playerIsPlaying}
+              playDisabled={sentenceEnded}
+            />
+            <View style={styles.settingsButtonContainer}>
+              {previousResults && (
+                <TouchableOpacity
+                  style={styles.previousResultsButtonInner}
+                  onPress={handlePreviousResults}
+                  disabled={isPlayingRecording}
+                >
+                  <Foundation
+                    name="clipboard-notes"
+                    size={32}
+                    color="#4a69bd"
+                  />
+                </TouchableOpacity>
+              )}
+              <FocusSentenceRequest
+                markedId={
+                  currentVideo.focusSentences.find(
+                    (s) =>
+                      s.segment_index === currentSentenceIndex &&
+                      s.sentence_index === currentSentenceIndex,
+                  )?.id ?? null
+                }
+                sentenceIndex={currentSentenceIndex}
+                sentenceText={currentSentenceObject?.text}
+                segmentIndex={currentSentenceIndex}
+                videoViewId={currentVideo.videoViewId}
+              />
+              <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
+                <MaterialIcons name="settings" size={32} color="#222222" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowShadowInstructions(true)}>
+                <MaterialIcons name="info" size={32} color="#222222" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
         {isRecordingMode && (
           <>
             <CountdownTimer
@@ -674,12 +719,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               sentenceEnded={sentenceEnded}
               bufferDuration={0}
             />
-            {/* <FullSegmentTranscriptBubble
-                words={currentSentence.words}
-                time={time}
-                showFullText={true}
-                mode="video"
-              /> */}
           </>
         )}
         <ScrollView
@@ -698,123 +737,62 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 Analyzing your pronunciation...
               </Text>
             </View>
-          ) : accuracyResult ? (
-            <>
-              <ShadowResults
-                accuracyResult={accuracyResult}
-                handleNextSentence={handleShadowNextSentence}
-                handleRetry={handleRetry}
-                properNouns={orderedCharacters}
-              />
-              {nextSentenceCountdown > 0 && (
-                <View style={styles.nextSentenceCountdownRefContainer}>
-                  <Text style={styles.nextSentenceCountdownRefText}>
-                    {nextSentenceCountdown}
-                  </Text>
-                </View>
-              )}
-            </>
           ) : (
-            !isRecordingMode && (
+            accuracyResult && (
               <>
-                {/* <FullSegmentTranscriptBubble
-                words={currentSentence.words}
-                time={time}
-                mode="video"
-              /> */}
-                <View style={styles.recordButtonContainer}>
-                  <PlayerControls
-                    onReplay={() => handlePlaySnippetAgain(null)}
-                    onReplaySlow={handlePlaySnippetSlow}
-                    onPlayPause={handlePlayPause}
-                    isPlaying={playerIsPlaying}
-                    playDisabled={sentenceEnded}
-                  />
-                  <View style={styles.settingsButtonContainer}>
-                    {previousResults && (
-                      <TouchableOpacity
-                        style={styles.previousResultsButtonInner}
-                        onPress={handlePreviousResults}
-                        disabled={isPlayingRecording}
-                      >
-                        <Foundation
-                          name="clipboard-notes"
-                          size={32}
-                          color="#4a69bd"
-                        />
-                      </TouchableOpacity>
-                    )}
-                    <FocusSentenceRequest
-                      markedId={
-                        currentVideo.focusSentences.find(
-                          (s) =>
-                            s.segment_index === currentSentenceIndex &&
-                            s.sentence_index === currentSentenceIndex,
-                        )?.id ?? null
-                      }
-                      sentenceIndex={currentSentenceIndex}
-                      sentenceText={currentSentenceObject?.text}
-                      segmentIndex={currentSentenceIndex}
-                      videoViewId={currentVideo.videoViewId}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setIsSettingsVisible(true)}
-                    >
-                      <MaterialIcons
-                        name="settings"
-                        size={32}
-                        color="#222222"
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => setShowShadowInstructions(true)}
-                    >
-                      <MaterialIcons name="info" size={32} color="#222222" />
-                    </TouchableOpacity>
+                <ShadowResults
+                  accuracyResult={accuracyResult}
+                  handleNextSentence={handleShadowNextSentence}
+                  handleRetry={handleRetry}
+                  properNouns={orderedCharacters}
+                />
+                {nextSentenceCountdown > 0 && (
+                  <View style={styles.nextSentenceCountdownRefContainer}>
+                    <Text style={styles.nextSentenceCountdownRefText}>
+                      {nextSentenceCountdown}
+                    </Text>
                   </View>
-                </View>
-                {/* <VocabList
-                vocab={focusVocabTimes}
-                time={time}
-                onSkipToVocab={handleSkipToVocab}
-                header="Skip to selected vocab"
-              /> */}
+                )}
               </>
             )
           )}
           {/* Play user recording button - shown when a recording exists */}
           {!isRecordingMode && !isProcessing && (
-            <View style={styles.playRecordingContainer}>
+            <>
               {accuracyResult && currentRecordingId && (
-                <TouchableOpacity
-                  style={styles.playRecordingButton}
-                  onPress={handlePlayUserRecording}
-                  disabled={isPlayingRecording}
-                >
-                  <MaterialIcons
-                    name={isPlayingRecording ? "pause" : "headphones"}
-                    size={20}
-                    color="#4a69bd"
-                  />
-                  <Text style={styles.playRecordingButtonText}>
-                    {isPlayingRecording ? "Playing..." : "Play Recording"}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.playRecordingContainer}>
+                  <TouchableOpacity
+                    style={styles.playRecordingButton}
+                    onPress={handlePlayUserRecording}
+                    disabled={isPlayingRecording}
+                  >
+                    <MaterialIcons
+                      name={isPlayingRecording ? "pause" : "headphones"}
+                      size={20}
+                      color="#4a69bd"
+                    />
+                    <Text style={styles.playRecordingButtonText}>
+                      {isPlayingRecording ? "Playing..." : "Play Recording"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
               {accuracyResult && !currentRecordingId && audioUri && (
-                <TouchableOpacity
-                  style={styles.playRecordingButton}
-                  onPress={() => handleTrimAndSaveRecording(audioUri)}
-                  disabled={isTrimmingAudio}
-                >
-                  <Text style={styles.playRecordingButtonText}>
-                    {isTrimmingAudio
-                      ? "Saving..."
-                      : "Save Recording for Playback"}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.playRecordingContainer}>
+                  <TouchableOpacity
+                    style={styles.playRecordingButton}
+                    onPress={() => handleTrimAndSaveRecording(audioUri)}
+                    disabled={isTrimmingAudio}
+                  >
+                    <Text style={styles.playRecordingButtonText}>
+                      {isTrimmingAudio
+                        ? "Saving..."
+                        : "Save Recording for Playback"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
-            </View>
+            </>
           )}
           {!accuracyResult && !isProcessing && (
             <Insights
@@ -968,7 +946,6 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginTop: 16,
   },
   errorContainer: {
     marginHorizontal: 16,
@@ -1032,6 +1009,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   sentenceNavContainer: {
     flexDirection: "row",
