@@ -46,6 +46,19 @@ const VideoList: React.FC = () => {
     (state: RootState) => state.userVideoViews,
   );
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const targetLanguage = useSelector(
+    (state: RootState) => state.userSettings.targetLanguage,
+  );
+
+  const targetChannelIds = new Set(
+    (allChannels || [])
+      .filter((channel) => channel.language === targetLanguage)
+      .map((channel) => channel.channel_id),
+  );
+
+  const videosForLanguage = allVideos.filter((video) =>
+    targetChannelIds.has(video.channel_id),
+  );
 
   useEffect(() => {
     fetchUserVideoViews({ supabase }).then((videoViews) => {
@@ -108,7 +121,7 @@ const VideoList: React.FC = () => {
     }
   };
 
-  const recentlyWatchedVideos = allVideos
+  const recentlyWatchedVideos = videosForLanguage
     ?.filter((video) =>
       userVideoViews?.some((videoView) => videoView.video_id === video.id),
     )
@@ -186,7 +199,7 @@ const VideoList: React.FC = () => {
       )}
       {/* <VideoSectionHeader title="Recommended" /> */}
       <FilterVideos
-        videos={allVideos}
+        videos={videosForLanguage}
         mode="topics"
         topics={allTopics}
         channelTopics={channelTopics}

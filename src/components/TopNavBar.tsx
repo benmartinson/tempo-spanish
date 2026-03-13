@@ -2,15 +2,20 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 import { useClerk, useUser } from "@clerk/clerk-expo";
+import { useSelector } from "react-redux";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import SlideModal from "./common/Modal";
+import LanguageModal from "./settings/LanguageModal";
+import { RootState } from "../types";
 
 const TopNavBar: React.FC = () => {
   const [profileVisible, setProfileVisible] = useState(false);
+  const [languageVisible, setLanguageVisible] = useState(false);
   const { signOut } = useClerk();
   const { user } = useUser();
+  const userSettings = useSelector((state: RootState) => state.userSettings);
 
   const handleSignOut = async () => {
     setProfileVisible(false);
@@ -20,9 +25,14 @@ const TopNavBar: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.leftFlagContainer}>
-          <Text style={styles.countryFlag}>🇲🇽</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.leftFlagContainer}
+          onPress={() => setLanguageVisible(true)}
+        >
+          <Text style={styles.countryFlag}>
+            {userSettings.targetLanguage === "es" ? "🇲🇽" : "🇺🇸"}
+          </Text>
+        </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.appName}>Tempo</Text>
           <MaterialCommunityIcons name="waves" size={26} color="#1a1a2e" />
@@ -35,6 +45,11 @@ const TopNavBar: React.FC = () => {
           <Ionicons name="person" size={18} color="#dfe2ea" />
         </TouchableOpacity>
       </View>
+
+      <LanguageModal
+        visible={languageVisible}
+        onClose={() => setLanguageVisible(false)}
+      />
 
       <SlideModal
         visible={profileVisible}
@@ -123,7 +138,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#1a1a2e",
   },
-
   profileContent: {
     flex: 1,
     paddingHorizontal: 20,

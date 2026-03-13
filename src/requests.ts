@@ -348,6 +348,10 @@ export const restoreUserUIState = async ({
         uiState.show_characters ?? DEFAULT_USER_SETTINGS.showCharacters,
       showStartsOffAs:
         uiState.show_starts_off_as ?? DEFAULT_USER_SETTINGS.showStartsOffAs,
+      targetLanguage:
+        uiState.target_language ?? DEFAULT_USER_SETTINGS.targetLanguage,
+      translationLanguage:
+        uiState.translation_language ?? DEFAULT_USER_SETTINGS.translationLanguage,
     };
 
     if (uiState?.current_video) {
@@ -430,6 +434,10 @@ export const persistUserSettings = async ({
     updateData.show_characters = settings.showCharacters;
   if (settings.showStartsOffAs !== undefined)
     updateData.show_starts_off_as = settings.showStartsOffAs;
+  if (settings.targetLanguage !== undefined)
+    updateData.target_language = settings.targetLanguage;
+  if (settings.translationLanguage !== undefined)
+    updateData.translation_language = settings.translationLanguage;
 
   const { error } = await supabase
     .from("user_ui_state")

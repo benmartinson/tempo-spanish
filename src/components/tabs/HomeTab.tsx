@@ -29,7 +29,7 @@ const HomeTab: React.FC = () => {
   const handleWatchPress = () => {
     // Navigate to Watch tab
     dispatch(setCurrentChatType("video-based"));
-    dispatch(setCurrentTab("watch"));
+    dispatch(setCurrentTab("shadow"));
     // navigation.navigate('Watch' as never);
   };
 
