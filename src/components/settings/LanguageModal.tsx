@@ -61,7 +61,11 @@ const LanguageModal: React.FC<{
     LANGUAGE_OPTIONS.find((l) => l.code === code)!;
 
   return (
-    <SlideModal visible={visible} onRequestClose={onClose} title="Language">
+    <SlideModal
+      visible={visible}
+      onRequestClose={onClose}
+      title="Language Settings"
+    >
       <View style={styles.languageContent}>
         <Text style={styles.languageSectionTitle}>Target Language</Text>
         <TouchableOpacity
@@ -147,9 +151,14 @@ const LanguageModal: React.FC<{
             </TouchableOpacity>
           ))}
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Save</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <Text style={styles.saveButtonText}>Save</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SlideModal>
   );
@@ -201,12 +210,31 @@ const styles = StyleSheet.create({
   dropdownItemSelected: {
     backgroundColor: "#e8f0fe",
   },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 40,
+  },
+  cancelButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    backgroundColor: "#f5f5f7",
+    borderWidth: 1,
+    borderColor: "#d0d8f0",
+  },
+  cancelButtonText: {
+    color: "#1a1a2e",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   saveButton: {
+    flex: 1,
     backgroundColor: "#4a90d9",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
-    marginTop: 40,
   },
   saveButtonText: {
     color: "#fff",

@@ -682,6 +682,7 @@ export const uploadAudioToStorage = async (
  */
 export const sendAudioForTranscription = async (
   audioUri: string,
+  targetLanguage: string = "es",
 ): Promise<TranscriptionResponse> => {
   try {
     // Read the audio file as base64
@@ -699,7 +700,7 @@ export const sendAudioForTranscription = async (
 
     console.log(`Sending audio for transcription: ${audioUri}`);
 
-    const response = await fetch(`${BACKEND_BASE_URL}/api/transcribe`, {
+    const response = await fetch(`${BACKEND_BASE_URL}/api/transcribe?language=${targetLanguage}`, {
       method: "POST",
       body: formData,
       headers: {

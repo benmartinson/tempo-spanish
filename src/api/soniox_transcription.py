@@ -319,7 +319,7 @@ def _is_special_token(text: str) -> bool:
 
 
 @router.post("/api/transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
+async def transcribe_audio(file: UploadFile = File(...), language: str = "es"):
     """
     Batch transcription endpoint - accepts an audio file and returns the complete transcript.
     
@@ -378,7 +378,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
                 json={
                     "model": "stt-async-v4",
                     "file_id": file_id,
-                    "language_hints": ["es"],
+                    "language_hints": [language],
                     "language_hints_strict": True,
                 },
             )

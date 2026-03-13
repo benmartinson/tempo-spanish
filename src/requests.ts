@@ -351,7 +351,8 @@ export const restoreUserUIState = async ({
       targetLanguage:
         uiState.target_language ?? DEFAULT_USER_SETTINGS.targetLanguage,
       translationLanguage:
-        uiState.translation_language ?? DEFAULT_USER_SETTINGS.translationLanguage,
+        uiState.translation_language ??
+        DEFAULT_USER_SETTINGS.translationLanguage,
     };
 
     if (uiState?.current_video) {
