@@ -794,7 +794,7 @@ async def translation_insights(request: TranslationInsightsRequest):
 Identify all proper nouns (character names, place names, or any word that requires capitalization because it is a proper noun) in the original text. Return them as a list."""
 
         messages = [
-            {"role": "system", "content": "You are a linguistic analysis assistant. Given a sentence and its translation, identify all proper nouns (names of people, characters, places, etc.) in the original text. Only include words that require capitalization because they are proper nouns."},
+            {"role": "system", "content": "You are a linguistic analysis assistant. Given a sentence, identify all proper nouns (names of people, characters, places, etc.) in the original text. Only include words that are inherently proper nouns — names of specific people, characters, places, organizations, etc. Do NOT include common words that merely appear capitalized because they start a sentence or follow punctuation."},
             {"role": "user", "content": user_prompt}
         ]
 
