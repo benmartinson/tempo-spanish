@@ -130,8 +130,13 @@ const FullSegmentTranscriptBubble: React.FC<
   };
 
   const wordEndsWithSpecialCase = (word: string) => {
-    return word.endsWith(",.") || word.endsWith(".,") || word.endsWith("?,") || word.endsWith("!,");
-  }
+    return (
+      word.endsWith(",.") ||
+      word.endsWith(".,") ||
+      word.endsWith("?,") ||
+      word.endsWith("!,")
+    );
+  };
 
   // Show blank when not active (before first word or after words change)
   if (!isActive) {
@@ -180,7 +185,9 @@ const FullSegmentTranscriptBubble: React.FC<
             >
               <Text style={[styles.word, getWordStyle()]}>
                 {word.word.startsWith(" ") ? "" : " "}
-                {wordEndsWithSpecialCase(word.word) ? word.word.slice(0, -1) : word.word}
+                {wordEndsWithSpecialCase(word.word)
+                  ? word.word.slice(0, -1)
+                  : word.word}
               </Text>
             </Pressable>
           );
@@ -209,7 +216,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     backgroundColor: "white",
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     borderWidth: 1,
     borderColor: "#e0e0e0",
     shadowColor: "#000",
@@ -225,7 +232,7 @@ const styles = StyleSheet.create({
   wordsRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 4,
+    gap: 2,
     flexWrap: "wrap",
   },
   fullTextScrollView: {

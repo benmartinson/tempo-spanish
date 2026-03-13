@@ -21,6 +21,9 @@ import {
 } from "../../helpers";
 import TooltipModal from "../common/TooltipModal";
 import WordHints from "../common/WordHints";
+import ToggleHeader from "../common/ToggleHeader";
+import NavSwitcher from "../common/NavSwitcher";
+import PlayerControls from "../shadow/PlayerControls";
 
 interface WatchTabProps {
   time: number;
@@ -32,6 +35,14 @@ interface WatchTabProps {
   hintWords: SegmentWord[];
   handlePlayWordSnippet: (word: SegmentWord) => void;
   isPlayingWordSnippet: boolean;
+  pausePlayer: () => void;
+  resumePlayer: () => void;
+  playerIsPlaying: boolean;
+  setPlayerSpeed: (speed: number) => void;
+  handleNextSentence: () => void;
+  handlePreviousSentence: () => void;
+  onPlayClip: (time: number) => void;
+  playSentence: () => void;
 }
 
 const WatchTab: React.FC<WatchTabProps> = ({
@@ -44,12 +55,21 @@ const WatchTab: React.FC<WatchTabProps> = ({
   hintWords,
   handlePlayWordSnippet,
   isPlayingWordSnippet,
+  handleNextSentence,
+  handlePreviousSentence,
+  onPlayClip,
+  playSentence,
+  pausePlayer,
+  resumePlayer,
+  playerIsPlaying,
+  setPlayerSpeed,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
     useState<boolean>(false);
   const [selectedBubble, setSelectedBubble] = useState<string>("large");
+  const [showTranscript, setShowTranscript] = useState<boolean>(true);
 
   // Close modals when tab becomes inactive
   useEffect(() => {
@@ -60,6 +80,26 @@ const WatchTab: React.FC<WatchTabProps> = ({
     }
   }, [isActive]);
 
+  const handleReplay = () => {
+    setPlayerSpeed(1);
+    playSentence();
+  };
+
+  const handleReplaySlow = () => {
+    setPlayerSpeed(0.8);
+    playSentence();
+  };
+
+  const handlePlayPause = () => {
+    if (playerIsPlaying) {
+      pausePlayer();
+    } else {
+      resumePlayer();
+    }
+  };
+
+  const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
+
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
@@ -67,15 +107,47 @@ const WatchTab: React.FC<WatchTabProps> = ({
   return (
     <>
       <View style={styles.container}>
+        <NavSwitcher
+          onPrev={handlePreviousSentence}
+          onNext={handleNextSentence}
+          currentIndex={currentSentenceIndex}
+          totalItems={currentVideo.sentences.length}
+          sentences={currentVideo.sentences}
+          onPlayClip={onPlayClip}
+          videoId={currentVideo.videoId}
+        >
+          <Text>
+            Segment {currentSentenceIndex + 1} of{" "}
+            {currentVideo.sentences.length}
+          </Text>
+        </NavSwitcher>
+        <View style={styles.controlsContainer}>
+          <PlayerControls
+            onReplay={handleReplay}
+            onReplaySlow={handleReplaySlow}
+            onPlayPause={handlePlayPause}
+            isPlaying={playerIsPlaying}
+          />
+          <View></View>
+        </View>
         <ScrollView style={styles.transcriptContainer}>
-          <View style={styles.transcriptContentContainer}>
-            {selectedBubble === "large" && (
-              <FullSegmentTranscriptBubble
-                words={currentSentence.words || []}
-                time={time}
-              />
-            )}
+          <View style={styles.toggleHeaderContainer}>
+            <ToggleHeader
+              title="Transcript"
+              isVisible={showTranscript}
+              onToggle={() => setShowTranscript(!showTranscript)}
+            />
           </View>
+          {showTranscript && (
+            <View style={styles.transcriptContentContainer}>
+              {selectedBubble === "large" && (
+                <FullSegmentTranscriptBubble
+                  words={currentSentence.words || []}
+                  time={time}
+                />
+              )}
+            </View>
+          )}
           {hintWords.length > 0 && (
             <WordHints
               hintWords={hintWords}
@@ -118,8 +190,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#2a2a4a",
     borderRadius: 8,
   },
+  controlsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginTop: 16,
+  },
   transcriptContentContainer: {
-    marginBottom: 32,
+    marginBottom: 12,
+  },
+  toggleHeaderContainer: {
+    paddingHorizontal: 16,
+    marginTop: 24,
   },
   buttonContainer: {
     flexDirection: "row",

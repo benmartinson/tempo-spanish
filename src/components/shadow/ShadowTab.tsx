@@ -62,7 +62,6 @@ interface ShadowTabProps {
   handlePreviousSentence: () => void;
   isActive?: boolean;
   playSentence: () => void;
-  setPlayerMuted: (muted: boolean) => void;
   setPlayerSpeed: (speed: number) => void;
   pausePlayer: () => void;
   resumePlayer: () => void;
@@ -81,7 +80,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isActive = true,
   playSentence,
   playWordSnippet,
-  setPlayerMuted,
   setPlayerSpeed,
   pausePlayer,
   resumePlayer,
@@ -474,7 +472,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setAccuracyResult(null);
     setUserAnswer("");
     setPlayerSpeed(playbackSpeed);
-    setPlayerMuted(false);
+
     setIsRecordingMode(false);
     handleResetState();
     setJustRecorded();
@@ -523,7 +521,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handleEnterRecordingMode = () => {
     // setPreviousResults(null);
     pausePlayer();
-    setPlayerMuted(true);
+
     setPlayerSpeed(recordSpeed);
     setIsRecordingMode(true);
     handleResetState();
@@ -550,7 +548,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsRecordingMode(false);
     setJustRecorded();
     setPlayerSpeed(playbackSpeed);
-    setPlayerMuted(false);
+
     handleResetState();
     parentHandlePreviousSentence();
   };
@@ -561,7 +559,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     } else {
       setPlayerSpeed(playbackSpeed);
     }
-    setPlayerMuted(false);
+
     setJustRecorded();
     setIsRecordingMode(false);
     handleResetState();
@@ -573,7 +571,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handlePlaySnippetSlow = () => {
-    setPlayerMuted(false);
+
     setJustRecorded();
     setPlayerSpeed(0.8);
     setIsRecordingMode(false);

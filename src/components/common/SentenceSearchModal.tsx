@@ -1,9 +1,5 @@
 import React, { useState } from "react";
-import {
-  View,
-  StyleSheet,
-  TextInput,
-} from "react-native";
+import { View, StyleSheet, TextInput } from "react-native";
 import { Sentence } from "../../types";
 import Modal from "./Modal";
 
@@ -53,7 +49,7 @@ const SentenceSearchModal: React.FC<SentenceSearchModalProps> = ({
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Enter sentence number..."
+            placeholder="Enter Segment Number..."
             placeholderTextColor="#888"
             value={query}
             onChangeText={setQuery}

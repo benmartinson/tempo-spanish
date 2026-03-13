@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { SegmentWord } from "../../types";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import FeaturedVocab from "../watch/FeaturedVocab";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import ToggleHeader from "./ToggleHeader";
 
 interface WordHintsProps {
   hintWords: SegmentWord[];
@@ -40,18 +41,11 @@ const WordHints: React.FC<WordHintsProps> = ({
   return (
     <View style={styles.featuredVocabContainer}>
       <View style={styles.featuredVocabTitleContainer}>
-        <TouchableOpacity
-          onPress={() => setIsShowingWordHints(!isShowingWordHints)}
-        >
-          <View style={styles.featuredVocabTitleLeft}>
-            <Text style={styles.featuredVocabTitle}>Word Hints</Text>
-            <MaterialIcons
-              name="visibility"
-              size={20}
-              color={isShowingWordHints ? "black" : "gray"}
-            />
-          </View>
-        </TouchableOpacity>
+        <ToggleHeader
+          title="Word Hints"
+          isVisible={isShowingWordHints}
+          onToggle={() => setIsShowingWordHints(!isShowingWordHints)}
+        />
         {isShowingWordHints && showSwitcher && (
           <View style={styles.featuredVocabTitleButtons}>
             <TouchableOpacity
@@ -87,22 +81,12 @@ const styles = StyleSheet.create({
     marginTop: 0,
     width: "100%",
   },
-  featuredVocabTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "left",
-    paddingHorizontal: 4,
-  },
   featuredVocabTitleContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-  },
-  featuredVocabTitleLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    marginTop: 12,
   },
   featuredVocabTitleButtons: {
     flexDirection: "row",

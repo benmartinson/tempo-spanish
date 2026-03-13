@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { View, Text, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
 import { RootState, SegmentWord } from "../../types";
 import WordHints from "../common/WordHints";
+import ToggleHeader from "../common/ToggleHeader";
 import { stripPunctuation } from "../../helpers";
 
 interface InsightsProps {
@@ -92,18 +92,11 @@ const Insights: React.FC<InsightsProps> = ({
       <>
         {characters.length > 0 && (
           <View style={styles.headerContainer}>
-            <TouchableOpacity
-              onPress={() => setIsShowingCharacters(!isShowingCharacters)}
-            >
-              <View style={styles.headerLeft}>
-                <Text style={styles.headerTitle}>Proper Nouns</Text>
-                <MaterialIcons
-                  name="visibility"
-                  size={20}
-                  color={isShowingCharacters ? "black" : "gray"}
-                />
-              </View>
-            </TouchableOpacity>
+            <ToggleHeader
+              title="Proper Nouns"
+              isVisible={isShowingCharacters}
+              onToggle={() => setIsShowingCharacters(!isShowingCharacters)}
+            />
           </View>
         )}
         {isShowingCharacters && characters.length > 0 && (
@@ -131,18 +124,11 @@ const Insights: React.FC<InsightsProps> = ({
       {words.length > 0 && (
         <>
           <View style={styles.startsOffHeaderContainer}>
-            <TouchableOpacity
-              onPress={() => setIsShowingStartsOff(!isShowingStartsOff)}
-            >
-              <View style={styles.headerLeft}>
-                <Text style={styles.headerTitle}>Starts Off As</Text>
-                <MaterialIcons
-                  name="visibility"
-                  size={20}
-                  color={isShowingStartsOff ? "black" : "gray"}
-                />
-              </View>
-            </TouchableOpacity>
+            <ToggleHeader
+              title="Starts Off As"
+              isVisible={isShowingStartsOff}
+              onToggle={() => setIsShowingStartsOff(!isShowingStartsOff)}
+            />
           </View>
           {isShowingStartsOff && (
             <View style={styles.charactersList}>
@@ -186,17 +172,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 12,
     paddingHorizontal: 16,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "left",
-    paddingHorizontal: 4,
   },
   charactersList: {
     paddingHorizontal: 20,

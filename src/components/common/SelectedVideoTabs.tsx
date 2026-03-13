@@ -137,7 +137,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const [clipRefreshKey, setClipRefreshKey] = useState(0);
 
   // Player state
-  const [playerMuted, setPlayerMuted] = useState<boolean>(false);
   const [playerSpeed, setPlayerSpeed] = useState<number>(1);
   const [autoplay, setAutoplay] = useState<boolean>(false);
   const [playerIsPlaying, setPlayerIsPlaying] = useState<boolean>(false);
@@ -177,7 +176,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    setPlayerMuted(false);
     setPlayerSpeed(1);
     if (selectedNavTab !== "review") {
       setShowVideo(true);
@@ -399,7 +397,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           autoplay={effectiveAutoplay}
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
-          muted={playerMuted}
+          muted={false}
           playbackSpeed={playerSpeed}
           startTime={startTimeForPlayer}
           videoText={currentVideoText}
@@ -426,6 +424,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           hintWords={hintWords}
           handlePlayWordSnippet={playWordSnippet}
           isPlayingWordSnippet={!!currentWordSnippetRef.current}
+          handleNextSentence={handleNextSentence}
+          handlePreviousSentence={handlePreviousSentence}
+          onPlayClip={handlePlayClip}
+          playSentence={playSentence}
+          pausePlayer={pausePlayer}
+          resumePlayer={playPlayer}
+          playerIsPlaying={playerIsPlaying}
+          setPlayerSpeed={setPlayerSpeed}
         />
       </View>
 
@@ -437,7 +443,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           isKeyboardVisible={isKeyboardVisible}
           playSentence={playSentence}
           isActive={selectedNavTab === "shadow"}
-          setPlayerMuted={setPlayerMuted}
           setPlayerSpeed={setPlayerSpeed}
           pausePlayer={pausePlayer}
           resumePlayer={playPlayer}
