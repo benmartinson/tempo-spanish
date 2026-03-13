@@ -74,16 +74,22 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
               normalizeWord(detail.spokenWord) !==
                 normalizeWord(detail.targetWord);
             const isLooseMatch = detail._matchScore === 0;
-            const wordStyle =
-              !detail.matched || isLooseMatch
-                ? styles.wordRed
-                : hasSpellingErrors
-                  ? styles.wordYellow
-                  : styles.wordGreen;
+            const notMatched = !detail.matched || isLooseMatch;
+            const greenMatched = !notMatched && !hasSpellingErrors;
+            const wordStyle = notMatched
+              ? styles.wordRed
+              : hasSpellingErrors
+                ? styles.wordYellow
+                : styles.wordGreen;
             const isLast = index === accuracyResult.details.length - 1;
-            let spokenText = detail.spokenWord
-              ? removeSpecialPunctuation(detail.spokenWord)
-              : "_";
+            const cleanTargetWord = removeSpecialPunctuation(detail.targetWord);
+            let spokenText = cleanTargetWord;
+            if (!greenMatched) {
+              spokenText =
+                !notMatched && detail.spokenWord
+                  ? removeSpecialPunctuation(detail.spokenWord)
+                  : "_";
+            }
             if (isLast && spokenText.endsWith(",")) {
               spokenText = spokenText.slice(0, -1) + "...";
             }

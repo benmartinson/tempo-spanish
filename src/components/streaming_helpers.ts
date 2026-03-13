@@ -700,13 +700,16 @@ export const sendAudioForTranscription = async (
 
     console.log(`Sending audio for transcription: ${audioUri}`);
 
-    const response = await fetch(`${BACKEND_BASE_URL}/api/transcribe?language=${targetLanguage}`, {
-      method: "POST",
-      body: formData,
-      headers: {
-        "Content-Type": "multipart/form-data",
+    const response = await fetch(
+      `${BACKEND_BASE_URL}/api/transcribe?language=${targetLanguage}`,
+      {
+        method: "POST",
+        body: formData,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -724,11 +727,108 @@ export const sendAudioForTranscription = async (
 };
 
 /**
- * When no match is found for a target word, check if a previous non-perfect match
- * claimed a spoken word that actually matches the current target better.
- * If so, steal it and try to re-match the previous target with remaining words.
+ * Calculate accuracy by comparing spoken words against target words.
+ * Uses LCS (Longest Common Subsequence) to find the best order-preserving
+ * alignment between spoken and target words.
  */
-function tryStealBetterMatch(
+export const calculateAccuracy = (
+  spokenWords: string[],
+  targetWords: string[],
+  properNouns: string[] = [],
+) => {
+  if (targetWords.length === 0) {
+    return { percentage: 100, matchedWords: 0, totalWords: 0, details: [] };
+  }
+  console.log({ targetWords, spokenWords, properNouns });
+
+  const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
+  const normalizedProperNouns = properNouns.map((n) => normalize(n));
+
+  // Build initial details, auto-match proper nouns
+  const details: AccuracyResult["details"] = [];
+  const normalizedTargets: string[] = [];
+  let matchedCount = 0;
+  let matchedScore = 0;
+
+  for (const targetWord of targetWords) {
+    const nt = normalize(targetWord);
+    if (!nt) continue;
+    normalizedTargets.push(nt);
+
+    details.push({ targetWord, matched: false });
+  }
+
+  const targetIndices = details
+    .map((d, i) => (d.isProperNoun ? -1 : i))
+    .filter((i) => i !== -1);
+
+  const n = normalizedSpoken.length;
+  const m = targetIndices.length;
+
+  // DP: dp[i][j] = max matches using spoken[0..i-1] vs targetIndices[0..j-1]
+  const dp: number[][] = Array.from({ length: n + 1 }, () =>
+    new Array(m + 1).fill(0),
+  );
+
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      const tIdx = targetIndices[j - 1];
+      const score = similarity(
+        normalizedSpoken[i - 1],
+        normalizedTargets[tIdx],
+      );
+      if (score >= 0.6) {
+        dp[i][j] = Math.max(dp[i - 1][j - 1] + 1, dp[i - 1][j], dp[i][j - 1]);
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  // Backtrack to find matched pairs
+  let i = n,
+    j = m;
+  const matches: { spokenIdx: number; detailIdx: number }[] = [];
+  while (i > 0 && j > 0) {
+    const tIdx = targetIndices[j - 1];
+    const score = similarity(normalizedSpoken[i - 1], normalizedTargets[tIdx]);
+    if (score >= 0.6 && dp[i][j] === dp[i - 1][j - 1] + 1) {
+      matches.push({ spokenIdx: i - 1, detailIdx: tIdx });
+      i--;
+      j--;
+    } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+      i--;
+    } else {
+      j--;
+    }
+  }
+  matches.reverse();
+
+  // Apply matches
+  for (const { spokenIdx, detailIdx } of matches) {
+    const detail = details[detailIdx];
+    const score = similarity(
+      normalizedSpoken[spokenIdx],
+      normalizedTargets[detailIdx],
+    );
+    detail.matched = true;
+    detail.spokenWord =
+      score === 1 ? detail.targetWord : spokenWords[spokenIdx];
+    detail._spokenIndex = spokenIdx;
+    detail._matchScore = score;
+    matchedCount++;
+    matchedScore += score;
+  }
+
+  const totalWords = details.length;
+  const percentage =
+    totalWords > 0 ? Math.round((matchedScore / totalWords) * 100) : 0;
+
+  return { percentage, matchedWords: matchedCount, totalWords, details };
+};
+
+// @ts-ignore
+function _tryStealBetterMatch(
   details: AccuracyResult["details"],
   normalizedSpoken: string[],
   normalizedTarget: string,
@@ -811,164 +911,6 @@ function tryStealBetterMatch(
     matchedScoreDelta,
   };
 }
-
-/**
- * Calculate accuracy by comparing spoken words against target words
- * Uses a greedy matching approach that finds the best match for each target word
- */
-export const calculateAccuracy = (
-  spokenWords: string[],
-  targetWords: string[],
-  properNouns: string[] = [],
-) => {
-  if (targetWords.length === 0) {
-    return {
-      percentage: 100,
-      matchedWords: 0,
-      totalWords: 0,
-      details: [],
-    };
-  }
-  console.log({ targetWords, spokenWords, properNouns });
-
-  const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
-  const normalizedProperNouns = properNouns.map((n) => normalize(n));
-  const details: AccuracyResult["details"] = [];
-  let matchedCount = 0;
-  let matchedScore = 0;
-
-  // Track which spoken words have been used
-  const usedSpokenIndices = new Set<number>();
-
-  // For each target word, try to find the best matching spoken word
-  for (const targetWord of targetWords) {
-    const normalizedTarget = normalize(targetWord);
-    if (!normalizedTarget) {
-      // Skip empty words (punctuation only)
-      console.log("Skipping empty word:", targetWord);
-      continue;
-    }
-
-    // If this word is a proper noun, auto-accept with full score
-    const isProperNoun = normalizedProperNouns.some(
-      (noun) => noun === normalizedTarget,
-    );
-    if (isProperNoun) {
-      // Find any spoken word that loosely matches, or just accept it
-      let foundIndex = -1;
-      for (let i = 0; i < normalizedSpoken.length; i++) {
-        if (usedSpokenIndices.has(i)) continue;
-        const score = similarity(normalizedSpoken[i], normalizedTarget);
-        if (score >= 0.4) {
-          foundIndex = i;
-          break;
-        }
-      }
-      if (foundIndex !== -1) {
-        usedSpokenIndices.add(foundIndex);
-      }
-      matchedCount++;
-      matchedScore += 1;
-      details.push({
-        targetWord,
-        matched: true,
-        _matchScore: 1,
-        spokenWord: targetWord,
-        isProperNoun: true,
-      });
-      continue;
-    }
-
-    let bestMatchIndex = -1;
-    let bestMatchScore = 0;
-
-    // Find the best unused spoken word that matches this target
-    for (let i = 0; i < normalizedSpoken.length; i++) {
-      if (usedSpokenIndices.has(i)) continue;
-
-      const spokenWord = normalizedSpoken[i];
-      const score = similarity(spokenWord, normalizedTarget);
-
-      if (score > bestMatchScore && score >= 0.6) {
-        bestMatchScore = score;
-        bestMatchIndex = i;
-      }
-    }
-
-    if (bestMatchIndex === -1) {
-      const result = tryStealBetterMatch(
-        details,
-        normalizedSpoken,
-        normalizedTarget,
-        usedSpokenIndices,
-        spokenWords,
-      );
-      if (result) {
-        bestMatchIndex = result.bestMatchIndex;
-        bestMatchScore = result.bestMatchScore;
-        matchedCount += result.matchedCountDelta;
-        matchedScore += result.matchedScoreDelta;
-      }
-    }
-
-    if (bestMatchIndex !== -1) {
-      // Found a match
-      usedSpokenIndices.add(bestMatchIndex);
-      matchedCount++;
-      matchedScore += bestMatchScore;
-
-      details.push({
-        targetWord,
-        matched: true,
-        spokenWord:
-          bestMatchScore === 1 ? targetWord : spokenWords[bestMatchIndex],
-        _spokenIndex: bestMatchIndex,
-        _matchScore: bestMatchScore,
-      });
-    } else {
-      // No match found
-      details.push({
-        targetWord,
-        matched: false,
-      });
-    }
-  }
-
-  // Second pass: match remaining unmatched targets with unused spoken words by order
-  const unmatchedDetailIndices = details
-    .map((d, i) => (!d.matched ? i : -1))
-    .filter((i) => i !== -1);
-  const unusedSpokenIndices = normalizedSpoken
-    .map((_, i) => (!usedSpokenIndices.has(i) ? i : -1))
-    .filter((i) => i !== -1);
-
-  const pairCount = Math.min(
-    unmatchedDetailIndices.length,
-    unusedSpokenIndices.length,
-  );
-  for (let p = 0; p < pairCount; p++) {
-    const detailIdx = unmatchedDetailIndices[p];
-    const spokenIdx = unusedSpokenIndices[p];
-    const detail = details[detailIdx];
-
-    detail.matched = true;
-    detail.spokenWord = spokenWords[spokenIdx];
-    detail._spokenIndex = spokenIdx;
-    detail._matchScore = 0;
-    usedSpokenIndices.add(spokenIdx);
-  }
-
-  const totalWords = details.length;
-  const percentage =
-    totalWords > 0 ? Math.round((matchedScore / totalWords) * 100) : 0;
-
-  return {
-    percentage,
-    matchedWords: matchedCount,
-    totalWords,
-    details,
-  };
-};
 
 /**
  * Lenient word matching - returns true if words share at least 25% of characters.

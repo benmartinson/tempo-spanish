@@ -96,7 +96,7 @@ const Insights: React.FC<InsightsProps> = ({
               onPress={() => setIsShowingCharacters(!isShowingCharacters)}
             >
               <View style={styles.headerLeft}>
-                <Text style={styles.headerTitle}>Characters</Text>
+                <Text style={styles.headerTitle}>Proper Nouns</Text>
                 <MaterialIcons
                   name="visibility"
                   size={20}

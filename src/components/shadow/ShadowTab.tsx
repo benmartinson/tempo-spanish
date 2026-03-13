@@ -140,7 +140,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     useState<boolean>(false);
   const [isFocusSentenceExpanded, setIsFocusSentenceExpanded] =
     useState<boolean>(false);
-  const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(false);
+  const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(true);
   const [isLoadingShadowResult, setIsLoadingShadowResult] =
     useState<boolean>(true);
   const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
@@ -210,7 +210,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [supabase, userId, currentVideo, currentSentenceIndex]);
 
   const loadExistingShadowResult = async () => {
-    console.log({ previousResults });
     setIsLoadingShadowResult(true);
     try {
       const result = await fetchShadowResult();
@@ -359,7 +358,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setError(null);
 
       try {
-        const transcriptionResult = await sendAudioForTranscription(audioUri);
+        const transcriptionResult = await sendAudioForTranscription(
+          audioUri,
+          userSettings.targetLanguage,
+        );
         console.log("Transcription result:", transcriptionResult);
         const spokenWords = transcriptionResult.transcript
           .split(/\s+/)
@@ -616,6 +618,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [currentRecordingId, isPlayingRecording]);
 
   const handleRetry = () => {
+    setIsLoadingShadowResult(false);
     const prevResult = accuracyResult;
     if (prevResult) {
       setPreviousResults({
@@ -629,7 +632,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handlePreviousResults = () => {
-    loadExistingShadowResult();
+    setAccuracyResult(previousResults);
   };
 
   if (!currentVideo) {
@@ -666,51 +669,56 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             {currentVideo.sentences.length}
           </Text>
         </NavSwitcher>
-        {!isRecordingMode && (
-          <View style={styles.recordButtonContainer}>
-            <PlayerControls
-              onReplay={() => handlePlaySnippetAgain(null)}
-              onReplaySlow={handlePlaySnippetSlow}
-              onPlayPause={handlePlayPause}
-              isPlaying={playerIsPlaying}
-              playDisabled={sentenceEnded}
-            />
-            <View style={styles.settingsButtonContainer}>
-              {previousResults && (
-                <TouchableOpacity
-                  style={styles.previousResultsButtonInner}
-                  onPress={handlePreviousResults}
-                  disabled={isPlayingRecording}
-                >
-                  <Foundation
-                    name="clipboard-notes"
-                    size={32}
-                    color="#4a69bd"
-                  />
-                </TouchableOpacity>
-              )}
-              <FocusSentenceRequest
-                markedId={
-                  currentVideo.focusSentences.find(
-                    (s) =>
-                      s.segment_index === currentSentenceIndex &&
-                      s.sentence_index === currentSentenceIndex,
-                  )?.id ?? null
-                }
-                sentenceIndex={currentSentenceIndex}
-                sentenceText={currentSentenceObject?.text}
-                segmentIndex={currentSentenceIndex}
-                videoViewId={currentVideo.videoViewId}
+        {!isRecordingMode &&
+          !accuracyResult &&
+          !isLoadingShadowResult &&
+          !isProcessing && (
+            <View style={styles.recordButtonContainer}>
+              <PlayerControls
+                onReplay={() => handlePlaySnippetAgain(null)}
+                onReplaySlow={handlePlaySnippetSlow}
+                onPlayPause={handlePlayPause}
+                isPlaying={playerIsPlaying}
+                playDisabled={sentenceEnded}
               />
-              <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
-                <MaterialIcons name="settings" size={32} color="#222222" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowShadowInstructions(true)}>
-                <MaterialIcons name="info" size={32} color="#222222" />
-              </TouchableOpacity>
+              <View style={styles.settingsButtonContainer}>
+                {previousResults && (
+                  <TouchableOpacity
+                    style={styles.previousResultsButtonInner}
+                    onPress={handlePreviousResults}
+                    disabled={isPlayingRecording}
+                  >
+                    <Foundation
+                      name="clipboard-notes"
+                      size={32}
+                      color="#4a69bd"
+                    />
+                  </TouchableOpacity>
+                )}
+                <FocusSentenceRequest
+                  markedId={
+                    currentVideo.focusSentences.find(
+                      (s) =>
+                        s.segment_index === currentSentenceIndex &&
+                        s.sentence_index === currentSentenceIndex,
+                    )?.id ?? null
+                  }
+                  sentenceIndex={currentSentenceIndex}
+                  sentenceText={currentSentenceObject?.text}
+                  segmentIndex={currentSentenceIndex}
+                  videoViewId={currentVideo.videoViewId}
+                />
+                <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
+                  <MaterialIcons name="settings" size={32} color="#222222" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowShadowInstructions(true)}
+                >
+                  <MaterialIcons name="info" size={32} color="#222222" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
+          )}
         {isRecordingMode && (
           <>
             <CountdownTimer
