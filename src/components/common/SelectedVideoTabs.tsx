@@ -16,7 +16,9 @@ import {
   Text,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { RootState, SegmentWord } from "../../types";
+import { fetchTranslationInsights, WordInContext } from "../../requests";
 import {
   setSentenceByTime,
   setCurrentSentence as setCurrentSentenceAction,
@@ -100,6 +102,13 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const userKnownVocab = useSelector(
     (state: RootState) => state.userKnownVocab,
   );
+
+  // Translation insights state (shared across tabs)
+  const supabase = useSupabaseWithClerk();
+  const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(true);
+  const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
+  const [wordsInContext, setWordsInContext] = useState<WordInContext[]>([]);
+
   const hintWords = useMemo(() => {
     const sentenceWords = currentSentenceObject?.words || [];
     const knownVocabSet = new Set(userKnownVocab);
@@ -121,13 +130,115 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           item?.vocab?.word && isInterestingVocab(item.vocab),
       )
       .sort((a, b) => b.vocab.percentile - a.vocab.percentile)
-      .map((item) => ({
-        ...item.sw,
-        isKnown: knownVocabSet.has(item.vocab.id),
-      }));
+      .map((item) => {
+        const contextMatch = wordsInContext.find(
+          (w) =>
+            stripPunctuation(w.word.toLowerCase()).trim() ===
+            stripPunctuation(item.sw.word.toLowerCase()).trim(),
+        );
+        return {
+          ...item.sw,
+          isKnown: knownVocabSet.has(item.vocab.id),
+          contextTranslation: contextMatch?.translation
+            ? stripPunctuation(contextMatch.translation)
+            : null,
+        };
+      });
 
     return result;
-  }, [currentSentenceObject, userKnownVocab, allVocabulary]);
+  }, [currentSentenceObject, userKnownVocab, allVocabulary, wordsInContext]);
+
+  const orderCharactersByAppearance = (properNouns: string[], text: string) => {
+    const textWords = text.split(/\s+/);
+    const ordered: string[] = [];
+    for (const word of textWords) {
+      const cleanWord = word.replace(/[.,!?¿¡;:"""''()]/g, "");
+      for (const noun of properNouns) {
+        if (cleanWord.toLowerCase() === noun.toLowerCase()) {
+          ordered.push(noun);
+        }
+      }
+    }
+    return ordered;
+  };
+
+  const loadTranslationInsights = useCallback(async () => {
+    if (!currentSentenceObject?.text || !supabase || !currentVideo) {
+      setOrderedCharacters([]);
+      setWordsInContext([]);
+      return;
+    }
+
+    setIsLoadingInsights(true);
+    setOrderedCharacters([]);
+    setWordsInContext([]);
+
+    try {
+      // Check Supabase cache first
+      const { data: cached, error: cacheError } = await supabase
+        .from("sentence_insights")
+        .select("proper_nouns, words_in_context")
+        .eq("video_id", parseInt(currentVideo.recordId))
+        .eq("sentence_index", currentSentenceIndex)
+        .single();
+
+      if (!cacheError && cached) {
+        if (cached.proper_nouns) {
+          const ordered = orderCharactersByAppearance(
+            cached.proper_nouns,
+            currentSentenceObject.text,
+          );
+          setOrderedCharacters(ordered);
+        }
+        if (cached.words_in_context) {
+          setWordsInContext(cached.words_in_context);
+        }
+        if (cached.proper_nouns || cached.words_in_context) {
+          return;
+        }
+      }
+
+      // Fetch from backend
+      const result = await fetchTranslationInsights({
+        text: currentSentenceObject.text,
+      });
+
+      if (result) {
+        // Save to Supabase for future lookups
+        await supabase.from("sentence_insights").upsert(
+          {
+            video_id: parseInt(currentVideo.recordId),
+            sentence_index: currentSentenceIndex,
+            proper_nouns: result.properNouns,
+            words_in_context: result.wordsInContext,
+          },
+          { onConflict: "video_id,sentence_index" },
+        );
+
+        if (result.properNouns.length > 0) {
+          const ordered = orderCharactersByAppearance(
+            result.properNouns,
+            currentSentenceObject.text,
+          );
+          setOrderedCharacters(ordered);
+        }
+        setWordsInContext(result.wordsInContext);
+      }
+    } catch (err) {
+      console.error("Failed to load translation insights:", err);
+    } finally {
+      setIsLoadingInsights(false);
+    }
+  }, [
+    currentSentenceObject?.text,
+    supabase,
+    currentVideo,
+    currentSentenceIndex,
+  ]);
+
+  useEffect(() => {
+    loadTranslationInsights();
+  }, [currentSentenceIndex]);
 
   useEffect(() => {
     refreshPlayer();
@@ -352,7 +463,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     let vocabulary = null;
     if (match) {
       vocabulary = allVocabulary[vocabFormatWord(topHintWord.word)];
-      return `${capitalize(topHintWord.word)} => ${capitalize(vocabulary.translation)}`;
+      const translation = topHintWord.contextTranslation || vocabulary.translation;
+      return `${capitalize(topHintWord.word)} => ${capitalize(translation)}`;
     }
 
     return "";
@@ -432,6 +544,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           resumePlayer={playPlayer}
           playerIsPlaying={playerIsPlaying}
           setPlayerSpeed={setPlayerSpeed}
+          wordsInContext={wordsInContext}
         />
       </View>
 
@@ -451,6 +564,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           hintWords={hintWords}
           onPlayClip={handlePlayClip}
           playerIsPlaying={playerIsPlaying}
+          isLoadingInsights={isLoadingInsights}
+          orderedCharacters={orderedCharacters}
+          wordsInContext={wordsInContext}
         />
       </View>
 

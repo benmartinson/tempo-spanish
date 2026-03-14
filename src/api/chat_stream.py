@@ -9,12 +9,14 @@ Run with: uvicorn src.api.chat_stream:app --host 0.0.0.0 --port 8000 --reload
 """
 
 import os
+import re
 import base64
 import random
 import json
 import string
 from typing import List
 
+from deep_translator import GoogleTranslator
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,6 +37,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 # ElevenLabs configuration
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY) if ELEVENLABS_API_KEY else None
+
 
 
 def generate_tts_audio(text: str) -> str | None:
@@ -779,11 +782,42 @@ User's answer: {request.user_answer}
         return {"error": str(e)}
 
 
+def translate_words_in_context(text: str) -> list[dict]:
+    """
+    For each word in the sentence, mark it with <x> tags, translate the full
+    sentence via Google Translate, then extract the marked word's translation.
+    Uses deep_translator's batch translation.
+    """
+    words = text.split()
+    if not words:
+        return []
+
+    # Build marked variants: "Ella <x>tiene</x> un gato"
+    marked_sentences = []
+    for i, word in enumerate(words):
+        parts = words[:i] + [f"<x>{word}</x>"] + words[i + 1:]
+        marked_sentences.append(" ".join(parts))
+
+    translator = GoogleTranslator(source="es", target="en")
+    translations = translator.translate_batch(marked_sentences)
+
+    results = []
+    for i, translated_text in enumerate(translations):
+        match = re.search(r"<x>(.*?)</x>", translated_text)
+        translated_word = match.group(1).strip() if match else ""
+        results.append({
+            "word": words[i],
+            "translation": translated_word,
+        })
+
+    return results
+
+
 @app.post("/translation-insights")
 async def translation_insights(request: TranslationInsightsRequest):
     """
-    Extract proper nouns (characters, places) from a sentence.
-    Returns a list of proper nouns found in the text.
+    Extract proper nouns (characters, places) from a sentence and
+    translate each word in the context of the sentence.
     """
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
@@ -825,8 +859,12 @@ Identify all proper nouns (character names, place names, or any word that requir
 
         result = json.loads(response.choices[0].message.content.strip())
 
+        # Translate each word in context
+        words_in_context = translate_words_in_context(request.text)
+
         return {
             "proper_nouns": result["proper_nouns"],
+            "words_in_context": words_in_context,
             "status": "complete"
         }
     except Exception as e:

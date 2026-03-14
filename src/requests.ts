@@ -160,8 +160,14 @@ export interface FetchTranslationInsightsParams {
   text: string;
 }
 
+export interface WordInContext {
+  word: string;
+  translation: string;
+}
+
 export interface TranslationInsightsResult {
   properNouns: string[];
+  wordsInContext: WordInContext[];
 }
 
 export const fetchTranslationInsights = async ({
@@ -178,10 +184,11 @@ export const fetchTranslationInsights = async ({
   }
 
   const data = await response.json();
-  if (data.proper_nouns) {
-    return { properNouns: data.proper_nouns };
-  }
-  return null;
+  console.log("Translation insights response:", data);
+  return {
+    properNouns: data.proper_nouns,
+    wordsInContext: data.words_in_context || [],
+  };
 };
 
 export interface FetchAllVideosParams {
@@ -212,13 +219,11 @@ export const fetchAllVideos = async ({
     .from("topic")
     .select("*");
   if (topicError) console.error(topicError);
-  console.log({ topicData });
 
   const { data: channelTopicData, error: channelTopicError } = await supabase
     .from("channel_topic")
     .select("*");
   if (channelTopicError) console.error(channelTopicError);
-  console.log({ channelTopicData });
 
   return {
     channelData: channelData ?? [],
@@ -230,10 +235,14 @@ export const fetchAllVideos = async ({
 
 export interface FetchAllVocabularyParams {
   supabase: any;
+  targetLanguage: string;
+  translationLanguage: string;
 }
 
 export const fetchAllVocabulary = async ({
   supabase,
+  targetLanguage,
+  translationLanguage,
 }: FetchAllVocabularyParams): Promise<Vocabulary[]> => {
   let allVocab: Vocabulary[] = [];
   let from = 0;
@@ -244,6 +253,8 @@ export const fetchAllVocabulary = async ({
     const { data, error } = await supabase
       .from("vocabulary")
       .select("id, word, translation, frequency")
+      .eq("from_language", targetLanguage)
+      .eq("to_language", translationLanguage)
       .range(from, from + limit - 1);
 
     if (error) {

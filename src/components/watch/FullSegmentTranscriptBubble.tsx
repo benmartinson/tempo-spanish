@@ -12,6 +12,7 @@ import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import TooltipModal from "../common/TooltipModal";
 import { useSelector } from "react-redux";
 import { stripPunctuation, vocabFormatWord } from "../../helpers";
+import { WordInContext } from "../../requests";
 
 interface FullSegmentTranscriptBubbleProps {
   words?: SegmentWord[];
@@ -20,6 +21,7 @@ interface FullSegmentTranscriptBubbleProps {
   mode?: "video" | "shadow"; // default 'video'
   currentTargetIndex?: number; // for shadow mode - the word user is attempting
   showFullText?: boolean;
+  wordsInContext?: WordInContext[];
 }
 
 const LINE_HEIGHT = 28;
@@ -35,6 +37,7 @@ const FullSegmentTranscriptBubble: React.FC<
   mode = "video",
   currentTargetIndex = 0,
   showFullText = false,
+  wordsInContext = [],
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
@@ -200,9 +203,15 @@ const FullSegmentTranscriptBubble: React.FC<
         <Text style={styles.tooltipWord}>{tooltipWord?.word}</Text>
         <Text style={styles.tooltipTranslation}>
           {tooltipWord?.word
-            ? allVocabulary[
-                stripPunctuation(tooltipWord?.word.toLowerCase()).trim()
-              ].translation
+            ? wordsInContext.find(
+                (w) =>
+                  stripPunctuation(w.word.toLowerCase()).trim() ===
+                  stripPunctuation(tooltipWord.word.toLowerCase()).trim(),
+              )?.translation ||
+              allVocabulary[
+                stripPunctuation(tooltipWord.word.toLowerCase()).trim()
+              ]?.translation ||
+              ""
             : ""}
         </Text>
       </TooltipModal>

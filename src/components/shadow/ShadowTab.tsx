@@ -52,7 +52,7 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 import FeaturedVocab from "../watch/FeaturedVocab";
 import Foundation from "@expo/vector-icons/Foundation";
 import FocusSentenceRequest from "./FocusSentenceRequest";
-import { fetchTranslationInsights, persistUserSettings } from "../../requests";
+import { persistUserSettings, WordInContext } from "../../requests";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 
@@ -71,6 +71,9 @@ interface ShadowTabProps {
   hintWords: SegmentWord[];
   onPlayClip?: (time: number) => void;
   playerIsPlaying: boolean;
+  isLoadingInsights: boolean;
+  orderedCharacters: string[];
+  wordsInContext: WordInContext[];
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -88,6 +91,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   hintWords,
   onPlayClip,
   playerIsPlaying,
+  isLoadingInsights,
+  orderedCharacters,
+  wordsInContext,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
@@ -133,8 +139,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [isTrimmingAudio, setIsTrimmingAudio] = useState<boolean>(false);
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
-  const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(true);
-  const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -218,81 +222,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   };
 
-  const orderCharactersByAppearance = (properNouns: string[], text: string) => {
-    const textWords = text.split(/\s+/);
-    const ordered: string[] = [];
-    for (const word of textWords) {
-      const cleanWord = word.replace(/[.,!?¿¡;:"""''()]/g, "");
-      for (const noun of properNouns) {
-        if (cleanWord.toLowerCase() === noun.toLowerCase()) {
-          ordered.push(noun);
-        }
-      }
-    }
-    return ordered;
-  };
-
-  const loadTranslationInsights = useCallback(async () => {
-    if (!currentSentenceObject?.text || !supabase || !currentVideo) {
-      setOrderedCharacters([]);
-      return;
-    }
-
-    setIsLoadingInsights(true);
-    setOrderedCharacters([]);
-
-    try {
-      // Check Supabase cache first
-      const { data: cached, error: cacheError } = await supabase
-        .from("sentence_insights")
-        .select("proper_nouns")
-        .eq("video_id", parseInt(currentVideo.recordId))
-        .eq("sentence_index", currentSentenceIndex)
-        .single();
-
-      if (!cacheError && cached?.proper_nouns) {
-        const ordered = orderCharactersByAppearance(
-          cached.proper_nouns,
-          currentSentenceObject.text,
-        );
-        setOrderedCharacters(ordered);
-        return;
-      }
-
-      // Fetch from backend
-      const result = await fetchTranslationInsights({
-        text: currentSentenceObject.text,
-      });
-
-      if (result && result.properNouns.length > 0) {
-        // Save to Supabase for future lookups
-        await supabase.from("sentence_insights").upsert(
-          {
-            video_id: parseInt(currentVideo.recordId),
-            sentence_index: currentSentenceIndex,
-            proper_nouns: result.properNouns,
-          },
-          { onConflict: "video_id,sentence_index" },
-        );
-
-        const ordered = orderCharactersByAppearance(
-          result.properNouns,
-          currentSentenceObject.text,
-        );
-        setOrderedCharacters(ordered);
-      }
-    } catch (err) {
-      console.error("Failed to load translation insights:", err);
-    } finally {
-      setIsLoadingInsights(false);
-    }
-  }, [
-    currentSentenceObject?.text,
-    supabase,
-    currentVideo,
-    currentSentenceIndex,
-  ]);
-
   useEffect(() => {
     if (isLoadingInsights) return;
     loadExistingShadowResult();
@@ -305,7 +234,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
-    loadTranslationInsights();
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -571,7 +499,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handlePlaySnippetSlow = () => {
-
     setJustRecorded();
     setPlayerSpeed(0.8);
     setIsRecordingMode(false);

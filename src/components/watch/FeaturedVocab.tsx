@@ -175,7 +175,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
           </View>
 
           <Text style={styles.translation}>
-            {capitalize(vocabWord.translation)}
+            {capitalize(word.contextTranslation || vocabWord.translation)}
           </Text>
         </View>
         <View style={styles.buttonsContainer}>

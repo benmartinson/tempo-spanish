@@ -159,6 +159,7 @@ export interface SegmentWord {
   end: number;
   frequency: number;
   isKnown?: boolean;
+  contextTranslation?: string;
 }
 
 export interface KeyVocabulary {

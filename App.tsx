@@ -159,6 +159,7 @@ const AuthenticatedApp: React.FC = () => {
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const userSettings = useSelector((state: RootState) => state.userSettings);
   const [selectedNavTab, setSelectedNavTab] = useState<
     "watch" | "shadow" | "review"
   >("watch");
@@ -183,7 +184,11 @@ const AuthenticatedApp: React.FC = () => {
     if (!supabase) return;
 
     // Fetch all vocabulary
-    fetchAllVocabulary({ supabase }).then((allVocab) => {
+    fetchAllVocabulary({
+      supabase,
+      targetLanguage: userSettings.targetLanguage,
+      translationLanguage: userSettings.translationLanguage,
+    }).then((allVocab) => {
       const vocabHash = createVocabHash(allVocab);
       dispatch(setAllVocabulary(vocabHash));
     });
@@ -226,7 +231,13 @@ const AuthenticatedApp: React.FC = () => {
     };
 
     restoreState();
-  }, [supabase, dispatch, userId]);
+  }, [
+    supabase,
+    dispatch,
+    userId,
+    userSettings.targetLanguage,
+    userSettings.translationLanguage,
+  ]);
 
   const showTabsBelow = false;
 

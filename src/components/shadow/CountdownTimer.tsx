@@ -83,7 +83,6 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
 
   // Pre-recording countdown (3, 2, 1)
   useEffect(() => {
-    console.log({ phase, countdown });
     if (phase !== "countdown") return;
     if (countdown <= 0) {
       // Start recording when countdown reaches 0

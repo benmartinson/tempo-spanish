@@ -97,6 +97,10 @@ const LanguageModal: React.FC<{
               ]}
               onPress={() => {
                 setDraftTarget(lang.code);
+                if (lang.code === draftTranslation) {
+                  const other = LANGUAGE_OPTIONS.find((l) => l.code !== lang.code);
+                  if (other) setDraftTranslation(other.code);
+                }
                 setTargetDropdownOpen(false);
               }}
             >
@@ -131,7 +135,7 @@ const LanguageModal: React.FC<{
           />
         </TouchableOpacity>
         {translationDropdownOpen &&
-          LANGUAGE_OPTIONS.map((lang) => (
+          LANGUAGE_OPTIONS.filter((lang) => lang.code !== draftTarget).map((lang) => (
             <TouchableOpacity
               key={`translation-${lang.code}`}
               style={[
