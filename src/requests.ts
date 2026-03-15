@@ -187,6 +187,36 @@ export const fetchTranslationInsights = async ({
   };
 };
 
+export const evaluateTranslation = async ({
+  sentenceText,
+  translation,
+  translationLanguage,
+  userTranslation,
+}: {
+  sentenceText: string;
+  translation: string;
+  translationLanguage: string;
+  userTranslation: string;
+}): Promise<{ score: number } | null> => {
+  const response = await fetch(`${BACKEND_BASE_URL}/evaluate-translation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sentence_text: sentenceText,
+      translation,
+      translation_language: translationLanguage,
+      user_translation: userTranslation,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error evaluating translation: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return { score: data.score };
+};
+
 export interface FetchAllVideosParams {
   supabase: any;
 }

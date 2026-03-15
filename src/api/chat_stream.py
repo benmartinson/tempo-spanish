@@ -208,6 +208,13 @@ class TranslationInsightsRequest(BaseModel):
     language: str = "en"
 
 
+class EvaluateTranslationRequest(BaseModel):
+    sentence_text: str
+    translation: str
+    translation_language: str
+    user_translation: str
+
+
 class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
@@ -845,6 +852,60 @@ Identify all proper nouns (character names, place names, or any word that requir
         }
     except Exception as e:
         print(f"Error extracting translation insights: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/evaluate-translation")
+async def evaluate_translation(request: EvaluateTranslationRequest):
+    """
+    Evaluate a user's translation attempt against the correct translation.
+    Returns an accuracy score from 0-100.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    try:
+        user_prompt = f"""Original sentence: "{request.sentence_text}"
+Correct translation ({request.translation_language}): "{request.translation}"
+User's translation attempt: "{request.user_translation}"
+
+Score the user's translation from 0 to 100 based on how accurately it captures the meaning of the original sentence. Consider semantic accuracy, not exact wording."""
+
+        messages = [
+            {"role": "system", "content": "You are a translation grading assistant. Score the user's translation attempt from 0 to 100 based on semantic accuracy. Be fair but not overly strict — accept paraphrases that capture the same meaning. Output ONLY valid JSON."},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=100,
+            temperature=0.3,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "translation_score_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["score"],
+                        "properties": {
+                            "score": {"type": "integer"}
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
+
+        result = json.loads(response.choices[0].message.content.strip())
+
+        return {
+            "score": result["score"],
+            "status": "complete"
+        }
+    except Exception as e:
+        print(f"Error evaluating translation: {e}")
         return {"error": str(e)}
 
 

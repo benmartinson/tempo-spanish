@@ -567,6 +567,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           playerIsPlaying={playerIsPlaying}
           isLoadingInsights={isLoadingInsights}
           orderedCharacters={orderedCharacters}
+          sentenceTranslation={sentenceTranslation}
         />
       </View>
 

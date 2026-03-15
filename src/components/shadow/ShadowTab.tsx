@@ -73,6 +73,7 @@ interface ShadowTabProps {
   playerIsPlaying: boolean;
   isLoadingInsights: boolean;
   orderedCharacters: string[];
+  sentenceTranslation: string | null;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -92,6 +93,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   playerIsPlaying,
   isLoadingInsights,
   orderedCharacters,
+  sentenceTranslation,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
@@ -614,6 +616,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 sentenceText={currentSentenceObject?.text}
                 segmentIndex={currentSentenceIndex}
                 videoViewId={currentVideo.videoViewId}
+                sentenceTranslation={sentenceTranslation}
+                isLoadingTranslation={isLoadingInsights}
               />
               <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
                 <MaterialIcons name="settings" size={32} color="#222222" />
