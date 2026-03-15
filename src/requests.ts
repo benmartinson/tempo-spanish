@@ -186,7 +186,6 @@ export const fetchTranslationInsights = async ({
   }
 
   const data = await response.json();
-  console.log("Translation insights response:", data);
   return {
     properNouns: data.proper_nouns,
     wordsInContext: data.words_in_context || [],

@@ -231,13 +231,7 @@ const AuthenticatedApp: React.FC = () => {
     };
 
     restoreState();
-  }, [
-    supabase,
-    dispatch,
-    userId,
-    userSettings.targetLanguage,
-    userSettings.translationLanguage,
-  ]);
+  }, [supabase, dispatch, userId, userSettings.targetLanguage]);
 
   const showTabsBelow = false;
 

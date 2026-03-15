@@ -186,8 +186,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         .eq("sentence_index", currentSentenceIndex)
         .maybeSingle()) as { data: any; error: any };
 
-      console.log("Cache result:", cached, cacheError);
-
       if (!cacheError && cached) {
         if (cached.proper_nouns) {
           const ordered = orderCharactersByAppearance(
@@ -209,7 +207,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         text: currentSentenceObject.text,
         language: translationLanguage,
       });
-      console.log("Fetched translation insights:", result);
 
       if (result) {
         // Save to Supabase for future lookups
@@ -243,11 +240,15 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     currentVideo,
     currentSentenceIndex,
     translationLanguage,
+    wordsInContextColumn,
   ]);
 
   useEffect(() => {
+    if (!userSettings.translationLanguage || !currentSentenceIndex) {
+      return;
+    }
     loadTranslationInsights();
-  }, [currentSentenceIndex]);
+  }, [currentSentenceIndex, userSettings.translationLanguage]);
 
   useEffect(() => {
     refreshPlayer();

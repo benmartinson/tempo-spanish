@@ -31,7 +31,6 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
 
   const handlePress = async () => {
     if (isMarked) {
-      console.log("Removing marked sentence", markedId, videoViewId);
       const { data, error } = await supabase
         .from("video_view_focus_sentence")
         .delete()

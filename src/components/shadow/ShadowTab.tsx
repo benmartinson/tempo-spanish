@@ -277,7 +277,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           audioUri,
           userSettings.targetLanguage,
         );
-        console.log("Transcription result:", transcriptionResult);
         const spokenWords = transcriptionResult.transcript
           .split(/\s+/)
           .filter(Boolean);

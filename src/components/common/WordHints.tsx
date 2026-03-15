@@ -24,6 +24,7 @@ const WordHints: React.FC<WordHintsProps> = ({
 }) => {
   const [currentHintIndex, setCurrentHintIndex] = useState<number>(0);
   const currentHintWord = hintWords[currentHintIndex];
+  console.log({ currentHintWord, currentHintIndex });
   const [isShowingWordHints, setIsShowingWordHints] =
     useState<boolean>(showWordHints);
 
