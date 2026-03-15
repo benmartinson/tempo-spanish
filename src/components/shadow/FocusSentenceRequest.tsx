@@ -15,7 +15,7 @@ import {
   removeFocusSentence,
 } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SlideModal from "../common/Modal";
 import { evaluateTranslation } from "../../requests";
 
@@ -48,6 +48,13 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [showTranslation, setShowTranslation] = useState(false);
+
+  useEffect(() => {
+    setUserTranslation("");
+    setIsEvaluating(false);
+    setScore(null);
+    setShowTranslation(false);
+  }, [modalVisible]);
 
   const handlePress = async () => {
     if (isMarked) {
@@ -142,8 +149,6 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
     setIsEvaluating(false);
   };
 
-  const submitted = score !== null;
-
   return (
     <>
       <TouchableOpacity style={styles.container} onPress={handlePress}>
@@ -229,22 +234,26 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.translationResult}>
-              <View style={styles.scoreCard}>
-                <Text style={styles.scoreLabel}>Your answer was judged as</Text>
-                <Text style={styles.scoreValue}>{score}%</Text>
-                <Text style={styles.scoreLabel}>correct</Text>
+            score !== null && (
+              <View style={styles.translationResult}>
+                <View style={styles.scoreCard}>
+                  <Text style={styles.scoreLabel}>
+                    Your answer was judged as
+                  </Text>
+                  <Text style={styles.scoreValue}>{score}%</Text>
+                  <Text style={styles.scoreLabel}>correct</Text>
+                </View>
+                <Text style={styles.tryAgainText}>Try again!</Text>
+                <TouchableOpacity
+                  style={styles.showTranslationButton}
+                  onPress={handleShowTranslation}
+                >
+                  <Text style={styles.showTranslationButtonText}>
+                    Show Translation
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.tryAgainText}>Try again!</Text>
-              <TouchableOpacity
-                style={styles.showTranslationButton}
-                onPress={handleShowTranslation}
-              >
-                <Text style={styles.showTranslationButtonText}>
-                  Show Translation
-                </Text>
-              </TouchableOpacity>
-            </View>
+            )
           )}
         </View>
       </SlideModal>
@@ -366,13 +375,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   showTranslationButton: {
-    flex: 1,
     backgroundColor: "#f0f0f0",
     paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 12,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#ddd",
+    marginTop: 8,
   },
   showTranslationButtonText: {
     color: "#555",
