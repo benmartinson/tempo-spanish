@@ -784,37 +784,6 @@ User's answer: {request.user_answer}
         return {"error": str(e)}
 
 
-def translate_words_in_context(text: str, target_language: str = "en") -> list[dict]:
-    """
-    For each word in the sentence, mark it with <x> tags, translate the full
-    sentence via Google Translate, then extract the marked word's translation.
-    Uses deep_translator's batch translation.
-    """
-    words = text.split()
-    if not words:
-        return []
-
-    # Build marked variants: "Ella <x>tiene</x> un gato"
-    marked_sentences = []
-    for i, word in enumerate(words):
-        parts = words[:i] + [f"<x>{word}</x>"] + words[i + 1:]
-        marked_sentences.append(" ".join(parts))
-
-    translator = GoogleTranslator(source="es", target=target_language)
-    translations = translator.translate_batch(marked_sentences)
-
-    results = []
-    for i, translated_text in enumerate(translations):
-        match = re.search(r"<x>(.*?)</x>", translated_text)
-        translated_word = match.group(1).strip() if match else ""
-        results.append({
-            "word": words[i],
-            "translation": translated_word,
-        })
-
-    return results
-
-
 @app.post("/translation-insights")
 async def translation_insights(request: TranslationInsightsRequest):
     """
@@ -861,14 +830,17 @@ Identify all proper nouns (character names, place names, or any word that requir
 
         result = json.loads(response.choices[0].message.content.strip())
 
-        # Translate each word in context
-        words_in_context = await asyncio.to_thread(
-            translate_words_in_context, request.text, request.language
-        )
+        # Translate the full sentence using Google Translate
+        translation = None
+        try:
+            translator = GoogleTranslator(source='auto', target=request.language)
+            translation = translator.translate(request.text)
+        except Exception as translate_err:
+            print(f"Error translating sentence: {translate_err}")
 
         return {
             "proper_nouns": result["proper_nouns"],
-            "words_in_context": words_in_context,
+            "translation": translation,
             "status": "complete"
         }
     except Exception as e:

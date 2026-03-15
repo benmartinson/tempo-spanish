@@ -52,7 +52,7 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 import FeaturedVocab from "../watch/FeaturedVocab";
 import Foundation from "@expo/vector-icons/Foundation";
 import FocusSentenceRequest from "./FocusSentenceRequest";
-import { persistUserSettings, WordInContext } from "../../requests";
+import { persistUserSettings } from "../../requests";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 
@@ -73,7 +73,6 @@ interface ShadowTabProps {
   playerIsPlaying: boolean;
   isLoadingInsights: boolean;
   orderedCharacters: string[];
-  wordsInContext: WordInContext[];
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -93,7 +92,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   playerIsPlaying,
   isLoadingInsights,
   orderedCharacters,
-  wordsInContext,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 

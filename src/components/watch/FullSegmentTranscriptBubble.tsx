@@ -11,8 +11,7 @@ import { RootState, SegmentWord } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import TooltipModal from "../common/TooltipModal";
 import { useSelector } from "react-redux";
-import { stripPunctuation, vocabFormatWord } from "../../helpers";
-import { WordInContext } from "../../requests";
+import { vocabFormatWord } from "../../helpers";
 
 interface FullSegmentTranscriptBubbleProps {
   words?: SegmentWord[];
@@ -21,7 +20,6 @@ interface FullSegmentTranscriptBubbleProps {
   mode?: "video" | "shadow"; // default 'video'
   currentTargetIndex?: number; // for shadow mode - the word user is attempting
   showFullText?: boolean;
-  wordsInContext?: WordInContext[];
 }
 
 const LINE_HEIGHT = 28;
@@ -37,7 +35,6 @@ const FullSegmentTranscriptBubble: React.FC<
   mode = "video",
   currentTargetIndex = 0,
   showFullText = false,
-  wordsInContext = [],
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
@@ -54,23 +51,18 @@ const FullSegmentTranscriptBubble: React.FC<
         /[.,\/#!$%\^&\*;:{}=\-_`~()]/g,
         "",
       );
-      const contextMatch = wordsInContext.find(
-        (w) =>
-          stripPunctuation(w.word.toLowerCase()).trim() ===
-          stripPunctuation(cleanWordText.toLowerCase()).trim(),
-      );
       const vocabulary = word.word
         ? allVocabulary[vocabFormatWord(word.word)]
         : null;
 
-      if (contextMatch || vocabulary) {
+      if (vocabulary) {
         setTooltipWord({
           ...word,
           word: cleanWordText,
         });
       }
     },
-    [wordsInContext, allVocabulary],
+    [allVocabulary],
   );
 
   const hideTooltip = useCallback(() => {
@@ -203,7 +195,7 @@ const FullSegmentTranscriptBubble: React.FC<
           );
         })}
       </ScrollView>
-      <TooltipModal
+      {/* <TooltipModal
         isVisible={tooltipWord !== null}
         onRequestClose={hideTooltip}
       >
@@ -221,7 +213,7 @@ const FullSegmentTranscriptBubble: React.FC<
               ""
             : ""}
         </Text>
-      </TooltipModal>
+      </TooltipModal> */}
     </View>
   );
 };

@@ -174,11 +174,11 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
             </TouchableOpacity>
           </View>
 
-          {word.contextTranslation && (
+          {/* {word.contextTranslation && (
             <Text style={styles.translation}>
               {capitalize(word.contextTranslation)}
             </Text>
-          )}
+          )} */}
         </View>
         <View style={styles.buttonsContainer}>
           <Pressable

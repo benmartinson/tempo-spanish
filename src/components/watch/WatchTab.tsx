@@ -19,7 +19,6 @@ import {
   ignoreVocab,
   autoSelectVocabForVideo,
 } from "../../helpers";
-import { WordInContext } from "../../requests";
 import TooltipModal from "../common/TooltipModal";
 import WordHints from "../common/WordHints";
 import ToggleHeader from "../common/ToggleHeader";
@@ -44,7 +43,6 @@ interface WatchTabProps {
   handlePreviousSentence: () => void;
   onPlayClip: (time: number) => void;
   playSentence: () => void;
-  wordsInContext: WordInContext[];
 }
 
 const WatchTab: React.FC<WatchTabProps> = ({
@@ -65,7 +63,6 @@ const WatchTab: React.FC<WatchTabProps> = ({
   resumePlayer,
   playerIsPlaying,
   setPlayerSpeed,
-  wordsInContext,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -147,7 +144,6 @@ const WatchTab: React.FC<WatchTabProps> = ({
                 <FullSegmentTranscriptBubble
                   words={currentSentence.words || []}
                   time={time}
-                  wordsInContext={wordsInContext}
                 />
               )}
             </View>

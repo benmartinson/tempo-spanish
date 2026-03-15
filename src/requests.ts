@@ -161,14 +161,9 @@ export interface FetchTranslationInsightsParams {
   language: string;
 }
 
-export interface WordInContext {
-  word: string;
-  translation: string;
-}
-
 export interface TranslationInsightsResult {
   properNouns: string[];
-  wordsInContext: WordInContext[];
+  translation: string | null;
 }
 
 export const fetchTranslationInsights = async ({
@@ -188,7 +183,7 @@ export const fetchTranslationInsights = async ({
   const data = await response.json();
   return {
     properNouns: data.proper_nouns,
-    wordsInContext: data.words_in_context || [],
+    translation: data.translation,
   };
 };
 
