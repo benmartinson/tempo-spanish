@@ -48,23 +48,30 @@ const FullSegmentTranscriptBubble: React.FC<
   const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
-  const handleLongPress = useCallback((word: SegmentWord) => {
-    const vocabulary = word.word
-      ? allVocabulary[vocabFormatWord(word.word)]
-      : null;
-    if (vocabulary) {
-      // Strip punctuation for display in tooltip
-      const cleanWord = {
-        ...word,
-        word: word.word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ""),
-        translation: vocabulary.translation.replace(
-          /[.,\/#!$%\^&\*;:{}=\-_`~()]/g,
-          "",
-        ),
-      };
-      setTooltipWord(cleanWord);
-    }
-  }, []);
+  const handleLongPress = useCallback(
+    (word: SegmentWord) => {
+      const cleanWordText = word.word.replace(
+        /[.,\/#!$%\^&\*;:{}=\-_`~()]/g,
+        "",
+      );
+      const contextMatch = wordsInContext.find(
+        (w) =>
+          stripPunctuation(w.word.toLowerCase()).trim() ===
+          stripPunctuation(cleanWordText.toLowerCase()).trim(),
+      );
+      const vocabulary = word.word
+        ? allVocabulary[vocabFormatWord(word.word)]
+        : null;
+
+      if (contextMatch || vocabulary) {
+        setTooltipWord({
+          ...word,
+          word: cleanWordText,
+        });
+      }
+    },
+    [wordsInContext, allVocabulary],
+  );
 
   const hideTooltip = useCallback(() => {
     setTooltipWord(null);

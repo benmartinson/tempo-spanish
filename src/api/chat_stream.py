@@ -8,6 +8,7 @@ This server provides:
 Run with: uvicorn src.api.chat_stream:app --host 0.0.0.0 --port 8000 --reload
 """
 
+import asyncio
 import os
 import re
 import base64
@@ -204,6 +205,7 @@ class VocabBasedQuestionRequest(BaseModel):
 
 class TranslationInsightsRequest(BaseModel):
     text: str
+    language: str = "en"
 
 
 class ChatRequest(BaseModel):
@@ -782,7 +784,7 @@ User's answer: {request.user_answer}
         return {"error": str(e)}
 
 
-def translate_words_in_context(text: str) -> list[dict]:
+def translate_words_in_context(text: str, target_language: str = "en") -> list[dict]:
     """
     For each word in the sentence, mark it with <x> tags, translate the full
     sentence via Google Translate, then extract the marked word's translation.
@@ -798,7 +800,7 @@ def translate_words_in_context(text: str) -> list[dict]:
         parts = words[:i] + [f"<x>{word}</x>"] + words[i + 1:]
         marked_sentences.append(" ".join(parts))
 
-    translator = GoogleTranslator(source="es", target="en")
+    translator = GoogleTranslator(source="es", target=target_language)
     translations = translator.translate_batch(marked_sentences)
 
     results = []
@@ -860,7 +862,9 @@ Identify all proper nouns (character names, place names, or any word that requir
         result = json.loads(response.choices[0].message.content.strip())
 
         # Translate each word in context
-        words_in_context = translate_words_in_context(request.text)
+        words_in_context = await asyncio.to_thread(
+            translate_words_in_context, request.text, request.language
+        )
 
         return {
             "proper_nouns": result["proper_nouns"],

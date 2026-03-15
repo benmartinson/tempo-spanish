@@ -13,6 +13,7 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 const LANGUAGE_OPTIONS = [
   { code: "en" as const, label: "English", flag: "🇺🇸" },
   { code: "es" as const, label: "Spanish", flag: "🇲🇽" },
+  { code: "pt" as const, label: "Portuguese", flag: "🇧🇷" },
 ];
 
 const LanguageModal: React.FC<{
@@ -21,8 +22,8 @@ const LanguageModal: React.FC<{
 }> = ({ visible, onClose }) => {
   const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
   const [translationDropdownOpen, setTranslationDropdownOpen] = useState(false);
-  const [draftTarget, setDraftTarget] = useState<"en" | "es">("es");
-  const [draftTranslation, setDraftTranslation] = useState<"en" | "es">("en");
+  const [draftTarget, setDraftTarget] = useState<"en" | "es" | "pt">("es");
+  const [draftTranslation, setDraftTranslation] = useState<"en" | "es" | "pt">("en");
   const { userId } = useAuth();
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -57,7 +58,7 @@ const LanguageModal: React.FC<{
     onClose();
   };
 
-  const getLangOption = (code: "en" | "es") =>
+  const getLangOption = (code: "en" | "es" | "pt") =>
     LANGUAGE_OPTIONS.find((l) => l.code === code)!;
 
   return (

@@ -158,6 +158,7 @@ export const evaluateVocabAnswer = async ({
 
 export interface FetchTranslationInsightsParams {
   text: string;
+  language: string;
 }
 
 export interface WordInContext {
@@ -172,11 +173,12 @@ export interface TranslationInsightsResult {
 
 export const fetchTranslationInsights = async ({
   text,
+  language,
 }: FetchTranslationInsightsParams): Promise<TranslationInsightsResult | null> => {
   const response = await fetch(`${BACKEND_BASE_URL}/translation-insights`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, language }),
   });
 
   if (!response.ok) {

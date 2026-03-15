@@ -3,8 +3,8 @@ export interface UserSettings {
   showWordsHints: boolean;
   showCharacters: boolean;
   showStartsOffAs: boolean;
-  targetLanguage: "en" | "es";
-  translationLanguage: "en" | "es";
+  targetLanguage: "en" | "es" | "pt";
+  translationLanguage: "en" | "es" | "pt";
 }
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
@@ -108,7 +108,7 @@ export interface Channel {
   title: string;
   thumbnail_url: string;
   difficulty: string;
-  language: "en" | "es";
+  language: "en" | "es" | "pt";
 }
 
 export interface Topic {
@@ -261,6 +261,6 @@ export interface UserUIState {
   show_word_hints: boolean | null;
   show_characters: boolean | null;
   show_starts_off_as: boolean | null;
-  target_language: "en" | "es" | null;
-  translation_language: "en" | "es" | null;
+  target_language: "en" | "es" | "pt" | null;
+  translation_language: "en" | "es" | "pt" | null;
 }

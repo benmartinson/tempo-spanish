@@ -105,6 +105,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   // Translation insights state (shared across tabs)
   const supabase = useSupabaseWithClerk();
+  const userSettings = useSelector((state: RootState) => state.userSettings);
+  const translationLanguage = userSettings.translationLanguage;
+  const wordsInContextColumn = `words_in_context_${translationLanguage}`;
   const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(true);
   const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
   const [wordsInContext, setWordsInContext] = useState<WordInContext[]>([]);
@@ -143,7 +146,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             ? stripPunctuation(contextMatch.translation)
             : null,
         };
-      });
+      })
+      .filter((item) => !!item.contextTranslation);
 
     return result;
   }, [currentSentenceObject, userKnownVocab, allVocabulary, wordsInContext]);
@@ -175,12 +179,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
     try {
       // Check Supabase cache first
-      const { data: cached, error: cacheError } = await supabase
+      const { data: cached, error: cacheError } = (await supabase
         .from("sentence_insights")
-        .select("proper_nouns, words_in_context")
+        .select(`proper_nouns, ${wordsInContextColumn}`)
         .eq("video_id", parseInt(currentVideo.recordId))
         .eq("sentence_index", currentSentenceIndex)
-        .single();
+        .maybeSingle()) as { data: any; error: any };
+
+      console.log("Cache result:", cached, cacheError);
 
       if (!cacheError && cached) {
         if (cached.proper_nouns) {
@@ -190,10 +196,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           );
           setOrderedCharacters(ordered);
         }
-        if (cached.words_in_context) {
-          setWordsInContext(cached.words_in_context);
+        if (cached[wordsInContextColumn]) {
+          setWordsInContext(cached[wordsInContextColumn]);
         }
-        if (cached.proper_nouns || cached.words_in_context) {
+        if (cached.proper_nouns && cached[wordsInContextColumn]) {
           return;
         }
       }
@@ -201,7 +207,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       // Fetch from backend
       const result = await fetchTranslationInsights({
         text: currentSentenceObject.text,
+        language: translationLanguage,
       });
+      console.log("Fetched translation insights:", result);
 
       if (result) {
         // Save to Supabase for future lookups
@@ -210,7 +218,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             video_id: parseInt(currentVideo.recordId),
             sentence_index: currentSentenceIndex,
             proper_nouns: result.properNouns,
-            words_in_context: result.wordsInContext,
+            [wordsInContextColumn]: result.wordsInContext,
           },
           { onConflict: "video_id,sentence_index" },
         );
@@ -234,6 +242,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     supabase,
     currentVideo,
     currentSentenceIndex,
+    translationLanguage,
   ]);
 
   useEffect(() => {
@@ -463,7 +472,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     let vocabulary = null;
     if (match) {
       vocabulary = allVocabulary[vocabFormatWord(topHintWord.word)];
-      const translation = topHintWord.contextTranslation || vocabulary.translation;
+      const translation =
+        topHintWord.contextTranslation || vocabulary.translation;
       return `${capitalize(topHintWord.word)} => ${capitalize(translation)}`;
     }
 
