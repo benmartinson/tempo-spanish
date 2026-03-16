@@ -426,6 +426,46 @@ export const restoreUserUIState = async ({
   }
 };
 
+export const saveLastSentenceWatched = async ({
+  supabase,
+  videoViewId,
+  currentSentence,
+}: {
+  supabase: any;
+  videoViewId: number;
+  currentSentence: number;
+}): Promise<void> => {
+  if (!supabase || !videoViewId) return;
+
+  const { error } = await supabase
+    .from("video_views")
+    .update({ last_sentence_watched: currentSentence })
+    .eq("id", videoViewId);
+
+  if (error) console.error("Error saving last_sentence_watched:", error);
+};
+
+export const persistVideoUnselection = async ({
+  supabase,
+  userId,
+}: {
+  supabase: any;
+  userId: string | null;
+}): Promise<void> => {
+  if (!supabase || !userId) return;
+
+  const { error } = await supabase.from("user_ui_state").upsert(
+    {
+      user_id: userId,
+      current_video: null,
+      updated_at: new Date(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) console.error("Error persisting video unselection:", error);
+};
+
 export interface PersistUserUITabParams {
   supabase: any;
   userId: string | null;

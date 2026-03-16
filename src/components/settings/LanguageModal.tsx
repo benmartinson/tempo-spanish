@@ -7,8 +7,9 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import SlideModal from "../common/Modal";
 import { RootState } from "../../types";
 import { setUserSettings } from "../../store/actions/dataActions";
-import { persistUserSettings } from "../../requests";
+import { persistUserSettings, persistVideoUnselection } from "../../requests";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
+import { setCurrentVideo } from "../../store/actions/dataActions";
 
 const LANGUAGE_OPTIONS = [
   { code: "en" as const, label: "English", flag: "🇺🇸" },
@@ -23,7 +24,9 @@ const LanguageModal: React.FC<{
   const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
   const [translationDropdownOpen, setTranslationDropdownOpen] = useState(false);
   const [draftTarget, setDraftTarget] = useState<"en" | "es" | "pt">("es");
-  const [draftTranslation, setDraftTranslation] = useState<"en" | "es" | "pt">("en");
+  const [draftTranslation, setDraftTranslation] = useState<"en" | "es" | "pt">(
+    "en",
+  );
   const { userId } = useAuth();
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -40,7 +43,8 @@ const LanguageModal: React.FC<{
     if (visible) onOpen();
   }, [visible]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const targetChanged = draftTarget !== userSettings.targetLanguage;
     const newSettings = {
       ...userSettings,
       targetLanguage: draftTarget,
@@ -55,6 +59,10 @@ const LanguageModal: React.FC<{
         translationLanguage: draftTranslation,
       },
     });
+    if (targetChanged) {
+      await persistVideoUnselection({ supabase, userId: userId ?? null });
+      dispatch(setCurrentVideo(null));
+    }
     onClose();
   };
 
@@ -99,7 +107,9 @@ const LanguageModal: React.FC<{
               onPress={() => {
                 setDraftTarget(lang.code);
                 if (lang.code === draftTranslation) {
-                  const other = LANGUAGE_OPTIONS.find((l) => l.code !== lang.code);
+                  const other = LANGUAGE_OPTIONS.find(
+                    (l) => l.code !== lang.code,
+                  );
                   if (other) setDraftTranslation(other.code);
                 }
                 setTargetDropdownOpen(false);
@@ -136,25 +146,27 @@ const LanguageModal: React.FC<{
           />
         </TouchableOpacity>
         {translationDropdownOpen &&
-          LANGUAGE_OPTIONS.filter((lang) => lang.code !== draftTarget).map((lang) => (
-            <TouchableOpacity
-              key={`translation-${lang.code}`}
-              style={[
-                styles.dropdownItem,
-                draftTranslation === lang.code && styles.dropdownItemSelected,
-              ]}
-              onPress={() => {
-                setDraftTranslation(lang.code);
-                setTranslationDropdownOpen(false);
-              }}
-            >
-              <Text style={styles.languageOptionFlag}>{lang.flag}</Text>
-              <Text style={styles.languageOptionLabel}>{lang.label}</Text>
-              {draftTranslation === lang.code && (
-                <Ionicons name="checkmark" size={20} color="#4a90d9" />
-              )}
-            </TouchableOpacity>
-          ))}
+          LANGUAGE_OPTIONS.filter((lang) => lang.code !== draftTarget).map(
+            (lang) => (
+              <TouchableOpacity
+                key={`translation-${lang.code}`}
+                style={[
+                  styles.dropdownItem,
+                  draftTranslation === lang.code && styles.dropdownItemSelected,
+                ]}
+                onPress={() => {
+                  setDraftTranslation(lang.code);
+                  setTranslationDropdownOpen(false);
+                }}
+              >
+                <Text style={styles.languageOptionFlag}>{lang.flag}</Text>
+                <Text style={styles.languageOptionLabel}>{lang.label}</Text>
+                {draftTranslation === lang.code && (
+                  <Ionicons name="checkmark" size={20} color="#4a90d9" />
+                )}
+              </TouchableOpacity>
+            ),
+          )}
 
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
