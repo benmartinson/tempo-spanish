@@ -37,6 +37,8 @@ interface FeaturedVocabProps {
   isPlayingWordSnippet?: boolean;
   handleWordHintChange: (direction: number) => void;
   showSlowPlay?: boolean;
+  onReplaySentence?: () => void;
+  playerIsPlaying?: boolean;
 }
 
 const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
@@ -45,6 +47,8 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   isPlayingWordSnippet,
   handleWordHintChange,
   showSlowPlay = true,
+  onReplaySentence,
+  playerIsPlaying = false,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
@@ -163,6 +167,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
     if (isSelectedForReview) {
       handleUnselectForReview(word);
     } else {
+      saveSelectForReview();
       setModalVisible(true);
     }
   };
@@ -184,7 +189,6 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
 
       if (result) {
         setEvalResult(result);
-        await saveSelectForReview();
       }
     } catch (err) {
       console.error("Error evaluating vocab answer:", err);
@@ -291,21 +295,46 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
       <SlideModal
         visible={modalVisible}
         onRequestClose={handleCloseModal}
-        title="Vocab Quiz"
+        title="Guess the Meaning"
       >
         <View style={modalStyles.content}>
           <Text style={modalStyles.vocabWord}>
             {capitalize(vocabWord?.word || word.word)}
           </Text>
 
-          <Text style={modalStyles.contextLabel}>In context:</Text>
+          {/* <Text style={modalStyles.contextLabel}>In context:</Text>
           <Text style={modalStyles.contextText}>
             {currentSentenceObject?.text}
-          </Text>
+          </Text> */}
 
           <Text style={modalStyles.questionText}>
             What does this word mean in the context of the clip segment?
           </Text>
+
+          {onReplaySentence && (
+            <TouchableOpacity
+              style={[
+                modalStyles.replayButton,
+                playerIsPlaying && modalStyles.replayButtonDisabled,
+              ]}
+              onPress={onReplaySentence}
+              disabled={playerIsPlaying}
+            >
+              <MaterialIcons
+                name="replay"
+                size={20}
+                color={playerIsPlaying ? "#aaa" : "#4a69bd"}
+              />
+              <Text
+                style={[
+                  modalStyles.replayButtonText,
+                  playerIsPlaying && { color: "#aaa" },
+                ]}
+              >
+                Replay
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <View style={modalStyles.inputWrapper}>
             <TextInput
@@ -349,21 +378,6 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
               >
                 <Text style={modalStyles.scoreText}>Correct!</Text>
               </View>
-              <Text style={modalStyles.markedText}>
-                This word is selected for later review!
-              </Text>
-              <TouchableOpacity
-                style={modalStyles.closeButton}
-                onPress={handleCloseModal}
-              >
-                <Text style={modalStyles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          ) : evalResult?.score === "incorrect" ? (
-            <View style={modalStyles.resultContainer}>
-              <View style={modalStyles.scoreCard}>
-                <Text style={modalStyles.scoreTextIncorrect}>Incorrect</Text>
-              </View>
               <View style={modalStyles.acceptedAnswersContainer}>
                 <Text style={modalStyles.acceptedAnswersLabel}>
                   Accepted answers:
@@ -385,16 +399,32 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity
-              style={[
-                modalStyles.submitButton,
-                !userAnswer.trim() && modalStyles.submitButtonDisabled,
-              ]}
-              onPress={handleSubmitVocabAnswer}
-              disabled={!userAnswer.trim()}
-            >
-              <Text style={modalStyles.submitButtonText}>Submit</Text>
-            </TouchableOpacity>
+            evalResult?.score === "incorrect" && (
+              <View style={modalStyles.resultContainer}>
+                <View style={modalStyles.scoreCard}>
+                  <Text style={modalStyles.scoreTextIncorrect}>Incorrect</Text>
+                </View>
+                <View style={modalStyles.acceptedAnswersContainer}>
+                  <Text style={modalStyles.acceptedAnswersLabel}>
+                    Accepted answers:
+                  </Text>
+                  {evalResult.acceptedAnswers.map((answer, i) => (
+                    <Text key={i} style={modalStyles.acceptedAnswer}>
+                      {answer}
+                    </Text>
+                  ))}
+                </View>
+                <Text style={modalStyles.markedText}>
+                  This word is selected for later review!
+                </Text>
+                <TouchableOpacity
+                  style={modalStyles.closeButton}
+                  onPress={handleCloseModal}
+                >
+                  <Text style={modalStyles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            )
           )}
         </View>
       </SlideModal>
@@ -533,6 +563,27 @@ const modalStyles = StyleSheet.create({
   questionText: {
     fontSize: 16,
     color: "#555",
+  },
+  replayButton: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    alignSelf: "flex-start" as const,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#4a69bd",
+    backgroundColor: "#f0f4ff",
+  },
+  replayButtonDisabled: {
+    borderColor: "#ddd",
+    backgroundColor: "#f5f5f5",
+  },
+  replayButtonText: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: "#4a69bd",
   },
   inputWrapper: {
     position: "relative",

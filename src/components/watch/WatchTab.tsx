@@ -156,6 +156,8 @@ const WatchTab: React.FC<WatchTabProps> = ({
               showSwitcher={false}
               showWordHints={false}
               showSlowPlay={false}
+              onReplaySentence={handleReplay}
+              playerIsPlaying={playerIsPlaying}
             />
           )}
         </ScrollView>

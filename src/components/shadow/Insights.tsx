@@ -13,6 +13,8 @@ interface InsightsProps {
   hintWords: SegmentWord[];
   handlePlayWordSnippet: (word: SegmentWord, isSlow?: boolean) => void;
   isPlayingWordSnippet: boolean;
+  onReplaySentence?: () => void;
+  playerIsPlaying?: boolean;
 }
 
 const Insights: React.FC<InsightsProps> = ({
@@ -22,6 +24,8 @@ const Insights: React.FC<InsightsProps> = ({
   hintWords,
   handlePlayWordSnippet,
   isPlayingWordSnippet,
+  onReplaySentence,
+  playerIsPlaying,
 }) => {
   const { showWordsHints, showCharacters, showStartsOffAs } = useSelector(
     (state: RootState) => state.userSettings,
@@ -87,6 +91,8 @@ const Insights: React.FC<InsightsProps> = ({
           handlePlayWordSnippet={handlePlayWordSnippet}
           isPlayingWordSnippet={isPlayingWordSnippet}
           showWordHints={showWordsHints}
+          onReplaySentence={onReplaySentence}
+          playerIsPlaying={playerIsPlaying}
         />
       )}
       <>

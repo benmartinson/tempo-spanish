@@ -357,14 +357,14 @@ export const areWordsSimilar = (word1: string, word2: string) => {
 };
 
 export const isInterestingVocab = (vocab: Vocabulary) => {
-  const normalizedWord = stripPunctuation(vocab.word.toLowerCase()).trim();
-  const normalizedTranslation = stripPunctuation(
-    vocab.translation.toLowerCase(),
-  );
+  // const normalizedWord = stripPunctuation(vocab.word.toLowerCase()).trim();
+  // const normalizedTranslation = stripPunctuation(
+  //   vocab.translation.toLowerCase(),
+  // );
 
   return (
     vocab.word.length > 3 &&
-    !areWordsSimilar(normalizedWord, normalizedTranslation) &&
+    // !areWordsSimilar(normalizedWord, normalizedTranslation) &&
     !ignoreVocab.includes(vocab.word.toLowerCase())
   );
 };

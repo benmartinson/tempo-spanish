@@ -8,6 +8,7 @@ import {
   Keyboard,
 } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../types";
 import {
@@ -27,6 +28,8 @@ interface FocusSentenceRequestProps {
   markedId: number | null;
   sentenceTranslation: string | null;
   isLoadingTranslation: boolean;
+  onReplay: () => void;
+  playerIsPlaying: boolean;
 }
 
 const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
@@ -37,6 +40,8 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
   markedId,
   sentenceTranslation,
   isLoadingTranslation,
+  onReplay,
+  playerIsPlaying,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -70,6 +75,8 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
 
       dispatch(removeFocusSentence(markedId));
       return;
+    } else {
+      await saveFocusSentence();
     }
 
     setModalVisible(true);
@@ -120,7 +127,6 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
         setScore(result.score);
         if (result.score >= 80) {
           setShowTranslation(true);
-          await saveFocusSentence();
         }
       }
     } catch (err) {
@@ -158,14 +164,47 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
       <SlideModal
         visible={modalVisible}
         onRequestClose={handleCloseModal}
-        title="Translate"
+        title="Guess the Translation"
       >
         <View style={styles.modalContent}>
-          <Text style={styles.sentenceText}>{sentenceText}</Text>
+          {/* <Text style={styles.sentenceText}>{sentenceText}</Text> */}
+          <Text style={styles.instructions}>
+            Before seeing the translation, it's good practice to attempt your
+            best guess first.
+          </Text>
 
           <Text style={styles.questionText}>
             What do you think the sentence means?
           </Text>
+          <TouchableOpacity
+            style={[
+              styles.replayButton,
+              playerIsPlaying && styles.replayButtonDisabled,
+            ]}
+            onPress={onReplay}
+            disabled={playerIsPlaying}
+          >
+            <MaterialIcons
+              name="replay"
+              size={20}
+              color={playerIsPlaying ? "#aaa" : "#4a69bd"}
+            />
+            <Text
+              style={[
+                styles.replayButtonText,
+                playerIsPlaying && { color: "#aaa" },
+              ]}
+            >
+              Replay
+            </Text>
+          </TouchableOpacity>
+
+          {sentenceText && (
+            <Text style={styles.sentenceHint}>
+              Sentence starts with:{" "}
+              {sentenceText.split(/\s+/).slice(0, 2).join(" ")}...
+            </Text>
+          )}
 
           <View style={styles.inputWrapper}>
             <TextInput
@@ -224,7 +263,7 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
               <Text style={styles.translationLabel}>Translation:</Text>
               <Text style={styles.translationText}>{sentenceTranslation}</Text>
               <Text style={styles.markedText}>
-                This sentence is marked for later review!
+                This segment is marked for later review!
               </Text>
               <TouchableOpacity
                 style={styles.closeButton}
@@ -274,6 +313,37 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 20,
   },
+  instructions: {
+    opacity: 0.5,
+    textAlign: "center",
+  },
+  sentenceHint: {
+    fontSize: 14,
+    opacity: 0.5,
+    color: "#888",
+    fontStyle: "italic" as const,
+  },
+  replayButton: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    alignSelf: "flex-start" as const,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#4a69bd",
+    backgroundColor: "#f0f4ff",
+  },
+  replayButtonDisabled: {
+    borderColor: "#ddd",
+    backgroundColor: "#f5f5f5",
+  },
+  replayButtonText: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: "#4a69bd",
+  },
   sentenceText: {
     fontSize: 20,
     fontWeight: "600",
@@ -282,6 +352,7 @@ const styles = StyleSheet.create({
   },
   questionText: {
     fontSize: 16,
+    fontWeight: 600,
     color: "#555",
   },
   inputWrapper: {

@@ -604,12 +604,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       s.sentence_index === currentSentenceIndex,
                   )?.id ?? null
                 }
+                onReplay={() => handlePlaySnippetAgain(null)}
                 sentenceIndex={currentSentenceIndex}
                 sentenceText={currentSentenceObject?.text}
                 segmentIndex={currentSentenceIndex}
                 videoViewId={currentVideo.videoViewId}
                 sentenceTranslation={sentenceTranslation}
                 isLoadingTranslation={isLoadingInsights}
+                playerIsPlaying={playerIsPlaying}
               />
               <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
                 <MaterialIcons name="settings" size={32} color="#222222" />
@@ -707,6 +709,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               hintWords={hintWords}
               handlePlayWordSnippet={handlePlaySnippetAgain}
               isPlayingWordSnippet={isPlayingWordSnippet}
+              onReplaySentence={() => handlePlaySnippetAgain(null)}
+              playerIsPlaying={playerIsPlaying}
             />
           )}
         </ScrollView>

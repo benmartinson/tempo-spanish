@@ -12,6 +12,8 @@ interface WordHintsProps {
   showSwitcher?: boolean;
   showWordHints: boolean;
   showSlowPlay?: boolean;
+  onReplaySentence?: () => void;
+  playerIsPlaying?: boolean;
 }
 
 const WordHints: React.FC<WordHintsProps> = ({
@@ -21,6 +23,8 @@ const WordHints: React.FC<WordHintsProps> = ({
   showSwitcher = true,
   showWordHints,
   showSlowPlay = true,
+  onReplaySentence,
+  playerIsPlaying,
 }) => {
   const [currentHintIndex, setCurrentHintIndex] = useState<number>(0);
   const currentHintWord = hintWords[currentHintIndex];
@@ -71,6 +75,8 @@ const WordHints: React.FC<WordHintsProps> = ({
           isPlayingWordSnippet={isPlayingWordSnippet}
           handleWordHintChange={handleWordHintChange}
           showSlowPlay={showSlowPlay}
+          onReplaySentence={onReplaySentence}
+          playerIsPlaying={playerIsPlaying}
         />
       )}
     </View>

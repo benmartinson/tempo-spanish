@@ -121,6 +121,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       ...new Map(sentenceWords.map((sw) => [sw.word, sw])).values(),
     ];
 
+    const properNounSet = new Set(
+      orderedCharacters.map((name) => name.toLowerCase()),
+    );
+
     const result: SegmentWord[] = uniqueWords
       .map((sw) => {
         const normalized = stripPunctuation(sw.word.toLowerCase()).trim();
@@ -130,7 +134,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       })
       .filter(
         (item): item is { sw: SegmentWord; vocab: any } =>
-          item?.vocab?.word && isInterestingVocab(item.vocab),
+          item?.vocab?.word &&
+          isInterestingVocab(item.vocab) &&
+          !properNounSet.has(item.vocab.word.toLowerCase()),
       )
       .sort((a, b) => b.vocab.percentile - a.vocab.percentile)
       .map((item) => {
@@ -141,7 +147,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       });
 
     return result;
-  }, [currentSentenceObject, userKnownVocab, allVocabulary]);
+  }, [currentSentenceObject, userKnownVocab, allVocabulary, orderedCharacters]);
 
   const orderCharactersByAppearance = (properNouns: string[], text: string) => {
     const textWords = text.split(/\s+/);
