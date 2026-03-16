@@ -807,10 +807,21 @@ export const calculateAccuracy = (
   // Apply matches
   for (const { spokenIdx, detailIdx } of matches) {
     const detail = details[detailIdx];
-    const score = similarity(
-      normalizedSpoken[spokenIdx],
-      normalizedTargets[detailIdx],
+    let score;
+    if (normalizedSpoken[spokenIdx] === "Prono") {
+    }
+    const isProperNoun = normalizedProperNouns.some(
+      (noun) =>
+        normalizedTargets[detailIdx] && noun === normalizedTargets[detailIdx],
     );
+    if (isProperNoun) {
+      score = 1;
+    } else {
+      score = similarity(
+        normalizedSpoken[spokenIdx],
+        normalizedTargets[detailIdx],
+      );
+    }
     detail.matched = true;
     detail.spokenWord =
       score === 1 ? detail.targetWord : spokenWords[spokenIdx];
