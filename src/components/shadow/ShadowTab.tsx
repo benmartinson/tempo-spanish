@@ -65,7 +65,6 @@ interface ShadowTabProps {
   setPlayerSpeed: (speed: number) => void;
   pausePlayer: () => void;
   resumePlayer: () => void;
-  isKeyboardVisible: boolean;
   playWordSnippet: (word: SegmentWord) => void;
   isPlayingWordSnippet: boolean;
   hintWords: SegmentWord[];
@@ -86,7 +85,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   setPlayerSpeed,
   pausePlayer,
   resumePlayer,
-  isKeyboardVisible,
   isPlayingWordSnippet,
   hintWords,
   onPlayClip,
@@ -553,13 +551,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   return (
     <>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={
-          Platform.OS === "ios" ? (isKeyboardVisible ? 128 : 180) : 0
-        }
-      >
+      <View style={styles.container}>
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
@@ -721,31 +713,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
         {/* Input Area - always visible when not in recording mode or showing results */}
         {!accuracyResult && !isProcessing && (
-          <View
-            style={[
-              styles.inputArea,
-              { paddingBottom: isKeyboardVisible ? 10 : 40 },
-            ]}
-          >
-            <TextInput
-              style={styles.textInput}
-              placeholder=""
-              placeholderTextColor="#999"
-              value={userAnswer}
-              onChangeText={setUserAnswer}
-              autoComplete="off"
-              autoCorrect={false}
-              autoCapitalize="none"
-              multiline
-              maxLength={500}
-              editable={!isRecordingMode}
-            />
+          <View style={styles.inputArea}>
             <TouchableOpacity
               style={[
                 styles.trashButton,
                 {
-                  backgroundColor:
-                    isKeyboardVisible || isRecordingMode ? "white" : "#f0f0f0",
+                  backgroundColor: isRecordingMode ? "white" : "#f0f0f0",
                 },
               ]}
               onPress={() => {
@@ -758,7 +731,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               <FontAwesome
                 name="trash-o"
                 size={22}
-                color={isKeyboardVisible || isRecordingMode ? "red" : "#aaa"}
+                color={isRecordingMode ? "red" : "#aaa"}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -784,7 +757,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             </TouchableOpacity>
           </View>
         )}
-      </KeyboardAvoidingView>
+      </View>
       {isSettingsVisible && (
         <SettingsModal
           visible={isSettingsVisible}
@@ -982,13 +955,15 @@ export const styles = StyleSheet.create({
   // Input Area styles
   inputArea: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingTop: 10,
+    paddingBottom: 40,
     borderTopWidth: 1,
     borderTopColor: "#eee",
     backgroundColor: "#fafafa",
-    gap: 8,
+    gap: 24,
   },
   textInput: {
     flex: 1,

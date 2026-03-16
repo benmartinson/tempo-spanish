@@ -109,7 +109,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const translationLanguage = userSettings.translationLanguage;
   const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(true);
   const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
-  const [sentenceTranslation, setSentenceTranslation] = useState<string | null>(null);
+  const [sentenceTranslation, setSentenceTranslation] = useState<string | null>(
+    null,
+  );
 
   const hintWords = useMemo(() => {
     const sentenceWords = currentSentenceObject?.words || [];
@@ -255,13 +257,22 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const [playerIsPlaying, setPlayerIsPlaying] = useState<boolean>(false);
   const playingStateQueueRef = useRef<boolean[]>([]);
   const playingStateTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const userPressedPlayPause = useRef(false);
 
   const handlePlayingStateChange = useCallback((isPlaying: boolean) => {
-    if (playingStateTimerRef.current) {
+    if (playingStateTimerRef.current && !userPressedPlayPause.current) {
       // Timer is running, queue the state change
       playingStateQueueRef.current.push(isPlaying);
       return;
     }
+    if (userPressedPlayPause.current) {
+      playingStateQueueRef.current = [];
+      if (playingStateTimerRef.current) {
+        clearTimeout(playingStateTimerRef.current);
+        playingStateTimerRef.current = null;
+      }
+    }
+    userPressedPlayPause.current = false;
 
     // No timer running, apply immediately and start the cooldown
     setPlayerIsPlaying(isPlaying);
@@ -448,10 +459,12 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const startTimeForPlayer = selectedNavTab === "watch" ? undefined : time;
 
   const pausePlayer = useCallback(() => {
+    userPressedPlayPause.current = true;
     playerRef.current?.pause();
   }, [playerRef]);
 
   const playPlayer = useCallback(() => {
+    userPressedPlayPause.current = true;
     playerRef.current?.play();
   }, [playerRef]);
 
@@ -554,7 +567,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           time={time}
           handleNextSentence={handleNextSentence}
           handlePreviousSentence={handlePreviousSentence}
-          isKeyboardVisible={isKeyboardVisible}
           playSentence={playSentence}
           isActive={selectedNavTab === "shadow"}
           setPlayerSpeed={setPlayerSpeed}
