@@ -147,7 +147,12 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       });
 
     return result;
-  }, [currentSentenceObject, userKnownVocab, allVocabulary, orderedCharacters]);
+  }, [
+    currentSentenceObject.start,
+    userKnownVocab,
+    allVocabulary,
+    orderedCharacters,
+  ]);
 
   const orderCharactersByAppearance = (properNouns: string[], text: string) => {
     const textWords = text.split(/\s+/);

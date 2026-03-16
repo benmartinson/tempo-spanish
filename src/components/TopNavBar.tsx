@@ -10,6 +10,18 @@ import SlideModal from "./common/Modal";
 import LanguageModal from "./settings/LanguageModal";
 import { RootState } from "../types";
 
+export const getFlagForLanguage = (language: string): string => {
+  switch (language) {
+    case "es":
+      return "🇲🇽";
+    case "pt":
+      return "🇧🇷";
+    case "en":
+    default:
+      return "🇺🇸";
+  }
+};
+
 const TopNavBar: React.FC = () => {
   const [profileVisible, setProfileVisible] = useState(false);
   const [languageVisible, setLanguageVisible] = useState(false);
@@ -30,7 +42,7 @@ const TopNavBar: React.FC = () => {
           onPress={() => setLanguageVisible(true)}
         >
           <Text style={styles.countryFlag}>
-            {userSettings.targetLanguage === "es" ? "🇲🇽" : "🇺🇸"}
+            {getFlagForLanguage(userSettings.targetLanguage)}
           </Text>
         </TouchableOpacity>
         <View style={styles.titleContainer}>
