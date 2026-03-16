@@ -78,8 +78,12 @@ export const useRecording = (
 
   const startRecording = useCallback(async () => {
     if (!hasPermission) {
-      onErrorRef.current?.("Microphone permission not granted");
-      return;
+      const granted = await requestMicrophonePermission();
+      setHasPermission(granted);
+      if (!granted) {
+        onErrorRef.current?.("Microphone permission not granted");
+        return;
+      }
     }
 
     try {
