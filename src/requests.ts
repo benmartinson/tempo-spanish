@@ -385,6 +385,8 @@ export const restoreUserUIState = async ({
         uiState.show_characters ?? DEFAULT_USER_SETTINGS.showCharacters,
       showStartsOffAs:
         uiState.show_starts_off_as ?? DEFAULT_USER_SETTINGS.showStartsOffAs,
+      showPhrases:
+        uiState.show_phrases ?? DEFAULT_USER_SETTINGS.showPhrases,
       targetLanguage:
         uiState.target_language ?? DEFAULT_USER_SETTINGS.targetLanguage,
       translationLanguage:
@@ -512,6 +514,8 @@ export const persistUserSettings = async ({
     updateData.show_characters = settings.showCharacters;
   if (settings.showStartsOffAs !== undefined)
     updateData.show_starts_off_as = settings.showStartsOffAs;
+  if (settings.showPhrases !== undefined)
+    updateData.show_phrases = settings.showPhrases;
   if (settings.targetLanguage !== undefined)
     updateData.target_language = settings.targetLanguage;
   if (settings.translationLanguage !== undefined)

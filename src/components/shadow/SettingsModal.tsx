@@ -19,6 +19,7 @@ interface SettingsModalProps {
     showWordsHints: boolean;
     showCharacters: boolean;
     showStartsOffAs: boolean;
+    showPhrases: boolean;
   }) => void;
 }
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -49,6 +50,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editedShowStartsOffAs, setEditedShowStartsOffAs] = useState(
     userSettings.showStartsOffAs,
   );
+  const [editedShowPhrases, setEditedShowPhrases] = useState(
+    userSettings.showPhrases,
+  );
 
   const handlePlaybackSpeedChange = (speed: number) => {
     setEditedPlaybackSpeed(speed);
@@ -63,10 +67,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     setRecordSpeed(editedRecordSpeed);
     setMuteWhenRecording(muteVideoWhenRecording);
     const newSettings = {
+      ...userSettings,
       playbackSpeed: editedPlaybackSpeed,
       showWordsHints: editedShowWordsHints,
       showCharacters: editedShowCharacters,
       showStartsOffAs: editedShowStartsOffAs,
+      showPhrases: editedShowPhrases,
     };
     dispatch(setUserSettings(newSettings));
     onSave(newSettings);
@@ -155,6 +161,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           <Switch
             value={editedShowStartsOffAs}
             onValueChange={setEditedShowStartsOffAs}
+          />
+        </View>
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionText}>Show Phrases by Default?</Text>
+          <Switch
+            value={editedShowPhrases}
+            onValueChange={setEditedShowPhrases}
           />
         </View>
       </View>

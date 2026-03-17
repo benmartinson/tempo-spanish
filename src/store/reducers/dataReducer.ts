@@ -1,4 +1,9 @@
-import { RootState, DataAction, DataActionTypes, DEFAULT_USER_SETTINGS } from "../../types";
+import {
+  RootState,
+  DataAction,
+  DataActionTypes,
+  DEFAULT_USER_SETTINGS,
+} from "../../types";
 
 const initialState: RootState = {
   currentVideo: null,
@@ -226,7 +231,10 @@ const dataReducer = (
     case "SET_USER_SETTINGS":
       return {
         ...state,
-        userSettings: action.payload,
+        userSettings: {
+          ...state.userSettings,
+          ...action.payload,
+        },
       };
     default:
       return state;

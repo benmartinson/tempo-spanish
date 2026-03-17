@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import Chat from "./src/components/discuss/Chat";
 import SignInScreen from "./src/components/SignInScreen";
 import SignUpScreen from "./src/components/SignUpScreen";
 import HomeTab from "./src/components/tabs/HomeTab";
@@ -182,6 +181,7 @@ const AuthenticatedApp: React.FC = () => {
 
   useEffect(() => {
     if (!supabase) return;
+    console.log("resetting...");
 
     // Fetch all vocabulary
     fetchAllVocabulary({

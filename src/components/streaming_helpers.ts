@@ -618,6 +618,91 @@ export const trimSilenceFromAudio = (
 };
 
 /**
+ * Find the byte offset where the "data" chunk starts in a WAV file.
+ * WAV headers can vary in size due to extra chunks (fact, LIST, etc).
+ * Returns the offset of the first byte of PCM data (after the "data" + size fields).
+ */
+const findWavDataOffset = (bytes: Uint8Array): number => {
+  // Search for "data" subchunk ID (0x64 0x61 0x74 0x61)
+  for (let i = 12; i < bytes.length - 8; i++) {
+    if (
+      bytes[i] === 0x64 &&
+      bytes[i + 1] === 0x61 &&
+      bytes[i + 2] === 0x74 &&
+      bytes[i + 3] === 0x61
+    ) {
+      // "data" found at i, data size at i+4..i+7, PCM starts at i+8
+      return i + 8;
+    }
+  }
+  return 44; // fallback to standard header size
+};
+
+export const concatenateWavFiles = async (
+  uris: string[],
+): Promise<string> => {
+  if (uris.length === 0) throw new Error("No audio files to concatenate");
+  if (uris.length === 1) return uris[0];
+
+  const pcmBuffers: Uint8Array[] = [];
+  let firstFileBytes: Uint8Array | null = null;
+  let firstDataOffset = 0;
+  let totalPcmLength = 0;
+
+  for (let i = 0; i < uris.length; i++) {
+    const base64 = await FileSystem.readAsStringAsync(uris[i], {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const arrayBuffer = decode(base64);
+    const bytes = new Uint8Array(arrayBuffer);
+    const dataOffset = findWavDataOffset(bytes);
+
+    if (i === 0) {
+      firstFileBytes = bytes;
+      firstDataOffset = dataOffset;
+    }
+
+    const pcm = bytes.slice(dataOffset);
+    pcmBuffers.push(pcm);
+    totalPcmLength += pcm.length;
+  }
+
+  // Build new WAV: header from first file (up to data chunk) + all PCM data
+  const headerBytes = firstFileBytes!.slice(0, firstDataOffset);
+  const newBytes = new Uint8Array(firstDataOffset + totalPcmLength);
+  newBytes.set(headerBytes, 0);
+
+  // Update RIFF chunk size (bytes 4-7): file size - 8
+  const chunkSize = firstDataOffset + totalPcmLength - 8;
+  newBytes[4] = chunkSize & 0xff;
+  newBytes[5] = (chunkSize >> 8) & 0xff;
+  newBytes[6] = (chunkSize >> 16) & 0xff;
+  newBytes[7] = (chunkSize >> 24) & 0xff;
+
+  // Update data chunk size (4 bytes before PCM data starts)
+  const dataSizeOffset = firstDataOffset - 4;
+  newBytes[dataSizeOffset] = totalPcmLength & 0xff;
+  newBytes[dataSizeOffset + 1] = (totalPcmLength >> 8) & 0xff;
+  newBytes[dataSizeOffset + 2] = (totalPcmLength >> 16) & 0xff;
+  newBytes[dataSizeOffset + 3] = (totalPcmLength >> 24) & 0xff;
+
+  // Write PCM data
+  let offset = firstDataOffset;
+  for (const pcm of pcmBuffers) {
+    newBytes.set(pcm, offset);
+    offset += pcm.length;
+  }
+
+  const resultBase64 = encode(newBytes.buffer);
+  const outputUri = `${FileSystem.cacheDirectory}phrase_concat_${Date.now()}.wav`;
+  await FileSystem.writeAsStringAsync(outputUri, resultBase64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  return outputUri;
+};
+
+/**
  * Upload audio file to Supabase storage bucket
  * @param audioUri - Local URI of the audio file
  * @param userId - User ID for organizing files

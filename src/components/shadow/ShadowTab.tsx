@@ -55,6 +55,8 @@ import FocusSentenceRequest from "./FocusSentenceRequest";
 import { persistUserSettings } from "../../requests";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
+import { usePhraseRecording } from "../usePhraseRecording";
+import { computeSubSegments } from "../../helpers";
 
 interface ShadowTabProps {
   time: number;
@@ -142,6 +144,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
+
+  // Phrase recording
+  const subSegments = useMemo(
+    () => computeSubSegments(currentSentenceObject?.words ?? []),
+    [currentSentenceObject?.words],
+  );
+  const {
+    phraseRecordings,
+    recordingPhraseIndex,
+    allPhrasesRecorded,
+    startPhraseRecording,
+    stopPhraseRecording,
+    submitPhraseRecordings,
+    resetPhraseRecordings,
+  } = usePhraseRecording(subSegments.length);
 
   const calculateAccuracyFromWords = useCallback(
     (spokenWords: string[]) => {
@@ -436,6 +453,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setSentenceEnded(false);
     setIsProcessing(false);
     clearRecordingTimer();
+    resetPhraseRecordings();
   };
 
   const clearRecordingTimer = () => {
@@ -505,6 +523,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
     playSentence();
   };
+
+  const handlePhraseSubmit = useCallback(async () => {
+    try {
+      pausePlayer();
+      const concatenatedUri = await submitPhraseRecordings();
+      handleRecordingComplete(concatenatedUri);
+    } catch (err) {
+      console.error("Phrase submission error:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to submit phrase recordings",
+      );
+    }
+  }, [submitPhraseRecordings, handleRecordingComplete, pausePlayer]);
 
   const handlePlayPause = () => {
     if (playerIsPlaying) {
@@ -708,13 +739,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               isLoading={isLoadingInsights}
               characters={orderedCharacters}
               sentenceText={currentSentenceObject?.text ?? ""}
-              segmentWords={currentSentenceObject?.words ?? []}
+              subSegments={subSegments}
               hintWords={hintWords}
               handlePlayWordSnippet={handlePlaySnippetAgain}
               isPlayingWordSnippet={isPlayingWordSnippet}
               onReplaySentence={() => handlePlaySnippetAgain(null)}
               onPlayClip={playClipSnippet}
               playerIsPlaying={playerIsPlaying}
+              phraseRecordings={phraseRecordings}
+              recordingPhraseIndex={recordingPhraseIndex}
+              allPhrasesRecorded={allPhrasesRecorded}
+              onStartPhraseRecording={startPhraseRecording}
+              onStopPhraseRecording={stopPhraseRecording}
+              onSubmitPhrases={handlePhraseSubmit}
             />
           )}
         </ScrollView>
@@ -777,11 +814,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           initMute={muteVideoWhenRecording}
           setMuteWhenRecording={setMuteVideoWhenRecording}
           onSave={(settings) => {
-            persistUserSettings({
-              supabase,
-              userId,
-              settings,
-            });
+            // persistUserSettings({
+            //   supabase,
+            //   userId,
+            //   settings,
+            // });
           }}
         />
       )}

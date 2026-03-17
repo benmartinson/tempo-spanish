@@ -3,6 +3,7 @@ export interface UserSettings {
   showWordsHints: boolean;
   showCharacters: boolean;
   showStartsOffAs: boolean;
+  showPhrases: boolean;
   targetLanguage: "en" | "es" | "pt";
   translationLanguage: "en" | "es" | "pt";
 }
@@ -12,6 +13,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   showWordsHints: true,
   showCharacters: true,
   showStartsOffAs: true,
+  showPhrases: true,
   targetLanguage: "es",
   translationLanguage: "en",
 };
@@ -267,6 +269,7 @@ export interface UserUIState {
   show_word_hints: boolean | null;
   show_characters: boolean | null;
   show_starts_off_as: boolean | null;
+  show_phrases: boolean | null;
   target_language: "en" | "es" | "pt" | null;
   translation_language: "en" | "es" | "pt" | null;
 }
