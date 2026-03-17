@@ -139,6 +139,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           !properNounSet.has(item.vocab.word.toLowerCase()),
       )
       .sort((a, b) => b.vocab.percentile - a.vocab.percentile)
+      .sort((a, b) => {
+        const aTranslationMatchesWord =
+          normalizeWord(a.vocab.translation) === normalizeWord(a.vocab.word);
+        const bTranslationMatchesWord =
+          normalizeWord(b.vocab.translation) === normalizeWord(b.vocab.word);
+        if (aTranslationMatchesWord === bTranslationMatchesWord) return 0;
+        return aTranslationMatchesWord ? 1 : -1;
+      })
       .map((item) => {
         return {
           ...item.sw,

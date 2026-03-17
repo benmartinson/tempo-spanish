@@ -125,9 +125,7 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
 
       if (result) {
         setScore(result.score);
-        if (result.score >= 80) {
-          setShowTranslation(true);
-        }
+        setShowTranslation(true);
       }
     } catch (err) {
       console.error("Error evaluating translation:", err);
@@ -168,42 +166,47 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
       >
         <View style={styles.modalContent}>
           {/* <Text style={styles.sentenceText}>{sentenceText}</Text> */}
-          <Text style={styles.instructions}>
-            Before seeing the translation, it's good practice to attempt your
-            best guess first.
-          </Text>
 
-          <Text style={styles.questionText}>
-            What do you think the sentence means?
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.replayButton,
-              playerIsPlaying && styles.replayButtonDisabled,
-            ]}
-            onPress={onReplay}
-            disabled={playerIsPlaying}
-          >
-            <MaterialIcons
-              name="replay"
-              size={20}
-              color={playerIsPlaying ? "#aaa" : "#4a69bd"}
-            />
-            <Text
-              style={[
-                styles.replayButtonText,
-                playerIsPlaying && { color: "#aaa" },
-              ]}
-            >
-              Replay
-            </Text>
-          </TouchableOpacity>
+          {!showTranslation && (
+            <>
+              <Text style={styles.instructions}>
+                Before seeing the translation, it's good practice to attempt
+                your best guess first.
+              </Text>
 
-          {sentenceText && (
-            <Text style={styles.sentenceHint}>
-              Sentence starts with:{" "}
-              {sentenceText.split(/\s+/).slice(0, 2).join(" ")}...
-            </Text>
+              <Text style={styles.questionText}>
+                What do you think the sentence means?
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.replayButton,
+                  playerIsPlaying && styles.replayButtonDisabled,
+                ]}
+                onPress={onReplay}
+                disabled={playerIsPlaying}
+              >
+                <MaterialIcons
+                  name="replay"
+                  size={20}
+                  color={playerIsPlaying ? "#aaa" : "#4a69bd"}
+                />
+                <Text
+                  style={[
+                    styles.replayButtonText,
+                    playerIsPlaying && { color: "#aaa" },
+                  ]}
+                >
+                  Replay
+                </Text>
+              </TouchableOpacity>
+
+              {sentenceText && (
+                <Text style={styles.sentenceHint}>
+                  Sentence starts with:{" "}
+                  {sentenceText.split(/\s+/).slice(0, 2).join(" ")}...
+                </Text>
+              )}
+            </>
           )}
 
           <View style={styles.inputWrapper}>
@@ -260,6 +263,7 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
                 </Text>
                 <Text style={styles.scoreLabel}>correct</Text>
               </View>
+              <Text style={styles.sentenceText}>{sentenceText}</Text>
               <Text style={styles.translationLabel}>Translation:</Text>
               <Text style={styles.translationText}>{sentenceTranslation}</Text>
               <Text style={styles.markedText}>

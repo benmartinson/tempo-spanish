@@ -755,7 +755,8 @@ export const calculateAccuracy = (
     if (!nt) continue;
     normalizedTargets.push(nt);
 
-    details.push({ targetWord, matched: false });
+    const isProperNoun = normalizedProperNouns.some((noun) => noun === nt);
+    details.push({ targetWord, matched: false, isProperNoun });
   }
 
   const targetIndices = details
@@ -805,33 +806,43 @@ export const calculateAccuracy = (
   matches.reverse();
 
   // Apply matches
+  const usedSpokenIndices = new Set<number>();
   for (const { spokenIdx, detailIdx } of matches) {
     const detail = details[detailIdx];
     let score;
-    if (normalizedSpoken[spokenIdx] === "Prono") {
-    }
-    const isProperNoun = normalizedProperNouns.some(
-      (noun) =>
-        normalizedTargets[detailIdx] && noun === normalizedTargets[detailIdx],
+
+    score = similarity(
+      normalizedSpoken[spokenIdx],
+      normalizedTargets[detailIdx],
     );
-    if (isProperNoun) {
-      score = 1;
-    } else {
-      score = similarity(
-        normalizedSpoken[spokenIdx],
-        normalizedTargets[detailIdx],
-      );
-    }
     detail.matched = true;
     detail.spokenWord =
       score === 1 ? detail.targetWord : spokenWords[spokenIdx];
     detail._spokenIndex = spokenIdx;
     detail._matchScore = score;
+    usedSpokenIndices.add(spokenIdx);
     matchedCount++;
     matchedScore += score;
   }
 
   const totalWords = details.length;
+
+  // Auto-match proper nouns if there's an available unmatched spoken word
+  const unmatchedSpokenIndices = normalizedSpoken
+    .map((w, i) => (!usedSpokenIndices.has(i) && w.length > 2 ? i : -1))
+    .filter((i) => i !== -1);
+  let unmatchedIdx = 0;
+  for (const detail of details) {
+    if (!detail.matched && detail.isProperNoun && unmatchedIdx < unmatchedSpokenIndices.length) {
+      detail.matched = true;
+      detail.spokenWord = detail.targetWord;
+      detail._spokenIndex = unmatchedSpokenIndices[unmatchedIdx];
+      detail._matchScore = 1;
+      unmatchedIdx++;
+      matchedCount++;
+      matchedScore += 1;
+    }
+  }
   const percentage =
     totalWords > 0 ? Math.round((matchedScore / totalWords) * 100) : 0;
 
