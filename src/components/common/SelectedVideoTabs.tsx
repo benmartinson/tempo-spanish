@@ -309,7 +309,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   // Player ref for injecting play/pause commands without reloading
   const playerRef = useRef<YouTubePlayerHandle>(null);
-  const currentWordSnippetRef = useRef<{ start: number; end: number } | null>(
+  const currentClipSnippetRef = useRef<{ start: number; end: number } | null>(
     null,
   );
 
@@ -439,15 +439,15 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     refreshPlayer();
   }, [currentSentenceObject?.start]);
 
-  const playWordSnippet = useCallback(
-    (word: SegmentWord) => {
+  const playClipSnippet = useCallback(
+    (start: number, end: number) => {
       setAutoplay(true);
       handleTransition();
-      setTime(word.start);
-      currentWordSnippetRef.current = { start: word.start, end: word.end };
+      setTime(start);
+      currentClipSnippetRef.current = { start, end };
       refreshPlayer();
       setTimeout(() => {
-        currentWordSnippetRef.current = null;
+        currentClipSnippetRef.current = null;
       }, 1000);
     },
     [currentSentenceObject?.start],
@@ -515,8 +515,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   let endTime;
   if (selectedNavTab !== "watch") {
-    if (currentWordSnippetRef.current) {
-      endTime = currentWordSnippetRef.current.end;
+    if (currentClipSnippetRef.current) {
+      endTime = currentClipSnippetRef.current.end;
     } else {
       endTime = currentSentenceObject?.end;
     }
@@ -537,7 +537,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             text: currentSentenceObject?.text,
             words: currentSentenceObject?.words,
             start:
-              currentWordSnippetRef.current?.start ||
+              currentClipSnippetRef.current?.start ||
               currentSentenceObject?.start,
             end: endTime,
           }}
@@ -568,8 +568,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           refreshPlayer={refreshPlayer}
           isActive={selectedNavTab === "watch"}
           hintWords={hintWords}
-          handlePlayWordSnippet={playWordSnippet}
-          isPlayingWordSnippet={!!currentWordSnippetRef.current}
+          handlePlayWordSnippet={(word: SegmentWord) => playClipSnippet(word.start, word.end)}
+          isPlayingWordSnippet={!!currentClipSnippetRef.current}
           handleNextSentence={handleNextSentence}
           handlePreviousSentence={handlePreviousSentence}
           onPlayClip={handlePlayClip}
@@ -591,10 +591,11 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setPlayerSpeed={setPlayerSpeed}
           pausePlayer={pausePlayer}
           resumePlayer={playPlayer}
-          playWordSnippet={playWordSnippet}
-          isPlayingWordSnippet={!!currentWordSnippetRef.current}
+          playWordSnippet={(word: SegmentWord) => playClipSnippet(word.start, word.end)}
+          isPlayingWordSnippet={!!currentClipSnippetRef.current}
           hintWords={hintWords}
           onPlayClip={handlePlayClip}
+          playClipSnippet={playClipSnippet}
           playerIsPlaying={playerIsPlaying}
           isLoadingInsights={isLoadingInsights}
           orderedCharacters={orderedCharacters}

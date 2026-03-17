@@ -76,6 +76,12 @@ export interface ApiResponse<T> {
   statusText: string;
 }
 
+interface SubSegment {
+  preview: string;
+  start: number;
+  end: number;
+}
+
 export interface Vocabulary {
   id: number;
   word: string;

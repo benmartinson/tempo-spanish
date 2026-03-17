@@ -510,3 +510,77 @@ export const removeSpecialPunctuation = (word: string) => {
   }
   return word;
 };
+
+export interface SubSegment {
+  preview: string;
+  start: number;
+  end: number;
+}
+
+export const computeSubSegments = (
+  segmentWords: SegmentWord[],
+): SubSegment[] => {
+  if (segmentWords.length === 0) return [];
+
+  // Build split indices (word-level indices where we should split)
+  const splitAfter = new Set<number>();
+
+  for (let i = 0; i < segmentWords.length; i++) {
+    const raw = segmentWords[i].word;
+    // Check for mid-sentence period (not the last word)
+    if (raw.endsWith(".") && i < segmentWords.length - 1) {
+      splitAfter.add(i);
+    }
+    // Check for comma with >3 words on each side
+    if (raw.endsWith(",")) {
+      // Count words before this comma (back to start or last split)
+      let wordsBefore = 0;
+      for (let b = i; b >= 0 && !splitAfter.has(b - 1) && b !== -1; b--) {
+        wordsBefore++;
+      }
+      // Count words after this comma (forward to end or next split candidate)
+      let wordsAfter = segmentWords.length - 1 - i;
+
+      if (wordsBefore > 3 && wordsAfter > 3) {
+        splitAfter.add(i);
+      }
+    }
+  }
+
+  if (splitAfter.size === 0) return [];
+
+  // Build sub-segments from split points
+  const subSegments: SubSegment[] = [];
+  let segStart = 0;
+
+  const sortedSplits = [...splitAfter].sort((a, b) => a - b);
+  for (const splitIdx of sortedSplits) {
+    const sliceWords = segmentWords.slice(segStart, splitIdx + 1);
+    if (sliceWords.length > 0) {
+      const previewWords = sliceWords
+        .slice(0, 3)
+        .map((w) => removeSpecialPunctuation(w.word));
+      subSegments.push({
+        preview: previewWords.join(" ") + "...",
+        start: sliceWords[0].start,
+        end: sliceWords[sliceWords.length - 1].end,
+      });
+    }
+    segStart = splitIdx + 1;
+  }
+
+  // Add the remaining words as the last sub-segment
+  if (segStart < segmentWords.length) {
+    const sliceWords = segmentWords.slice(segStart);
+    const previewWords = sliceWords
+      .slice(0, 3)
+      .map((w) => removeSpecialPunctuation(w.word));
+    subSegments.push({
+      preview: previewWords.join(" ") + "...",
+      start: sliceWords[0].start,
+      end: sliceWords[sliceWords.length - 1].end,
+    });
+  }
+
+  return subSegments.length >= 2 ? subSegments : [];
+};

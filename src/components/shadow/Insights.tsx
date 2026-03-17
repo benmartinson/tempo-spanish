@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useSelector } from "react-redux";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { RootState, SegmentWord } from "../../types";
 import WordHints from "../common/WordHints";
 import ToggleHeader from "../common/ToggleHeader";
-import { stripPunctuation } from "../../helpers";
+import { stripPunctuation, computeSubSegments } from "../../helpers";
 
 interface InsightsProps {
   isLoading: boolean;
   characters: string[];
   sentenceText: string;
+  segmentWords: SegmentWord[];
   hintWords: SegmentWord[];
   handlePlayWordSnippet: (word: SegmentWord, isSlow?: boolean) => void;
   isPlayingWordSnippet: boolean;
   onReplaySentence?: () => void;
+  onPlayClip?: (start: number, end: number) => void;
   playerIsPlaying?: boolean;
 }
 
@@ -21,10 +24,12 @@ const Insights: React.FC<InsightsProps> = ({
   isLoading,
   characters,
   sentenceText,
+  segmentWords,
   hintWords,
   handlePlayWordSnippet,
   isPlayingWordSnippet,
   onReplaySentence,
+  onPlayClip,
   playerIsPlaying,
 }) => {
   const { showWordsHints, showCharacters, showStartsOffAs } = useSelector(
@@ -36,6 +41,7 @@ const Insights: React.FC<InsightsProps> = ({
   const [isShowingStartsOff, setIsShowingStartsOff] =
     useState<boolean>(showStartsOffAs);
   const [revealedCommas, setRevealedCommas] = useState<number>(0);
+  const [isShowingPhrases, setIsShowingPhrases] = useState<boolean>(true);
 
   useEffect(() => {
     setIsShowingCharacters(showCharacters);
@@ -65,6 +71,8 @@ const Insights: React.FC<InsightsProps> = ({
     const first2CharCount = first2.join("").length;
     return first2CharCount > 8 ? first2 : w.slice(0, 3);
   };
+
+  const subSegments = computeSubSegments(segmentWords);
 
   const commaSegments = sentenceText.split(",");
   const hasCommas = commaSegments.length > 1;
@@ -156,6 +164,32 @@ const Insights: React.FC<InsightsProps> = ({
           )}
         </>
       )}
+      {subSegments.length > 0 && (
+        <>
+          <View style={styles.startsOffHeaderContainer}>
+            <ToggleHeader
+              title="Phrases"
+              isVisible={isShowingPhrases}
+              onToggle={() => setIsShowingPhrases(!isShowingPhrases)}
+            />
+          </View>
+          {isShowingPhrases && (
+            <View style={styles.phrasesList}>
+              {subSegments.map((seg, i) => (
+                <View key={i} style={styles.phraseRow}>
+                  <TouchableOpacity
+                    style={styles.phraseReplayButton}
+                    onPress={() => onPlayClip?.(seg.start, seg.end)}
+                  >
+                    <MaterialIcons name="replay" size={18} color="#007AFF" />
+                  </TouchableOpacity>
+                  <Text style={styles.phraseText}>{seg.preview}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </>
+      )}
     </View>
   );
 };
@@ -204,6 +238,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     marginTop: 12,
+  },
+  phrasesList: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    gap: 8,
+  },
+  phraseRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  phraseReplayButton: {
+    padding: 4,
+  },
+  phraseText: {
+    fontSize: 15,
+    color: "#222222",
+    opacity: 0.8,
   },
 });
 

@@ -69,6 +69,7 @@ interface ShadowTabProps {
   isPlayingWordSnippet: boolean;
   hintWords: SegmentWord[];
   onPlayClip?: (time: number) => void;
+  playClipSnippet?: (start: number, end: number) => void;
   playerIsPlaying: boolean;
   isLoadingInsights: boolean;
   orderedCharacters: string[];
@@ -88,6 +89,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isPlayingWordSnippet,
   hintWords,
   onPlayClip,
+  playClipSnippet,
   playerIsPlaying,
   isLoadingInsights,
   orderedCharacters,
@@ -706,10 +708,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               isLoading={isLoadingInsights}
               characters={orderedCharacters}
               sentenceText={currentSentenceObject?.text ?? ""}
+              segmentWords={currentSentenceObject?.words ?? []}
               hintWords={hintWords}
               handlePlayWordSnippet={handlePlaySnippetAgain}
               isPlayingWordSnippet={isPlayingWordSnippet}
               onReplaySentence={() => handlePlaySnippetAgain(null)}
+              onPlayClip={playClipSnippet}
               playerIsPlaying={playerIsPlaying}
             />
           )}
