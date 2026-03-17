@@ -141,8 +141,7 @@ export const usePhraseRecording = (
   }, []);
 
   const allPhrasesRecorded =
-    phraseCount > 0 &&
-    Object.keys(phraseRecordings).length === phraseCount;
+    phraseCount > 0 && Object.keys(phraseRecordings).length === phraseCount;
 
   return {
     phraseRecordings,

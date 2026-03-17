@@ -529,10 +529,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       pausePlayer();
       const concatenatedUri = await submitPhraseRecordings();
       handleRecordingComplete(concatenatedUri);
+      resetPhraseRecordings();
     } catch (err) {
       console.error("Phrase submission error:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to submit phrase recordings",
+        err instanceof Error
+          ? err.message
+          : "Failed to submit phrase recordings",
       );
     }
   }, [submitPhraseRecordings, handleRecordingComplete, pausePlayer]);
