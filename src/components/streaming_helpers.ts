@@ -638,9 +638,7 @@ const findWavDataOffset = (bytes: Uint8Array): number => {
   return 44; // fallback to standard header size
 };
 
-export const concatenateWavFiles = async (
-  uris: string[],
-): Promise<string> => {
+export const concatenateWavFiles = async (uris: string[]): Promise<string> => {
   if (uris.length === 0) throw new Error("No audio files to concatenate");
   if (uris.length === 1) return uris[0];
 
@@ -851,7 +849,8 @@ export const calculateAccuracy = (
   const n = normalizedSpoken.length;
   const m = targetIndices.length;
 
-  // DP: dp[i][j] = max matches using spoken[0..i-1] vs targetIndices[0..j-1]
+  // DP: dp[i][j] = max total similarity score using spoken[0..i-1] vs targetIndices[0..j-1]
+  // Using scores instead of counts so higher-quality matches are preferred
   const dp: number[][] = Array.from({ length: n + 1 }, () =>
     new Array(m + 1).fill(0),
   );
@@ -864,7 +863,11 @@ export const calculateAccuracy = (
         normalizedTargets[tIdx],
       );
       if (score >= 0.6) {
-        dp[i][j] = Math.max(dp[i - 1][j - 1] + 1, dp[i - 1][j], dp[i][j - 1]);
+        dp[i][j] = Math.max(
+          dp[i - 1][j - 1] + score,
+          dp[i - 1][j],
+          dp[i][j - 1],
+        );
       } else {
         dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
       }
@@ -878,7 +881,10 @@ export const calculateAccuracy = (
   while (i > 0 && j > 0) {
     const tIdx = targetIndices[j - 1];
     const score = similarity(normalizedSpoken[i - 1], normalizedTargets[tIdx]);
-    if (score >= 0.6 && dp[i][j] === dp[i - 1][j - 1] + 1) {
+    if (
+      score >= 0.6 &&
+      Math.abs(dp[i][j] - (dp[i - 1][j - 1] + score)) < 1e-9
+    ) {
       matches.push({ spokenIdx: i - 1, detailIdx: tIdx });
       i--;
       j--;
@@ -905,6 +911,9 @@ export const calculateAccuracy = (
       score === 1 ? detail.targetWord : spokenWords[spokenIdx];
     detail._spokenIndex = spokenIdx;
     detail._matchScore = score;
+    if (score !== 1) {
+      console.log({ detail, score });
+    }
     usedSpokenIndices.add(spokenIdx);
     matchedCount++;
     matchedScore += score;
@@ -918,7 +927,11 @@ export const calculateAccuracy = (
     .filter((i) => i !== -1);
   let unmatchedIdx = 0;
   for (const detail of details) {
-    if (!detail.matched && detail.isProperNoun && unmatchedIdx < unmatchedSpokenIndices.length) {
+    if (
+      !detail.matched &&
+      detail.isProperNoun &&
+      unmatchedIdx < unmatchedSpokenIndices.length
+    ) {
       detail.matched = true;
       detail.spokenWord = detail.targetWord;
       detail._spokenIndex = unmatchedSpokenIndices[unmatchedIdx];
@@ -929,7 +942,7 @@ export const calculateAccuracy = (
     }
   }
   const percentage =
-    totalWords > 0 ? Math.round((matchedScore / totalWords) * 100) : 0;
+    totalWords > 0 ? Math.floor((matchedScore / totalWords) * 100) : 0;
 
   return { percentage, matchedWords: matchedCount, totalWords, details };
 };
