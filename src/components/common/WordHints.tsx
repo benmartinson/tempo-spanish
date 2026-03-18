@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { SegmentWord } from "../../types";
 import FeaturedVocab from "../watch/FeaturedVocab";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -42,6 +42,8 @@ const WordHints: React.FC<WordHintsProps> = ({
     setCurrentHintIndex(newIndex);
   };
 
+  const hasWords = Boolean(hintWords.length);
+
   return (
     <View style={styles.featuredVocabContainer}>
       <View style={styles.featuredVocabTitleContainer}>
@@ -50,7 +52,7 @@ const WordHints: React.FC<WordHintsProps> = ({
           isVisible={isShowingWordHints}
           onToggle={() => setIsShowingWordHints(!isShowingWordHints)}
         />
-        {isShowingWordHints && showSwitcher && (
+        {hasWords && isShowingWordHints && showSwitcher && (
           <View style={styles.featuredVocabTitleButtons}>
             <TouchableOpacity
               onPress={() => handleWordHintChange(-1)}
@@ -67,7 +69,12 @@ const WordHints: React.FC<WordHintsProps> = ({
           </View>
         )}
       </View>
-      {isShowingWordHints && currentHintWord && (
+      {!hasWords && isShowingWordHints && (
+        <View style={styles.fetchingContainer}>
+          <Text style={styles.fetchingText}>Fetching Insights...</Text>
+        </View>
+      )}
+      {hasWords && isShowingWordHints && currentHintWord && (
         <FeaturedVocab
           word={currentHintWord}
           playSnippet={handlePlayWordSnippet}
@@ -101,6 +108,14 @@ const styles = StyleSheet.create({
   featuredVocabTitleButton: {
     paddingHorizontal: 8,
     borderRadius: 24,
+  },
+  fetchingContainer: {
+    paddingHorizontal: 20,
+    marginTop: 8,
+  },
+  fetchingText: {
+    color: "black",
+    opacity: 0.5,
   },
 });
 

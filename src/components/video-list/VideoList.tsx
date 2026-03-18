@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   TouchableOpacity,
+  Pressable,
 } from "react-native";
 import { Channel, RootState, Video } from "../../types";
 import {
@@ -26,6 +27,7 @@ import { fetchVideoContext, fetchUserVideoViews } from "../../requests";
 import { setUserVideoViews } from "../../store/actions/dataActions";
 import ChannelVideoList from "./ChannelVideoList";
 import FilterVideos from "./FilterVideos";
+import GuidedPractice from "../guided-practice/GuidedPractice";
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
@@ -33,6 +35,7 @@ const VideoList: React.FC = () => {
   const { userId } = useAuth();
   const [loadingVideo, setLoadingVideo] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [activeTab, setActiveTab] = useState<"videos" | "guided">("videos");
   const currentSearchResults = useSelector(
     (state: RootState) => state.currentSearchResults,
   );
@@ -141,9 +144,7 @@ const VideoList: React.FC = () => {
 
   if (selectedChannel) {
     const channelVideos = allVideos
-      .filter(
-        (video) => video.channel_id === selectedChannel.channel_id,
-      )
+      .filter((video) => video.channel_id === selectedChannel.channel_id)
       .sort(
         (a, b) =>
           new Date(b.created_at ?? 0).getTime() -
@@ -161,121 +162,187 @@ const VideoList: React.FC = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* <WordSearch /> */}
+    <View style={styles.outerContainer}>
+      <View style={styles.tabBar}>
+        {(["videos", "guided"] as const).map((tab, index) => (
+          <Pressable
+            key={tab}
+            style={({ pressed }) => [
+              styles.tab,
+              index > 0 && styles.tabWithBorder,
+              activeTab === tab && styles.tabSelected,
+              pressed && { opacity: 0.6 },
+            ]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text
+              style={
+                activeTab === tab ? styles.tabTextSelected : styles.tabText
+              }
+            >
+              {tab === "videos" ? "Browse Videos" : "Guided Practice"}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {activeTab === "guided" ? (
+        <GuidedPractice />
+      ) : (
+        <ScrollView style={styles.container}>
+          {/* <WordSearch /> */}
 
-      {isSearching && (
-        <View style={styles.searchStatus}>
-          <ActivityIndicator size="small" color="#999" />
-        </View>
-      )}
-      {!isSearching && hasSearched && currentSearchResults.length === 0 && (
-        <View style={styles.searchStatus}>
-          <Text style={styles.emptySearchText}>
-            No Clips Found for the Word or Phrase
-          </Text>
-        </View>
-      )}
-      {currentSearchResults.length > 0 && (
-        <>
-          <VideoSectionHeader title="Search Results" />
-          <HorizontalVideoScroll
-            videos={videoResultsArray}
-            handleWatchPress={handleWatchPress}
-            loadingVideo={loadingVideo}
-            showClips={true}
-          />
-        </>
-      )}
-      {recentlyWatchedVideos.length > 0 && (
-        <>
-          <VideoSectionHeader title="Recently Watched" removeBorderTop />
-          <HorizontalVideoScroll
-            videos={recentlyWatchedVideos}
-            handleWatchPress={handleWatchPress}
-            loadingVideo={loadingVideo}
-          />
-        </>
-      )}
-      {/* <VideoSectionHeader title="Recommended" /> */}
-      <FilterVideos
-        videos={videosForLanguage}
-        mode="topics"
-        topics={allTopics}
-        channelTopics={channelTopics}
-        channels={allChannels}
-      >
-        {({ filteredVideos, filterButton, activeFilterBar }) => {
-          const filteredChannels = (allChannels || []).filter((channel) =>
-            filteredVideos.some(
-              (video) => video.channel_id === channel.channel_id,
-            ),
-          );
-          return (
+          {isSearching && (
+            <View style={styles.searchStatus}>
+              <ActivityIndicator size="small" color="#999" />
+            </View>
+          )}
+          {!isSearching && hasSearched && currentSearchResults.length === 0 && (
+            <View style={styles.searchStatus}>
+              <Text style={styles.emptySearchText}>
+                No Clips Found for the Word or Phrase
+              </Text>
+            </View>
+          )}
+          {currentSearchResults.length > 0 && (
             <>
-              <VideoSectionHeader title="All Channels">
-                {filterButton}
-              </VideoSectionHeader>
-              {activeFilterBar}
-              {filteredChannels.map((channel) => {
-                const channelVideos = filteredVideos
-                  .filter(
-                    (video) => video.channel_id === channel.channel_id,
-                  )
-                  .sort(
-                    (a, b) =>
-                      new Date(b.created_at ?? 0).getTime() -
-                      new Date(a.created_at ?? 0).getTime(),
-                  );
-                return (
-                  <View key={channel.id} style={styles.channelContainer}>
-                    <TouchableOpacity
-                      style={styles.channelHeader}
-                      onPress={() => setSelectedChannel(channel)}
-                    >
-                      <Image
-                        source={{ uri: channel.thumbnail_url }}
-                        style={styles.channelThumbnail}
-                      />
-                      <View style={styles.channelInfo}>
-                        <Text style={styles.channelTitle}>{channel.title}</Text>
-                        <View style={styles.channelBadges}>
-                          {(() => {
-                            const topicIds = channelTopics
-                              .filter((ct) => ct.channel_id === channel.id)
-                              .map((ct) => ct.topic_id);
-                            const topicNames = allTopics
-                              .filter((t) => topicIds.includes(t.id))
-                              .map((t) => t.description);
-                            return topicNames.length > 0 ? (
-                              <Text>{topicNames.join(", ")}</Text>
-                            ) : null;
-                          })()}
-                          <Text>{channelVideos.length} videos available</Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-
-                    <HorizontalVideoScroll
-                      videos={channelVideos}
-                      handleWatchPress={handleWatchPress}
-                      loadingVideo={loadingVideo}
-                      onViewAll={() => setSelectedChannel(channel)}
-                    />
-                  </View>
-                );
-              })}
+              <VideoSectionHeader title="Search Results" />
+              <HorizontalVideoScroll
+                videos={videoResultsArray}
+                handleWatchPress={handleWatchPress}
+                loadingVideo={loadingVideo}
+                showClips={true}
+              />
             </>
-          );
-        }}
-      </FilterVideos>
-    </ScrollView>
+          )}
+          {recentlyWatchedVideos.length > 0 && (
+            <>
+              <VideoSectionHeader title="Recently Watched" removeBorderTop />
+              <HorizontalVideoScroll
+                videos={recentlyWatchedVideos}
+                handleWatchPress={handleWatchPress}
+                loadingVideo={loadingVideo}
+              />
+            </>
+          )}
+          {/* <VideoSectionHeader title="Recommended" /> */}
+          <FilterVideos
+            videos={videosForLanguage}
+            mode="topics"
+            topics={allTopics}
+            channelTopics={channelTopics}
+            channels={allChannels}
+          >
+            {({ filteredVideos, filterButton, activeFilterBar }) => {
+              const filteredChannels = (allChannels || []).filter((channel) =>
+                filteredVideos.some(
+                  (video) => video.channel_id === channel.channel_id,
+                ),
+              );
+              return (
+                <>
+                  <VideoSectionHeader title="All Channels">
+                    {filterButton}
+                  </VideoSectionHeader>
+                  {activeFilterBar}
+                  {filteredChannels.map((channel) => {
+                    const channelVideos = filteredVideos
+                      .filter(
+                        (video) => video.channel_id === channel.channel_id,
+                      )
+                      .sort(
+                        (a, b) =>
+                          new Date(b.created_at ?? 0).getTime() -
+                          new Date(a.created_at ?? 0).getTime(),
+                      );
+                    return (
+                      <View key={channel.id} style={styles.channelContainer}>
+                        <TouchableOpacity
+                          style={styles.channelHeader}
+                          onPress={() => setSelectedChannel(channel)}
+                        >
+                          <Image
+                            source={{ uri: channel.thumbnail_url }}
+                            style={styles.channelThumbnail}
+                          />
+                          <View style={styles.channelInfo}>
+                            <Text style={styles.channelTitle}>
+                              {channel.title}
+                            </Text>
+                            <View style={styles.channelBadges}>
+                              {(() => {
+                                const topicIds = channelTopics
+                                  .filter((ct) => ct.channel_id === channel.id)
+                                  .map((ct) => ct.topic_id);
+                                const topicNames = allTopics
+                                  .filter((t) => topicIds.includes(t.id))
+                                  .map((t) => t.description);
+                                return topicNames.length > 0 ? (
+                                  <Text>{topicNames.join(", ")}</Text>
+                                ) : null;
+                              })()}
+                              <Text>
+                                {channelVideos.length} videos available
+                              </Text>
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+
+                        <HorizontalVideoScroll
+                          videos={channelVideos}
+                          handleWatchPress={handleWatchPress}
+                          loadingVideo={loadingVideo}
+                          onViewAll={() => setSelectedChannel(channel)}
+                        />
+                      </View>
+                    );
+                  })}
+                </>
+              );
+            }}
+          </FilterVideos>
+        </ScrollView>
+      )}
+    </View>
   );
 };
 
 const { width: screenWidth } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  tabBar: {
+    flexDirection: "row",
+    height: 30,
+    borderBottomWidth: 1,
+    borderBottomColor: "gray",
+    backgroundColor: "white",
+  },
+  tab: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    height: "100%",
+  },
+  tabWithBorder: {
+    borderLeftWidth: 1,
+    borderLeftColor: "gray",
+  },
+  tabSelected: {
+    backgroundColor: "#f0f0f0",
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "gray",
+  },
+  tabTextSelected: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "black",
+  },
   container: {
     flex: 1,
     backgroundColor: "white",

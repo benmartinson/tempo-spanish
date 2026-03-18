@@ -547,6 +547,9 @@ export const computeSubSegments = (
     }
   }
 
+  if (segmentWords.length > 15) {
+    return findSubSegmentBySplitWord(segmentWords);
+  }
   if (splitAfter.size === 0) return [];
 
   // Build sub-segments from split points
@@ -582,5 +585,57 @@ export const computeSubSegments = (
     });
   }
 
-  return subSegments.length >= 2 ? subSegments : [];
+  if (subSegments.length >= 2) return subSegments;
+
+  return [];
+};
+
+const COMMON_SPLIT_WORDS = ["para", "y", "porque", "and", "because"];
+
+const findSubSegmentBySplitWord = (
+  segmentWords: SegmentWord[],
+): SubSegment[] => {
+  const len = segmentWords.length;
+  const mid = Math.floor(len / 2);
+
+  // Find all candidate indices where a split word appears
+  const candidates: number[] = [];
+  for (let i = 0; i < len; i++) {
+    const cleaned = stripPunctuation(segmentWords[i].word).toLowerCase();
+    if (COMMON_SPLIT_WORDS.includes(cleaned)) {
+      const wordsBefore = i;
+      const wordsAfter = len - i - 1;
+      if (wordsBefore >= 3 && wordsAfter >= 3) {
+        candidates.push(i);
+      }
+    }
+  }
+  console.log({ candidates });
+  if (candidates.length === 0) return [];
+
+  // Pick the candidate closest to the middle
+  candidates.sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid));
+  const splitIdx = candidates[0];
+
+  const firstSlice = segmentWords.slice(0, splitIdx);
+  const secondSlice = segmentWords.slice(splitIdx);
+
+  const buildPreview = (words: SegmentWord[]) =>
+    words
+      .slice(0, 3)
+      .map((w) => removeSpecialPunctuation(w.word))
+      .join(" ") + "...";
+
+  return [
+    {
+      preview: buildPreview(firstSlice),
+      start: firstSlice[0].start,
+      end: firstSlice[firstSlice.length - 1].end,
+    },
+    {
+      preview: buildPreview(secondSlice),
+      start: secondSlice[0].start,
+      end: secondSlice[secondSlice.length - 1].end,
+    },
+  ];
 };

@@ -5,7 +5,6 @@ import { RootState, SegmentWord } from "../../types";
 import { SubSegment } from "../../helpers";
 import WordHints from "../common/WordHints";
 import ToggleHeader from "../common/ToggleHeader";
-import { stripPunctuation } from "../../helpers";
 import Phrases from "./Phrases";
 
 interface InsightsProps {
@@ -45,60 +44,19 @@ const Insights: React.FC<InsightsProps> = ({
   onStopPhraseRecording,
   onSubmitPhrases,
 }) => {
-  const { showWordsHints, showCharacters, showStartsOffAs } = useSelector(
+  const { showWordsHints, showCharacters } = useSelector(
     (state: RootState) => state.userSettings,
   );
 
   const [isShowingCharacters, setIsShowingCharacters] =
     useState<boolean>(showCharacters);
-  const [isShowingStartsOff, setIsShowingStartsOff] =
-    useState<boolean>(showStartsOffAs);
-  const [revealedCommas, setRevealedCommas] = useState<number>(0);
 
   useEffect(() => {
     setIsShowingCharacters(showCharacters);
-    setIsShowingStartsOff(showStartsOffAs);
   }, [sentenceText]);
-
-  useEffect(() => {
-    setRevealedCommas(0);
-  }, [sentenceText, isShowingStartsOff]);
 
   if (isLoading) {
     return;
-  }
-
-  const words = sentenceText.split(/\s+/).filter(Boolean);
-  const firstTwo = words.slice(0, 2);
-  const firstTwoCharCount = firstTwo.join("").length;
-  const startsOffWords = firstTwoCharCount > 8 ? firstTwo : words.slice(0, 3);
-
-  const getPreviewWords = (text: string) => {
-    const w = text
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((word) => stripPunctuation(word));
-    const first2 = w.slice(0, 2);
-    const first2CharCount = first2.join("").length;
-    return first2CharCount > 8 ? first2 : w.slice(0, 3);
-  };
-
-  const commaSegments = sentenceText.split(",");
-  const hasCommas = commaSegments.length > 1;
-  const totalCommaReveals = commaSegments.length - 1;
-  const hasMoreCommas = hasCommas && revealedCommas < totalCommaReveals;
-
-  let startsOffText =
-    startsOffWords.map((w) => stripPunctuation(w)).join(" ") + "...";
-  const revealedParts: string[] = [];
-  if (hasCommas && revealedCommas > 0) {
-    for (let i = 1; i <= revealedCommas; i++) {
-      if (commaSegments[i]) {
-        const preview = getPreviewWords(commaSegments[i]);
-        revealedParts.push(preview.join(" ") + "...");
-      }
-    }
   }
 
   return (
@@ -114,16 +72,14 @@ const Insights: React.FC<InsightsProps> = ({
         onStopPhraseRecording={onStopPhraseRecording}
         onSubmitPhrases={onSubmitPhrases}
       />
-      {hintWords.length > 0 && (
-        <WordHints
-          hintWords={hintWords}
-          handlePlayWordSnippet={handlePlayWordSnippet}
-          isPlayingWordSnippet={isPlayingWordSnippet}
-          showWordHints={showWordsHints}
-          onReplaySentence={onReplaySentence}
-          playerIsPlaying={playerIsPlaying}
-        />
-      )}
+      <WordHints
+        hintWords={hintWords}
+        handlePlayWordSnippet={handlePlayWordSnippet}
+        isPlayingWordSnippet={isPlayingWordSnippet}
+        showWordHints={showWordsHints}
+        onReplaySentence={onReplaySentence}
+        playerIsPlaying={playerIsPlaying}
+      />
       <>
         {characters.length > 0 && (
           <View style={styles.headerContainer}>
@@ -156,35 +112,6 @@ const Insights: React.FC<InsightsProps> = ({
           </View>
         )}
       </>
-      {words.length > 0 && (
-        <>
-          <View style={styles.startsOffHeaderContainer}>
-            <ToggleHeader
-              title="Starts Off As"
-              isVisible={isShowingStartsOff}
-              onToggle={() => setIsShowingStartsOff(!isShowingStartsOff)}
-            />
-          </View>
-          {isShowingStartsOff && (
-            <View style={styles.charactersList}>
-              <Text style={styles.charactersText}>
-                {startsOffText}
-                {revealedParts.map((part, i) => (
-                  <Text key={i}>{" " + part}</Text>
-                ))}
-                {hasMoreCommas && (
-                  <Text
-                    onPress={() => setRevealedCommas(revealedCommas + 1)}
-                    style={styles.moreButton}
-                  >
-                    {"  More +"}
-                  </Text>
-                )}
-              </Text>
-            </View>
-          )}
-        </>
-      )}
     </View>
   );
 };
@@ -220,19 +147,6 @@ const styles = StyleSheet.create({
   againText: {
     fontSize: 13,
     color: "#999",
-  },
-  moreButton: {
-    fontSize: 13,
-    fontWeight: "600" as const,
-    color: "#007AFF",
-    opacity: 0.8,
-  },
-  startsOffHeaderContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    marginTop: 12,
   },
 });
 

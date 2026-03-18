@@ -181,7 +181,6 @@ const AuthenticatedApp: React.FC = () => {
 
   useEffect(() => {
     if (!supabase) return;
-    console.log("resetting...");
 
     // Fetch all vocabulary
     fetchAllVocabulary({

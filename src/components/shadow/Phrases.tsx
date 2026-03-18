@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSelector } from "react-redux";
 import { RootState } from "../../types";
-import { SubSegment } from "../../helpers";
+import { SubSegment, stripPunctuation } from "../../helpers";
 import ToggleHeader from "../common/ToggleHeader";
 
 interface PhrasesProps {
@@ -39,7 +39,18 @@ const Phrases: React.FC<PhrasesProps> = ({
     setIsShowingPhrases(showPhrases);
   }, [sentenceText]);
 
-  if (subSegments.length === 0) return null;
+  const getPreviewWords = (text: string) => {
+    const w = text
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => stripPunctuation(word));
+    const first2 = w.slice(0, 2);
+    const first2CharCount = first2.join("").length;
+    return first2CharCount > 8 ? first2 : w.slice(0, 3);
+  };
+
+  const hasSubSegments = subSegments.length > 0;
 
   return (
     <>
@@ -52,61 +63,67 @@ const Phrases: React.FC<PhrasesProps> = ({
       </View>
       {isShowingPhrases && (
         <View style={styles.phrasesList}>
-          {subSegments.map((seg, i) => {
-            const isRecordingThis = recordingPhraseIndex === i;
-            const hasRecording = !!phraseRecordings?.[i];
-            const anotherIsRecording =
-              recordingPhraseIndex !== null && !isRecordingThis;
+          {hasSubSegments ? (
+            subSegments.map((seg, i) => {
+              const isRecordingThis = recordingPhraseIndex === i;
+              const hasRecording = !!phraseRecordings?.[i];
+              const anotherIsRecording =
+                recordingPhraseIndex !== null && !isRecordingThis;
 
-            return (
-              <View key={i} style={styles.phraseRow}>
-                <TouchableOpacity
-                  style={styles.phraseReplayButton}
-                  onPress={() => onPlayClip?.(seg.start, seg.end)}
-                >
-                  <MaterialIcons name="replay" size={22} color="#007AFF" />
-                </TouchableOpacity>
+              return (
+                <View key={i} style={styles.phraseRow}>
+                  <TouchableOpacity
+                    style={styles.phraseReplayButton}
+                    onPress={() => onPlayClip?.(seg.start, seg.end)}
+                  >
+                    <MaterialIcons name="replay" size={22} color="#007AFF" />
+                  </TouchableOpacity>
 
-                {isRecordingThis ? (
-                  <>
-                    <Text style={styles.recordingText}>Recording...</Text>
-                    <TouchableOpacity
-                      style={styles.phraseStopButton}
-                      onPress={() => onStopPhraseRecording?.()}
-                    >
-                      <MaterialIcons name="stop" size={20} color="#e53935" />
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.phraseText}>{seg.preview}</Text>
-                    <TouchableOpacity
-                      style={[
-                        styles.phraseMicButton,
-                        anotherIsRecording && { opacity: 0.3 },
-                      ]}
-                      onPress={() => onStartPhraseRecording?.(i)}
-                      disabled={anotherIsRecording}
-                    >
-                      <MaterialIcons
-                        name="mic"
-                        size={22}
-                        color={hasRecording ? "#007AFF" : "#999"}
-                      />
-                    </TouchableOpacity>
-                    {hasRecording && (
-                      <MaterialIcons
-                        name="check-circle"
-                        size={22}
-                        color="#4CAF50"
-                      />
-                    )}
-                  </>
-                )}
-              </View>
-            );
-          })}
-          {allPhrasesRecorded && (
+                  {isRecordingThis ? (
+                    <>
+                      <Text style={styles.recordingText}>Recording...</Text>
+                      <TouchableOpacity
+                        style={styles.phraseStopButton}
+                        onPress={() => onStopPhraseRecording?.()}
+                      >
+                        <MaterialIcons name="stop" size={20} color="#e53935" />
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.phraseText}>{seg.preview}</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.phraseMicButton,
+                          anotherIsRecording && { opacity: 0.3 },
+                        ]}
+                        onPress={() => onStartPhraseRecording?.(i)}
+                        disabled={anotherIsRecording}
+                      >
+                        <MaterialIcons
+                          name="mic"
+                          size={22}
+                          color={hasRecording ? "#007AFF" : "#999"}
+                        />
+                      </TouchableOpacity>
+                      {hasRecording && (
+                        <MaterialIcons
+                          name="check-circle"
+                          size={22}
+                          color="#4CAF50"
+                        />
+                      )}
+                    </>
+                  )}
+                </View>
+              );
+            })
+          ) : (
+            <Text style={styles.phraseText}>
+              {getPreviewWords(sentenceText).join(" ") + "..."}
+            </Text>
+          )}
+          {allPhrasesRecorded && hasSubSegments && (
             <TouchableOpacity
               style={styles.phraseSubmitButton}
               onPress={() => onSubmitPhrases?.()}

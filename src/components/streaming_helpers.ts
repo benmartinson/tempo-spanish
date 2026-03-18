@@ -822,7 +822,7 @@ export const calculateAccuracy = (
   if (targetWords.length === 0) {
     return { percentage: 100, matchedWords: 0, totalWords: 0, details: [] };
   }
-  console.log({ targetWords, spokenWords, properNouns });
+  console.log({ targetWords, spokenWords });
 
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
   const normalizedProperNouns = properNouns.map((n) => normalize(n));
@@ -911,9 +911,7 @@ export const calculateAccuracy = (
       score === 1 ? detail.targetWord : spokenWords[spokenIdx];
     detail._spokenIndex = spokenIdx;
     detail._matchScore = score;
-    if (score !== 1) {
-      console.log({ detail, score });
-    }
+
     usedSpokenIndices.add(spokenIdx);
     matchedCount++;
     matchedScore += score;
