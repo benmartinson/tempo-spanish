@@ -24,6 +24,7 @@ interface InsightsProps {
   onStartPhraseRecording?: (index: number) => void;
   onStopPhraseRecording?: () => void;
   onSubmitPhrases?: () => void;
+  playbackTime?: number;
 }
 
 const Insights: React.FC<InsightsProps> = ({
@@ -43,6 +44,7 @@ const Insights: React.FC<InsightsProps> = ({
   onStartPhraseRecording,
   onStopPhraseRecording,
   onSubmitPhrases,
+  playbackTime,
 }) => {
   const { showWordsHints, showCharacters } = useSelector(
     (state: RootState) => state.userSettings,
@@ -71,6 +73,8 @@ const Insights: React.FC<InsightsProps> = ({
         onStartPhraseRecording={onStartPhraseRecording}
         onStopPhraseRecording={onStopPhraseRecording}
         onSubmitPhrases={onSubmitPhrases}
+        playbackTime={playbackTime}
+        playerIsPlaying={playerIsPlaying}
       />
       <WordHints
         hintWords={hintWords}

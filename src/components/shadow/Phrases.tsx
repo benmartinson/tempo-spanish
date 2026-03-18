@@ -16,6 +16,8 @@ interface PhrasesProps {
   onStartPhraseRecording?: (index: number) => void;
   onStopPhraseRecording?: () => void;
   onSubmitPhrases?: () => void;
+  playbackTime?: number;
+  playerIsPlaying?: boolean;
 }
 
 const Phrases: React.FC<PhrasesProps> = ({
@@ -28,6 +30,8 @@ const Phrases: React.FC<PhrasesProps> = ({
   onStartPhraseRecording,
   onStopPhraseRecording,
   onSubmitPhrases,
+  playbackTime,
+  playerIsPlaying,
 }) => {
   const { showPhrases } = useSelector(
     (state: RootState) => state.userSettings,
@@ -69,6 +73,11 @@ const Phrases: React.FC<PhrasesProps> = ({
               const hasRecording = !!phraseRecordings?.[i];
               const anotherIsRecording =
                 recordingPhraseIndex !== null && !isRecordingThis;
+              const isActive =
+                playerIsPlaying &&
+                playbackTime !== undefined &&
+                playbackTime >= seg.start &&
+                playbackTime <= seg.end;
 
               return (
                 <View key={i} style={styles.phraseRow}>
@@ -91,7 +100,7 @@ const Phrases: React.FC<PhrasesProps> = ({
                     </>
                   ) : (
                     <>
-                      <Text style={styles.phraseText}>{seg.preview}</Text>
+                      <Text style={[styles.phraseText, isActive && styles.phraseTextActive]}>{seg.preview}</Text>
                       <TouchableOpacity
                         style={[
                           styles.phraseMicButton,
@@ -163,6 +172,10 @@ const styles = StyleSheet.create({
     color: "#222222",
     opacity: 0.8,
     flex: 1,
+  },
+  phraseTextActive: {
+    color: "#4CAF50",
+    opacity: 1,
   },
   recordingText: {
     fontSize: 15,

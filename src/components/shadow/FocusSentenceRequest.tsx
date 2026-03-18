@@ -8,6 +8,7 @@ import {
   Keyboard,
 } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../types";
@@ -156,7 +157,7 @@ const FocusSentenceRequest: React.FC<FocusSentenceRequestProps> = ({
   return (
     <>
       <TouchableOpacity style={styles.container} onPress={handlePress}>
-        <Entypo name="pencil" size={32} color={isMarked ? "#222222" : "gray"} />
+        <MaterialIcons name="translate" size={32} color="black" />
       </TouchableOpacity>
 
       <SlideModal

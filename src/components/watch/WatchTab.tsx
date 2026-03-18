@@ -118,7 +118,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
         >
           <Text>
             Segment {currentSentenceIndex + 1} of{" "}
-            {currentVideo.sentences.length}
+            {currentVideo.sentences.length + 1}
           </Text>
         </NavSwitcher>
         <View style={styles.controlsContainer}>
@@ -144,6 +144,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
                 <FullSegmentTranscriptBubble
                   words={currentSentence.words || []}
                   time={time}
+                  playerIsPlaying={playerIsPlaying}
                 />
               )}
             </View>
@@ -181,6 +182,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
+    paddingBottom: 24,
   },
   questionContextButton: {
     flexDirection: "row",

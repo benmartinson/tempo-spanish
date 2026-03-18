@@ -20,7 +20,10 @@ import {
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSelector, useDispatch } from "react-redux";
+import Feather from "@expo/vector-icons/Feather";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import AntDesign from "@expo/vector-icons/AntDesign";
+
 import { useAuth } from "@clerk/clerk-expo";
 import { RootState, SegmentWord } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
@@ -606,7 +609,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         >
           <Text>
             Segment {currentSentenceIndex + 1} of{" "}
-            {currentVideo.sentences.length}
+            {currentVideo.sentences.length + 1}
           </Text>
         </NavSwitcher>
         {!isRecordingMode && !accuracyResult && !isProcessing && (
@@ -650,11 +653,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 playerIsPlaying={playerIsPlaying}
               />
               <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
-                <MaterialIcons name="settings" size={32} color="#222222" />
+                <Feather name="settings" size={30} color="#222222" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowShadowInstructions(true)}>
-                <MaterialIcons name="info" size={32} color="#222222" />
-              </TouchableOpacity>
+              {/* <TouchableOpacity onPress={() => setShowShadowInstructions(true)}>
+                <AntDesign name="info-circle" size={32} color="#222222" />
+              </TouchableOpacity> */}
             </View>
           </View>
         )}
@@ -749,6 +752,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               onReplaySentence={() => handlePlaySnippetAgain(null)}
               onPlayClip={playClipSnippet}
               playerIsPlaying={playerIsPlaying}
+              playbackTime={time}
               phraseRecordings={phraseRecordings}
               recordingPhraseIndex={recordingPhraseIndex}
               allPhrasesRecorded={allPhrasesRecorded}
@@ -1073,7 +1077,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 4,
+    marginRight: 6,
     paddingVertical: 12,
     borderRadius: 24,
   },

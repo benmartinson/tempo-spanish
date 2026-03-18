@@ -20,6 +20,7 @@ interface FullSegmentTranscriptBubbleProps {
   mode?: "video" | "shadow"; // default 'video'
   currentTargetIndex?: number; // for shadow mode - the word user is attempting
   showFullText?: boolean;
+  playerIsPlaying?: boolean;
 }
 
 const LINE_HEIGHT = 28;
@@ -35,6 +36,7 @@ const FullSegmentTranscriptBubble: React.FC<
   mode = "video",
   currentTargetIndex = 0,
   showFullText = false,
+  playerIsPlaying = false,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
@@ -167,14 +169,16 @@ const FullSegmentTranscriptBubble: React.FC<
           // Determine word style based on mode
           const getWordStyle = () => {
             if (mode === "shadow") {
-              // Shadow mode: words at or before currentTargetIndex are highlighted
               return index <= currentTargetIndex
                 ? styles.currentWord
                 : styles.normalWord;
             }
-            // Video mode: only current word is highlighted
-            return index === currentWordIndex
-              ? styles.currentWord
+            // Video mode: highlight chunk of 5 words around current position
+            if (!playerIsPlaying) return styles.normalWord;
+            const chunkStart = Math.floor(currentWordIndex / 5) * 5;
+            const chunkEnd = chunkStart + 4;
+            return index >= chunkStart && index <= chunkEnd
+              ? styles.activeWord
               : styles.normalWord;
           };
 
@@ -260,7 +264,10 @@ const styles = StyleSheet.create({
     lineHeight: LINE_HEIGHT,
   },
   currentWord: {
-    color: "black", // Green highlight for current word
+    color: "black",
+  },
+  activeWord: {
+    color: "#4CAF50",
   },
   normalWord: {
     color: "black", // White for other words

@@ -568,7 +568,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           refreshPlayer={refreshPlayer}
           isActive={selectedNavTab === "watch"}
           hintWords={hintWords}
-          handlePlayWordSnippet={(word: SegmentWord) => playClipSnippet(word.start, word.end)}
+          handlePlayWordSnippet={(word: SegmentWord) =>
+            playClipSnippet(word.start, word.end)
+          }
           isPlayingWordSnippet={!!currentClipSnippetRef.current}
           handleNextSentence={handleNextSentence}
           handlePreviousSentence={handlePreviousSentence}
@@ -591,7 +593,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setPlayerSpeed={setPlayerSpeed}
           pausePlayer={pausePlayer}
           resumePlayer={playPlayer}
-          playWordSnippet={(word: SegmentWord) => playClipSnippet(word.start, word.end)}
+          playWordSnippet={(word: SegmentWord) =>
+            playClipSnippet(word.start, word.end)
+          }
           isPlayingWordSnippet={!!currentClipSnippetRef.current}
           hintWords={hintWords}
           onPlayClip={handlePlayClip}
