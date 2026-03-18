@@ -392,6 +392,8 @@ export const restoreUserUIState = async ({
       translationLanguage:
         uiState.translation_language ??
         DEFAULT_USER_SETTINGS.translationLanguage,
+      estimatedHours:
+        uiState.estimated_hours ?? DEFAULT_USER_SETTINGS.estimatedHours,
     };
 
     if (uiState?.current_video) {
@@ -520,6 +522,8 @@ export const persistUserSettings = async ({
     updateData.target_language = settings.targetLanguage;
   if (settings.translationLanguage !== undefined)
     updateData.translation_language = settings.translationLanguage;
+  if (settings.estimatedHours !== undefined)
+    updateData.estimated_hours = settings.estimatedHours;
 
   const { error } = await supabase
     .from("user_ui_state")

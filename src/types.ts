@@ -6,6 +6,7 @@ export interface UserSettings {
   showPhrases: boolean;
   targetLanguage: "en" | "es" | "pt";
   translationLanguage: "en" | "es" | "pt";
+  estimatedHours: number | null;
 }
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
@@ -16,6 +17,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   showPhrases: true,
   targetLanguage: "es",
   translationLanguage: "en",
+  estimatedHours: null,
 };
 
 export interface RootState {
@@ -272,4 +274,5 @@ export interface UserUIState {
   show_phrases: boolean | null;
   target_language: "en" | "es" | "pt" | null;
   translation_language: "en" | "es" | "pt" | null;
+  estimated_hours: number | null;
 }

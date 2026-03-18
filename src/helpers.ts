@@ -490,6 +490,54 @@ export const getFocusVocabWords = (
     });
 };
 
+const HOURS_TO_PERCENTILE_RANGE: Record<number, [number, number]> = {
+  100: [1, 20],
+  300: [21, 40],
+  600: [41, 60],
+  1000: [61, 80],
+  1500: [61, 100],
+};
+
+export const selectGuidedVocab = (
+  allVocabulary: Record<string, Vocabulary>,
+  userKnownVocab: number[],
+  focusVocabIds: number[],
+  estimatedHours: number | null,
+  count: number = 8,
+  excludeIds: number[] = [],
+): Vocabulary[] => {
+  const knownSet = new Set(userKnownVocab);
+  const excludeSet = new Set(excludeIds);
+  const allWords = Object.values(allVocabulary).filter(
+    (v) => !knownSet.has(v.id) && !excludeSet.has(v.id),
+  );
+
+  const range = HOURS_TO_PERCENTILE_RANGE[estimatedHours ?? 100] ?? [1, 20];
+  const [minP, maxP] = range;
+
+  // Pick up to 2 from focus vocab that are not known
+  const focusWords = focusVocabIds
+    .map((id) => allWords.find((v) => v.id === id))
+    .filter((v): v is Vocabulary => !!v)
+    .slice(0, 2);
+
+  const focusIds = new Set(focusWords.map((v) => v.id));
+
+  // Fill remaining from percentile range
+  const poolWords = allWords
+    .filter(
+      (v) =>
+        normalizeWord(v.translation) !== normalizeWord(v.word) &&
+        !focusIds.has(v.id) &&
+        v.percentile >= minP &&
+        v.percentile <= maxP,
+    )
+    .sort(() => Math.random() - 0.5);
+
+  const remaining = count - focusWords.length;
+  return [...focusWords, ...poolWords.slice(0, remaining)];
+};
+
 export const removeSpecialPunctuation = (word: string) => {
   if (word.endsWith("...,") || word.endsWith(",...")) {
     return word.slice(0, -4);
