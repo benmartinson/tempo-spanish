@@ -211,19 +211,18 @@ const AuthenticatedApp: React.FC = () => {
 
       dispatch(setUserSettings(settings));
 
+      if (currentTab && ["watch", "discuss", "shadow"].includes(currentTab)) {
+        dispatch(setCurrentTab(currentTab));
+        // Also update the local nav tab state
+        if (currentTab === "discuss") {
+          setSelectedNavTab("review");
+        } else if (currentTab === "watch" || currentTab === "shadow") {
+          setSelectedNavTab(currentTab);
+        }
+      }
+
       if (videoContext) {
         dispatch(setCurrentVideo(videoContext));
-
-        // Restore the tab if it's one of the persisted tabs
-        if (currentTab && ["watch", "discuss", "shadow"].includes(currentTab)) {
-          dispatch(setCurrentTab(currentTab));
-          // Also update the local nav tab state
-          if (currentTab === "discuss") {
-            setSelectedNavTab("review");
-          } else if (currentTab === "watch" || currentTab === "shadow") {
-            setSelectedNavTab(currentTab);
-          }
-        }
       }
 
       setIsRestoringState(false);

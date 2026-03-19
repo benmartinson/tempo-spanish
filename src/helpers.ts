@@ -649,7 +649,6 @@ const findSubSegmentBySplitWord = (
       }
     }
   }
-  console.log({ candidates });
   if (candidates.length === 0) return [];
 
   // Pick the candidate closest to the middle

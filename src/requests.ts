@@ -385,8 +385,7 @@ export const restoreUserUIState = async ({
         uiState.show_characters ?? DEFAULT_USER_SETTINGS.showCharacters,
       showStartsOffAs:
         uiState.show_starts_off_as ?? DEFAULT_USER_SETTINGS.showStartsOffAs,
-      showPhrases:
-        uiState.show_phrases ?? DEFAULT_USER_SETTINGS.showPhrases,
+      showPhrases: uiState.show_phrases ?? DEFAULT_USER_SETTINGS.showPhrases,
       targetLanguage:
         uiState.target_language ?? DEFAULT_USER_SETTINGS.targetLanguage,
       translationLanguage:
@@ -423,7 +422,7 @@ export const restoreUserUIState = async ({
       };
     }
 
-    return { videoContext: null, currentTab: null, settings };
+    return { videoContext: null, currentTab: uiState?.current_tab, settings };
   } catch (err) {
     console.error("Error restoring user UI state:", err);
     return defaultResult;
