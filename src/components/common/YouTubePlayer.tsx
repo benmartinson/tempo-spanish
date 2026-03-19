@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
-    borderRadius: 16,
+    // borderRadius: 16,
     overflow: "hidden",
   },
   videoTextContainer: {

@@ -1,36 +1,49 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Text, StyleSheet, TouchableOpacity, View } from "react-native";
 import { RootState } from "../../types";
 import { useDispatch, useSelector } from "react-redux";
-import { getVideoTitle } from "../../data/question_clips";
-import { useNavigation } from "@react-navigation/native";
 import { setCurrentTab } from "../../store/actions/dataActions";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
-const SelectedVideoBanner: React.FC = () => {
-  const navigation = useNavigation();
+interface SelectedVideoBannerProps {
+  title?: string;
+  onPress?: () => void;
+  onBack?: () => void;
+}
+
+const SelectedVideoBanner: React.FC<SelectedVideoBannerProps> = ({
+  title,
+  onPress,
+  onBack,
+}) => {
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const dispatch = useDispatch();
 
-  if (!currentVideo) {
-    return null;
-  }
-  const video = (allVideos || []).find(
-    (video) => video.video_id === currentVideo.videoId,
-  );
-  if (!video) {
-    return null;
-  }
+  const video = currentVideo
+    ? (allVideos || []).find((v) => v.video_id === currentVideo.videoId)
+    : null;
+
+  const displayTitle = title || video?.title;
+
+  if (!displayTitle) return null;
+
+  const handlePress = onPress ?? (() => dispatch(setCurrentTab("watch")));
+
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() => {
-        dispatch(setCurrentTab("watch"));
-        // navigation.navigate("Watch" as never);
-      }}
-    >
-      <Text style={styles.title}>{video.title}</Text>
-    </TouchableOpacity>
+    <View style={styles.container}>
+      {onBack && (
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <MaterialIcons name="arrow-back" size={20} color="gray" />
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity style={styles.titleRow} onPress={handlePress}>
+        <Text style={styles.title} numberOfLines={1}>
+          {displayTitle}
+        </Text>
+        <MaterialIcons name="open-in-new" size={14} color="gray" />
+      </TouchableOpacity>
+    </View>
   );
 };
 
@@ -38,18 +51,27 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: "white",
     width: "100%",
-    height: 40,
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: "gray",
   },
-  title: {
-    width: "100%",
-    justifyContent: "center",
+  backButton: {
+    marginRight: 8,
+    padding: 4,
+  },
+  titleRow: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    fontSize: 16,
-    fontWeight: "bold",
+    gap: 8,
+  },
+  title: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
     color: "gray",
   },
 });

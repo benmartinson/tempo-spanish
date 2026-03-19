@@ -491,11 +491,11 @@ export const getFocusVocabWords = (
 };
 
 const HOURS_TO_PERCENTILE_RANGE: Record<number, [number, number]> = {
-  100: [1, 20],
-  300: [21, 40],
-  600: [41, 60],
-  1000: [61, 80],
-  1500: [61, 100],
+  100: [1, 3],
+  300: [3, 10],
+  600: [8, 20],
+  1000: [20, 50],
+  1500: [30, 100],
 };
 
 export const selectGuidedVocab = (

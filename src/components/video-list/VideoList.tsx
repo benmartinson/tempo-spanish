@@ -163,28 +163,30 @@ const VideoList: React.FC = () => {
 
   return (
     <View style={styles.outerContainer}>
-      <View style={styles.tabBar}>
-        {(["videos", "guided"] as const).map((tab, index) => (
-          <Pressable
-            key={tab}
-            style={({ pressed }) => [
-              styles.tab,
-              index > 0 && styles.tabWithBorder,
-              activeTab === tab && styles.tabSelected,
-              pressed && { opacity: 0.6 },
-            ]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text
-              style={
-                activeTab === tab ? styles.tabTextSelected : styles.tabText
-              }
+      {activeTab !== "guided" && (
+        <View style={styles.tabBar}>
+          {(["videos", "guided"] as const).map((tab, index) => (
+            <Pressable
+              key={tab}
+              style={({ pressed }) => [
+                styles.tab,
+                index > 0 && styles.tabWithBorder,
+                activeTab === tab && styles.tabSelected,
+                pressed && { opacity: 0.6 },
+              ]}
+              onPress={() => setActiveTab(tab)}
             >
-              {tab === "videos" ? "Browse Videos" : "Guided Practice"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+              <Text
+                style={
+                  activeTab === tab ? styles.tabTextSelected : styles.tabText
+                }
+              >
+                {tab === "videos" ? "Browse Videos" : "Guided Practice"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
       {activeTab === "guided" ? (
         <GuidedPractice />
       ) : (

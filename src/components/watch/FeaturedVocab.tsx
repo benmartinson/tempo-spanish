@@ -5,9 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
-  TextInput,
-  ActivityIndicator,
-  Keyboard,
 } from "react-native";
 import { RootState, SegmentWord } from "../../types";
 import {
@@ -28,8 +25,7 @@ import {
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import { MaterialIcons } from "@expo/vector-icons";
-import SlideModal from "../common/Modal";
-import { evaluateVocabAnswer } from "../../requests";
+import GuessWordModal from "../common/GuessWordModal";
 
 interface FeaturedVocabProps {
   word: SegmentWord;
@@ -62,14 +58,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
 
-  // Vocab quiz modal state
   const [modalVisible, setModalVisible] = useState(false);
-  const [userAnswer, setUserAnswer] = useState("");
-  const [isEvaluating, setIsEvaluating] = useState(false);
-  const [evalResult, setEvalResult] = useState<{
-    score: "correct" | "incorrect";
-    acceptedAnswers: string[];
-  } | null>(null);
 
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
@@ -172,41 +161,8 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
     }
   };
 
-  const handleSubmitVocabAnswer = async () => {
-    Keyboard.dismiss();
-    setIsEvaluating(true);
-
-    try {
-      const result = await evaluateVocabAnswer({
-        question: `What does "${vocabWord.word}" mean in the context of this sentence: "${currentSentenceObject?.text}"?`,
-        userAnswer: userAnswer.trim(),
-        contextSegments: currentSentenceObject?.text
-          ? [{ text: currentSentenceObject.text }]
-          : [],
-        vocabWord: vocabWord.word,
-        quizType: "vocab",
-      });
-
-      if (result) {
-        setEvalResult(result);
-      }
-    } catch (err) {
-      console.error("Error evaluating vocab answer:", err);
-    } finally {
-      setIsEvaluating(false);
-    }
-  };
-
-  const handleSubmitAgain = () => {
-    setEvalResult(null);
-    handleSubmitVocabAnswer();
-  };
-
   const handleCloseModal = () => {
     setModalVisible(false);
-    setUserAnswer("");
-    setEvalResult(null);
-    setIsEvaluating(false);
   };
 
   return (
@@ -292,142 +248,14 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
         </View>
       </View>
 
-      <SlideModal
+      <GuessWordModal
         visible={modalVisible}
-        onRequestClose={handleCloseModal}
-        title="Guess the Meaning"
-      >
-        <View style={modalStyles.content}>
-          <Text style={modalStyles.vocabWord}>
-            {capitalize(vocabWord?.word || word.word)}
-          </Text>
-
-          {/* <Text style={modalStyles.contextLabel}>In context:</Text>
-          <Text style={modalStyles.contextText}>
-            {currentSentenceObject?.text}
-          </Text> */}
-
-          <Text style={modalStyles.questionText}>
-            What does this word mean in the context of the clip segment?
-          </Text>
-
-          {onReplaySentence && (
-            <TouchableOpacity
-              style={[
-                modalStyles.replayButton,
-                playerIsPlaying && modalStyles.replayButtonDisabled,
-              ]}
-              onPress={onReplaySentence}
-              disabled={playerIsPlaying}
-            >
-              <MaterialIcons
-                name="replay"
-                size={20}
-                color={playerIsPlaying ? "#aaa" : "#4a69bd"}
-              />
-              <Text
-                style={[
-                  modalStyles.replayButtonText,
-                  playerIsPlaying && { color: "#aaa" },
-                ]}
-              >
-                Replay
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={modalStyles.inputWrapper}>
-            <TextInput
-              style={modalStyles.input}
-              placeholder="Type your answer..."
-              placeholderTextColor="#999"
-              value={userAnswer}
-              onChangeText={setUserAnswer}
-              multiline
-              autoCorrect={false}
-              returnKeyType="done"
-              submitBehavior="blurAndSubmit"
-              onSubmitEditing={() => {
-                if (userAnswer.trim()) {
-                  if (evalResult) {
-                    handleSubmitAgain();
-                  } else {
-                    handleSubmitVocabAnswer();
-                  }
-                }
-              }}
-            />
-            {userAnswer.length > 0 && (
-              <TouchableOpacity
-                style={modalStyles.clearButton}
-                onPress={() => setUserAnswer("")}
-              >
-                <Entypo name="cross" size={16} color="#999" />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {isEvaluating ? (
-            <View style={modalStyles.resultContainer}>
-              <ActivityIndicator size="small" color="#4a69bd" />
-            </View>
-          ) : evalResult?.score === "correct" ? (
-            <View style={modalStyles.resultContainer}>
-              <View
-                style={[modalStyles.scoreCard, modalStyles.scoreCardSuccess]}
-              >
-                <Text style={modalStyles.scoreText}>Correct!</Text>
-              </View>
-              <View style={modalStyles.acceptedAnswersContainer}>
-                <Text style={modalStyles.acceptedAnswersLabel}>
-                  Accepted answers:
-                </Text>
-                {evalResult.acceptedAnswers.map((answer, i) => (
-                  <Text key={i} style={modalStyles.acceptedAnswer}>
-                    {answer}
-                  </Text>
-                ))}
-              </View>
-              <Text style={modalStyles.markedText}>
-                This word is selected for later review!
-              </Text>
-              <TouchableOpacity
-                style={modalStyles.closeButton}
-                onPress={handleCloseModal}
-              >
-                <Text style={modalStyles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            evalResult?.score === "incorrect" && (
-              <View style={modalStyles.resultContainer}>
-                <View style={modalStyles.scoreCard}>
-                  <Text style={modalStyles.scoreTextIncorrect}>Incorrect</Text>
-                </View>
-                <View style={modalStyles.acceptedAnswersContainer}>
-                  <Text style={modalStyles.acceptedAnswersLabel}>
-                    Accepted answers:
-                  </Text>
-                  {evalResult.acceptedAnswers.map((answer, i) => (
-                    <Text key={i} style={modalStyles.acceptedAnswer}>
-                      {answer}
-                    </Text>
-                  ))}
-                </View>
-                <Text style={modalStyles.markedText}>
-                  This word is selected for later review!
-                </Text>
-                <TouchableOpacity
-                  style={modalStyles.closeButton}
-                  onPress={handleCloseModal}
-                >
-                  <Text style={modalStyles.closeButtonText}>Close</Text>
-                </TouchableOpacity>
-              </View>
-            )
-          )}
-        </View>
-      </SlideModal>
+        onClose={handleCloseModal}
+        word={vocabWord?.word || word.word}
+        sentenceText={currentSentenceObject?.text}
+        onReplaySentence={onReplaySentence}
+        playerIsPlaying={playerIsPlaying}
+      />
     </View>
   );
 };
@@ -534,180 +362,6 @@ const styles = StyleSheet.create({
   },
   selectedReviewButtonText: {
     color: "green",
-  },
-});
-
-const modalStyles = StyleSheet.create({
-  content: {
-    padding: 24,
-    gap: 20,
-  },
-  vocabWord: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#222",
-    textAlign: "center",
-  },
-  contextLabel: {
-    fontSize: 13,
-    color: "#888",
-    fontWeight: "500",
-  },
-  contextText: {
-    fontSize: 16,
-    color: "#444",
-    fontStyle: "italic",
-    lineHeight: 24,
-    marginTop: -12,
-  },
-  questionText: {
-    fontSize: 16,
-    color: "#555",
-  },
-  replayButton: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 6,
-    alignSelf: "flex-start" as const,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#4a69bd",
-    backgroundColor: "#f0f4ff",
-  },
-  replayButtonDisabled: {
-    borderColor: "#ddd",
-    backgroundColor: "#f5f5f5",
-  },
-  replayButtonText: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: "#4a69bd",
-  },
-  inputWrapper: {
-    position: "relative",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    padding: 14,
-    paddingRight: 32,
-    fontSize: 16,
-    color: "#222",
-    minHeight: 60,
-    textAlignVertical: "top",
-  },
-  clearButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#eee",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  submitButton: {
-    backgroundColor: "#4a69bd",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  submitButtonDisabled: {
-    opacity: 0.4,
-  },
-  submitButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  resultContainer: {
-    paddingTop: 8,
-    alignItems: "center",
-    gap: 8,
-  },
-  scoreCard: {
-    backgroundColor: "#f0f4ff",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#d6e0f5",
-    width: "100%",
-  },
-  scoreCardSuccess: {
-    backgroundColor: "#edfcf2",
-    borderColor: "#b6e9c8",
-  },
-  scoreText: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#22a655",
-  },
-  scoreTextIncorrect: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#4a69bd",
-  },
-  tryAgainText: {
-    fontSize: 15,
-    color: "#888",
-    fontWeight: "500",
-    marginTop: 4,
-  },
-  acceptedAnswersContainer: {
-    alignItems: "center",
-    gap: 4,
-    marginTop: 4,
-  },
-  acceptedAnswersLabel: {
-    fontSize: 14,
-    color: "#888",
-    fontWeight: "500",
-  },
-  acceptedAnswer: {
-    fontSize: 16,
-    color: "#222",
-    fontWeight: "600",
-  },
-  showAnswerButton: {
-    backgroundColor: "#f0f0f0",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    marginTop: 8,
-  },
-  showAnswerButtonText: {
-    color: "#555",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  markedText: {
-    fontSize: 14,
-    color: "#22a655",
-    fontWeight: "500",
-    marginTop: 8,
-    textAlign: "center",
-  },
-  closeButton: {
-    backgroundColor: "#4a69bd",
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  closeButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
 
