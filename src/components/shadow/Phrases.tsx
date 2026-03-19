@@ -33,9 +33,7 @@ const Phrases: React.FC<PhrasesProps> = ({
   playbackTime,
   playerIsPlaying,
 }) => {
-  const { showPhrases } = useSelector(
-    (state: RootState) => state.userSettings,
-  );
+  const { showPhrases } = useSelector((state: RootState) => state.userSettings);
   const [isShowingPhrases, setIsShowingPhrases] =
     useState<boolean>(showPhrases);
 
@@ -76,7 +74,7 @@ const Phrases: React.FC<PhrasesProps> = ({
               const isActive =
                 playerIsPlaying &&
                 playbackTime !== undefined &&
-                playbackTime >= seg.start &&
+                (i === 0 || playbackTime >= seg.start) &&
                 playbackTime <= seg.end;
 
               return (
@@ -100,7 +98,14 @@ const Phrases: React.FC<PhrasesProps> = ({
                     </>
                   ) : (
                     <>
-                      <Text style={[styles.phraseText, isActive && styles.phraseTextActive]}>{seg.preview}</Text>
+                      <Text
+                        style={[
+                          styles.phraseText,
+                          isActive && styles.phraseTextActive,
+                        ]}
+                      >
+                        {seg.preview}
+                      </Text>
                       <TouchableOpacity
                         style={[
                           styles.phraseMicButton,
