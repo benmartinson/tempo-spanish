@@ -16,6 +16,7 @@ import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import PlayerControls from "../shadow/PlayerControls";
 import { capitalize } from "../../helpers";
 import { fetchVideoContext } from "../../requests";
+import GuessWordModal from "../common/GuessWordModal";
 import {
   addUserVideoView,
   setCurrentVideo,
@@ -52,9 +53,16 @@ const VocabClips: React.FC<VocabClipsProps> = ({ vocabList, onBack }) => {
   const [guessedIds, setGuessedIds] = useState<
     Record<number, "correct" | "incorrect">
   >({});
+  const [guessModalWord, setGuessModalWord] = useState<string | null>(null);
 
   const currentWord =
     currentWordIndex < vocabList.length ? vocabList[currentWordIndex] : null;
+
+  // Shuffle button order each time the word changes so the answer position isn't obvious
+  const [buttonOrder, setButtonOrder] = useState<Vocabulary[]>([]);
+  useEffect(() => {
+    setButtonOrder([...vocabList].sort(() => Math.random() - 0.5));
+  }, [currentWordIndex]);
 
   useEffect(() => {
     if (!currentWord) return;
@@ -85,7 +93,6 @@ const VocabClips: React.FC<VocabClipsProps> = ({ vocabList, onBack }) => {
           video_record_id: row.video?.id,
         }));
       setResults(segments);
-      console.log({ segments });
       setCurrentClipIndex(0);
       setGuessedIds({});
       setLoading(false);
@@ -99,14 +106,18 @@ const VocabClips: React.FC<VocabClipsProps> = ({ vocabList, onBack }) => {
 
     if (vocab.id === currentWord?.id) {
       setGuessedIds((prev) => ({ ...prev, [vocab.id]: "correct" }));
-      setTimeout(() => {
-        if (currentWordIndex < vocabList.length - 1) {
-          setCurrentWordIndex((i) => i + 1);
-          setRefreshKey((k) => k + 1);
-        }
-      }, 2000);
+      setGuessModalWord(vocab.word);
     } else {
       setGuessedIds((prev) => ({ ...prev, [vocab.id]: "incorrect" }));
+    }
+  };
+
+  const handleGuessModalClose = (continued) => {
+    setGuessModalWord(null);
+    setGuessedIds([]);
+    if (continued && currentWordIndex < vocabList.length - 1) {
+      setCurrentWordIndex((i) => i + 1);
+      setRefreshKey((k) => k + 1);
     }
   };
 
@@ -221,7 +232,7 @@ const VocabClips: React.FC<VocabClipsProps> = ({ vocabList, onBack }) => {
           Which vocab word is spoken in this clip?
         </Text>
         <View style={styles.buttonGrid}>
-          {vocabList.map((vocab) => {
+          {buttonOrder.map((vocab) => {
             const status = guessedIds[vocab.id];
             return (
               <TouchableOpacity
@@ -237,6 +248,8 @@ const VocabClips: React.FC<VocabClipsProps> = ({ vocabList, onBack }) => {
                 <Text
                   style={[
                     styles.wordButtonText,
+                    status === "correct" && styles.wordButtonCorrect,
+                    status === "incorrect" && styles.wordButtonIncorrect,
                     status && styles.wordButtonTextAnswered,
                   ]}
                 >
@@ -247,6 +260,15 @@ const VocabClips: React.FC<VocabClipsProps> = ({ vocabList, onBack }) => {
           })}
         </View>
       </View>
+      <GuessWordModal
+        visible={!!guessModalWord}
+        onClose={() => handleGuessModalClose(false)}
+        word={guessModalWord ?? undefined}
+        sentenceText={currentClip?.text}
+        playerIsPlaying={playerIsPlaying}
+        onFinished={() => handleGuessModalClose(true)}
+        title="Correct!"
+      />
     </View>
   );
 };
@@ -313,6 +335,12 @@ const styles = StyleSheet.create({
   },
   wordButtonIncorrect: {
     borderColor: "#c0392b",
+  },
+  wordButtonTextCorrect: {
+    color: "#2d8a4e",
+  },
+  wordButtonTextIncorrect: {
+    color: "#c0392b",
   },
   wordButtonText: {
     color: "black",

@@ -13,24 +13,13 @@ import { useAuth } from "@clerk/clerk-expo";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Ionicons } from "@expo/vector-icons";
 import { RootState, Vocabulary } from "../../types";
-import {
-  setUserSettings,
-  addUserKnownVocab,
-} from "../../store/actions/dataActions";
-import { persistUserSettings } from "../../requests";
+import { addUserKnownVocab } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { selectGuidedVocab } from "../../helpers";
 import VocabClips from "./VocabClips";
+import SelectVocabFilterModal from "./SelectVocabFilterModal";
 
 const EMPTY_ARRAY: number[] = [];
-
-const HOURS_OPTIONS = [
-  { label: "< 200", value: 100 },
-  { label: "200 - 400", value: 300 },
-  { label: "400 - 750", value: 600 },
-  { label: "750 - 1200", value: 1000 },
-  { label: "> 1200", value: 1500 },
-];
 
 interface SelectVocabPageProps {
   wordListId?: number;
@@ -46,8 +35,8 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
   const dispatch = useDispatch();
   const { userId } = useAuth();
   const supabase = useSupabaseWithClerk();
-  const userSettings = useSelector((state: RootState) => state.userSettings);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [percentileRange, setPercentileRange] = useState<[number, number]>([1, 3]);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const userKnownVocab = useSelector(
     (state: RootState) => state.userKnownVocab,
@@ -60,7 +49,9 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
   const [skippedIds, setSkippedIds] = useState<number[]>([]);
   const [modalWord, setModalWord] = useState<Vocabulary | null>(null);
   const [showVocabClips, setShowVocabClips] = useState(false);
+  const [showDifficultyModal, setShowDifficultyModal] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const isExistingList = !!wordListId;
 
   // Load words from existing word list if wordListId provided
   useMemo(() => {
@@ -93,26 +84,17 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
       allVocabulary,
       userKnownVocab,
       focusVocabIds,
-      userSettings.estimatedHours,
+      percentileRange,
     );
     setWords(selected);
     setSkippedIds([]);
     setInitialized(true);
-  }, [userSettings.estimatedHours, initialized ? null : allVocabulary]);
+  }, [percentileRange, initialized ? null : allVocabulary]);
 
-  const selectedOption = HOURS_OPTIONS.find(
-    (o) => o.value === userSettings.estimatedHours,
-  );
-
-  const handleSelect = (value: number) => {
-    setIsDropdownOpen(false);
-    const newSettings = { ...userSettings, estimatedHours: value };
-    dispatch(setUserSettings(newSettings));
-    persistUserSettings({
-      supabase,
-      userId: userId ?? null,
-      settings: { estimatedHours: value },
-    });
+  const handleFilterSelect = (minP: number, maxP: number) => {
+    setPercentileRange([minP, maxP]);
+    setIsFilterOpen(false);
+    setInitialized(false);
   };
 
   const replaceWord = useCallback(
@@ -124,14 +106,14 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
           allVocabulary,
           userKnownVocab,
           focusVocabIds,
-          userSettings.estimatedHours,
+          percentileRange,
           1,
           excludeIds,
         );
         return [...remaining, ...replacement];
       });
     },
-    [allVocabulary, userKnownVocab, focusVocabIds, userSettings.estimatedHours],
+    [allVocabulary, userKnownVocab, focusVocabIds, percentileRange],
   );
 
   const handleKnown = async () => {
@@ -163,7 +145,12 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
   };
 
   const handleContinue = async () => {
-    if (!wordListId && supabase && userId) {
+    if (isExistingList) {
+      setShowDifficultyModal(true);
+      return;
+    }
+
+    if (supabase && userId) {
       // Create a new word list
       const { data: listData, error: listError } = await supabase
         .from("user_word_list")
@@ -192,10 +179,20 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
     setShowVocabClips(true);
   };
 
+  const handleDifficultyChoice = (harder: boolean) => {
+    setShowDifficultyModal(false);
+    setShowVocabClips(true);
+  };
+
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+  const shuffledWords = useMemo(
+    () => (showVocabClips ? [...words].sort(() => Math.random() - 0.5) : []),
+    [showVocabClips],
+  );
+
   if (showVocabClips) {
-    return <VocabClips vocabList={words} onBack={onBack} />;
+    return <VocabClips vocabList={shuffledWords} onBack={onBack} />;
   }
 
   return (
@@ -204,59 +201,35 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
         <TouchableOpacity style={styles.headerButton} onPress={onBack}>
           <MaterialIcons name="arrow-back" size={22} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Select Words</Text>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => setIsDropdownOpen(true)}
-        >
-          <Ionicons
-            name="options-outline"
-            size={22}
-            color={userSettings.estimatedHours ? "#4a69bd" : "black"}
-          />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {isExistingList ? "Review List" : "Select Words"}
+        </Text>
+        {isExistingList ? (
+          <View style={styles.headerButton} />
+        ) : (
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => setIsFilterOpen(true)}
+          >
+            <Ionicons
+              name="options-outline"
+              size={22}
+              color="#4a69bd"
+            />
+          </TouchableOpacity>
+        )}
       </View>
-      <Modal
-        visible={isDropdownOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsDropdownOpen(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setIsDropdownOpen(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Hours of Listening Practice</Text>
-            {HOURS_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.dropdownItem,
-                  option.value === userSettings.estimatedHours &&
-                    styles.dropdownItemSelected,
-                ]}
-                onPress={() => handleSelect(option.value)}
-              >
-                <Text
-                  style={[
-                    styles.dropdownItemText,
-                    option.value === userSettings.estimatedHours &&
-                      styles.dropdownItemTextSelected,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <SelectVocabFilterModal
+        visible={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        selectedRange={percentileRange}
+        onSelect={handleFilterSelect}
+      />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.instructions}>
-          Choose 8 words to focus on. Click the X to deselect and generate
-          another one. Use the filter if needed to control word difficulty.
+          {isExistingList
+            ? "Review your previously created list."
+            : "Choose 8 words to focus on. Click the X to deselect and generate another one. Use the filter if needed to control word difficulty."}
         </Text>
         {!initialized && (
           <View
@@ -279,19 +252,23 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
             {words.map((v) => (
               <View key={v.id} style={styles.wordRow}>
                 <Text style={styles.wordText}>{capitalize(v.word)}</Text>
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => setModalWord(v)}
-                >
-                  <MaterialIcons name="close" size={18} color="#999" />
-                </TouchableOpacity>
+                {!isExistingList && (
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => setModalWord(v)}
+                  >
+                    <MaterialIcons name="close" size={18} color="#999" />
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
             <TouchableOpacity
               style={styles.continueButton}
               onPress={handleContinue}
             >
-              <Text style={styles.continueButtonText}>Select and Continue</Text>
+              <Text style={styles.continueButtonText}>
+                {isExistingList ? "Continue" : "Select and Continue"}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -324,6 +301,38 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
               >
                 <Text style={styles.modalButtonTextSecondary}>
                   Skip for Now
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+        <Modal
+          visible={showDifficultyModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDifficultyModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowDifficultyModal(false)}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>
+                Have you reviewed this list before, and want a harder challenge?
+              </Text>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => handleDifficultyChoice(true)}
+              >
+                <Text style={styles.modalButtonText}>Yes</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => handleDifficultyChoice(false)}
+              >
+                <Text style={styles.modalButtonTextSecondary}>
+                  No, show me word hints
                 </Text>
               </TouchableOpacity>
             </View>
@@ -364,20 +373,6 @@ const styles = StyleSheet.create({
     color: "#999",
     marginBottom: 16,
     lineHeight: 18,
-  },
-  dropdownItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  dropdownItemSelected: {
-    backgroundColor: "#3d3a52",
-  },
-  dropdownItemText: {
-    fontSize: 16,
-    color: "#222",
-  },
-  dropdownItemTextSelected: {
-    color: "#fff",
   },
   wordsList: {
     gap: 4,

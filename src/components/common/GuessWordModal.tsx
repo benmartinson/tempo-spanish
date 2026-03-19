@@ -26,6 +26,7 @@ interface GuessWordModalProps {
   playerIsPlaying?: boolean;
   onCorrect?: () => void;
   onFinished?: () => void;
+  title?: string;
 }
 
 interface WordState {
@@ -46,6 +47,7 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
   playerIsPlaying = false,
   onCorrect,
   onFinished,
+  title = "Guess the Meaning",
 }) => {
   const wordList = words ?? (word ? [word] : []);
   const isMultiWord = (words?.length ?? 0) > 1;
@@ -142,11 +144,7 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
   const isLastWord = currentIndex === wordList.length - 1;
 
   return (
-    <SlideModal
-      visible={visible}
-      onRequestClose={handleClose}
-      title="Guess the Meaning"
-    >
+    <SlideModal visible={visible} onRequestClose={handleClose} title={title}>
       <View style={styles.content}>
         {isMultiWord && (
           <View style={styles.topRow}>

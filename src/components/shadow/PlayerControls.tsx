@@ -3,8 +3,8 @@ import { StyleSheet, View, TouchableOpacity } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface PlayerControlsProps {
-  onReplay: () => void;
-  onReplaySlow: () => void;
+  onReplay?: () => void;
+  onReplaySlow?: () => void;
   onPlayPause: () => void;
   isPlaying: boolean;
   playDisabled?: boolean;

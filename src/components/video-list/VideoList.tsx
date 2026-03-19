@@ -163,30 +163,28 @@ const VideoList: React.FC = () => {
 
   return (
     <View style={styles.outerContainer}>
-      {activeTab !== "guided" && (
-        <View style={styles.tabBar}>
-          {(["videos", "guided"] as const).map((tab, index) => (
-            <Pressable
-              key={tab}
-              style={({ pressed }) => [
-                styles.tab,
-                index > 0 && styles.tabWithBorder,
-                activeTab === tab && styles.tabSelected,
-                pressed && { opacity: 0.6 },
-              ]}
-              onPress={() => setActiveTab(tab)}
+      {/* <View style={styles.tabBar}>
+        {(["videos", "guided"] as const).map((tab, index) => (
+          <Pressable
+            key={tab}
+            style={({ pressed }) => [
+              styles.tab,
+              index > 0 && styles.tabWithBorder,
+              activeTab === tab && styles.tabSelected,
+              pressed && { opacity: 0.6 },
+            ]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text
+              style={
+                activeTab === tab ? styles.tabTextSelected : styles.tabText
+              }
             >
-              <Text
-                style={
-                  activeTab === tab ? styles.tabTextSelected : styles.tabText
-                }
-              >
-                {tab === "videos" ? "Browse Videos" : "Guided Practice"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
+              {tab === "videos" ? "Browse Videos" : "Guided Practice"}
+            </Text>
+          </Pressable>
+        ))}
+      </View> */}
       {activeTab === "guided" ? (
         <GuidedPractice />
       ) : (
@@ -361,7 +359,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   channelContainer: {
-    marginBottom: 2,
+    marginBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
   },
   channelHeader: {
     flexDirection: "row",

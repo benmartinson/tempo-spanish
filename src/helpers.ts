@@ -490,19 +490,11 @@ export const getFocusVocabWords = (
     });
 };
 
-const HOURS_TO_PERCENTILE_RANGE: Record<number, [number, number]> = {
-  100: [1, 3],
-  300: [3, 10],
-  600: [8, 20],
-  1000: [20, 50],
-  1500: [30, 100],
-};
-
 export const selectGuidedVocab = (
   allVocabulary: Record<string, Vocabulary>,
   userKnownVocab: number[],
   focusVocabIds: number[],
-  estimatedHours: number | null,
+  percentileRange: [number, number] | null,
   count: number = 8,
   excludeIds: number[] = [],
 ): Vocabulary[] => {
@@ -512,8 +504,7 @@ export const selectGuidedVocab = (
     (v) => !knownSet.has(v.id) && !excludeSet.has(v.id),
   );
 
-  const range = HOURS_TO_PERCENTILE_RANGE[estimatedHours ?? 100] ?? [1, 20];
-  const [minP, maxP] = range;
+  const [minP, maxP] = percentileRange ?? [1, 20];
 
   // Pick up to 2 from focus vocab that are not known
   const focusWords = focusVocabIds
