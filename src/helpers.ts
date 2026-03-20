@@ -586,10 +586,12 @@ export const computeSubSegments = (
     }
   }
 
-  if (segmentWords.length > 15) {
-    return findSubSegmentBySplitWord(segmentWords);
+  if (splitAfter.size === 0) {
+    if (segmentWords.length > 15) {
+      return findSubSegmentBySplitWord(segmentWords);
+    }
+    return [];
   }
-  if (splitAfter.size === 0) return [];
 
   // Build sub-segments from split points
   const subSegments: SubSegment[] = [];
@@ -629,7 +631,16 @@ export const computeSubSegments = (
   return [];
 };
 
-const COMMON_SPLIT_WORDS = ["para", "y", "porque", "and", "because"];
+const COMMON_SPLIT_WORDS = [
+  "para",
+  "y",
+  "porque",
+  "and",
+  "because",
+  "now",
+  "ahora",
+  "tal vez",
+];
 
 const findSubSegmentBySplitWord = (
   segmentWords: SegmentWord[],
