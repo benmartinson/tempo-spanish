@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import SlideModal from "../common/Modal";
+import SlideModal from "../common/SlideModal";
 import { Vocabulary } from "../../types";
 import { normalizeWord } from "../../helpers";
 

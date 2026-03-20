@@ -577,8 +577,19 @@ export const computeSubSegments = (
       for (let b = i; b >= 0 && !splitAfter.has(b - 1) && b !== -1; b--) {
         wordsBefore++;
       }
-      // Count words after this comma (forward to end or next split candidate)
-      let wordsAfter = segmentWords.length - 1 - i;
+      // Count words after this comma (forward to next comma/period or end)
+      let wordsAfter = 0;
+      for (let a = i + 1; a < segmentWords.length; a++) {
+        wordsAfter++;
+        const w = segmentWords[a].word;
+        if (
+          w.endsWith(",") ||
+          w.endsWith(".") ||
+          w.endsWith("?") ||
+          w.endsWith("!")
+        )
+          break;
+      }
 
       if (wordsBefore > 3 && wordsAfter > 3) {
         splitAfter.add(i);

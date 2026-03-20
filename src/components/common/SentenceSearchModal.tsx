@@ -1,7 +1,14 @@
 import React, { useState } from "react";
-import { View, StyleSheet, TextInput } from "react-native";
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  Modal,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+} from "react-native";
 import { Sentence } from "../../types";
-import Modal from "./Modal";
 
 interface SentenceSearchModalProps {
   visible: boolean;
@@ -42,36 +49,63 @@ const SentenceSearchModal: React.FC<SentenceSearchModalProps> = ({
   return (
     <Modal
       visible={visible}
+      transparent
+      animationType="fade"
       onRequestClose={handleClose}
-      title="Go to Sentence"
     >
-      <View style={styles.container}>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Segment Number..."
-            placeholderTextColor="#888"
-            value={query}
-            onChangeText={setQuery}
-            keyboardType="numeric"
-            onSubmitEditing={handleSubmit}
-            returnKeyType="go"
-            autoCorrect={false}
-            autoComplete="off"
-          />
+      <TouchableWithoutFeedback onPress={handleClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.modal}>
+              <Text style={styles.title}>Go to Segment</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter Segment Number..."
+                placeholderTextColor="#888"
+                value={query}
+                onChangeText={setQuery}
+                keyboardType="numeric"
+                onSubmitEditing={handleSubmit}
+                returnKeyType="go"
+                autoCorrect={false}
+                autoComplete="off"
+                autoFocus
+              />
+              <View style={styles.buttonRow}>
+                <TouchableOpacity onPress={handleClose}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSubmit}>
+                  <Text style={styles.goText}>Go</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
-    padding: 16,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  inputContainer: {
-    marginTop: 16,
+  modal: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 20,
+    width: 280,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000",
+    marginBottom: 12,
+    textAlign: "center",
   },
   input: {
     borderRadius: 10,
@@ -81,6 +115,22 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: "black",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 16,
+    paddingHorizontal: 8,
+  },
+  cancelText: {
+    fontSize: 15,
+    color: "#999",
+    fontWeight: "500",
+  },
+  goText: {
+    fontSize: 15,
+    color: "#007AFF",
+    fontWeight: "600",
   },
 });
 

@@ -18,7 +18,7 @@ import {
 } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useEffect, useState } from "react";
-import SlideModal from "../common/Modal";
+import SlideModal from "../common/SlideModal";
 import { evaluateTranslation } from "../../requests";
 
 interface FocusSentenceRequestProps {

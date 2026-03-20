@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { useSelector } from "react-redux";
-import { RootState, SegmentWord } from "../../types";
+import { SegmentWord } from "../../types";
 import { SubSegment } from "../../helpers";
 import WordHints from "../common/WordHints";
 import ToggleHeader from "../common/ToggleHeader";
@@ -16,8 +15,12 @@ interface InsightsProps {
   handlePlayWordSnippet: (word: SegmentWord, isSlow?: boolean) => void;
   isPlayingWordSnippet: boolean;
   onReplaySentence?: () => void;
-  onPlayClip?: (start: number, end: number) => void;
+  onPlayClip?: (start: number, end: number, phraseIndex?: number) => void;
   playerIsPlaying?: boolean;
+  replayingPhraseIndex?: number | null;
+  showWordsHints: boolean;
+  showCharacters: boolean;
+  showPhrases: boolean;
   phraseRecordings?: Record<number, string>;
   recordingPhraseIndex?: number | null;
   allPhrasesRecorded?: boolean;
@@ -38,6 +41,10 @@ const Insights: React.FC<InsightsProps> = ({
   onReplaySentence,
   onPlayClip,
   playerIsPlaying,
+  replayingPhraseIndex,
+  showWordsHints,
+  showCharacters,
+  showPhrases,
   phraseRecordings,
   recordingPhraseIndex,
   allPhrasesRecorded,
@@ -46,16 +53,12 @@ const Insights: React.FC<InsightsProps> = ({
   onSubmitPhrases,
   playbackTime,
 }) => {
-  const { showWordsHints, showCharacters } = useSelector(
-    (state: RootState) => state.userSettings,
-  );
-
   const [isShowingCharacters, setIsShowingCharacters] =
     useState<boolean>(showCharacters);
 
   useEffect(() => {
     setIsShowingCharacters(showCharacters);
-  }, [sentenceText]);
+  }, [showCharacters]);
 
   if (isLoading) {
     return;
@@ -75,6 +78,8 @@ const Insights: React.FC<InsightsProps> = ({
         onSubmitPhrases={onSubmitPhrases}
         playbackTime={playbackTime}
         playerIsPlaying={playerIsPlaying}
+        replayingPhraseIndex={replayingPhraseIndex}
+        showPhrases={showPhrases}
       />
       <WordHints
         hintWords={hintWords}
@@ -123,7 +128,7 @@ const Insights: React.FC<InsightsProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-    paddingTop: 8,
+    paddingTop: 0,
     paddingBottom: 20,
   },
   loadingText: {

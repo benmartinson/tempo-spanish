@@ -18,6 +18,8 @@ import {
   TextInput,
   LayoutAnimation,
   Linking,
+  Modal,
+  TouchableWithoutFeedback,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSelector, useDispatch } from "react-redux";
@@ -120,6 +122,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
     useState<boolean>(true);
 
+  // Insight visibility state (lifted so SettingsModal can update them)
+  const [showWordsHints, setShowWordsHints] = useState<boolean>(
+    userSettings.showWordsHints,
+  );
+  const [showCharacters, setShowCharacters] = useState<boolean>(
+    userSettings.showCharacters,
+  );
+  const [showPhrases, setShowPhrases] = useState<boolean>(
+    userSettings.showPhrases,
+  );
+
   // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -145,9 +158,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [isTrimmingAudio, setIsTrimmingAudio] = useState<boolean>(false);
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
+  const [showTranslation, setShowTranslation] = useState<boolean>(false);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
+  const [isReplayingPhrase, setIsReplayingPhrase] = useState(false);
+  const [replayingPhraseIndex, setReplayingPhraseIndex] = useState<
+    number | null
+  >(null);
+
+  useEffect(() => {
+    if (!playerIsPlaying) {
+      setIsReplayingPhrase(false);
+      setReplayingPhraseIndex(null);
+    }
+  }, [playerIsPlaying]);
 
   // Phrase recording
   const subSegments = useMemo(
@@ -585,6 +610,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setAccuracyResult(previousResults);
   };
 
+  const handlePlayPhrase = (start, end, phraseIndex?: number) => {
+    setIsReplayingPhrase(true);
+    setReplayingPhraseIndex(phraseIndex ?? null);
+    setPlayerSpeed(playbackSpeed);
+    playClipSnippet(start, end);
+  };
+
   if (!currentVideo) {
     return <SelectVideoPrompt />;
   }
@@ -594,15 +626,22 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       <View style={styles.container}>
         {error && (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-            {error.toLowerCase().includes("permission") && (
-              <TouchableOpacity
-                style={styles.grantPermissionButton}
-                onPress={() => Linking.openSettings()}
-              >
-                <Text style={styles.grantPermissionText}>Grant Permission</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.errorContent}>
+              <Text style={styles.errorText}>{error}</Text>
+              {error.toLowerCase().includes("permission") && (
+                <TouchableOpacity
+                  style={styles.grantPermissionButton}
+                  onPress={() => Linking.openSettings()}
+                >
+                  <Text style={styles.grantPermissionText}>
+                    Grant Permission
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity onPress={() => setError(null)}>
+              <MaterialIcons name="close" size={20} color="black" />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -615,6 +654,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           sentences={currentVideo.sentences}
           onPlayClip={onPlayClip}
           videoId={currentVideo.videoId}
+          recordId={currentVideo.recordId}
         >
           <Text>
             Segment {currentSentenceIndex + 1} of{" "}
@@ -644,7 +684,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   />
                 </TouchableOpacity>
               )}
-              <FocusSentenceRequest
+              {/* <FocusSentenceRequest
                 markedId={
                   currentVideo.focusSentences.find(
                     (s) =>
@@ -660,7 +700,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 sentenceTranslation={sentenceTranslation}
                 isLoadingTranslation={isLoadingInsights}
                 playerIsPlaying={playerIsPlaying}
-              />
+              /> */}
+              <TouchableOpacity onPress={() => setShowTranslation(true)}>
+                <MaterialIcons name="translate" size={30} color="#222222" />
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
                 <Feather name="settings" size={30} color="#222222" />
               </TouchableOpacity>
@@ -688,9 +731,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           {isProcessing ? (
             <View style={styles.processingContainer}>
               <ActivityIndicator size="large" color="#4ade80" />
-              <Text style={styles.processingText}>
-                Analyzing your pronunciation...
-              </Text>
+              <Text style={styles.processingText}>Analyzing...</Text>
             </View>
           ) : (
             accuracyResult && (
@@ -758,9 +799,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               hintWords={hintWords}
               handlePlayWordSnippet={handlePlaySnippetAgain}
               isPlayingWordSnippet={isPlayingWordSnippet}
+              showWordsHints={showWordsHints}
+              showCharacters={showCharacters}
+              showPhrases={showPhrases}
               onReplaySentence={() => handlePlaySnippetAgain(null)}
-              onPlayClip={playClipSnippet}
-              playerIsPlaying={playerIsPlaying}
+              onPlayClip={handlePlayPhrase}
+              playerIsPlaying={playerIsPlaying && !isReplayingPhrase}
+              replayingPhraseIndex={replayingPhraseIndex}
               playbackTime={time}
               phraseRecordings={phraseRecordings}
               recordingPhraseIndex={recordingPhraseIndex}
@@ -830,11 +875,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           initMute={muteVideoWhenRecording}
           setMuteWhenRecording={setMuteVideoWhenRecording}
           onSave={(settings) => {
-            // persistUserSettings({
-            //   supabase,
-            //   userId,
-            //   settings,
-            // });
+            setShowWordsHints(settings.showWordsHints);
+            setShowCharacters(settings.showCharacters);
+            setShowPhrases(settings.showPhrases);
+            persistUserSettings({
+              supabase,
+              userId,
+              settings,
+            });
           }}
         />
       )}
@@ -859,6 +907,29 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           </Text>
         </TooltipModal>
       )}
+      <Modal
+        visible={showTranslation}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTranslation(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowTranslation(false)}>
+          <View style={styles.translationOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.translationModal}>
+                <Text style={styles.translationTitle}>Translation</Text>
+                {isLoadingInsights ? (
+                  <ActivityIndicator size="small" color="#999" />
+                ) : (
+                  <Text style={styles.translationText}>
+                    {sentenceTranslation || "No translation available"}
+                  </Text>
+                )}
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </>
   );
 };
@@ -895,11 +966,16 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     marginHorizontal: 16,
     marginTop: 8,
     padding: 12,
     backgroundColor: "#ff4757",
     borderRadius: 8,
+  },
+  errorContent: {
+    flex: 1,
   },
   errorText: {
     color: "#fff",
@@ -1124,6 +1200,31 @@ export const styles = StyleSheet.create({
     color: "#4a69bd",
     fontSize: 14,
     fontWeight: "500",
+  },
+  translationOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  translationModal: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 20,
+    width: 280,
+    alignItems: "center",
+  },
+  translationTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000",
+    marginBottom: 12,
+  },
+  translationText: {
+    fontSize: 15,
+    color: "#333",
+    textAlign: "center",
+    lineHeight: 22,
   },
 });
 

@@ -6,7 +6,7 @@ import { useSelector } from "react-redux";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
-import SlideModal from "./common/Modal";
+import SlideModal from "./common/SlideModal";
 import LanguageModal from "./settings/LanguageModal";
 import { RootState } from "../types";
 
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: "gray",
+    borderBottomColor: "#d0d8f0",
     overflow: "hidden",
   },
   content: {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { SegmentWord } from "../../types";
 import FeaturedVocab from "../watch/FeaturedVocab";
@@ -30,6 +30,10 @@ const WordHints: React.FC<WordHintsProps> = ({
   const currentHintWord = hintWords[currentHintIndex];
   const [isShowingWordHints, setIsShowingWordHints] =
     useState<boolean>(showWordHints);
+
+  useEffect(() => {
+    setIsShowingWordHints(showWordHints);
+  }, [showWordHints]);
 
   const handleWordHintChange = (direction: number) => {
     if (hintWords.length === 0) return;

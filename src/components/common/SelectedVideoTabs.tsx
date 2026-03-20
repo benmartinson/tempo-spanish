@@ -35,7 +35,7 @@ import {
   stripPunctuation,
   vocabFormatWord,
 } from "../../helpers";
-import SlideModal from "./Modal";
+import SlideModal from "./SlideModal";
 
 interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";

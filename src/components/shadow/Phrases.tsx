@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useSelector } from "react-redux";
-import { RootState } from "../../types";
 import { SubSegment, stripPunctuation } from "../../helpers";
 import ToggleHeader from "../common/ToggleHeader";
 
 interface PhrasesProps {
   subSegments: SubSegment[];
   sentenceText: string;
-  onPlayClip?: (start: number, end: number) => void;
+  onPlayClip?: (start: number, end: number, phraseIndex?: number) => void;
+  replayingPhraseIndex?: number | null;
   phraseRecordings?: Record<number, string>;
   recordingPhraseIndex?: number | null;
   allPhrasesRecorded?: boolean;
@@ -18,12 +17,14 @@ interface PhrasesProps {
   onSubmitPhrases?: () => void;
   playbackTime?: number;
   playerIsPlaying?: boolean;
+  showPhrases: boolean;
 }
 
 const Phrases: React.FC<PhrasesProps> = ({
   subSegments,
   sentenceText,
   onPlayClip,
+  replayingPhraseIndex,
   phraseRecordings,
   recordingPhraseIndex,
   allPhrasesRecorded,
@@ -32,14 +33,14 @@ const Phrases: React.FC<PhrasesProps> = ({
   onSubmitPhrases,
   playbackTime,
   playerIsPlaying,
+  showPhrases,
 }) => {
-  const { showPhrases } = useSelector((state: RootState) => state.userSettings);
   const [isShowingPhrases, setIsShowingPhrases] =
     useState<boolean>(showPhrases);
 
   useEffect(() => {
     setIsShowingPhrases(showPhrases);
-  }, [sentenceText]);
+  }, [showPhrases]);
 
   const getPreviewWords = (text: string) => {
     const w = text
@@ -81,9 +82,14 @@ const Phrases: React.FC<PhrasesProps> = ({
                 <View key={i} style={styles.phraseRow}>
                   <TouchableOpacity
                     style={styles.phraseReplayButton}
-                    onPress={() => onPlayClip?.(seg.start, seg.end)}
+                    onPress={() => onPlayClip?.(seg.start, seg.end, i)}
+                    disabled={replayingPhraseIndex === i}
                   >
-                    <MaterialIcons name="replay" size={22} color="#007AFF" />
+                    <MaterialIcons
+                      name={replayingPhraseIndex === i ? "play-arrow" : "replay"}
+                      size={22}
+                      color={replayingPhraseIndex === i ? "#4CAF50" : "#007AFF"}
+                    />
                   </TouchableOpacity>
 
                   {isRecordingThis ? (

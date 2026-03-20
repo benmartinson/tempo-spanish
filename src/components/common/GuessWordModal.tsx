@@ -12,7 +12,7 @@ import Entypo from "@expo/vector-icons/Entypo";
 import { MaterialIcons } from "@expo/vector-icons";
 import { capitalize } from "../../helpers";
 import { evaluateVocabAnswer } from "../../requests";
-import SlideModal from "./Modal";
+import SlideModal from "./SlideModal";
 
 interface GuessWordModalProps {
   visible: boolean;

@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Pressable,
+} from "react-native";
 import { RootState } from "../../types";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -58,7 +64,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-        <MaterialIcons name="chevron-left" size={28} color="gray" />
+        <MaterialIcons name="chevron-left" size={28} color="#d0d8f0" />
       </TouchableOpacity>
       <View style={styles.tabsContainer}>
         {tabs.map((tab, index) => (
@@ -95,7 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "gray",
+    borderBottomColor: "#d0d8f0",
   },
   backButton: {
     width: 44,
@@ -103,7 +109,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRightWidth: 1,
-    borderRightColor: "gray",
+    borderRightColor: "#d0d8f0",
   },
   tabsContainer: {
     flex: 1,
@@ -118,10 +124,10 @@ const styles = StyleSheet.create({
   },
   tabButtonWithBorder: {
     borderLeftWidth: 1,
-    borderLeftColor: "gray",
+    borderLeftColor: "#d0d8f0",
   },
   tabButtonSelected: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#fafafa",
   },
   tabText: {
     fontSize: 14,

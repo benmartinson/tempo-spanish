@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useAuth } from "@clerk/clerk-expo";
 import { useSelector, useDispatch } from "react-redux";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import SlideModal from "../common/Modal";
+import SlideModal from "../common/SlideModal";
 import { RootState } from "../../types";
 import { setUserSettings } from "../../store/actions/dataActions";
 import { persistUserSettings, persistVideoUnselection } from "../../requests";
@@ -50,6 +50,10 @@ const LanguageModal: React.FC<{
       targetLanguage: draftTarget,
       translationLanguage: draftTranslation,
     };
+    if (targetChanged) {
+      await persistVideoUnselection({ supabase, userId: userId ?? null });
+      dispatch(setCurrentVideo(null));
+    }
     dispatch(setUserSettings(newSettings));
     persistUserSettings({
       supabase,
@@ -59,10 +63,6 @@ const LanguageModal: React.FC<{
         translationLanguage: draftTranslation,
       },
     });
-    if (targetChanged) {
-      await persistVideoUnselection({ supabase, userId: userId ?? null });
-      dispatch(setCurrentVideo(null));
-    }
     onClose();
   };
 

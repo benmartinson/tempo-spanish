@@ -10,7 +10,7 @@ import { useDispatch, useSelector } from "react-redux";
 import FullSegmentTranscriptBubble from "./FullSegmentTranscriptBubble";
 import TranslationBubble from "./TranslationBubble";
 import BubbleSelector from "./BubbleSelector";
-import SlideModal from "../common/Modal";
+import SlideModal from "../common/SlideModal";
 import VocabSelector from "./VocabSelector";
 import VocabReview from "./VocabReview";
 import {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
-import SlideModal from "../common/Modal";
+import SlideModal from "../common/SlideModal";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../types";
 import { setUserSettings } from "../../store/actions/dataActions";
