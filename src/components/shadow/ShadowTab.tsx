@@ -17,6 +17,7 @@ import {
   Keyboard,
   TextInput,
   LayoutAnimation,
+  Linking,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSelector, useDispatch } from "react-redux";
@@ -594,6 +595,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
+            {error.toLowerCase().includes("permission") && (
+              <TouchableOpacity
+                style={styles.grantPermissionButton}
+                onPress={() => Linking.openSettings()}
+              >
+                <Text style={styles.grantPermissionText}>Grant Permission</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -895,6 +904,19 @@ export const styles = StyleSheet.create({
   errorText: {
     color: "#fff",
     textAlign: "center",
+  },
+  grantPermissionButton: {
+    marginTop: 8,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignSelf: "center",
+  },
+  grantPermissionText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
   },
   noVocabFoundTooltipText: {
     color: "#fff",
