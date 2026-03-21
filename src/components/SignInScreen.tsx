@@ -40,8 +40,15 @@ function SignInScreen() {
         <Text style={styles.subtitle}>Enter your credentials to access your account</Text>
       </View>
 
-      <View style={{ marginBottom: 24 }}>
-        <OAuthButton strategy="oauth_google">Sign in with Google</OAuthButton>
+      <View style={{ marginBottom: 24, gap: 12 }}>
+        <OAuthButton strategy="oauth_apple" />
+        <OAuthButton strategy="oauth_google" />
+      </View>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+        <Text style={{ marginHorizontal: 12, color: '#94A3B8', fontSize: 13, fontWeight: '500' }}>or</Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
       </View>
 
       <View style={styles.form}>

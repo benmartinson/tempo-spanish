@@ -1,10 +1,17 @@
-import { styles } from "../constants/AuthStyles";
 import { useSSO } from "@clerk/clerk-expo";
 import { OAuthStrategy } from "@clerk/types";
+import AntDesign from "@expo/vector-icons/AntDesign";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect } from "react";
-import { Platform, Text, TouchableOpacity } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export const useWarmUpBrowser = () => {
   useEffect(() => {
@@ -17,16 +24,29 @@ export const useWarmUpBrowser = () => {
 };
 WebBrowser.maybeCompleteAuthSession();
 
+const providerConfig: Record<
+  string,
+  { icon: React.ReactNode; label: string }
+> = {
+  oauth_google: {
+    icon: <AntDesign name="google" size={20} color="#4285F4" />,
+    label: "Continue with Google",
+  },
+  oauth_apple: {
+    icon: <FontAwesome name="apple" size={22} color="#000000" />,
+    label: "Continue with Apple",
+  },
+};
+
 interface Props {
-  // The OAuthStrategy type from Clerk allows you to specify the provider you want to use in this specific instance of the OAuthButton component
   strategy: OAuthStrategy;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export default function OAuthButton({ strategy, children }: Props) {
   useWarmUpBrowser();
-  // useSSO hook from Clerk SDK to support various SSO providers
   const { startSSOFlow } = useSSO();
+  const config = providerConfig[strategy];
 
   const onPress = useCallback(async () => {
     try {
@@ -52,8 +72,32 @@ export default function OAuthButton({ strategy, children }: Props) {
   }, [startSSOFlow, strategy]);
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.button}>
-      <Text style={styles.buttonText}>{children}</Text>
+    <TouchableOpacity onPress={onPress} style={oauthStyles.button} activeOpacity={0.7}>
+      {config && <View style={oauthStyles.icon}>{config.icon}</View>}
+      <Text style={oauthStyles.buttonText}>
+        {children ?? config?.label ?? strategy}
+      </Text>
     </TouchableOpacity>
   );
 }
+
+const oauthStyles = StyleSheet.create({
+  button: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  icon: {
+    marginRight: 10,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+});
