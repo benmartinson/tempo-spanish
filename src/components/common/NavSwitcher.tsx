@@ -67,7 +67,8 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
   const showJumpButton =
     nextAvailableShadow !== null &&
     nextAvailableShadow !== currentIndex &&
-    nextAvailableShadow < totalItems;
+    nextAvailableShadow < totalItems &&
+    Math.abs(nextAvailableShadow - currentIndex) > 3;
   const jumpIsForward =
     nextAvailableShadow !== null && currentIndex < nextAvailableShadow;
 
