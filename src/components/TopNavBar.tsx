@@ -54,7 +54,7 @@ const TopNavBar: React.FC = () => {
           style={styles.avatarButton}
           onPress={() => setProfileVisible(true)}
         >
-          <Ionicons name="person" size={18} color="#dfe2ea" />
+          <Ionicons name="person" size={18} color="#5a5680" />
         </TouchableOpacity>
       </View>
 
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 20,
-    backgroundColor: "#3d3a52",
+    backgroundColor: "#d0d8f0",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
