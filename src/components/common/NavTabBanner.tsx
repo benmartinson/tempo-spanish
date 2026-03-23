@@ -95,13 +95,14 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    marginTop: 64,
     backgroundColor: "white",
     width: "100%",
     height: 30,
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#d0d8f0",
+    borderWidth: 1,
+    borderColor: "#d0d8f0",
   },
   backButton: {
     width: 44,

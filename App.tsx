@@ -272,8 +272,8 @@ const AuthenticatedApp: React.FC = () => {
 
   // When showTabsBelow is false, use NavTabBanner navigation
   return (
-    <View style={{ flex: 1 }}>
-      <TopNavBar />
+    <View style={{ flex: 1, backgroundColor: "white" }}>
+      {!currentVideo && <TopNavBar />}
       {isRestoringState ? (
         <View
           style={{
