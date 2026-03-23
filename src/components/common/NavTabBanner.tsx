@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     color: "gray",
   },
   tabTextSelected: {
-    fontWeight: "bold",
+    fontWeight: "500",
     color: "black",
   },
 });

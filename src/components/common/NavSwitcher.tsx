@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
     backgroundColor: "#fafafa",

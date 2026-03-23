@@ -656,7 +656,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           videoId={currentVideo.videoId}
           recordId={currentVideo.recordId}
         >
-          <Text>
+          <Text style={styles.segmentNavText}>
             Segment {currentSentenceIndex + 1} of{" "}
             {currentVideo.sentences.length + 1}
           </Text>
@@ -668,7 +668,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               onReplaySlow={handlePlaySnippetSlow}
               onPlayPause={handlePlayPause}
               isPlaying={playerIsPlaying}
-              playDisabled={sentenceEnded && time >= (currentSentenceObject?.words?.at(-1)?.start ?? 0)}
+              playDisabled={
+                sentenceEnded &&
+                time >= (currentSentenceObject?.words?.at(-1)?.start ?? 0)
+              }
               segmentText={currentSentenceObject?.text}
               videoId={parseInt(currentVideo.recordId)}
               sentenceIndex={currentSentenceIndex}
@@ -996,6 +999,9 @@ export const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontSize: 14,
+  },
+  segmentNavText: {
+    opacity: 0.6,
   },
   noVocabFoundTooltipText: {
     color: "#fff",

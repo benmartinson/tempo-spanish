@@ -116,7 +116,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
           onPlayClip={onPlayClip}
           videoId={currentVideo.videoId}
         >
-          <Text>
+          <Text style={styles.segmentNavText}>
             Segment {currentSentenceIndex + 1} of{" "}
             {currentVideo.sentences.length + 1}
           </Text>
@@ -217,6 +217,9 @@ const styles = StyleSheet.create({
   noVocabFoundTooltipText: {
     color: "#fff",
     textAlign: "center",
+  },
+  segmentNavText: {
+    opacity: 0.6,
   },
   questionContextText: {
     color: "#888",

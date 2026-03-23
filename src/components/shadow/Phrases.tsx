@@ -86,7 +86,9 @@ const Phrases: React.FC<PhrasesProps> = ({
                     disabled={replayingPhraseIndex === i}
                   >
                     <MaterialIcons
-                      name={replayingPhraseIndex === i ? "play-arrow" : "replay"}
+                      name={
+                        replayingPhraseIndex === i ? "play-arrow" : "replay"
+                      }
                       size={22}
                       color={replayingPhraseIndex === i ? "#4CAF50" : "#007AFF"}
                     />
@@ -163,7 +165,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginTop: 12,
+    marginTop: 4,
   },
   phrasesList: {
     paddingHorizontal: 20,

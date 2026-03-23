@@ -125,21 +125,6 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         <MaterialIcons name="slow-motion-video" size={24} color="black" />
       </TouchableOpacity>
       <TouchableOpacity
-        style={[
-          styles.button,
-          styles.buttonMiddle,
-          playDisabled && { opacity: 0.4 },
-        ]}
-        onPress={onPlayPause}
-        disabled={playDisabled && !isPlaying}
-      >
-        <MaterialIcons
-          name={isPlaying ? "pause" : "play-arrow"}
-          size={24}
-          color={playDisabled && !isPlaying ? "#ccc" : "black"}
-        />
-      </TouchableOpacity>
-      <TouchableOpacity
         style={[styles.button, styles.buttonRight]}
         onPress={handleAiSpeak}
         disabled={!segmentText || aiLoading}
@@ -154,6 +139,21 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           />
         )}
       </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.button,
+          styles.buttonMiddle,
+          playDisabled && { opacity: 0.4 },
+        ]}
+        onPress={onPlayPause}
+        disabled={playDisabled && !isPlaying}
+      >
+        <MaterialIcons
+          name={isPlaying ? "pause" : "play-arrow"}
+          size={24}
+          color={playDisabled && !isPlaying ? "#ccc" : "black"}
+        />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "center",
     borderWidth: 1,
-    borderColor: "#3d3a52",
+    borderColor: "#d0d8f0",
     borderRadius: 24,
   },
   button: {
