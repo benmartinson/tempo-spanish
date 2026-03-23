@@ -273,6 +273,19 @@ async def health():
     }
 
 
+class TTSRequest(BaseModel):
+    text: str
+
+
+@app.post("/tts")
+async def tts(request: TTSRequest):
+    """Generate TTS audio for arbitrary text."""
+    audio_base64 = generate_tts_audio(request.text)
+    if audio_base64 is None:
+        return {"error": "TTS generation failed or ElevenLabs not configured"}
+    return {"audio": audio_base64, "status": "complete"}
+
+
 @app.post("/vocab-based-question")
 async def vocab_based_question(request: VocabBasedQuestionRequest):
     """

@@ -16,6 +16,8 @@ export interface YouTubePlayerHandle {
   pause: () => void;
   play: () => void;
   seekTo: (time: number) => void;
+  setClip: (start: number, end: number) => void;
+  setSpeed: (speed: number) => void;
   /** Clears the relay's clip-enforcement intervals and sets up our own
    *  time reporter. Call this when switching to a mode that should play
    *  freely past the relay's original end time. */
@@ -67,6 +69,12 @@ const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       seekTo: (time: number) => playerRef.current?.seekTo(time, true),
       disableClipEnforcement: () => {
         clipEnforcementEnabledRef.current = false;
+      },
+      setClip: (start: number, end: number) => {
+        clipEnforcementEnabledRef.current = true;
+      },
+      setSpeed: (speed: number) => {
+        playerRef.current?.setPlaybackRate(speed);
       },
     }));
 
@@ -240,6 +248,17 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       disableClipEnforcement: () => {
         webViewRef.current?.injectJavaScript(
           `window.postMessage("DISABLE_CLIP", "*"); true;`,
+        );
+      },
+      setClip: (start: number, end: number) => {
+        const payload = JSON.stringify({ start, end }).replace(/"/g, '\\"');
+        webViewRef.current?.injectJavaScript(
+          `window.postMessage("SET_CLIP:${payload}", "*"); true;`,
+        );
+      },
+      setSpeed: (speed: number) => {
+        webViewRef.current?.injectJavaScript(
+          `window.postMessage("SET_SPEED:${speed}", "*"); true;`,
         );
       },
     }));

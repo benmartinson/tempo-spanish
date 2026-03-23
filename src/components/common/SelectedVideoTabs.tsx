@@ -271,7 +271,11 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const [clipRefreshKey, setClipRefreshKey] = useState(0);
 
   // Player state
-  const [playerSpeed, setPlayerSpeed] = useState<number>(1);
+  const [playerSpeed, _setPlayerSpeed] = useState<number>(1);
+  const setPlayerSpeed = useCallback((speed: number) => {
+    _setPlayerSpeed(speed);
+    playerRef.current?.setSpeed(speed);
+  }, []);
   const [autoplay, setAutoplay] = useState<boolean>(false);
   const [playerIsPlaying, setPlayerIsPlaying] = useState<boolean>(false);
   const playingStateQueueRef = useRef<boolean[]>([]);
@@ -410,12 +414,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     }
 
     handleTransition();
-    setCurrentSentence((prev) => {
-      const next = currentVideo?.sentences[prev + 1];
-      setTime(next?.start);
-      return next?.index;
-    });
-    refreshPlayer();
+    const next = currentVideo?.sentences[currentSentenceObject?.index + 1];
+    setCurrentSentence(next?.index);
+    setTime(next?.start);
+    prevTimeRef.current = -1;
+    setPlayerIsPlaying(true);
+    playerRef.current?.setClip(next?.start ?? 0, next?.end ?? 0);
+    playerRef.current?.seekTo(next?.start ?? 0);
+    playerRef.current?.play();
   }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
 
   const handlePreviousSentence = useCallback(() => {
@@ -424,19 +430,29 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     }
     handleTransition();
 
-    setCurrentSentence((prev) => {
-      const previous = currentVideo?.sentences[prev - 1];
-      setTime(previous?.start);
-      return previous?.index;
-    });
-    refreshPlayer();
+    const previous = currentVideo?.sentences[currentSentenceObject?.index - 1];
+    setCurrentSentence(previous?.index);
+    setTime(previous?.start);
+    prevTimeRef.current = -1;
+    setPlayerIsPlaying(true);
+    playerRef.current?.setClip(previous?.start ?? 0, previous?.end ?? 0);
+    playerRef.current?.seekTo(previous?.start ?? 0);
+    playerRef.current?.play();
   }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
   const playSentence = useCallback(() => {
     handleTransition();
     setAutoplay(true);
     setTime(currentSentenceObject?.start);
-    refreshPlayer();
+    prevTimeRef.current = -1;
+    setPlayerIsPlaying(true);
+    currentClipSnippetRef.current = null;
+    playerRef.current?.setClip(
+      currentSentenceObject?.start ?? 0,
+      currentSentenceObject?.end ?? 0,
+    );
+    playerRef.current?.seekTo(currentSentenceObject?.start ?? 0);
+    playerRef.current?.play();
   }, [currentSentenceObject?.start]);
 
   const playClipSnippet = useCallback(
@@ -444,11 +460,11 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       setAutoplay(true);
       handleTransition();
       setTime(start);
-      currentClipSnippetRef.current = { start, end };
-      refreshPlayer();
-      setTimeout(() => {
-        currentClipSnippetRef.current = null;
-      }, 1000);
+      prevTimeRef.current = -1;
+      setPlayerIsPlaying(true);
+      playerRef.current?.setClip(start, end);
+      playerRef.current?.seekTo(start);
+      playerRef.current?.play();
     },
     [currentSentenceObject?.start],
   );
@@ -513,14 +529,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       flex: 1,
     }) as const;
 
-  let endTime;
-  if (selectedNavTab !== "watch") {
-    if (currentClipSnippetRef.current) {
-      endTime = currentClipSnippetRef.current.end;
-    } else {
-      endTime = currentSentenceObject?.end;
-    }
-  }
+  const endTime = selectedNavTab !== "watch" ? currentSentenceObject?.end : undefined;
   return (
     <View style={styles.container}>
       <View
@@ -536,9 +545,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             index: currentSentenceObject?.index,
             text: currentSentenceObject?.text,
             words: currentSentenceObject?.words,
-            start:
-              currentClipSnippetRef.current?.start ||
-              currentSentenceObject?.start,
+            start: currentSentenceObject?.start,
             end: endTime,
           }}
           autoplay={effectiveAutoplay}

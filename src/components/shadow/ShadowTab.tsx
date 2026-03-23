@@ -669,6 +669,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               onPlayPause={handlePlayPause}
               isPlaying={playerIsPlaying}
               playDisabled={sentenceEnded && time >= (currentSentenceObject?.words?.at(-1)?.start ?? 0)}
+              segmentText={currentSentenceObject?.text}
+              videoId={parseInt(currentVideo.recordId)}
+              sentenceIndex={currentSentenceIndex}
             />
             <View style={styles.settingsButtonContainer}>
               {previousResults && (
