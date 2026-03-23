@@ -119,7 +119,7 @@ const FilterVideos: React.FC<{
       <Ionicons
         name="options-outline"
         size={22}
-        color={hasActiveFilters ? "#4a69bd" : "black"}
+        color={hasActiveFilters ? "#4a69bd" : "#5a5680"}
       />
     </TouchableOpacity>
   );

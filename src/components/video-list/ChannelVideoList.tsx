@@ -35,8 +35,7 @@ const ChannelVideoList: React.FC<{
         <View style={styles.allContainer}>
           <View style={styles.topBar}>
             <TouchableOpacity style={styles.backButton} onPress={onBack}>
-              <Ionicons name="arrow-back" size={24} color="black" />
-              <Text style={styles.backText}>Back</Text>
+              <Ionicons name="arrow-back" size={24} color="#5a5680" />
             </TouchableOpacity>
             {filterButton}
           </View>
@@ -92,7 +91,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingRight: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: "#d0d8f0",
   },
   backButton: {
     flexDirection: "row",
@@ -103,7 +102,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 16,
-    color: "black",
+    color: "#5a5680",
   },
   channelHeader: {
     flexDirection: "row",

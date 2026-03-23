@@ -243,29 +243,23 @@ const VideoList: React.FC = () => {
                   const aViews = (userVideoViews || []).filter((v) =>
                     filteredVideos.some(
                       (fv) =>
-                        fv.id === v.video_id &&
-                        fv.channel_id === a.channel_id,
+                        fv.id === v.video_id && fv.channel_id === a.channel_id,
                     ),
                   );
                   const bViews = (userVideoViews || []).filter((v) =>
                     filteredVideos.some(
                       (fv) =>
-                        fv.id === v.video_id &&
-                        fv.channel_id === b.channel_id,
+                        fv.id === v.video_id && fv.channel_id === b.channel_id,
                     ),
                   );
                   const aLatest = aViews.length
                     ? Math.max(
-                        ...aViews.map((v) =>
-                          new Date(v.watched_at).getTime(),
-                        ),
+                        ...aViews.map((v) => new Date(v.watched_at).getTime()),
                       )
                     : 0;
                   const bLatest = bViews.length
                     ? Math.max(
-                        ...bViews.map((v) =>
-                          new Date(v.watched_at).getTime(),
-                        ),
+                        ...bViews.map((v) => new Date(v.watched_at).getTime()),
                       )
                     : 0;
                   return bLatest - aLatest;
@@ -393,7 +387,7 @@ const styles = StyleSheet.create({
   channelContainer: {
     marginBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: "#d0d8f0",
   },
   channelHeader: {
     flexDirection: "row",

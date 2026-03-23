@@ -22,9 +22,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: "#d0d8f0",
     borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
+    borderTopColor: "#d0d8f0",
     marginBottom: 16,
   },
   noBorderTop: {
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#888",
+    color: "#5a5680",
     fontFamily: "Helvetica",
   },
 });
