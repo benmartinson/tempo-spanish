@@ -20,6 +20,12 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   estimatedHours: null,
 };
 
+export interface CachedResponse {
+  id?: number;
+  response_text: string;
+  recording: string | null;
+}
+
 export interface RootState {
   currentVideo: VideoContext | null;
   currentChatType: "general" | "video-based" | null;
@@ -37,6 +43,7 @@ export interface RootState {
   isSearching: boolean;
   hasSearched: boolean;
   userSettings: UserSettings;
+  cachedResponses: CachedResponse[];
 }
 
 export type DataActionTypes =
@@ -68,7 +75,8 @@ export type DataActionTypes =
   | "SET_IS_SEARCHING"
   | "SET_HAS_SEARCHED"
   | "REMOVE_USER_KNOWN_VOCAB"
-  | "REMOVE_USER_SELECTED_VOCAB";
+  | "REMOVE_USER_SELECTED_VOCAB"
+  | "SET_CACHED_RESPONSES";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;

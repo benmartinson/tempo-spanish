@@ -32,6 +32,7 @@ import {
   fetchUserVideoViews,
   restoreUserUIState,
   persistUserUITab,
+  loadAndCacheTTSResponses,
 } from "./src/requests";
 import { useUIStateSync } from "./src/components/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
@@ -176,6 +177,11 @@ const AuthenticatedApp: React.FC = () => {
         dispatch(setAllTopics(topicData));
         dispatch(setChannelTopics(channelTopicData));
       },
+    );
+
+    // Pre-load and cache TTS responses in the background
+    loadAndCacheTTSResponses({ supabase, dispatch }).catch((err) =>
+      console.error("Failed to load cached TTS responses:", err),
     );
   }, [supabase]);
 

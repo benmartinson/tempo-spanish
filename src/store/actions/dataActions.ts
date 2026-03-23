@@ -1,4 +1,5 @@
 import {
+  CachedResponse,
   Channel,
   ChannelTopic,
   DataAction,
@@ -154,4 +155,11 @@ export const addFocusSentence = (sentence: FocusSentence): DataAction => ({
 export const setUserSettings = (settings: UserSettings): DataAction => ({
   type: "SET_USER_SETTINGS",
   payload: settings,
+});
+
+export const setCachedResponses = (
+  responses: CachedResponse[],
+): DataAction => ({
+  type: "SET_CACHED_RESPONSES",
+  payload: responses,
 });

@@ -6,12 +6,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import Constants from "expo-constants";
-import { playAudio } from "../streaming_helpers";
+import { playAudio, generateTTS } from "../streaming_helpers";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-
-const ELEVENLABS_API_KEY =
-  Constants.expoConfig?.extra?.ELEVENLABS_API_KEY ?? "";
 
 interface PlayerControlsProps {
   onReplay?: () => void;
@@ -23,38 +19,6 @@ interface PlayerControlsProps {
   videoId?: number;
   sentenceIndex?: number;
 }
-
-const generateTTS = async (text: string): Promise<string> => {
-  const resp = await fetch(
-    "https://api.elevenlabs.io/v1/text-to-speech/jBlmi27XRORxjPquUeCh",
-    {
-      method: "POST",
-      headers: {
-        "xi-api-key": ELEVENLABS_API_KEY,
-        "Content-Type": "application/json",
-        Accept: "audio/mpeg",
-      },
-      body: JSON.stringify({
-        text,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-      }),
-    },
-  );
-
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`ElevenLabs API error ${resp.status}: ${body}`);
-  }
-
-  const arrayBuffer = await resp.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-};
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({
   onReplay,

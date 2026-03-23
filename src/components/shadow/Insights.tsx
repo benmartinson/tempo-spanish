@@ -128,7 +128,7 @@ const Insights: React.FC<InsightsProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-    paddingTop: 0,
+    paddingTop: 8,
     paddingBottom: 20,
   },
   loadingText: {

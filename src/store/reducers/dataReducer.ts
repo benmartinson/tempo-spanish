@@ -22,6 +22,7 @@ const initialState: RootState = {
   isSearching: false,
   hasSearched: false,
   userSettings: DEFAULT_USER_SETTINGS,
+  cachedResponses: [],
 };
 
 const dataReducer = (
@@ -235,6 +236,11 @@ const dataReducer = (
           ...state.userSettings,
           ...action.payload,
         },
+      };
+    case "SET_CACHED_RESPONSES":
+      return {
+        ...state,
+        cachedResponses: action.payload,
       };
     default:
       return state;

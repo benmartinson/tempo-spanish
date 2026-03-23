@@ -1,5 +1,9 @@
-import { BACKEND_BASE_URL } from "./components/streaming_helpers";
 import {
+  BACKEND_BASE_URL,
+  generateTTS,
+} from "./components/streaming_helpers";
+import {
+  CachedResponse,
   ContextSegment,
   Segment,
   VocabEvaluation,
@@ -10,7 +14,8 @@ import {
   UserSettings,
   DEFAULT_USER_SETTINGS,
 } from "./types";
-import { splitSegmentsIntoSentences } from "./helpers";
+import { cachedResponses, splitSegmentsIntoSentences } from "./helpers";
+import { setCachedResponses } from "./store/actions/dataActions";
 
 export interface FetchVideoContextParams {
   supabase: any;
@@ -529,4 +534,69 @@ export const persistUserSettings = async ({
     .upsert(updateData, { onConflict: "user_id" });
 
   if (error) console.error("Error persisting settings:", error);
+};
+
+export const loadAndCacheTTSResponses = async ({
+  supabase,
+  dispatch,
+}: {
+  supabase: any;
+  dispatch: any;
+}) => {
+  const { data: existing, error } = await supabase
+    .from("cached_response")
+    .select("*");
+
+  if (error) {
+    console.error("Error fetching cached responses:", error);
+    return;
+  }
+
+  const existingMap = new Map<string, CachedResponse>(
+    (existing || []).map((r: CachedResponse) => [r.response_text, r]),
+  );
+
+  const results: CachedResponse[] = [...(existing || [])];
+
+  for (const responseText of cachedResponses) {
+    const record = existingMap.get(responseText);
+    if (!record || !record.recording) {
+      try {
+        const base64 = await generateTTS(responseText);
+        const { data, error: upsertError } = await supabase
+          .from("cached_response")
+          .upsert(
+            {
+              ...(record?.id ? { id: record.id } : {}),
+              response_text: responseText,
+              recording: base64,
+            },
+            { onConflict: "id" },
+          )
+          .select()
+          .single();
+
+        if (upsertError) {
+          console.error(
+            `Error saving cached response for "${responseText}":`,
+            upsertError,
+          );
+          continue;
+        }
+
+        const idx = results.findIndex(
+          (r) => r.response_text === responseText,
+        );
+        if (idx >= 0) results[idx] = data;
+        else results.push(data);
+      } catch (err) {
+        console.error(
+          `Error generating TTS for "${responseText}":`,
+          err,
+        );
+      }
+    }
+  }
+
+  dispatch(setCachedResponses(results));
 };

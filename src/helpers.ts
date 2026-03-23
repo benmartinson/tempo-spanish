@@ -17,6 +17,34 @@ export const formatTimestamp = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
+export const cachedResponses = [
+  "You got above 90 percent correct!",
+  "You got above 80 percent correct!",
+  "You got above 70 percent correct!",
+  "You got less than 70 percent correct",
+  "You got less than 60 percent correct",
+  "You got less than 50 percent correct",
+  "You got less than 40 percent correct",
+  "You got less than 30 percent correct",
+  "You got less than 20 percent correct",
+  "You got less than 10 percent correct",
+  "You missed the word",
+  "and,",
+];
+
+export const getResponseForPercentage = (percentage: number): string => {
+  if (percentage >= 90) return "You got above 90 percent correct!";
+  if (percentage >= 80) return "You got above 80 percent correct!";
+  if (percentage >= 70) return "You got above 70 percent correct!";
+  if (percentage >= 60) return "You got less than 70 percent correct";
+  if (percentage >= 50) return "You got less than 60 percent correct";
+  if (percentage >= 40) return "You got less than 50 percent correct";
+  if (percentage >= 30) return "You got less than 40 percent correct";
+  if (percentage >= 20) return "You got less than 30 percent correct";
+  if (percentage >= 10) return "You got less than 20 percent correct";
+  return "You got less than 10 percent correct";
+};
+
 export const ignoreVocab = [
   "por",
   "la",
