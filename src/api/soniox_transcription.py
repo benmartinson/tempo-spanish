@@ -118,7 +118,7 @@ class SonioxProxy:
                 if "bytes" in data:
                     # Forward audio bytes to Soniox
                     if self.soniox_ws and not self._closed:
-                        await self.soniox_ws.send(data["bytes"])
+                            await self.soniox_ws.send(data["bytes"])
                 elif "text" in data:
                     # Handle text messages (like control messages)
                     message = json.loads(data["text"])
@@ -147,7 +147,7 @@ class SonioxProxy:
                 
                 if isinstance(message, str):
                     res = json.loads(message)
-                    
+
                     # Check for error from server
                     if res.get("error_code") is not None:
                         await self.client_ws.send_json({
@@ -316,6 +316,92 @@ def _is_special_token(text: str) -> bool:
     """Check if a token is a special token that should be filtered out."""
     special_tokens = {"<end>", "<start>", "<unk>", "<silence>"}
     return text.strip() in special_tokens or (text.startswith("<") and text.endswith(">"))
+
+
+def get_voice_command_config(api_key: str) -> dict:
+    """
+    Build Soniox configuration for English voice commands (e.g. "repeat").
+    """
+    return {
+        "api_key": api_key,
+        "model": "stt-rt-v4",
+        "language_hints": ["en"],
+        "language_hints_strict": True,
+        "audio_format": "pcm_s16le",
+        "sample_rate": 44100,
+        "num_channels": 1,
+        "enable_endpoint_detection": True,
+    }
+
+
+class VoiceCommandProxy(SonioxProxy):
+    """Soniox proxy configured for English voice commands."""
+
+    async def connect_to_soniox(self) -> bool:
+        import websockets
+
+        if not SONIOX_API_KEY:
+            await self.client_ws.send_json({
+                "type": "error",
+                "message": "Soniox API key not configured on server"
+            })
+            return False
+
+        try:
+            self.soniox_ws = await websockets.connect(SONIOX_WEBSOCKET_URL)
+            config = get_voice_command_config(SONIOX_API_KEY)
+            await self.soniox_ws.send(json.dumps(config))
+            print("Connected to Soniox (voice command)")
+            return True
+        except Exception as e:
+            print(f"Failed to connect to Soniox (voice command): {e}")
+            await self.client_ws.send_json({
+                "type": "error",
+                "message": f"Failed to connect to Soniox: {str(e)}"
+            })
+            return False
+
+
+@router.websocket("/ws/voice-command")
+async def websocket_voice_command(websocket: WebSocket):
+    """
+    WebSocket endpoint for voice command recognition (English).
+    Listens for commands like "repeat" and sends them to the client.
+    """
+    await websocket.accept()
+    print("Voice command client connected")
+
+    await websocket.send_json({
+        "type": "ready",
+        "message": "Connected to voice command server"
+    })
+
+    proxy = VoiceCommandProxy(websocket)
+
+    if not await proxy.connect_to_soniox():
+        await websocket.close()
+        return
+
+    await websocket.send_json({
+        "type": "connected",
+        "message": "Connected to Soniox (voice command)"
+    })
+
+    try:
+        await asyncio.gather(
+            proxy.forward_audio_to_soniox(),
+            proxy.forward_transcripts_to_client(),
+        )
+    except Exception as e:
+        print(f"Error in voice command proxy: {e}")
+    finally:
+        await proxy.close()
+        try:
+            await websocket.close()
+        except:
+            pass
+
+    print("Voice command session ended")
 
 
 @router.post("/api/transcribe")

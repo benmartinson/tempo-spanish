@@ -62,6 +62,7 @@ import { persistUserSettings } from "../../requests";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 import { usePhraseRecording } from "../usePhraseRecording";
+import { useVoiceCommand } from "../useVoiceCommand";
 import { computeSubSegments } from "../../helpers";
 
 interface ShadowTabProps {
@@ -382,6 +383,25 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       onError: (message) => setError(message),
     });
 
+  const { isListening, startListening, stopListening, closeConnection } = useVoiceCommand({
+    onRepeat: async () => {
+      await stopListening();
+      setSentenceEnded(false);
+      playSentence();
+    },
+    onRecord: async () => {
+      await closeConnection();
+      handleEnterRecordingMode();
+    },
+  });
+
+  // Start listening for "repeat" voice command when the clip finishes
+  useEffect(() => {
+    if (sentenceEnded && !isRecordingMode && !isRecording && !isProcessing && !accuracyResult) {
+      startListening();
+    }
+  }, [sentenceEnded, isRecordingMode, isRecording, isProcessing, accuracyResult]);
+
   const justRecordedRef = useRef(false);
 
   useEffect(() => {
@@ -389,6 +409,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       if (isRecording) {
         stopRecording();
       }
+      stopListening();
       setIsRecordingMode(false);
       setSentenceEnded(false);
       clearRecordingTimer();
@@ -494,6 +515,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleEnterRecordingMode = () => {
     // setPreviousResults(null);
+    stopListening();
     pausePlayer();
 
     setPlayerSpeed(recordSpeed);
@@ -717,6 +739,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 <AntDesign name="info-circle" size={32} color="#222222" />
               </TouchableOpacity> */}
             </View>
+          </View>
+        )}
+        {isListening && (
+          <View style={styles.listeningIndicator}>
+            <MaterialIcons name="hearing" size={18} color="#4a69bd" />
+            <Text style={styles.listeningText}>Say "repeat" to replay</Text>
           </View>
         )}
         {isRecordingMode && (
@@ -1234,6 +1262,18 @@ export const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
     lineHeight: 22,
+  },
+  listeningIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+  },
+  listeningText: {
+    fontSize: 13,
+    color: "#4a69bd",
+    fontWeight: "500",
   },
 });
 
