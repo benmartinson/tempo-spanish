@@ -93,18 +93,70 @@ export const playAudio = async (audioBase64: string) => {
     currentPlayingSound = sound;
 
     sound.play();
-    // Unload sound when finished to free memory
-    const subscription = sound.addListener("playbackStatusUpdate", (status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        sound.remove();
-        subscription.remove();
-        if (currentPlayingSound === sound) {
-          currentPlayingSound = null;
+    // Resolve when finished, and clean up
+    return new Promise<void>((resolve) => {
+      const subscription = sound.addListener("playbackStatusUpdate", (status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.remove();
+          subscription.remove();
+          if (currentPlayingSound === sound) {
+            currentPlayingSound = null;
+          }
+          resolve();
         }
-      }
+      });
     });
   } catch (err) {
     console.error("Error playing audio:", err);
+  }
+};
+
+export const playAudioSequence = async (clips: string[]) => {
+  for (const clip of clips) {
+    await playAudio(clip);
+  }
+};
+
+export const playAiSpeech = async ({
+  segmentText,
+  videoId,
+  sentenceIndex,
+  supabase,
+}: {
+  segmentText: string;
+  videoId?: number;
+  sentenceIndex?: number;
+  supabase?: any;
+}) => {
+  // Check cache first
+  if (supabase && videoId != null && sentenceIndex != null) {
+    const { data: cached } = await supabase
+      .from("sentence_insights")
+      .select("segment_recording")
+      .eq("video_id", videoId)
+      .eq("sentence_index", sentenceIndex)
+      .maybeSingle();
+
+    if (cached?.segment_recording) {
+      await playAudio(cached.segment_recording);
+      return;
+    }
+  }
+
+  // Generate new TTS
+  const base64 = await generateTTS(segmentText);
+  await playAudio(base64);
+
+  // Save to cache
+  if (supabase && videoId != null && sentenceIndex != null) {
+    await supabase.from("sentence_insights").upsert(
+      {
+        video_id: videoId,
+        sentence_index: sentenceIndex,
+        segment_recording: base64,
+      },
+      { onConflict: "video_id,sentence_index" },
+    );
   }
 };
 

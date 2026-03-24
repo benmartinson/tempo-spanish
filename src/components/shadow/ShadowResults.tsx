@@ -25,6 +25,64 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
 
   const isAccuracyGood = accuracyResult.percentage >= 80;
 
+  const renderSpokenWord = (detail: AccuracyResult["details"][0], index: number) => {
+    const isProperNoun = properNouns.some(
+      (noun) => normalizeWord(noun) === normalizeWord(detail.targetWord),
+    );
+    const hasSpellingErrors =
+      !isProperNoun &&
+      detail.matched &&
+      detail.spokenWord &&
+      normalizeWord(detail.spokenWord) !== normalizeWord(detail.targetWord);
+    const isLooseMatch = detail._matchScore === 0;
+    const notMatched = !detail.matched || isLooseMatch;
+    const greenMatched = !notMatched && !hasSpellingErrors;
+    const wordStyle = notMatched
+      ? styles.wordRed
+      : hasSpellingErrors
+        ? styles.wordYellow
+        : styles.wordGreen;
+    const isLast = index === accuracyResult.details.length - 1;
+    const cleanTargetWord = removeSpecialPunctuation(detail.targetWord);
+    let spokenText = cleanTargetWord;
+    if (!greenMatched) {
+      spokenText =
+        !notMatched && detail.spokenWord
+          ? removeSpecialPunctuation(detail.spokenWord)
+          : "_";
+    }
+    if (isLast && spokenText.endsWith(",")) {
+      spokenText = spokenText.slice(0, -1) + "...";
+    }
+    return (
+      <Text key={index} style={wordStyle}>
+        {spokenText}
+        {!isLast ? " " : ""}
+      </Text>
+    );
+  };
+
+  const renderTargetWord = (detail: AccuracyResult["details"][0], index: number) => {
+    const isLast = index === accuracyResult.details.length - 1;
+    let targetText = removeSpecialPunctuation(detail.targetWord);
+    if (isLast && targetText.endsWith(",")) {
+      targetText = targetText.slice(0, -1) + "...";
+    }
+    return (
+      <Text
+        key={index}
+        style={
+          !detail.matched || detail._matchScore === 0
+            ? styles.wordRed
+            : undefined
+        }
+      >
+        {targetText}
+        {!isLast ? " " : ""}
+      </Text>
+    );
+  };
+
   const cleanUpSetence = (sentence: string) => {
     const specialCases = [",.", ".,", "!,", "?,"];
     return sentence
@@ -43,88 +101,16 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
         </Text>
         <Text style={styles.accuracyLabel}>Accuracy</Text>
       </View>
-      {/* <View style={styles.accuracyDetailsContainer}>
-        <Text style={styles.accuracyDetails}>
-          {accuracyResult.matchedWords} of {accuracyResult.totalWords} words
-          matched
-        </Text>
-        {accuracyResult.percentage < 100 && (
-          <TouchableOpacity style={styles.infoIcon}>
-            <MaterialIcons
-              name="info"
-              size={26}
-              color="gray"
-              onPress={() => setIsTooltipVisible(true)}
-            />
-          </TouchableOpacity>
-        )}
-      </View> */}
       <View style={styles.spokenSentenceContainer}>
         <Text style={styles.spokenSentenceText}>
           <Text style={styles.labelBold}>Spoken: </Text>
-          {accuracyResult.details.map((detail, index) => {
-            const isProperNoun = properNouns.some(
-              (noun) =>
-                normalizeWord(noun) === normalizeWord(detail.targetWord),
-            );
-            const hasSpellingErrors =
-              !isProperNoun &&
-              detail.matched &&
-              detail.spokenWord &&
-              normalizeWord(detail.spokenWord) !==
-                normalizeWord(detail.targetWord);
-            const isLooseMatch = detail._matchScore === 0;
-            const notMatched = !detail.matched || isLooseMatch;
-            const greenMatched = !notMatched && !hasSpellingErrors;
-            const wordStyle = notMatched
-              ? styles.wordRed
-              : hasSpellingErrors
-                ? styles.wordYellow
-                : styles.wordGreen;
-            const isLast = index === accuracyResult.details.length - 1;
-            const cleanTargetWord = removeSpecialPunctuation(detail.targetWord);
-            let spokenText = cleanTargetWord;
-            if (!greenMatched) {
-              spokenText =
-                !notMatched && detail.spokenWord
-                  ? removeSpecialPunctuation(detail.spokenWord)
-                  : "_";
-            }
-            if (isLast && spokenText.endsWith(",")) {
-              spokenText = spokenText.slice(0, -1) + "...";
-            }
-            return (
-              <Text key={index} style={wordStyle}>
-                {spokenText}
-                {!isLast ? " " : ""}
-              </Text>
-            );
-          })}
+          {accuracyResult.details.map(renderSpokenWord)}
         </Text>
       </View>
       <View style={styles.targetSentenceContainer}>
         <Text style={styles.targetSentenceText}>
           <Text style={styles.labelBold}>Target: </Text>
-          {accuracyResult.details.map((detail, index) => {
-            const isLast = index === accuracyResult.details.length - 1;
-            let targetText = removeSpecialPunctuation(detail.targetWord);
-            if (isLast && targetText.endsWith(",")) {
-              targetText = targetText.slice(0, -1) + "...";
-            }
-            return (
-              <Text
-                key={index}
-                style={
-                  !detail.matched || detail._matchScore === 0
-                    ? styles.wordRed
-                    : undefined
-                }
-              >
-                {targetText}
-                {!isLast ? " " : ""}
-              </Text>
-            );
-          })}
+          {accuracyResult.details.map(renderTargetWord)}
         </Text>
       </View>
 
@@ -147,13 +133,6 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           </TouchableOpacity>
         )}
       </View>
-      <TooltipModal
-        isVisible={isTooltipVisible}
-        onRequestClose={() => setIsTooltipVisible(false)}
-      >
-        <Text style={styles.tooltipTitle}>Missed Words</Text>
-        <Text style={styles.tooltipWordsList}>{missedWords.join(", ")}</Text>
-      </TooltipModal>
     </View>
   );
 };

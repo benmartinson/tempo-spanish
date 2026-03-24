@@ -28,6 +28,7 @@ interface InsightsProps {
   onStopPhraseRecording?: () => void;
   onSubmitPhrases?: () => void;
   playbackTime?: number;
+  isRecordingMode?: boolean;
 }
 
 const Insights: React.FC<InsightsProps> = ({
@@ -52,9 +53,11 @@ const Insights: React.FC<InsightsProps> = ({
   onStopPhraseRecording,
   onSubmitPhrases,
   playbackTime,
+  isRecordingMode,
 }) => {
   const [isShowingCharacters, setIsShowingCharacters] =
     useState<boolean>(showCharacters);
+  const [isShowingNotes, setIsShowingNotes] = useState<boolean>(true);
 
   useEffect(() => {
     setIsShowingCharacters(showCharacters);
@@ -80,6 +83,7 @@ const Insights: React.FC<InsightsProps> = ({
         playerIsPlaying={playerIsPlaying}
         replayingPhraseIndex={replayingPhraseIndex}
         showPhrases={showPhrases}
+        isRecordingMode={isRecordingMode}
       />
       <WordHints
         hintWords={hintWords}
@@ -121,6 +125,24 @@ const Insights: React.FC<InsightsProps> = ({
           </View>
         )}
       </>
+      {sentenceText.trimEnd().endsWith(",.") && (
+        <>
+          <View style={styles.headerContainer}>
+            <ToggleHeader
+              title="Notes"
+              isVisible={isShowingNotes}
+              onToggle={() => setIsShowingNotes(!isShowingNotes)}
+            />
+          </View>
+          {isShowingNotes && (
+            <View style={styles.notesList}>
+              <Text style={styles.notesText}>
+                This segment is part of a longer sentence.
+              </Text>
+            </View>
+          )}
+        </>
+      )}
     </View>
   );
 };
@@ -156,6 +178,20 @@ const styles = StyleSheet.create({
   againText: {
     fontSize: 13,
     color: "#999",
+  },
+  notesHeader: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#222222",
+  },
+  notesList: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  notesText: {
+    fontSize: 15,
+    color: "#222222",
+    opacity: 0.8,
   },
 });
 

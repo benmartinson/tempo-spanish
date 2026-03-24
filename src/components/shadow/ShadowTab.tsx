@@ -28,7 +28,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 
 import { useAuth } from "@clerk/clerk-expo";
-import { RootState, SegmentWord } from "../../types";
+import { RootState, SegmentWord, VoiceCommand } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
@@ -39,8 +39,11 @@ import {
   playAudioFromStorage,
   trimSilenceFromAudio,
   playAudio,
+  playAudioSequence,
+  generateTTS,
+  playAiSpeech,
 } from "../streaming_helpers";
-import { AccuracyResult } from "../../types";
+import { AccuracyResult, CachedResponse } from "../../types";
 import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
 import {
@@ -61,6 +64,7 @@ import FeaturedVocab from "../watch/FeaturedVocab";
 import Foundation from "@expo/vector-icons/Foundation";
 import FocusSentenceRequest from "./FocusSentenceRequest";
 import { persistUserSettings } from "../../requests";
+import { setCachedResponses } from "../../store/actions/dataActions";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 import VoiceCommands from "./VoiceCommands";
@@ -163,12 +167,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
-  const [insightsTab, setInsightsTab] = useState<"insights" | "voice">(
+  const [selectedTab, setSelectedTab] = useState<"insights" | "voice">(
     "insights",
   );
-  const [activeCommand, setActiveCommand] = useState<
-    "record" | "repeat" | null
-  >(null);
+  const [isSpeakingResponse, setIsSpeakingResponse] = useState(false);
+  const [activeCommand, setActiveCommand] = useState<VoiceCommand>(null);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -205,17 +208,77 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     (state: RootState) => state.cachedResponses,
   );
 
+  const dispatch = useDispatch();
+
+  const getOrCreateWordRecording = useCallback(
+    async (wordRaw: string): Promise<string | null> => {
+      const word = stripPunctuation(wordRaw);
+      const existing = cachedResponses.find((r) => r.response_text === word);
+      if (existing?.recording) return existing.recording;
+
+      try {
+        const base64 = await generateTTS(word);
+        if (supabase) {
+          const { data } = await supabase
+            .from("cached_response")
+            .insert({ response_text: word, recording: base64 })
+            .select()
+            .single();
+          if (data) {
+            dispatch(setCachedResponses([...cachedResponses, data]));
+          }
+        }
+        return base64;
+      } catch (err) {
+        console.error(`Error generating TTS for "${word}":`, err);
+        return null;
+      }
+    },
+    [cachedResponses, supabase, dispatch],
+  );
+
   const playCachedResponse = useCallback(
-    (percentage: number) => {
-      const responseText = getResponseForPercentage(percentage);
+    async (accuracy: AccuracyResult) => {
+      const responseText = getResponseForPercentage(accuracy.percentage);
       const cached = cachedResponses.find(
         (r) => r.response_text === responseText,
       );
-      if (cached?.recording) {
-        playAudio(cached.recording);
-      }
+      if (!cached?.recording) return;
+
+      const clips: string[] = [cached.recording];
+
+      // Find missed words (red in results)
+      const missedWords = accuracy.details
+        .filter((d) => !d.matched || d._matchScore === 0)
+        .map((d) => d.targetWord.toLowerCase());
+
+      // if (missedWords.length > 0) {
+      //   const missedPrefix = cachedResponses.find(
+      //     (r) => r.response_text === "You missed the word",
+      //   );
+      //   if (missedPrefix?.recording) {
+      //     clips.push(missedPrefix.recording);
+      //   }
+
+      //   const andClip = cachedResponses.find((r) => r.response_text === "and,");
+
+      //   for (let i = 0; i < missedWords.length; i++) {
+      //     if (i > 0 && andClip?.recording) {
+      //       clips.push(andClip.recording);
+      //     }
+      //     const wordRecording = await getOrCreateWordRecording(missedWords[i]);
+      //     if (wordRecording) {
+      //       clips.push(wordRecording);
+      //     }
+      //   }
+      // }
+
+      setIsSpeakingResponse(true);
+      await playAudioSequence(clips);
+      setIsSpeakingResponse(false);
+      startListeningRef.current();
     },
-    [cachedResponses],
+    [cachedResponses, getOrCreateWordRecording],
   );
 
   const calculateAccuracyFromWords = useCallback(
@@ -357,8 +420,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           .filter(Boolean);
         const accuracy = calculateAccuracyFromWords(spokenWords);
 
-        setAccuracyResult(accuracy);
-        playCachedResponse(accuracy.percentage);
+        console.log({ selectedTab });
+        if (selectedTab !== "voice") {
+          setAccuracyResult(accuracy);
+        } else {
+          setPreviousResults({
+            ...accuracy,
+            recordingId: null,
+          });
+        }
+        if (selectedTab === "voice") playCachedResponse(accuracy);
         setAudioUri(audioUri);
         saveShadowResult(spokenWords);
       } catch (err) {
@@ -390,7 +461,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       const typedWords = userAnswer.trim().split(/\s+/).filter(Boolean);
       const accuracy = calculateAccuracyFromWords(typedWords);
       setAccuracyResult(accuracy);
-      playCachedResponse(accuracy.percentage);
+      if (selectedTab === "voice") playCachedResponse(accuracy);
       // Save the shadow result to database
       saveShadowResult(typedWords);
       setUserAnswer("");
@@ -413,20 +484,65 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       onError: (message) => setError(message),
     });
 
-  const { isListening, startListening, stopListening, closeConnection } =
-    useVoiceCommand({
-      onRepeat: async () => {
-        setActiveCommand("repeat");
-        await stopListening();
-        setSentenceEnded(false);
-        playSentence();
-      },
-      onRecord: async () => {
-        setActiveCommand("record");
-        await closeConnection();
-        handleEnterRecordingMode();
-      },
-    });
+  const {
+    isListening,
+    hasError: voiceCommandError,
+    timedOut: voiceCommandTimedOut,
+    startListening,
+    stopListening,
+    closeConnection,
+  } = useVoiceCommand({
+    onRepeat: async () => {
+      setActiveCommand("repeat");
+      await stopListening();
+      handlePlaySnippetAgain();
+    },
+    onRecord: async () => {
+      setActiveCommand("record");
+      await closeConnection();
+      handleEnterRecordingMode();
+    },
+    onSlow: async () => {
+      setActiveCommand("slow");
+      await closeConnection();
+      handlePlaySnippetSlow();
+    },
+    onTranslation: async () => {
+      setActiveCommand("translation");
+      await stopListening();
+      if (sentenceTranslation) {
+        const base64 = await generateTTS(sentenceTranslation);
+        await playAudio(base64);
+        startListeningRef.current();
+      }
+    },
+    onArtificial: async () => {
+      setActiveCommand("artificial");
+      await stopListening();
+      if (currentSentenceObject?.text && currentVideo) {
+        await playAiSpeech({
+          segmentText: currentSentenceObject.text,
+          videoId: parseInt(currentVideo.recordId),
+          sentenceIndex: currentSentenceIndex,
+          supabase,
+        });
+        startListeningRef.current();
+      }
+    },
+    onNext: async () => {
+      setActiveCommand("next");
+      await closeConnection();
+      handleNextRef.current();
+    },
+    onPrevious: async () => {
+      setActiveCommand("previous");
+      await closeConnection();
+      handlePreviousRef.current();
+    },
+  });
+
+  const startListeningRef = useRef(startListening);
+  startListeningRef.current = startListening;
 
   // Start listening for "repeat" voice command when the clip finishes
   useEffect(() => {
@@ -435,7 +551,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       !isRecordingMode &&
       !isRecording &&
       !isProcessing &&
-      !accuracyResult
+      !accuracyResult &&
+      selectedTab === "voice"
     ) {
       startListening();
     }
@@ -445,7 +562,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     isRecording,
     isProcessing,
     accuracyResult,
+    selectedTab,
   ]);
+
+  // Stop listening when sentence or tab changes
+  useEffect(() => {
+    stopListening();
+  }, [currentSentenceIndex, isActive]);
 
   const justRecordedRef = useRef(false);
 
@@ -519,8 +642,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleNextRef = useRef(handleShadowNextSentence);
+  const handlePreviousRef = useRef(() => {});
   useEffect(() => {
     handleNextRef.current = handleShadowNextSentence;
+    handlePreviousRef.current = handleShadowPreviousSentence;
   });
 
   useEffect(() => {
@@ -558,9 +683,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   };
 
-  const handleEnterRecordingMode = () => {
+  const handleEnterRecordingMode = async () => {
     // setPreviousResults(null);
-    stopListening();
+    await stopListening();
     pausePlayer();
 
     setPlayerSpeed(recordSpeed);
@@ -594,7 +719,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     parentHandlePreviousSentence();
   };
 
-  const handlePlaySnippetAgain = (word: SegmentWord, isSlow?: boolean) => {
+  const handlePlaySnippetAgain = async (
+    word?: SegmentWord,
+    isSlow?: boolean,
+  ) => {
+    await stopListening();
     if (isSlow) {
       setPlayerSpeed(0.7);
     } else {
@@ -611,7 +740,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   };
 
-  const handlePlaySnippetSlow = () => {
+  const handlePlaySnippetSlow = async () => {
+    await stopListening();
     setJustRecorded();
     setPlayerSpeed(0.8);
     setIsRecordingMode(false);
@@ -636,7 +766,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   }, [submitPhraseRecordings, handleRecordingComplete, pausePlayer]);
 
-  const handlePlayPause = () => {
+  const handlePlayPause = async () => {
+    await stopListening();
     if (playerIsPlaying) {
       pausePlayer();
     } else {
@@ -731,7 +862,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         {!isRecordingMode && !accuracyResult && !isProcessing && (
           <View style={styles.recordButtonContainer}>
             <PlayerControls
-              onReplay={() => handlePlaySnippetAgain(null)}
+              onReplay={() => handlePlaySnippetAgain()}
               onReplaySlow={handlePlaySnippetSlow}
               onPlayPause={handlePlayPause}
               isPlaying={playerIsPlaying}
@@ -742,6 +873,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               segmentText={currentSentenceObject?.text}
               videoId={parseInt(currentVideo.recordId)}
               sentenceIndex={currentSentenceIndex}
+              onBeforeAction={stopListening}
             />
             <View style={styles.settingsButtonContainer}>
               {previousResults && (
@@ -765,7 +897,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       s.sentence_index === currentSentenceIndex,
                   )?.id ?? null
                 }
-                onReplay={() => handlePlaySnippetAgain(null)}
+                onReplay={() => handlePlaySnippetAgain()}
                 sentenceIndex={currentSentenceIndex}
                 sentenceText={currentSentenceObject?.text}
                 segmentIndex={currentSentenceIndex}
@@ -865,41 +997,43 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           )}
           {!accuracyResult && !isProcessing && (
             <View style={styles.tabBarContainer}>
-              <View style={styles.tabBar}>
-                <TouchableOpacity
-                  style={[
-                    styles.tab,
-                    insightsTab === "insights" && styles.tabActive,
-                  ]}
-                  onPress={() => setInsightsTab("insights")}
-                >
-                  <Text
+              {!isRecordingMode && (
+                <View style={styles.tabBar}>
+                  <TouchableOpacity
                     style={[
-                      styles.tabText,
-                      insightsTab === "insights" && styles.tabTextActive,
+                      styles.tab,
+                      selectedTab === "insights" && styles.tabActive,
                     ]}
+                    onPress={() => setSelectedTab("insights")}
                   >
-                    Insights
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.tab,
-                    insightsTab === "voice" && styles.tabActive,
-                  ]}
-                  onPress={() => setInsightsTab("voice")}
-                >
-                  <Text
+                    <Text
+                      style={[
+                        styles.tabText,
+                        selectedTab === "insights" && styles.tabTextActive,
+                      ]}
+                    >
+                      Insights
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     style={[
-                      styles.tabText,
-                      insightsTab === "voice" && styles.tabTextActive,
+                      styles.tab,
+                      selectedTab === "voice" && styles.tabActive,
                     ]}
+                    onPress={() => setSelectedTab("voice")}
                   >
-                    Voice Commands
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {insightsTab === "insights" ? (
+                    <Text
+                      style={[
+                        styles.tabText,
+                        selectedTab === "voice" && styles.tabTextActive,
+                      ]}
+                    >
+                      Voice Commands
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {selectedTab === "insights" || isRecordingMode ? (
                 <Insights
                   isLoading={isLoadingInsights}
                   characters={orderedCharacters}
@@ -911,7 +1045,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   showWordsHints={showWordsHints}
                   showCharacters={showCharacters}
                   showPhrases={showPhrases}
-                  onReplaySentence={() => handlePlaySnippetAgain(null)}
+                  onReplaySentence={() => handlePlaySnippetAgain()}
                   onPlayClip={handlePlayPhrase}
                   playerIsPlaying={playerIsPlaying && !isReplayingPhrase}
                   replayingPhraseIndex={replayingPhraseIndex}
@@ -922,12 +1056,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   onStartPhraseRecording={startPhraseRecording}
                   onStopPhraseRecording={stopPhraseRecording}
                   onSubmitPhrases={handlePhraseSubmit}
+                  isRecordingMode={isRecordingMode}
                 />
               ) : (
                 <VoiceCommands
                   isListening={isListening}
                   isClipPlaying={playerIsPlaying}
                   activeCommand={activeCommand}
+                  hasError={voiceCommandError}
+                  timedOut={voiceCommandTimedOut}
+                  onActivate={startListening}
                 />
               )}
             </View>

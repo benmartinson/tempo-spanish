@@ -9,6 +9,8 @@ export interface UserSettings {
   estimatedHours: number | null;
 }
 
+export type VoiceCommand = "record" | "repeat" | "slow" | "translation" | "artificial" | "next" | "previous" | null;
+
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   playbackSpeed: 1,
   showWordsHints: true,

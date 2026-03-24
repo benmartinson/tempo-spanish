@@ -529,7 +529,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       flex: 1,
     }) as const;
 
-  const endTime = selectedNavTab !== "watch" ? currentSentenceObject?.end : undefined;
+  const endTime =
+    selectedNavTab !== "watch" ? currentSentenceObject?.end : undefined;
   return (
     <View style={styles.container}>
       <View
@@ -566,30 +567,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         </TouchableOpacity>
       )}
 
-      <View style={getTabStyle(selectedNavTab === "watch")}>
-        <WatchTab
-          time={time}
-          currentSentence={currentSentenceObject}
-          setCurrentSentence={setCurrentSentence}
-          setAutoplay={setAutoplay}
-          refreshPlayer={refreshPlayer}
-          isActive={selectedNavTab === "watch"}
-          hintWords={hintWords}
-          handlePlayWordSnippet={(word: SegmentWord) =>
-            playClipSnippet(word.start, word.end)
-          }
-          isPlayingWordSnippet={!!currentClipSnippetRef.current}
-          handleNextSentence={handleNextSentence}
-          handlePreviousSentence={handlePreviousSentence}
-          onPlayClip={handlePlayClip}
-          playSentence={playSentence}
-          pausePlayer={pausePlayer}
-          resumePlayer={playPlayer}
-          playerIsPlaying={playerIsPlaying}
-          setPlayerSpeed={setPlayerSpeed}
-        />
-      </View>
-
       <View style={getTabStyle(selectedNavTab === "shadow")}>
         <ShadowTab
           time={time}
@@ -601,7 +578,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           pausePlayer={pausePlayer}
           resumePlayer={playPlayer}
           playWordSnippet={(word: SegmentWord) =>
-            playClipSnippet(word.start, word.end)
+            playClipSnippet(word.start - 0.3, word.end + 0.3)
           }
           isPlayingWordSnippet={!!currentClipSnippetRef.current}
           hintWords={hintWords}
@@ -611,6 +588,29 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           isLoadingInsights={isLoadingInsights}
           orderedCharacters={orderedCharacters}
           sentenceTranslation={sentenceTranslation}
+        />
+      </View>
+      <View style={getTabStyle(selectedNavTab === "watch")}>
+        <WatchTab
+          time={time}
+          currentSentence={currentSentenceObject}
+          setCurrentSentence={setCurrentSentence}
+          setAutoplay={setAutoplay}
+          refreshPlayer={refreshPlayer}
+          isActive={selectedNavTab === "watch"}
+          hintWords={hintWords}
+          handlePlayWordSnippet={(word: SegmentWord) =>
+            playClipSnippet(word.start - 0.3, word.end + 0.3)
+          }
+          isPlayingWordSnippet={!!currentClipSnippetRef.current}
+          handleNextSentence={handleNextSentence}
+          handlePreviousSentence={handlePreviousSentence}
+          onPlayClip={handlePlayClip}
+          playSentence={playSentence}
+          pausePlayer={pausePlayer}
+          resumePlayer={playPlayer}
+          playerIsPlaying={playerIsPlaying}
+          setPlayerSpeed={setPlayerSpeed}
         />
       </View>
 

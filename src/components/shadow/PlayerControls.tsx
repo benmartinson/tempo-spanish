@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { playAudio, generateTTS } from "../streaming_helpers";
+import { playAiSpeech } from "../streaming_helpers";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 
 interface PlayerControlsProps {
@@ -18,6 +18,7 @@ interface PlayerControlsProps {
   segmentText?: string;
   videoId?: number;
   sentenceIndex?: number;
+  onBeforeAction?: () => Promise<void>;
 }
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -29,44 +30,17 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   segmentText,
   videoId,
   sentenceIndex,
+  onBeforeAction,
 }) => {
   const [aiLoading, setAiLoading] = useState(false);
   const supabase = useSupabaseWithClerk();
 
   const handleAiSpeak = async () => {
     if (!segmentText || aiLoading) return;
+    await onBeforeAction?.();
     setAiLoading(true);
     try {
-      // Check cache first
-      if (supabase && videoId != null && sentenceIndex != null) {
-        const { data: cached } = await supabase
-          .from("sentence_insights")
-          .select("segment_recording")
-          .eq("video_id", videoId)
-          .eq("sentence_index", sentenceIndex)
-          .maybeSingle();
-
-        if (cached?.segment_recording) {
-          await playAudio(cached.segment_recording);
-          return;
-        }
-      }
-
-      // Generate new TTS
-      const base64 = await generateTTS(segmentText);
-      await playAudio(base64);
-
-      // Save to cache
-      if (supabase && videoId != null && sentenceIndex != null) {
-        await supabase.from("sentence_insights").upsert(
-          {
-            video_id: videoId,
-            sentence_index: sentenceIndex,
-            segment_recording: base64,
-          },
-          { onConflict: "video_id,sentence_index" },
-        );
-      }
+      await playAiSpeech({ segmentText, videoId, sentenceIndex, supabase });
     } catch (err) {
       console.error("ElevenLabs TTS error:", err);
     } finally {

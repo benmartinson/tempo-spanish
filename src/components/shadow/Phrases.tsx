@@ -18,6 +18,7 @@ interface PhrasesProps {
   playbackTime?: number;
   playerIsPlaying?: boolean;
   showPhrases: boolean;
+  isRecordingMode?: boolean;
 }
 
 const Phrases: React.FC<PhrasesProps> = ({
@@ -34,6 +35,7 @@ const Phrases: React.FC<PhrasesProps> = ({
   playbackTime,
   playerIsPlaying,
   showPhrases,
+  isRecordingMode,
 }) => {
   const [isShowingPhrases, setIsShowingPhrases] =
     useState<boolean>(showPhrases);
@@ -80,28 +82,32 @@ const Phrases: React.FC<PhrasesProps> = ({
 
               return (
                 <View key={i} style={styles.phraseRow}>
-                  <TouchableOpacity
-                    style={styles.phraseReplayButton}
-                    onPress={() => onPlayClip?.(seg.start, seg.end, i)}
-                    disabled={replayingPhraseIndex === i}
-                  >
-                    <MaterialIcons
-                      name={
-                        replayingPhraseIndex === i ? "play-arrow" : "replay"
-                      }
-                      size={22}
-                      color={replayingPhraseIndex === i ? "#4CAF50" : "#007AFF"}
-                    />
-                  </TouchableOpacity>
+                  {!isRecordingMode && (
+                    <TouchableOpacity
+                      style={styles.phraseReplayButton}
+                      onPress={() => onPlayClip?.(seg.start, seg.end, i)}
+                      disabled={replayingPhraseIndex === i}
+                    >
+                      <MaterialIcons
+                        name={
+                          replayingPhraseIndex === i ? "play-arrow" : "replay"
+                        }
+                        size={24}
+                        color={
+                          replayingPhraseIndex === i ? "#4CAF50" : "#007AFF"
+                        }
+                      />
+                    </TouchableOpacity>
+                  )}
 
-                  {isRecordingThis ? (
+                  {isRecordingThis && !isRecordingMode ? (
                     <>
                       <Text style={styles.recordingText}>Recording...</Text>
                       <TouchableOpacity
                         style={styles.phraseStopButton}
                         onPress={() => onStopPhraseRecording?.()}
                       >
-                        <MaterialIcons name="stop" size={20} color="#e53935" />
+                        <MaterialIcons name="stop" size={24} color="#e53935" />
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -114,26 +120,30 @@ const Phrases: React.FC<PhrasesProps> = ({
                       >
                         {seg.preview}
                       </Text>
-                      <TouchableOpacity
-                        style={[
-                          styles.phraseMicButton,
-                          anotherIsRecording && { opacity: 0.3 },
-                        ]}
-                        onPress={() => onStartPhraseRecording?.(i)}
-                        disabled={anotherIsRecording}
-                      >
-                        <MaterialIcons
-                          name="mic"
-                          size={22}
-                          color={hasRecording ? "#007AFF" : "#999"}
-                        />
-                      </TouchableOpacity>
-                      {hasRecording && (
-                        <MaterialIcons
-                          name="check-circle"
-                          size={22}
-                          color="#4CAF50"
-                        />
+                      {!isRecordingMode && (
+                        <>
+                          <TouchableOpacity
+                            style={[
+                              styles.phraseMicButton,
+                              anotherIsRecording && { opacity: 0.3 },
+                            ]}
+                            onPress={() => onStartPhraseRecording?.(i)}
+                            disabled={anotherIsRecording}
+                          >
+                            <MaterialIcons
+                              name="mic"
+                              size={24}
+                              color={hasRecording ? "#007AFF" : "#999"}
+                            />
+                          </TouchableOpacity>
+                          {hasRecording && (
+                            <MaterialIcons
+                              name="check-circle"
+                              size={24}
+                              color="#4CAF50"
+                            />
+                          )}
+                        </>
                       )}
                     </>
                   )}
@@ -145,7 +155,7 @@ const Phrases: React.FC<PhrasesProps> = ({
               {getPreviewWords(sentenceText).join(" ") + "..."}
             </Text>
           )}
-          {allPhrasesRecorded && hasSubSegments && (
+          {allPhrasesRecorded && hasSubSegments && !isRecordingMode && (
             <TouchableOpacity
               style={styles.phraseSubmitButton}
               onPress={() => onSubmitPhrases?.()}

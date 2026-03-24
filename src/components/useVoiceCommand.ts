@@ -11,6 +11,11 @@ import {
 interface UseVoiceCommandOptions {
   onRepeat: () => void;
   onRecord: () => void;
+  onSlow: () => void;
+  onTranslation: () => void;
+  onArtificial: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
 }
 
 const VOICE_COMMAND_WS_URL = BACKEND_WS_URL?.replace(
@@ -18,24 +23,51 @@ const VOICE_COMMAND_WS_URL = BACKEND_WS_URL?.replace(
   "/ws/voice-command",
 );
 
-export const useVoiceCommand = ({ onRepeat, onRecord }: UseVoiceCommandOptions) => {
+export const useVoiceCommand = ({
+  onRepeat,
+  onRecord,
+  onSlow,
+  onTranslation,
+  onArtificial,
+  onNext,
+  onPrevious,
+}: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
   const isListeningRef = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<ReturnType<typeof useAudioRecorder> | null>(null);
   const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const transcriptBufferRef = useRef("");
   const onRepeatRef = useRef(onRepeat);
   const onRecordRef = useRef(onRecord);
+  const onSlowRef = useRef(onSlow);
+  const onTranslationRef = useRef(onTranslation);
+  const onArtificialRef = useRef(onArtificial);
+  const onNextRef = useRef(onNext);
+  const onPreviousRef = useRef(onPrevious);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
     onRecordRef.current = onRecord;
-  }, [onRepeat]);
+    onSlowRef.current = onSlow;
+    onTranslationRef.current = onTranslation;
+    onArtificialRef.current = onArtificial;
+    onNextRef.current = onNext;
+    onPreviousRef.current = onPrevious;
+  }, [onRepeat, onRecord, onSlow, onTranslation, onArtificial, onNext, onPrevious]);
 
   const recorder = useAudioRecorder(getRecordingConfig());
 
   const cleanup = useCallback(async () => {
     isListeningRef.current = false;
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
 
     if (streamIntervalRef.current) {
       clearInterval(streamIntervalRef.current);
@@ -63,6 +95,11 @@ export const useVoiceCommand = ({ onRepeat, onRecord }: UseVoiceCommandOptions) 
     setIsListening(false);
   }, []);
 
+  const cleanupWithError = useCallback(async () => {
+    await cleanup();
+    setHasError(true);
+  }, [cleanup]);
+
   useEffect(() => {
     return () => {
       cleanup();
@@ -72,6 +109,9 @@ export const useVoiceCommand = ({ onRepeat, onRecord }: UseVoiceCommandOptions) 
   const startListening = useCallback(async () => {
     if (isListeningRef.current || !VOICE_COMMAND_WS_URL) return;
     isListeningRef.current = true;
+    transcriptBufferRef.current = "";
+    setHasError(false);
+    setTimedOut(false);
 
     const granted = await requestMicrophonePermission();
     if (!granted) {
@@ -97,28 +137,61 @@ export const useVoiceCommand = ({ onRepeat, onRecord }: UseVoiceCommandOptions) 
               () => wsRef.current,
             );
             setIsListening(true);
+            timeoutRef.current = setTimeout(async () => {
+              await cleanup();
+              setTimedOut(true);
+            }, 30000);
+          } else if (data.type === "error") {
+            cleanupWithError();
           } else if (data.type === "transcript" && data.transcript) {
-            const text = data.transcript.toLowerCase();
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+            }
+            timeoutRef.current = setTimeout(async () => {
+              await cleanup();
+              setTimedOut(true);
+            }, 30000);
+            transcriptBufferRef.current += data.transcript.toLowerCase();
+            const text = transcriptBufferRef.current;
             if (text.includes("record")) {
+              transcriptBufferRef.current = "";
               onRecordRef.current();
+            } else if (text.includes("translat")) {
+              transcriptBufferRef.current = "";
+              onTranslationRef.current();
+              // } else if (text.includes("artificial")) {
+              //   transcriptBufferRef.current = "";
+              //   onArtificialRef.current();
+            } else if (text.includes("slow")) {
+              transcriptBufferRef.current = "";
+              onSlowRef.current();
             } else if (text.includes("repeat")) {
+              transcriptBufferRef.current = "";
               onRepeatRef.current();
+            } else if (text.includes("next")) {
+              transcriptBufferRef.current = "";
+              onNextRef.current();
+            } else if (text.includes("previous") || text.includes("back")) {
+              transcriptBufferRef.current = "";
+              onPreviousRef.current();
             }
           }
-        } catch {}
+        } catch {
+          cleanupWithError();
+        }
       };
 
       ws.onerror = () => {
-        cleanup();
+        cleanupWithError();
       };
 
       ws.onclose = () => {
         cleanup();
       };
     } catch {
-      cleanup();
+      cleanupWithError();
     }
-  }, [recorder, cleanup]);
+  }, [recorder, cleanup, cleanupWithError]);
 
   const stopListening = useCallback(async () => {
     await cleanup();
@@ -151,5 +224,12 @@ export const useVoiceCommand = ({ onRepeat, onRecord }: UseVoiceCommandOptions) 
     setIsListening(false);
   }, []);
 
-  return { isListening, startListening, stopListening, closeConnection };
+  return {
+    isListening,
+    hasError,
+    timedOut,
+    startListening,
+    stopListening,
+    closeConnection,
+  };
 };
