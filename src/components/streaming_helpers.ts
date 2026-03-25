@@ -68,6 +68,25 @@ export const generateTTS = async (text: string): Promise<string> => {
   return btoa(binary);
 };
 
+// Short sound effects for recording
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const dingSource = require("../../assets/ding.wav");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const dingStopSource = require("../../assets/ding-stop.wav");
+
+const playSoundEffect = (source: number) => {
+  const player = createAudioPlayer(source, { keepAudioSessionActive: true });
+  player.play();
+  player.addListener("playbackStatusUpdate", (status) => {
+    if (status.didJustFinish) {
+      player.remove();
+    }
+  });
+};
+
+export const playDing = () => playSoundEffect(dingSource);
+export const playDingStop = () => playSoundEffect(dingStopSource);
+
 // Global reference to currently playing sound to prevent overlapping audio
 let currentPlayingSound: AudioPlayer | null = null;
 
@@ -389,6 +408,7 @@ export const startAudioStreaming = (
  * Get the audio recording configuration
  */
 export const getRecordingConfig = (): RecordingOptions => ({
+  isMeteringEnabled: true,
   extension: ".wav",
   sampleRate: 44100,
   numberOfChannels: 1,

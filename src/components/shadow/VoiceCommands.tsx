@@ -40,19 +40,12 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
     );
   }
 
-  if (!isListening) {
-    if (timedOut) {
-      return (
-        <View style={styles.container}>
-          <TouchableOpacity onPress={onActivate}>
-            <Text style={styles.activateText}>Activate Voice Mode</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
+  if (timedOut || !isListening) {
     return (
       <View style={styles.container}>
-        <Text style={styles.statusText}>Waiting for clip to finish...</Text>
+        <TouchableOpacity onPress={onActivate}>
+          <Text style={styles.activateText}>Activate Voice Mode</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -145,6 +138,22 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         </Text>
         <Text style={styles.commandDescription}>— Hear AI pronunciation</Text>
       </View> */}
+      <View
+        style={[
+          styles.commandRow,
+          activeCommand === "hint" && styles.commandRowActive,
+        ]}
+      >
+        <Text
+          style={[
+            styles.commandText,
+            activeCommand === "hint" && styles.commandTextActive,
+          ]}
+        >
+          "Word Hint"
+        </Text>
+        <Text style={styles.commandDescription}>— Hear the next hint word</Text>
+      </View>
       <View
         style={[
           styles.commandRow,

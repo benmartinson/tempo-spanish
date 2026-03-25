@@ -1,11 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useAudioRecorder, type AudioRecorder } from "expo-audio";
+import {
+  useAudioRecorder,
+  useAudioRecorderState,
+  type AudioRecorder,
+} from "expo-audio";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import {
   getRecordingConfig,
   requestMicrophonePermission,
   setAudioModeForRecording,
 } from "./streaming_helpers";
+
+const SILENCE_THRESHOLD = -40; // dB — below this is considered silence
+const SILENCE_DURATION = 2000; // ms of silence before auto-stop
 
 export interface UseRecordingOptions {
   onRecordingComplete: (audioUri: string) => void;
@@ -15,6 +22,7 @@ export interface UseRecordingOptions {
 export interface UseRecordingReturn {
   isRecording: boolean;
   hasPermission: boolean | null;
+  passedSilenceThreshold: boolean;
   startRecording: () => Promise<void>;
   stopRecording: (userTrashed?: boolean) => Promise<string | null>;
   cleanup: () => Promise<void>;
@@ -28,6 +36,35 @@ export const useRecording = (
   const recorder = useAudioRecorder(getRecordingConfig());
 
   const recordingRef = useRef<AudioRecorder | null>(null);
+  const hasSpokenRef = useRef(false);
+  const silenceStartRef = useRef<number | null>(null);
+  const [passedSilenceThreshold, setPassedSilenceThreshold] = useState(false);
+
+  const recorderState = useAudioRecorderState(recorder, 200);
+
+  // Silence detection: flag when 4s of silence detected after speech
+  useEffect(() => {
+    if (!isRecording) {
+      hasSpokenRef.current = false;
+      silenceStartRef.current = null;
+      setPassedSilenceThreshold(false);
+      return;
+    }
+
+    const metering = recorderState.metering;
+    if (metering == null) return;
+
+    if (metering > SILENCE_THRESHOLD) {
+      hasSpokenRef.current = true;
+      silenceStartRef.current = null;
+    } else if (hasSpokenRef.current) {
+      if (silenceStartRef.current == null) {
+        silenceStartRef.current = Date.now();
+      } else if (Date.now() - silenceStartRef.current >= SILENCE_DURATION) {
+        setPassedSilenceThreshold(true);
+      }
+    }
+  }, [recorderState.metering, isRecording]);
 
   // Store callbacks in refs to avoid stale closures
   const onRecordingCompleteRef = useRef(options.onRecordingComplete);
@@ -140,6 +177,7 @@ export const useRecording = (
   return {
     isRecording,
     hasPermission,
+    passedSilenceThreshold,
     startRecording,
     stopRecording,
     cleanup,

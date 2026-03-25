@@ -16,6 +16,7 @@ interface UseVoiceCommandOptions {
   onArtificial: () => void;
   onNext: () => void;
   onPrevious: () => void;
+  onHint: () => void;
 }
 
 const VOICE_COMMAND_WS_URL = BACKEND_WS_URL?.replace(
@@ -31,6 +32,7 @@ export const useVoiceCommand = ({
   onArtificial,
   onNext,
   onPrevious,
+  onHint,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -48,6 +50,7 @@ export const useVoiceCommand = ({
   const onArtificialRef = useRef(onArtificial);
   const onNextRef = useRef(onNext);
   const onPreviousRef = useRef(onPrevious);
+  const onHintRef = useRef(onHint);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
@@ -57,7 +60,8 @@ export const useVoiceCommand = ({
     onArtificialRef.current = onArtificial;
     onNextRef.current = onNext;
     onPreviousRef.current = onPrevious;
-  }, [onRepeat, onRecord, onSlow, onTranslation, onArtificial, onNext, onPrevious]);
+    onHintRef.current = onHint;
+  }, [onRepeat, onRecord, onSlow, onTranslation, onArtificial, onNext, onPrevious, onHint]);
 
   const recorder = useAudioRecorder(getRecordingConfig());
 
@@ -174,6 +178,9 @@ export const useVoiceCommand = ({
             } else if (text.includes("previous") || text.includes("back")) {
               transcriptBufferRef.current = "";
               onPreviousRef.current();
+            } else if (text.includes("hint")) {
+              transcriptBufferRef.current = "";
+              onHintRef.current();
             }
           }
         } catch {

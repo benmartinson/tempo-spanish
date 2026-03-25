@@ -42,6 +42,8 @@ import {
   playAudioSequence,
   generateTTS,
   playAiSpeech,
+  playDing,
+  playDingStop,
 } from "../streaming_helpers";
 import { AccuracyResult, CachedResponse } from "../../types";
 import SettingsModal from "./SettingsModal";
@@ -172,6 +174,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   );
   const [isSpeakingResponse, setIsSpeakingResponse] = useState(false);
   const [activeCommand, setActiveCommand] = useState<VoiceCommand>(null);
+  const [voiceHintIndex, setVoiceHintIndex] = useState(0);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -343,6 +346,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [supabase, userId, currentVideo, currentSentenceIndex]);
 
   const loadExistingShadowResult = async () => {
+    console.log("loadExisting");
     try {
       const result = await fetchShadowResult();
       if (result) {
@@ -372,6 +376,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
+    setVoiceHintIndex(0);
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -420,8 +425,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           .filter(Boolean);
         const accuracy = calculateAccuracyFromWords(spokenWords);
 
-        console.log({ selectedTab });
         if (selectedTab !== "voice") {
+          console.log({ selectedTab });
           setAccuracyResult(accuracy);
         } else {
           setPreviousResults({
@@ -447,42 +452,48 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       userId,
       currentVideo,
       currentSentenceIndex,
+      selectedTab,
     ],
   );
 
-  const handleTextSubmit = useCallback(() => {
-    if (!userAnswer.trim()) return;
+  // const handleTextSubmit = useCallback(() => {
+  //   if (!userAnswer.trim()) return;
 
-    Keyboard.dismiss();
-    setIsProcessing(true);
-    setError(null);
+  //   Keyboard.dismiss();
+  //   setIsProcessing(true);
+  //   setError(null);
 
-    try {
-      const typedWords = userAnswer.trim().split(/\s+/).filter(Boolean);
-      const accuracy = calculateAccuracyFromWords(typedWords);
-      setAccuracyResult(accuracy);
-      if (selectedTab === "voice") playCachedResponse(accuracy);
-      // Save the shadow result to database
-      saveShadowResult(typedWords);
-      setUserAnswer("");
-    } catch (err) {
-      console.error("Text comparison error:", err);
-      setError(err instanceof Error ? err.message : "Failed to process text");
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [userAnswer, calculateAccuracyFromWords, saveShadowResult]);
+  //   try {
+  //     const typedWords = userAnswer.trim().split(/\s+/).filter(Boolean);
+  //     const accuracy = calculateAccuracyFromWords(typedWords);
+  //     setAccuracyResult(accuracy);
+  //     if (selectedTab === "voice") playCachedResponse(accuracy);
+  //     // Save the shadow result to database
+  //     saveShadowResult(typedWords);
+  //     setUserAnswer("");
+  //   } catch (err) {
+  //     console.error("Text comparison error:", err);
+  //     setError(err instanceof Error ? err.message : "Failed to process text");
+  //   } finally {
+  //     setIsProcessing(false);
+  //   }
+  // }, [userAnswer, calculateAccuracyFromWords, saveShadowResult]);
 
   const handleResetAnswer = useCallback(() => {
     setUserAnswer("");
     Keyboard.dismiss();
   }, []);
 
-  const { isRecording, hasPermission, startRecording, stopRecording } =
-    useRecording({
-      onRecordingComplete: handleRecordingComplete,
-      onError: (message) => setError(message),
-    });
+  const {
+    isRecording,
+    hasPermission,
+    passedSilenceThreshold,
+    startRecording,
+    stopRecording,
+  } = useRecording({
+    onRecordingComplete: handleRecordingComplete,
+    onError: (message) => setError(message),
+  });
 
   const {
     isListening,
@@ -511,8 +522,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setActiveCommand("translation");
       await stopListening();
       if (sentenceTranslation) {
-        const base64 = await generateTTS(sentenceTranslation);
-        await playAudio(base64);
+        const recording = await getOrCreateWordRecording(sentenceTranslation);
+        if (recording) await playAudio(recording);
         startListeningRef.current();
       }
     },
@@ -538,6 +549,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setActiveCommand("previous");
       await closeConnection();
       handlePreviousRef.current();
+    },
+    onHint: async () => {
+      setActiveCommand("hint");
+      await stopListening();
+      if (hintWords.length > 0) {
+        const word = hintWords[voiceHintIndex];
+        const recording = await getOrCreateWordRecording(word.word);
+        if (recording) await playAudio(recording);
+        setVoiceHintIndex((prev) => (prev + 1) % hintWords.length);
+        startListeningRef.current();
+      }
     },
   });
 
@@ -696,6 +718,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleActualStartRecording = async () => {
+    if (selectedTab === "voice") playDing();
     await startRecording();
     // playSentence();
     setTimeout(() => {
@@ -704,10 +727,18 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleStopRecording = async (trashed: boolean = false) => {
+    if (selectedTab === "voice") playDingStop();
     pausePlayer();
     await stopRecording(trashed);
     setIsRecordingMode(false);
   };
+
+  // Auto-stop recording after silence on voice tab
+  useEffect(() => {
+    if (passedSilenceThreshold && selectedTab === "voice") {
+      handleStopRecording();
+    }
+  }, [passedSilenceThreshold]);
 
   const handleShadowPreviousSentence = () => {
     setPreviousResults(null);
@@ -805,6 +836,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handlePreviousResults = () => {
+    console.log("handlePreviousResults");
     setAccuracyResult(previousResults);
   };
 
@@ -1033,7 +1065,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   </TouchableOpacity>
                 </View>
               )}
-              {selectedTab === "insights" || isRecordingMode ? (
+              {selectedTab === "insights" ? (
                 <Insights
                   isLoading={isLoadingInsights}
                   characters={orderedCharacters}
@@ -1059,14 +1091,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   isRecordingMode={isRecordingMode}
                 />
               ) : (
-                <VoiceCommands
-                  isListening={isListening}
-                  isClipPlaying={playerIsPlaying}
-                  activeCommand={activeCommand}
-                  hasError={voiceCommandError}
-                  timedOut={voiceCommandTimedOut}
-                  onActivate={startListening}
-                />
+                !isRecordingMode && (
+                  <VoiceCommands
+                    isListening={isListening}
+                    isClipPlaying={playerIsPlaying}
+                    activeCommand={activeCommand}
+                    hasError={voiceCommandError}
+                    timedOut={voiceCommandTimedOut}
+                    onActivate={startListening}
+                  />
+                )
               )}
             </View>
           )}
@@ -1107,8 +1141,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 styles.sendButton,
                 !userAnswer.trim() && styles.sendButtonDisabled,
               ]}
-              onPress={handleTextSubmit}
-              disabled={!userAnswer.trim()}
+              onPress={() => handleStopRecording(false)}
+              disabled={!isRecording}
             >
               <MaterialIcons
                 name="send"
