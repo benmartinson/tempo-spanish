@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { setAudioModeAsync } from "expo-audio";
 
 let ExpoSpeechRecognitionModule: any = null;
 let useSpeechRecognitionEvent: any = (_event: string, _handler: any) => {};
@@ -75,6 +74,16 @@ export const useVoiceCommand = ({
     }, 30000);
   }, []);
 
+  const resetAudioSession = useCallback(() => {
+    try {
+      ExpoSpeechRecognitionModule?.setCategoryIOS({
+        category: "playback",
+        categoryOptions: ["defaultToSpeaker"],
+        mode: "default",
+      });
+    } catch {}
+  }, []);
+
   const cleanup = useCallback(async () => {
     isListeningRef.current = false;
 
@@ -87,13 +96,9 @@ export const useVoiceCommand = ({
       ExpoSpeechRecognitionModule?.stop();
     } catch {}
 
-    await setAudioModeAsync({
-      allowsRecording: false,
-      playsInSilentMode: true,
-    });
-
+    resetAudioSession();
     setIsListening(false);
-  }, []);
+  }, [resetAudioSession]);
 
   const cleanupWithError = useCallback(async () => {
     await cleanup();
@@ -242,13 +247,9 @@ export const useVoiceCommand = ({
       ExpoSpeechRecognitionModule?.abort();
     } catch {}
 
-    await setAudioModeAsync({
-      allowsRecording: false,
-      playsInSilentMode: true,
-    });
-
+    resetAudioSession();
     setIsListening(false);
-  }, []);
+  }, [resetAudioSession]);
 
   return {
     isListening,
