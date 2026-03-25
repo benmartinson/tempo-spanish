@@ -8,7 +8,7 @@ export default {
     userInterfaceStyle: "light",
     newArchEnabled: true,
     scheme: "tempo",
-    plugins: ["expo-web-browser"],
+    plugins: ["expo-web-browser", "expo-speech-recognition"],
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
@@ -21,6 +21,8 @@ export default {
         ITSAppUsesNonExemptEncryption: false,
         NSMicrophoneUsageDescription:
           "This app uses the microphone to record audio.",
+        NSSpeechRecognitionUsageDescription:
+          "This app uses speech recognition for voice commands.",
       },
     },
     android: {
