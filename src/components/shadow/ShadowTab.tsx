@@ -600,25 +600,27 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const startListeningRef = useRef(startListening);
   startListeningRef.current = startListening;
 
-  // Start listening for "repeat" voice command when the clip finishes
+  // Start listening when on voice tab and nothing is playing
   useEffect(() => {
     if (
-      sentenceEnded &&
+      selectedTab === "voice" &&
+      !playerIsPlaying &&
+      !isSpeakingResponse &&
       !isRecordingMode &&
       !isRecording &&
       !isProcessing &&
-      !accuracyResult &&
-      selectedTab === "voice"
+      !accuracyResult
     ) {
       startListening();
     }
   }, [
-    sentenceEnded,
+    selectedTab,
+    playerIsPlaying,
+    isSpeakingResponse,
     isRecordingMode,
     isRecording,
     isProcessing,
     accuracyResult,
-    selectedTab,
   ]);
 
   // Stop listening when sentence or tab changes
