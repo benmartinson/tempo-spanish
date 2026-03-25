@@ -11,8 +11,8 @@ import {
   setAudioModeForRecording,
 } from "./streaming_helpers";
 
-const SILENCE_THRESHOLD = -40; // dB — below this is considered silence
-const SILENCE_DURATION = 2000; // ms of silence before auto-stop
+const SILENCE_THRESHOLD = -20; // dB — below this is considered silence
+const SILENCE_DURATION = 2500; // ms of silence before auto-stop
 
 export interface UseRecordingOptions {
   onRecordingComplete: (audioUri: string) => void;
@@ -52,6 +52,7 @@ export const useRecording = (
     }
 
     const metering = recorderState.metering;
+    console.log({ metering });
     if (metering == null) return;
 
     if (metering > SILENCE_THRESHOLD) {
@@ -61,6 +62,7 @@ export const useRecording = (
       if (silenceStartRef.current == null) {
         silenceStartRef.current = Date.now();
       } else if (Date.now() - silenceStartRef.current >= SILENCE_DURATION) {
+        console.log("passed");
         setPassedSilenceThreshold(true);
       }
     }
