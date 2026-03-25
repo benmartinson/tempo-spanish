@@ -23,9 +23,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   if (hasError) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>
-          Error occurred. Waiting for next clip...
-        </Text>
+        <Text style={styles.errorText}>Error occurred.</Text>
       </View>
     );
   }
