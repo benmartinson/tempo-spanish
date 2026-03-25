@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 
-
 let ExpoSpeechRecognitionModule: any = null;
 let useSpeechRecognitionEvent: any = (_event: string, _handler: any) => {};
 
@@ -19,6 +18,9 @@ interface UseVoiceCommandOptions {
   onNext: () => void;
   onPrevious: () => void;
   onHint: () => void;
+  onFirstPhrase: () => void;
+  onSecondPhrase: () => void;
+  onThirdPhrase: () => void;
 }
 
 export const useVoiceCommand = ({
@@ -30,6 +32,9 @@ export const useVoiceCommand = ({
   onNext,
   onPrevious,
   onHint,
+  onFirstPhrase,
+  onSecondPhrase,
+  onThirdPhrase,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -47,6 +52,9 @@ export const useVoiceCommand = ({
   const onNextRef = useRef(onNext);
   const onPreviousRef = useRef(onPrevious);
   const onHintRef = useRef(onHint);
+  const onFirstPhraseRef = useRef(onFirstPhrase);
+  const onSecondPhraseRef = useRef(onSecondPhrase);
+  const onThirdPhraseRef = useRef(onThirdPhrase);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
@@ -57,7 +65,22 @@ export const useVoiceCommand = ({
     onNextRef.current = onNext;
     onPreviousRef.current = onPrevious;
     onHintRef.current = onHint;
-  }, [onRepeat, onRecord, onSlow, onTranslation, onArtificial, onNext, onPrevious, onHint]);
+    onFirstPhraseRef.current = onFirstPhrase;
+    onSecondPhraseRef.current = onSecondPhrase;
+    onThirdPhraseRef.current = onThirdPhrase;
+  }, [
+    onRepeat,
+    onRecord,
+    onSlow,
+    onTranslation,
+    onArtificial,
+    onNext,
+    onPrevious,
+    onHint,
+    onFirstPhrase,
+    onSecondPhrase,
+    onThirdPhrase,
+  ]);
 
   const resetInactivityTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -128,7 +151,16 @@ export const useVoiceCommand = ({
     transcriptBufferRef.current = transcript.toLowerCase();
     const text = transcriptBufferRef.current;
 
-    if (text.includes("record")) {
+    if (text.includes("first")) {
+      transcriptBufferRef.current = "";
+      onFirstPhraseRef.current();
+    } else if (text.includes("second")) {
+      transcriptBufferRef.current = "";
+      onSecondPhraseRef.current();
+    } else if (text.includes("third")) {
+      transcriptBufferRef.current = "";
+      onThirdPhraseRef.current();
+    } else if (text.includes("record")) {
       transcriptBufferRef.current = "";
       onRecordRef.current();
     } else if (text.includes("translat")) {
@@ -191,6 +223,9 @@ export const useVoiceCommand = ({
               "previous",
               "back",
               "hint",
+              "first phrase",
+              "second phrase",
+              "third phrase",
             ],
           });
         }

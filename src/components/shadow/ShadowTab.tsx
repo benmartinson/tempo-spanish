@@ -352,7 +352,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       if (result) {
         const spokenWords = result.spokenWords.split(/\s+/).filter(Boolean);
         const accuracy = calculateAccuracyFromWords(spokenWords);
-        setAccuracyResult(accuracy);
+        if (selectedTab !== "voice") {
+          setAccuracyResult(accuracy);
+        }
         setPreviousResults({ ...accuracy, recordingId: result.recordingId });
         setCurrentRecordingId(result.recordingId || null);
       } else {
@@ -570,6 +572,27 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         }
         setVoiceHintIndex((prev) => (prev + 1) % hintWords.length);
         startListeningRef.current();
+      }
+    },
+    onFirstPhrase: async () => {
+      if (subSegments.length >= 1) {
+        setActiveCommand("first_phrase");
+        await closeConnection();
+        handlePlayPhrase(subSegments[0].start, subSegments[0].end, 0);
+      }
+    },
+    onSecondPhrase: async () => {
+      if (subSegments.length >= 2) {
+        setActiveCommand("second_phrase");
+        await closeConnection();
+        handlePlayPhrase(subSegments[1].start, subSegments[1].end, 1);
+      }
+    },
+    onThirdPhrase: async () => {
+      if (subSegments.length >= 3) {
+        setActiveCommand("third_phrase");
+        await closeConnection();
+        handlePlayPhrase(subSegments[2].start, subSegments[2].end, 2);
       }
     },
   });
@@ -971,10 +994,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             />
           </>
         )}
-        <ScrollView
-          style={styles.transcriptContainer}
-          keyboardShouldPersistTaps="handled"
-        >
+        <View style={styles.transcriptContainer}>
           {/* Recording button or processing indicator */}
           {isProcessing ? (
             <View style={styles.processingContainer}>
@@ -1076,47 +1096,53 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   </TouchableOpacity>
                 </View>
               )}
-              {selectedTab === "insights" ? (
-                <Insights
-                  isLoading={isLoadingInsights}
-                  characters={orderedCharacters}
-                  sentenceText={currentSentenceObject?.text ?? ""}
-                  subSegments={subSegments}
-                  hintWords={hintWords}
-                  handlePlayWordSnippet={handlePlaySnippetAgain}
-                  isPlayingWordSnippet={isPlayingWordSnippet}
-                  showWordsHints={showWordsHints}
-                  showCharacters={showCharacters}
-                  showPhrases={showPhrases}
-                  onReplaySentence={() => handlePlaySnippetAgain()}
-                  onPlayClip={handlePlayPhrase}
-                  playerIsPlaying={playerIsPlaying && !isReplayingPhrase}
-                  replayingPhraseIndex={replayingPhraseIndex}
-                  playbackTime={time}
-                  phraseRecordings={phraseRecordings}
-                  recordingPhraseIndex={recordingPhraseIndex}
-                  allPhrasesRecorded={allPhrasesRecorded}
-                  onStartPhraseRecording={startPhraseRecording}
-                  onStopPhraseRecording={stopPhraseRecording}
-                  onSubmitPhrases={handlePhraseSubmit}
-                  isRecordingMode={isRecordingMode}
-                />
-              ) : (
-                !isRecordingMode && (
-                  <VoiceCommands
-                    isListening={isListening}
-                    isClipPlaying={playerIsPlaying || isSpeakingResponse}
-                    activeCommand={activeCommand}
-                    hasError={voiceCommandError}
-                    timedOut={voiceCommandTimedOut}
-                    permissionDenied={voicePermissionDenied}
-                    onActivate={startListening}
+              <ScrollView
+                style={styles.transcriptContainer}
+                keyboardShouldPersistTaps="handled"
+              >
+                {selectedTab === "insights" ? (
+                  <Insights
+                    isLoading={isLoadingInsights}
+                    characters={orderedCharacters}
+                    sentenceText={currentSentenceObject?.text ?? ""}
+                    subSegments={subSegments}
+                    hintWords={hintWords}
+                    handlePlayWordSnippet={handlePlaySnippetAgain}
+                    isPlayingWordSnippet={isPlayingWordSnippet}
+                    showWordsHints={showWordsHints}
+                    showCharacters={showCharacters}
+                    showPhrases={showPhrases}
+                    onReplaySentence={() => handlePlaySnippetAgain()}
+                    onPlayClip={handlePlayPhrase}
+                    playerIsPlaying={playerIsPlaying && !isReplayingPhrase}
+                    replayingPhraseIndex={replayingPhraseIndex}
+                    playbackTime={time}
+                    phraseRecordings={phraseRecordings}
+                    recordingPhraseIndex={recordingPhraseIndex}
+                    allPhrasesRecorded={allPhrasesRecorded}
+                    onStartPhraseRecording={startPhraseRecording}
+                    onStopPhraseRecording={stopPhraseRecording}
+                    onSubmitPhrases={handlePhraseSubmit}
+                    isRecordingMode={isRecordingMode}
                   />
-                )
-              )}
+                ) : (
+                  !isRecordingMode && (
+                    <VoiceCommands
+                      isListening={isListening}
+                      isClipPlaying={playerIsPlaying || isSpeakingResponse}
+                      activeCommand={activeCommand}
+                      hasError={voiceCommandError}
+                      timedOut={voiceCommandTimedOut}
+                      permissionDenied={voicePermissionDenied}
+                      phraseCount={subSegments.length}
+                      onActivate={startListening}
+                    />
+                  )
+                )}
+              </ScrollView>
             </View>
           )}
-        </ScrollView>
+        </View>
 
         {/* Input Area - always visible when not in recording mode or showing results */}
         {!accuracyResult && !isProcessing && (
@@ -1530,7 +1556,7 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
   },
-  tabBarContainer: {},
+  tabBarContainer: { flex: 1 },
   tabBar: {
     flexDirection: "row",
     paddingTop: 8,

@@ -10,8 +10,12 @@ interface VoiceCommandsProps {
   hasError: boolean;
   timedOut: boolean;
   permissionDenied: boolean;
+  phraseCount: number;
   onActivate: () => void;
 }
+
+const PHRASE_LABELS = ["First Phrase", "Second Phrase", "Third Phrase"] as const;
+const PHRASE_COMMANDS: VoiceCommand[] = ["first_phrase", "second_phrase", "third_phrase"];
 
 const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   isListening,
@@ -20,6 +24,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   hasError,
   timedOut,
   permissionDenied,
+  phraseCount,
   onActivate,
 }) => {
   if (permissionDenied) {
@@ -199,6 +204,25 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         </Text>
         <Text style={styles.commandDescription}>— Go to previous segment</Text>
       </View>
+      {PHRASE_LABELS.slice(0, phraseCount).map((label, i) => (
+        <View
+          key={label}
+          style={[
+            styles.commandRow,
+            activeCommand === PHRASE_COMMANDS[i] && styles.commandRowActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.commandText,
+              activeCommand === PHRASE_COMMANDS[i] && styles.commandTextActive,
+            ]}
+          >
+            "{label}"
+          </Text>
+          <Text style={styles.commandDescription}>— Replay phrase {i + 1}</Text>
+        </View>
+      ))}
     </View>
   );
 };
