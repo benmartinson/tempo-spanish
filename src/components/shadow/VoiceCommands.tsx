@@ -38,12 +38,20 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
     );
   }
 
-  if (timedOut || !isListening) {
+  if (timedOut) {
     return (
       <View style={styles.container}>
         <TouchableOpacity onPress={onActivate}>
           <Text style={styles.activateText}>Activate Voice Mode</Text>
         </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!isListening) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.statusText}>Waiting for clip to finish...</Text>
       </View>
     );
   }

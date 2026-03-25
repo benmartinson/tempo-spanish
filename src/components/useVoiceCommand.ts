@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { setAudioModeAsync } from "expo-audio";
 
 let ExpoSpeechRecognitionModule: any = null;
 let useSpeechRecognitionEvent: any = (_event: string, _handler: any) => {};
@@ -85,6 +86,11 @@ export const useVoiceCommand = ({
     try {
       ExpoSpeechRecognitionModule?.stop();
     } catch {}
+
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+    });
 
     setIsListening(false);
   }, []);
@@ -235,6 +241,11 @@ export const useVoiceCommand = ({
     try {
       ExpoSpeechRecognitionModule?.abort();
     } catch {}
+
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+    });
 
     setIsListening(false);
   }, []);
