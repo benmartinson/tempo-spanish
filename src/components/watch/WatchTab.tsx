@@ -123,6 +123,7 @@ const WatchTab: React.FC<WatchTabProps> = ({
     stopListening,
     closeConnection,
   } = useVoiceCommand({
+    persistentListening: true,
     onPlay: async () => {
       setActiveCommand("play");
       resumePlayer();

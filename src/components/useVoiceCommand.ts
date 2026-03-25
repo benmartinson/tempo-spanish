@@ -26,6 +26,8 @@ interface UseVoiceCommandOptions {
   onPlay?: () => void;
   onPause?: () => void;
   onShadowMode?: () => void;
+  /** When true, disables the 30s inactivity timeout so listening stays on indefinitely. */
+  persistentListening?: boolean;
 }
 
 export const useVoiceCommand = ({
@@ -45,6 +47,7 @@ export const useVoiceCommand = ({
   onPlay,
   onPause,
   onShadowMode,
+  persistentListening = false,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -169,8 +172,8 @@ export const useVoiceCommand = ({
     const transcript = event.results[0]?.transcript;
     if (!transcript) return;
 
-    // Reset inactivity timeout on each result
-    resetInactivityTimeout();
+    // Reset inactivity timeout on each result (skip in persistent mode)
+    if (!persistentListening) resetInactivityTimeout();
 
     // Interim results contain the full text so far, so set (not append)
     transcriptBufferRef.current = transcript.toLowerCase();
@@ -228,6 +231,10 @@ export const useVoiceCommand = ({
   useSpeechRecognitionEvent("error", (event: any) => {
     if (!isListeningRef.current) return;
     if (event.error === "no-speech" || event.error === "speech-timeout") {
+      if (persistentListening) {
+        // In persistent mode, let the end handler restart automatically
+        return;
+      }
       cleanup();
       setTimedOut(true);
     } else if (event.error === "not-allowed") {
@@ -253,6 +260,14 @@ export const useVoiceCommand = ({
             lang: "en-US",
             interimResults: true,
             continuous: true,
+            requiresOnDeviceRecognition: true,
+            ...(persistentListening && {
+              iosCategory: {
+                category: "playAndRecord",
+                categoryOptions: ["defaultToSpeaker", "allowBluetooth", "mixWithOthers"],
+                mode: "measurement",
+              },
+            }),
             contextualStrings: [
               "record",
               "translate",
@@ -304,6 +319,13 @@ export const useVoiceCommand = ({
         interimResults: true,
         continuous: true,
         requiresOnDeviceRecognition: true,
+        ...(persistentListening && {
+          iosCategory: {
+            category: "playAndRecord",
+            categoryOptions: ["defaultToSpeaker", "allowBluetooth", "mixWithOthers"],
+            mode: "measurement",
+          },
+        }),
         contextualStrings: [
           "record",
           "translate",
@@ -324,11 +346,13 @@ export const useVoiceCommand = ({
 
       setIsListening(true);
 
-      // 30-second inactivity timeout
-      timeoutRef.current = setTimeout(async () => {
-        await cleanup();
-        setTimedOut(true);
-      }, 30000);
+      // 30-second inactivity timeout (disabled in persistent mode)
+      if (!persistentListening) {
+        timeoutRef.current = setTimeout(async () => {
+          await cleanup();
+          setTimedOut(true);
+        }, 30000);
+      }
     } catch {
       cleanupWithError();
     }
