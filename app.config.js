@@ -53,7 +53,6 @@ export default {
         process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
       EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
       EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-      ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY,
     },
     owner: "benmartinson92",
   },

@@ -1,8 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
+
+let ExpoSpeechRecognitionModule: any = null;
+let useSpeechRecognitionEvent: any = (_event: string, _handler: any) => {};
+
+try {
+  const mod = require("expo-speech-recognition");
+  ExpoSpeechRecognitionModule = mod.ExpoSpeechRecognitionModule;
+  useSpeechRecognitionEvent = mod.useSpeechRecognitionEvent;
+} catch {}
 
 interface UseVoiceCommandOptions {
   onRepeat: () => void;
@@ -62,7 +67,7 @@ export const useVoiceCommand = ({
         timeoutRef.current = null;
       }
       try {
-        ExpoSpeechRecognitionModule.stop();
+        ExpoSpeechRecognitionModule?.stop();
       } catch {}
       setIsListening(false);
       setTimedOut(true);
@@ -78,7 +83,7 @@ export const useVoiceCommand = ({
     }
 
     try {
-      ExpoSpeechRecognitionModule.stop();
+      ExpoSpeechRecognitionModule?.stop();
     } catch {}
 
     setIsListening(false);
@@ -96,7 +101,7 @@ export const useVoiceCommand = ({
   }, []);
 
   // Handle speech recognition results
-  useSpeechRecognitionEvent("result", (event) => {
+  useSpeechRecognitionEvent("result", (event: any) => {
     if (!isListeningRef.current) return;
 
     const transcript = event.results[0]?.transcript;
@@ -134,7 +139,7 @@ export const useVoiceCommand = ({
   });
 
   // Handle speech recognition errors
-  useSpeechRecognitionEvent("error", (event) => {
+  useSpeechRecognitionEvent("error", (event: any) => {
     if (!isListeningRef.current) return;
     if (event.error === "no-speech" || event.error === "speech-timeout") {
       cleanup();
@@ -147,11 +152,9 @@ export const useVoiceCommand = ({
   // Handle recognition ending (auto-restart if still supposed to be listening)
   useSpeechRecognitionEvent("end", () => {
     if (isListeningRef.current) {
-      // Recognition ended unexpectedly (e.g., non-continuous mode on older Android)
-      // Restart after a brief delay
       setTimeout(() => {
         if (isListeningRef.current) {
-          ExpoSpeechRecognitionModule.start({
+          ExpoSpeechRecognitionModule?.start({
             lang: "en-US",
             interimResults: true,
             continuous: true,
@@ -173,6 +176,7 @@ export const useVoiceCommand = ({
   });
 
   const startListening = useCallback(async () => {
+    if (!ExpoSpeechRecognitionModule) return;
     if (isListeningRef.current) return;
     isListeningRef.current = true;
     transcriptBufferRef.current = "";
@@ -229,7 +233,7 @@ export const useVoiceCommand = ({
     }
 
     try {
-      ExpoSpeechRecognitionModule.abort();
+      ExpoSpeechRecognitionModule?.abort();
     } catch {}
 
     setIsListening(false);

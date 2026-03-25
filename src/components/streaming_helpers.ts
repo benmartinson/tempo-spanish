@@ -33,39 +33,25 @@ export const BACKEND_WS_URL = __DEV__
 // Debug: uncomment to verify which URLs are being used
 // console.log('Environment:', __DEV__ ? 'DEV' : 'PROD', 'Backend:', BACKEND_BASE_URL);
 
-const ELEVENLABS_API_KEY =
-  Constants.expoConfig?.extra?.ELEVENLABS_API_KEY ?? "";
-
 export const generateTTS = async (text: string): Promise<string> => {
-  const resp = await fetch(
-    "https://api.elevenlabs.io/v1/text-to-speech/jBlmi27XRORxjPquUeCh",
-    {
-      method: "POST",
-      headers: {
-        "xi-api-key": ELEVENLABS_API_KEY,
-        "Content-Type": "application/json",
-        Accept: "audio/mpeg",
-      },
-      body: JSON.stringify({
-        text,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-      }),
+  const resp = await fetch(`${BACKEND_BASE_URL}/tts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({ text }),
+  });
 
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`ElevenLabs API error ${resp.status}: ${body}`);
+    throw new Error(`TTS API error ${resp.status}: ${body}`);
   }
 
-  const arrayBuffer = await resp.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const data = await resp.json();
+  if (data.error) {
+    throw new Error(data.error);
   }
-  return btoa(binary);
+  return data.audio;
 };
 
 // Short sound effects for recording
