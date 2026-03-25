@@ -66,7 +66,10 @@ import FeaturedVocab from "../watch/FeaturedVocab";
 import Foundation from "@expo/vector-icons/Foundation";
 import FocusSentenceRequest from "./FocusSentenceRequest";
 import { persistUserSettings } from "../../requests";
-import { setCachedResponses } from "../../store/actions/dataActions";
+import {
+  setCachedResponses,
+  setCurrentTab,
+} from "../../store/actions/dataActions";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 import VoiceCommands from "./VoiceCommands";
@@ -534,21 +537,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         startListeningRef.current();
       }
     },
-    onArtificial: async () => {
-      setActiveCommand("artificial");
-      await stopListening();
-      if (currentSentenceObject?.text && currentVideo) {
-        setIsSpeakingResponse(true);
-        await playAiSpeech({
-          segmentText: currentSentenceObject.text,
-          videoId: parseInt(currentVideo.recordId),
-          sentenceIndex: currentSentenceIndex,
-          supabase,
-        });
-        setIsSpeakingResponse(false);
-        startListeningRef.current();
-      }
-    },
+    // onArtificial: async () => {
+    //   setActiveCommand("artificial");
+    //   await stopListening();
+    //   if (currentSentenceObject?.text && currentVideo) {
+    //     setIsSpeakingResponse(true);
+    //     await playAiSpeech({
+    //       segmentText: currentSentenceObject.text,
+    //       videoId: parseInt(currentVideo.recordId),
+    //       sentenceIndex: currentSentenceIndex,
+    //       supabase,
+    //     });
+    //     setIsSpeakingResponse(false);
+    //     startListeningRef.current();
+    //   }
+    // },
     onNext: async () => {
       setActiveCommand("next");
       await closeConnection();
@@ -594,6 +597,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         await closeConnection();
         handlePlayPhrase(subSegments[2].start, subSegments[2].end, 2);
       }
+    },
+    onWatchMode: async () => {
+      setActiveCommand("watch_mode");
+      await closeConnection();
+      dispatch(setCurrentTab("watch"));
+    },
+    onReviewMode: async () => {
+      setActiveCommand("review_mode");
+      await closeConnection();
+      dispatch(setCurrentTab("discuss"));
     },
   });
 
@@ -1136,8 +1149,25 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       hasError={voiceCommandError}
                       timedOut={voiceCommandTimedOut}
                       permissionDenied={voicePermissionDenied}
-                      phraseCount={subSegments.length}
                       onActivate={startListening}
+                      commands={[
+                        { command: "record", label: "Record", description: "Start recording" },
+                        { command: "repeat", label: "Repeat", description: "Replay the clip" },
+                        { command: "slow", label: "Slowdown", description: "Replay the clip in slow mode" },
+                        { command: "translation", label: "Translation", description: "Hear the translation" },
+                        { command: "hint", label: "Word Hint", description: "Hear the next hint word" },
+                        { command: "next", label: "Next", description: "Go to next segment" },
+                        { command: "previous", label: "Previous", description: "Go to previous segment" },
+                        { command: "watch_mode", label: "Watch Mode", description: "Switch to Watch tab" },
+                        { command: "review_mode", label: "Review Mode", description: "Switch to Review tab" },
+                        ...["First Phrase", "Second Phrase", "Third Phrase"]
+                          .slice(0, subSegments.length)
+                          .map((label, i) => ({
+                            command: (["first_phrase", "second_phrase", "third_phrase"] as const)[i],
+                            label,
+                            description: `Replay phrase ${i + 1}`,
+                          })),
+                      ]}
                     />
                   )
                 )}

@@ -3,7 +3,13 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { StyleSheet, View, ScrollView, Text } from "react-native";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+} from "react-native";
 import { RootState, SegmentWord, Sentence, Vocabulary } from "../../types";
 import { setFocusVocab } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
@@ -24,6 +30,10 @@ import WordHints from "../common/WordHints";
 import ToggleHeader from "../common/ToggleHeader";
 import NavSwitcher from "../common/NavSwitcher";
 import PlayerControls from "../shadow/PlayerControls";
+import VoiceCommands from "../shadow/VoiceCommands";
+import { useVoiceCommand } from "../useVoiceCommand";
+import { setCurrentTab } from "../../store/actions/dataActions";
+import { VoiceCommand } from "../../types";
 
 interface WatchTabProps {
   time: number;
@@ -98,6 +108,71 @@ const WatchTab: React.FC<WatchTabProps> = ({
     }
   };
 
+  const dispatch = useDispatch();
+  const [selectedTab, setSelectedTab] = useState<"insights" | "voice">(
+    "insights",
+  );
+  const [activeCommand, setActiveCommand] = useState<VoiceCommand>(null);
+
+  const {
+    isListening,
+    hasError: voiceCommandError,
+    timedOut: voiceCommandTimedOut,
+    permissionDenied: voicePermissionDenied,
+    startListening,
+    stopListening,
+    closeConnection,
+  } = useVoiceCommand({
+    onPlay: async () => {
+      setActiveCommand("play");
+      resumePlayer();
+    },
+    onPause: async () => {
+      setActiveCommand("pause");
+      pausePlayer();
+    },
+    onRepeat: async () => {
+      setActiveCommand("repeat");
+      handleReplay();
+    },
+    onSlow: async () => {
+      setActiveCommand("slow");
+      handleReplaySlow();
+    },
+    onNext: async () => {
+      setActiveCommand("next");
+      handleNextSentence();
+    },
+    onPrevious: async () => {
+      setActiveCommand("previous");
+      handlePreviousSentence();
+    },
+    onShadowMode: async () => {
+      setActiveCommand("shadow_mode");
+      await closeConnection();
+      dispatch(setCurrentTab("shadow"));
+    },
+    onReviewMode: async () => {
+      setActiveCommand("review_mode");
+      await closeConnection();
+      dispatch(setCurrentTab("discuss"));
+    },
+  });
+
+  // Start listening when tab is active
+  useEffect(() => {
+    if (isActive && selectedTab === "voice") {
+      startListening();
+    }
+  }, [isActive, selectedTab]);
+
+  // Stop listening when tab becomes inactive
+  useEffect(() => {
+    if (!isActive) {
+      stopListening();
+    }
+  }, [isActive]);
+
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
 
   if (!currentVideo) {
@@ -130,38 +205,98 @@ const WatchTab: React.FC<WatchTabProps> = ({
           />
           <View></View>
         </View>
-        <ScrollView style={styles.transcriptContainer}>
-          <View style={styles.toggleHeaderContainer}>
-            <ToggleHeader
-              title="Transcript"
-              isVisible={showTranscript}
-              onToggle={() => setShowTranscript(!showTranscript)}
-            />
+        <View style={styles.tabBarContainer}>
+          <View style={styles.tabBar}>
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                selectedTab === "insights" && styles.tabActive,
+              ]}
+              onPress={() => setSelectedTab("insights")}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  selectedTab === "insights" && styles.tabTextActive,
+                ]}
+              >
+                Insights
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, selectedTab === "voice" && styles.tabActive]}
+              onPress={() => setSelectedTab("voice")}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  selectedTab === "voice" && styles.tabTextActive,
+                ]}
+              >
+                Voice Commands
+              </Text>
+            </TouchableOpacity>
           </View>
-          {showTranscript && (
-            <View style={styles.transcriptContentContainer}>
-              {selectedBubble === "large" && (
-                <FullSegmentTranscriptBubble
-                  words={currentSentence.words || []}
-                  time={time}
-                  playerIsPlaying={playerIsPlaying}
-                />
-              )}
-            </View>
-          )}
-          {hintWords.length > 0 && (
-            <WordHints
-              hintWords={hintWords}
-              handlePlayWordSnippet={handlePlayWordSnippet}
-              isPlayingWordSnippet={isPlayingWordSnippet}
-              showSwitcher={false}
-              showWordHints={false}
-              showSlowPlay={false}
-              onReplaySentence={handleReplay}
-              playerIsPlaying={playerIsPlaying}
-            />
-          )}
-        </ScrollView>
+          <ScrollView
+            style={styles.transcriptContainer}
+            keyboardShouldPersistTaps="handled"
+          >
+            {selectedTab === "insights" ? (
+              <>
+                <View style={styles.toggleHeaderContainer}>
+                  <ToggleHeader
+                    title="Transcript"
+                    isVisible={showTranscript}
+                    onToggle={() => setShowTranscript(!showTranscript)}
+                  />
+                </View>
+                {showTranscript && (
+                  <View style={styles.transcriptContentContainer}>
+                    {selectedBubble === "large" && (
+                      <FullSegmentTranscriptBubble
+                        words={currentSentence.words || []}
+                        time={time}
+                        playerIsPlaying={playerIsPlaying}
+                      />
+                    )}
+                  </View>
+                )}
+                {hintWords.length > 0 && (
+                  <WordHints
+                    hintWords={hintWords}
+                    handlePlayWordSnippet={handlePlayWordSnippet}
+                    isPlayingWordSnippet={isPlayingWordSnippet}
+                    showSwitcher={false}
+                    showWordHints={false}
+                    showSlowPlay={false}
+                    onReplaySentence={handleReplay}
+                    playerIsPlaying={playerIsPlaying}
+                  />
+                )}
+              </>
+            ) : (
+              <VoiceCommands
+                isListening={isListening}
+                isClipPlaying={false}
+                activeCommand={activeCommand}
+                hasError={voiceCommandError}
+                timedOut={voiceCommandTimedOut}
+                permissionDenied={voicePermissionDenied}
+                onActivate={startListening}
+                commands={[
+                  { command: "play", label: "Play", description: "Resume playback" },
+                  { command: "pause", label: "Pause", description: "Pause playback" },
+                  { command: "repeat", label: "Repeat", description: "Replay the clip" },
+                  { command: "slow", label: "Slowdown", description: "Replay in slow mode" },
+                  { command: "next", label: "Next", description: "Go to next segment" },
+                  { command: "previous", label: "Previous", description: "Go to previous segment" },
+                  { command: "shadow_mode", label: "Shadow Mode", description: "Switch to Shadow tab" },
+                  { command: "review_mode", label: "Review Mode", description: "Switch to Review tab" },
+                ]}
+              />
+            )}
+          </ScrollView>
+        </View>
       </View>
 
       {showNoVocabFoundTooltip && (
@@ -198,8 +333,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    marginTop: 16,
+    paddingHorizontal: 16,
+    marginTop: 12,
   },
   transcriptContentContainer: {
     marginBottom: 12,
@@ -278,6 +413,39 @@ const styles = StyleSheet.create({
     color: "#3d3a52",
     fontSize: 16,
     fontWeight: "600",
+  },
+  tabBarContainer: { flex: 1, marginTop: 12 },
+  tabBar: {
+    flexDirection: "row",
+    paddingTop: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  tab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    backgroundColor: "#f0f0f0",
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: "transparent",
+  },
+  tabActive: {
+    backgroundColor: "#fff",
+    borderColor: "#e0e0e0",
+    borderBottomWidth: 0,
+    marginBottom: -1,
+    paddingBottom: 9,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#999",
+  },
+  tabTextActive: {
+    color: "#333",
   },
 });
 

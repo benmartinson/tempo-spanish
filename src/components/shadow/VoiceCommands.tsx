@@ -3,6 +3,12 @@ import { View, Text, StyleSheet, TouchableOpacity, Linking } from "react-native"
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { VoiceCommand } from "../../types";
 
+export interface CommandEntry {
+  command: VoiceCommand;
+  label: string;
+  description: string;
+}
+
 interface VoiceCommandsProps {
   isListening: boolean;
   isClipPlaying: boolean;
@@ -10,12 +16,9 @@ interface VoiceCommandsProps {
   hasError: boolean;
   timedOut: boolean;
   permissionDenied: boolean;
-  phraseCount: number;
   onActivate: () => void;
+  commands: CommandEntry[];
 }
-
-const PHRASE_LABELS = ["First Phrase", "Second Phrase", "Third Phrase"] as const;
-const PHRASE_COMMANDS: VoiceCommand[] = ["first_phrase", "second_phrase", "third_phrase"];
 
 const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   isListening,
@@ -24,8 +27,8 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   hasError,
   timedOut,
   permissionDenied,
-  phraseCount,
   onActivate,
+  commands,
 }) => {
   if (permissionDenied) {
     return (
@@ -74,153 +77,23 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         <MaterialIcons name="hearing" size={16} color="#4a69bd" />
         <Text style={styles.listeningHeaderText}>Listening for commands</Text>
       </View>
-      <View
-        style={[
-          styles.commandRow,
-          activeCommand === "record" && styles.commandRowActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.commandText,
-            activeCommand === "record" && styles.commandTextActive,
-          ]}
-        >
-          "Record"
-        </Text>
-        <Text style={styles.commandDescription}>— Start recording</Text>
-      </View>
-      <View
-        style={[
-          styles.commandRow,
-          activeCommand === "repeat" && styles.commandRowActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.commandText,
-            activeCommand === "repeat" && styles.commandTextActive,
-          ]}
-        >
-          "Repeat"
-        </Text>
-        <Text style={styles.commandDescription}>— Replay the clip</Text>
-      </View>
-      <View
-        style={[
-          styles.commandRow,
-          activeCommand === "slow" && styles.commandRowActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.commandText,
-            activeCommand === "slow" && styles.commandTextActive,
-          ]}
-        >
-          "Slowdown"
-        </Text>
-        <Text style={styles.commandDescription}>
-          — Replay the clip in slow mode
-        </Text>
-      </View>
-      <View
-        style={[
-          styles.commandRow,
-          activeCommand === "translation" && styles.commandRowActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.commandText,
-            activeCommand === "translation" && styles.commandTextActive,
-          ]}
-        >
-          "Translation"
-        </Text>
-        <Text style={styles.commandDescription}>— Hear the translation</Text>
-      </View>
-      {/* <View
-        style={[
-          styles.commandRow,
-          activeCommand === "artificial" && styles.commandRowActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.commandText,
-            activeCommand === "artificial" && styles.commandTextActive,
-          ]}
-        >
-          "Artificial"
-        </Text>
-        <Text style={styles.commandDescription}>— Hear AI pronunciation</Text>
-      </View> */}
-      <View
-        style={[
-          styles.commandRow,
-          activeCommand === "hint" && styles.commandRowActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.commandText,
-            activeCommand === "hint" && styles.commandTextActive,
-          ]}
-        >
-          "Word Hint"
-        </Text>
-        <Text style={styles.commandDescription}>— Hear the next hint word</Text>
-      </View>
-      <View
-        style={[
-          styles.commandRow,
-          activeCommand === "next" && styles.commandRowActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.commandText,
-            activeCommand === "next" && styles.commandTextActive,
-          ]}
-        >
-          "Next"
-        </Text>
-        <Text style={styles.commandDescription}>— Go to next segment</Text>
-      </View>
-      <View
-        style={[
-          styles.commandRow,
-          activeCommand === "previous" && styles.commandRowActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.commandText,
-            activeCommand === "previous" && styles.commandTextActive,
-          ]}
-        >
-          "Previous"
-        </Text>
-        <Text style={styles.commandDescription}>— Go to previous segment</Text>
-      </View>
-      {PHRASE_LABELS.slice(0, phraseCount).map((label, i) => (
+      {commands.map(({ command, label, description }) => (
         <View
-          key={label}
+          key={command}
           style={[
             styles.commandRow,
-            activeCommand === PHRASE_COMMANDS[i] && styles.commandRowActive,
+            activeCommand === command && styles.commandRowActive,
           ]}
         >
           <Text
             style={[
               styles.commandText,
-              activeCommand === PHRASE_COMMANDS[i] && styles.commandTextActive,
+              activeCommand === command && styles.commandTextActive,
             ]}
           >
             "{label}"
           </Text>
-          <Text style={styles.commandDescription}>— Replay phrase {i + 1}</Text>
+          <Text style={styles.commandDescription}>— {description}</Text>
         </View>
       ))}
     </View>

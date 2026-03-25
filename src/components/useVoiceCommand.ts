@@ -10,17 +10,22 @@ try {
 } catch {}
 
 interface UseVoiceCommandOptions {
-  onRepeat: () => void;
-  onRecord: () => void;
-  onSlow: () => void;
-  onTranslation: () => void;
-  onArtificial: () => void;
-  onNext: () => void;
-  onPrevious: () => void;
-  onHint: () => void;
-  onFirstPhrase: () => void;
-  onSecondPhrase: () => void;
-  onThirdPhrase: () => void;
+  onRepeat?: () => void;
+  onRecord?: () => void;
+  onSlow?: () => void;
+  onTranslation?: () => void;
+  onArtificial?: () => void;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  onHint?: () => void;
+  onFirstPhrase?: () => void;
+  onSecondPhrase?: () => void;
+  onThirdPhrase?: () => void;
+  onWatchMode?: () => void;
+  onReviewMode?: () => void;
+  onPlay?: () => void;
+  onPause?: () => void;
+  onShadowMode?: () => void;
 }
 
 export const useVoiceCommand = ({
@@ -35,6 +40,11 @@ export const useVoiceCommand = ({
   onFirstPhrase,
   onSecondPhrase,
   onThirdPhrase,
+  onWatchMode,
+  onReviewMode,
+  onPlay,
+  onPause,
+  onShadowMode,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -55,6 +65,11 @@ export const useVoiceCommand = ({
   const onFirstPhraseRef = useRef(onFirstPhrase);
   const onSecondPhraseRef = useRef(onSecondPhrase);
   const onThirdPhraseRef = useRef(onThirdPhrase);
+  const onWatchModeRef = useRef(onWatchMode);
+  const onReviewModeRef = useRef(onReviewMode);
+  const onPlayRef = useRef(onPlay);
+  const onPauseRef = useRef(onPause);
+  const onShadowModeRef = useRef(onShadowMode);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
@@ -68,6 +83,11 @@ export const useVoiceCommand = ({
     onFirstPhraseRef.current = onFirstPhrase;
     onSecondPhraseRef.current = onSecondPhrase;
     onThirdPhraseRef.current = onThirdPhrase;
+    onWatchModeRef.current = onWatchMode;
+    onReviewModeRef.current = onReviewMode;
+    onPlayRef.current = onPlay;
+    onPauseRef.current = onPause;
+    onShadowModeRef.current = onShadowMode;
   }, [
     onRepeat,
     onRecord,
@@ -80,6 +100,11 @@ export const useVoiceCommand = ({
     onFirstPhrase,
     onSecondPhrase,
     onThirdPhrase,
+    onWatchMode,
+    onReviewMode,
+    onPlay,
+    onPause,
+    onShadowMode,
   ]);
 
   const resetInactivityTimeout = useCallback(() => {
@@ -151,36 +176,51 @@ export const useVoiceCommand = ({
     transcriptBufferRef.current = transcript.toLowerCase();
     const text = transcriptBufferRef.current;
 
-    if (text.includes("first")) {
+    if (text.includes("shadow")) {
       transcriptBufferRef.current = "";
-      onFirstPhraseRef.current();
+      onShadowModeRef.current?.();
+    } else if (text.includes("watch")) {
+      transcriptBufferRef.current = "";
+      onWatchModeRef.current?.();
+    } else if (text.includes("review")) {
+      transcriptBufferRef.current = "";
+      onReviewModeRef.current?.();
+    } else if (text.includes("first")) {
+      transcriptBufferRef.current = "";
+      onFirstPhraseRef.current?.();
     } else if (text.includes("second")) {
       transcriptBufferRef.current = "";
-      onSecondPhraseRef.current();
+      onSecondPhraseRef.current?.();
     } else if (text.includes("third")) {
       transcriptBufferRef.current = "";
-      onThirdPhraseRef.current();
+      onThirdPhraseRef.current?.();
     } else if (text.includes("record")) {
       transcriptBufferRef.current = "";
-      onRecordRef.current();
+      onRecordRef.current?.();
     } else if (text.includes("translat")) {
       transcriptBufferRef.current = "";
-      onTranslationRef.current();
+      onTranslationRef.current?.();
     } else if (text.includes("slow")) {
       transcriptBufferRef.current = "";
-      onSlowRef.current();
+      onSlowRef.current?.();
     } else if (text.includes("repeat")) {
       transcriptBufferRef.current = "";
-      onRepeatRef.current();
+      onRepeatRef.current?.();
     } else if (text.includes("next")) {
       transcriptBufferRef.current = "";
-      onNextRef.current();
+      onNextRef.current?.();
     } else if (text.includes("previous") || text.includes("back")) {
       transcriptBufferRef.current = "";
-      onPreviousRef.current();
+      onPreviousRef.current?.();
     } else if (text.includes("hint")) {
       transcriptBufferRef.current = "";
-      onHintRef.current();
+      onHintRef.current?.();
+    } else if (text.includes("pause")) {
+      transcriptBufferRef.current = "";
+      onPauseRef.current?.();
+    } else if (text.includes("play")) {
+      transcriptBufferRef.current = "";
+      onPlayRef.current?.();
     }
   });
 
@@ -226,6 +266,11 @@ export const useVoiceCommand = ({
               "first phrase",
               "second phrase",
               "third phrase",
+              "shadow mode",
+              "watch mode",
+              "review mode",
+              "play",
+              "pause",
             ],
           });
         }
@@ -258,6 +303,7 @@ export const useVoiceCommand = ({
         lang: "en-US",
         interimResults: true,
         continuous: true,
+        requiresOnDeviceRecognition: true,
         contextualStrings: [
           "record",
           "translate",
@@ -268,6 +314,11 @@ export const useVoiceCommand = ({
           "previous",
           "back",
           "hint",
+          "shadow mode",
+          "watch mode",
+          "review mode",
+          "play",
+          "pause",
         ],
       });
 

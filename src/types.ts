@@ -9,7 +9,7 @@ export interface UserSettings {
   estimatedHours: number | null;
 }
 
-export type VoiceCommand = "record" | "repeat" | "slow" | "translation" | "artificial" | "next" | "previous" | "hint" | "first_phrase" | "second_phrase" | "third_phrase" | null;
+export type VoiceCommand = "record" | "repeat" | "slow" | "translation" | "artificial" | "next" | "previous" | "hint" | "first_phrase" | "second_phrase" | "third_phrase" | "watch_mode" | "review_mode" | "shadow_mode" | "play" | "pause" | null;
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   playbackSpeed: 1,
