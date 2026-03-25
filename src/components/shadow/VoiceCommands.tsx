@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { VoiceCommand } from "../../types";
 
@@ -9,6 +9,7 @@ interface VoiceCommandsProps {
   activeCommand: VoiceCommand;
   hasError: boolean;
   timedOut: boolean;
+  permissionDenied: boolean;
   onActivate: () => void;
 }
 
@@ -18,8 +19,22 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   activeCommand,
   hasError,
   timedOut,
+  permissionDenied,
   onActivate,
 }) => {
+  if (permissionDenied) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.statusText}>
+          Speech recognition permission is required for voice commands.
+        </Text>
+        <TouchableOpacity onPress={() => Linking.openSettings()}>
+          <Text style={styles.activateText}>Open Settings</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (hasError) {
     return (
       <View style={styles.container}>
@@ -38,20 +53,12 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
     );
   }
 
-  if (timedOut) {
+  if (timedOut || !isListening) {
     return (
       <View style={styles.container}>
         <TouchableOpacity onPress={onActivate}>
           <Text style={styles.activateText}>Activate Voice Mode</Text>
         </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (!isListening) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.statusText}>Waiting for clip to finish...</Text>
       </View>
     );
   }

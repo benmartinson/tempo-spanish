@@ -499,6 +499,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     isListening,
     hasError: voiceCommandError,
     timedOut: voiceCommandTimedOut,
+    permissionDenied: voicePermissionDenied,
     startListening,
     stopListening,
     closeConnection,
@@ -523,7 +524,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await stopListening();
       if (sentenceTranslation) {
         const recording = await getOrCreateWordRecording(sentenceTranslation);
-        if (recording) await playAudio(recording);
+        if (recording) {
+          setIsSpeakingResponse(true);
+          await playAudio(recording);
+          setIsSpeakingResponse(false);
+        }
         startListeningRef.current();
       }
     },
@@ -531,12 +536,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setActiveCommand("artificial");
       await stopListening();
       if (currentSentenceObject?.text && currentVideo) {
+        setIsSpeakingResponse(true);
         await playAiSpeech({
           segmentText: currentSentenceObject.text,
           videoId: parseInt(currentVideo.recordId),
           sentenceIndex: currentSentenceIndex,
           supabase,
         });
+        setIsSpeakingResponse(false);
         startListeningRef.current();
       }
     },
@@ -556,7 +563,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       if (hintWords.length > 0) {
         const word = hintWords[voiceHintIndex];
         const recording = await getOrCreateWordRecording(word.word);
-        if (recording) await playAudio(recording);
+        if (recording) {
+          setIsSpeakingResponse(true);
+          await playAudio(recording);
+          setIsSpeakingResponse(false);
+        }
         setVoiceHintIndex((prev) => (prev + 1) % hintWords.length);
         startListeningRef.current();
       }
@@ -1094,10 +1105,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 !isRecordingMode && (
                   <VoiceCommands
                     isListening={isListening}
-                    isClipPlaying={playerIsPlaying}
+                    isClipPlaying={playerIsPlaying || isSpeakingResponse}
                     activeCommand={activeCommand}
                     hasError={voiceCommandError}
                     timedOut={voiceCommandTimedOut}
+                    permissionDenied={voicePermissionDenied}
                     onActivate={startListening}
                   />
                 )

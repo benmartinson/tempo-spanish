@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 
+
 let ExpoSpeechRecognitionModule: any = null;
 let useSpeechRecognitionEvent: any = (_event: string, _handler: any) => {};
 
@@ -33,9 +34,11 @@ export const useVoiceCommand = ({
   const [isListening, setIsListening] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const isListeningRef = useRef(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptBufferRef = useRef("");
+  const shouldRetryRef = useRef(false);
   const onRepeatRef = useRef(onRepeat);
   const onRecordRef = useRef(onRecord);
   const onSlowRef = useRef(onSlow);
@@ -155,6 +158,15 @@ export const useVoiceCommand = ({
     if (event.error === "no-speech" || event.error === "speech-timeout") {
       cleanup();
       setTimedOut(true);
+    } else if (event.error === "not-allowed") {
+      cleanup();
+    } else if (shouldRetryRef.current) {
+      // Retry once — covers fresh permission grant where recognizer isn't ready yet
+      shouldRetryRef.current = false;
+      isListeningRef.current = false;
+      setTimeout(() => {
+        startListening();
+      }, 500);
     } else {
       cleanupWithError();
     }
@@ -194,12 +206,17 @@ export const useVoiceCommand = ({
     setHasError(false);
     setTimedOut(false);
 
-    const { granted } =
+    const { granted, canAskAgain } =
       await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!granted) {
       isListeningRef.current = false;
+      if (!canAskAgain) {
+        setPermissionDenied(true);
+      }
       return;
     }
+
+    shouldRetryRef.current = true;
 
     try {
       ExpoSpeechRecognitionModule.start({
@@ -255,6 +272,7 @@ export const useVoiceCommand = ({
     isListening,
     hasError,
     timedOut,
+    permissionDenied,
     startListening,
     stopListening,
     closeConnection,
