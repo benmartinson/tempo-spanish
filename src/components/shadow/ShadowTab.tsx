@@ -558,6 +558,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       handleEnterRecordingMode();
     },
     onAddTo: async () => {
+      if (voiceRecordingCount === 0) return;
       setActiveCommand("add_to");
       await closeConnection();
       handleEnterRecordingMode();
@@ -642,6 +643,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       }
     },
     onSubmit: async () => {
+      if (voiceRecordingCount === 0) return;
       setActiveCommand("submit");
       await closeConnection();
       handleVoiceSubmit();
@@ -746,6 +748,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
     setIsRecordingMode(false);
     handleResetState();
+    resetVoiceRecordings();
     setJustRecorded();
     parentHandleNextSentence();
   };
@@ -783,7 +786,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsProcessing(false);
     clearRecordingTimer();
     resetPhraseRecordings();
-    resetVoiceRecordings();
   };
 
   const clearRecordingTimer = () => {
@@ -835,6 +837,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setPlayerSpeed(playbackSpeed);
 
     handleResetState();
+    resetVoiceRecordings();
     parentHandlePreviousSentence();
   };
 
