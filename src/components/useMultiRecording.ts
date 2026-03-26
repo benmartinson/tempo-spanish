@@ -16,7 +16,7 @@ export interface UseMultiRecordingReturn {
   allRecorded: boolean;
   startRecording: (index: number) => Promise<void>;
   stopRecording: () => Promise<void>;
-  addRecording: (uri: string) => void;
+  addRecording: (uri: string) => Promise<void>;
   concatenateRecordings: () => Promise<string>;
   resetRecordings: () => void;
 }
@@ -123,9 +123,11 @@ export const useMultiRecording = (
     return concatenateWavFiles(orderedUris);
   }, []);
 
-  const addRecording = useCallback((uri: string) => {
+  const addRecording = useCallback(async (uri: string) => {
     const nextIndex = Math.max(-1, ...Object.keys(recordingsRef.current).map(Number)) + 1;
-    setRecordings((prev) => ({ ...prev, [nextIndex]: uri }));
+    const stableUri = `${FileSystem.cacheDirectory}recording_${nextIndex}_${Date.now()}.wav`;
+    await FileSystem.copyAsync({ from: uri, to: stableUri });
+    setRecordings((prev) => ({ ...prev, [nextIndex]: stableUri }));
   }, []);
 
   const resetRecordings = useCallback(() => {

@@ -471,7 +471,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handleRecordingComplete = useCallback(
     async (audioUri: string) => {
       if (selectedTab === "voice") {
-        addVoiceRecording(audioUri);
+        await addVoiceRecording(audioUri);
         return;
       }
       submitRecording(audioUri);
@@ -482,15 +482,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handleVoiceSubmit = useCallback(async () => {
     if (voiceRecordingCount === 0) return;
     try {
-      const uri: string = voiceRecordingCount === 1
-        ? Object.values(voiceRecordings)[0]
-        : await concatenateVoiceRecordings();
-      resetVoiceRecordings();
+      const uri: string =
+        voiceRecordingCount === 1
+          ? Object.values(voiceRecordings)[0]
+          : await concatenateVoiceRecordings();
       await submitRecording(uri);
+      resetVoiceRecordings();
     } catch (err) {
       console.error("Voice submit error:", err);
     }
-  }, [voiceRecordingCount, concatenateVoiceRecordings, resetVoiceRecordings, submitRecording]);
+  }, [
+    voiceRecordingCount,
+    concatenateVoiceRecordings,
+    resetVoiceRecordings,
+    submitRecording,
+  ]);
 
   // const handleTextSubmit = useCallback(() => {
   //   if (!userAnswer.trim()) return;
@@ -634,16 +640,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         await closeConnection();
         handlePlayPhrase(subSegments[2].start, subSegments[2].end, 2);
       }
-    },
-    onWatchMode: async () => {
-      setActiveCommand("watch_mode");
-      await closeConnection();
-      dispatch(setCurrentTab("watch"));
-    },
-    onReviewMode: async () => {
-      setActiveCommand("review_mode");
-      await closeConnection();
-      dispatch(setCurrentTab("discuss"));
     },
     onSubmit: async () => {
       setActiveCommand("submit");
@@ -1194,23 +1190,65 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       permissionDenied={voicePermissionDenied}
                       onActivate={startListening}
                       commands={[
-                        { command: "record", label: "Record", description: "Start recording" },
-                        { command: "repeat", label: "Repeat", description: "Replay the clip" },
-                        { command: "slow", label: "Slowdown", description: "Replay the clip in slow mode" },
-                        { command: "translation", label: "Translation", description: "Hear the translation" },
-                        { command: "hint", label: "Word Hint", description: "Hear the next hint word" },
-                        { command: "next", label: "Next", description: "Go to next segment" },
-                        { command: "previous", label: "Previous", description: "Go to previous segment" },
-                        { command: "watch_mode", label: "Watch Mode", description: "Switch to Watch tab" },
-                        { command: "review_mode", label: "Review Mode", description: "Switch to Review tab" },
-                        ...(voiceRecordingCount > 0 ? [
-                          { command: "add_to" as const, label: "Add To", description: "Add to your recording" },
-                          { command: "submit" as const, label: "Submit", description: "Submit your recording" },
-                        ] : []),
+                        ...(voiceRecordingCount > 0
+                          ? [
+                              {
+                                command: "add_to" as const,
+                                label: "Add To",
+                                description: "Add to your recording",
+                              },
+                              {
+                                command: "submit" as const,
+                                label: "Submit",
+                                description: "Submit your recording",
+                              },
+                            ]
+                          : []),
+                        {
+                          command: "record",
+                          label: "Record",
+                          description: "Start recording",
+                        },
+                        {
+                          command: "repeat",
+                          label: "Repeat",
+                          description: "Replay the clip",
+                        },
+                        {
+                          command: "slow",
+                          label: "Slowdown",
+                          description: "Replay the clip in slow mode",
+                        },
+                        {
+                          command: "translation",
+                          label: "Translation",
+                          description: "Hear the translation",
+                        },
+                        {
+                          command: "hint",
+                          label: "Word Hint",
+                          description: "Hear the next hint word",
+                        },
+                        {
+                          command: "next",
+                          label: "Next",
+                          description: "Go to next segment",
+                        },
+                        {
+                          command: "previous",
+                          label: "Previous",
+                          description: "Go to previous segment",
+                        },
                         ...["First Phrase", "Second Phrase", "Third Phrase"]
                           .slice(0, subSegments.length)
                           .map((label, i) => ({
-                            command: (["first_phrase", "second_phrase", "third_phrase"] as const)[i],
+                            command: (
+                              [
+                                "first_phrase",
+                                "second_phrase",
+                                "third_phrase",
+                              ] as const
+                            )[i],
                             label,
                             description: `Replay phrase ${i + 1}`,
                           })),
