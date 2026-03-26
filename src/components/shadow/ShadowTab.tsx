@@ -547,6 +547,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     },
     onRecord: async () => {
       setActiveCommand("record");
+      resetVoiceRecordings();
+      await closeConnection();
+      handleEnterRecordingMode();
+    },
+    onAddTo: async () => {
+      setActiveCommand("add_to");
       await closeConnection();
       handleEnterRecordingMode();
     },
@@ -1197,7 +1203,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                         { command: "previous", label: "Previous", description: "Go to previous segment" },
                         { command: "watch_mode", label: "Watch Mode", description: "Switch to Watch tab" },
                         { command: "review_mode", label: "Review Mode", description: "Switch to Review tab" },
-                        ...(voiceRecordingCount > 0 ? [{ command: "submit" as const, label: "Submit", description: "Submit your recording" }] : []),
+                        ...(voiceRecordingCount > 0 ? [
+                          { command: "add_to" as const, label: "Add To", description: "Add to your recording" },
+                          { command: "submit" as const, label: "Submit", description: "Submit your recording" },
+                        ] : []),
                         ...["First Phrase", "Second Phrase", "Third Phrase"]
                           .slice(0, subSegments.length)
                           .map((label, i) => ({

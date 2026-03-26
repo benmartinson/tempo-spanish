@@ -27,6 +27,7 @@ interface UseVoiceCommandOptions {
   onPause?: () => void;
   onShadowMode?: () => void;
   onSubmit?: () => void;
+  onAddTo?: () => void;
   /** When true, disables the 30s inactivity timeout so listening stays on indefinitely. */
   persistentListening?: boolean;
 }
@@ -49,6 +50,7 @@ export const useVoiceCommand = ({
   onPause,
   onShadowMode,
   onSubmit,
+  onAddTo,
   persistentListening = false,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
@@ -59,6 +61,7 @@ export const useVoiceCommand = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptBufferRef = useRef("");
   const shouldRetryRef = useRef(false);
+  const lastCommandTimeRef = useRef<number>(0);
   const onRepeatRef = useRef(onRepeat);
   const onRecordRef = useRef(onRecord);
   const onSlowRef = useRef(onSlow);
@@ -76,6 +79,7 @@ export const useVoiceCommand = ({
   const onPauseRef = useRef(onPause);
   const onShadowModeRef = useRef(onShadowMode);
   const onSubmitRef = useRef(onSubmit);
+  const onAddToRef = useRef(onAddTo);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
@@ -95,6 +99,7 @@ export const useVoiceCommand = ({
     onPauseRef.current = onPause;
     onShadowModeRef.current = onShadowMode;
     onSubmitRef.current = onSubmit;
+    onAddToRef.current = onAddTo;
   }, [
     onRepeat,
     onRecord,
@@ -113,6 +118,7 @@ export const useVoiceCommand = ({
     onPause,
     onShadowMode,
     onSubmit,
+    onAddTo,
   ]);
 
   const resetInactivityTimeout = useCallback(() => {
@@ -177,6 +183,9 @@ export const useVoiceCommand = ({
     const transcript = event.results[0]?.transcript;
     if (!transcript) return;
 
+    // Track that the user spoke during this session
+    lastCommandTimeRef.current = Date.now();
+
     // Reset inactivity timeout on each result (skip in persistent mode)
     if (!persistentListening) resetInactivityTimeout();
 
@@ -223,6 +232,9 @@ export const useVoiceCommand = ({
     } else if (text.includes("hint")) {
       transcriptBufferRef.current = "";
       onHintRef.current?.();
+    } else if (text.includes("add")) {
+      transcriptBufferRef.current = "";
+      onAddToRef.current?.();
     } else if (text.includes("submit")) {
       transcriptBufferRef.current = "";
       onSubmitRef.current?.();
@@ -239,12 +251,8 @@ export const useVoiceCommand = ({
   useSpeechRecognitionEvent("error", (event: any) => {
     if (!isListeningRef.current) return;
     if (event.error === "no-speech" || event.error === "speech-timeout") {
-      if (persistentListening) {
-        // In persistent mode, let the end handler restart automatically
-        return;
-      }
-      cleanup();
-      setTimedOut(true);
+      // Let the end handler decide whether to restart based on recent activity
+      return;
     } else if (event.error === "not-allowed") {
       cleanup();
     } else if (shouldRetryRef.current) {
@@ -259,47 +267,58 @@ export const useVoiceCommand = ({
     }
   });
 
-  // Handle recognition ending (auto-restart if still supposed to be listening)
+  // Handle recognition ending — restart if user was active in the last session
   useSpeechRecognitionEvent("end", () => {
-    if (isListeningRef.current) {
-      setTimeout(() => {
-        if (isListeningRef.current) {
-          ExpoSpeechRecognitionModule?.start({
-            lang: "en-US",
-            interimResults: true,
-            continuous: true,
-            requiresOnDeviceRecognition: true,
-            ...(persistentListening && {
-              iosCategory: {
-                category: "playAndRecord",
-                categoryOptions: ["defaultToSpeaker", "allowBluetooth", "allowBluetoothA2DP", "mixWithOthers"],
-                mode: "default",
-              },
-            }),
-            contextualStrings: [
-              "record",
-              "translate",
-              "translation",
-              "slow",
-              "repeat",
-              "next",
-              "previous",
-              "back",
-              "hint",
-              "first phrase",
-              "second phrase",
-              "third phrase",
-              "shadow mode",
-              "watch mode",
-              "review mode",
-              "play",
-              "pause",
-              "submit",
-            ],
-          });
-        }
-      }, 100);
+    if (!isListeningRef.current) return;
+
+    // If user spoke a command in the last 2 minutes, restart automatically.
+    // Otherwise, time out.
+    const timeSinceLastCommand = Date.now() - lastCommandTimeRef.current;
+    if (lastCommandTimeRef.current === 0 || timeSinceLastCommand > 120000) {
+      isListeningRef.current = false;
+      setIsListening(false);
+      setTimedOut(true);
+      return;
     }
+
+    setTimeout(() => {
+      if (isListeningRef.current) {
+        ExpoSpeechRecognitionModule?.start({
+          lang: "en-US",
+          interimResults: true,
+          continuous: true,
+          requiresOnDeviceRecognition: true,
+          ...(persistentListening && {
+            iosCategory: {
+              category: "playAndRecord",
+              categoryOptions: ["defaultToSpeaker", "allowBluetooth", "allowBluetoothA2DP", "mixWithOthers"],
+              mode: "default",
+            },
+          }),
+          contextualStrings: [
+            "record",
+            "translate",
+            "translation",
+            "slow",
+            "repeat",
+            "next",
+            "previous",
+            "back",
+            "hint",
+            "first phrase",
+            "second phrase",
+            "third phrase",
+            "shadow mode",
+            "watch mode",
+            "review mode",
+            "play",
+            "pause",
+            "submit",
+            "add to",
+          ],
+        });
+      }
+    }, 100);
   });
 
   const startListening = useCallback(async () => {
@@ -351,6 +370,7 @@ export const useVoiceCommand = ({
           "play",
           "pause",
           "submit",
+          "add to",
         ],
       });
 
