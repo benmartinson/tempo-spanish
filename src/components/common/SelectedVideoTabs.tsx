@@ -449,7 +449,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     currentClipSnippetRef.current = null;
     playerRef.current?.setClip(
       currentSentenceObject?.start ?? 0,
-      currentSentenceObject?.end ?? 0,
+      selectedNavTab === "watch"
+        ? undefined
+        : (currentSentenceObject?.end ?? undefined),
     );
     playerRef.current?.seekTo(currentSentenceObject?.start ?? 0);
     playerRef.current?.play();

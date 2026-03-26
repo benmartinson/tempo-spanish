@@ -264,8 +264,8 @@ export const useVoiceCommand = ({
             ...(persistentListening && {
               iosCategory: {
                 category: "playAndRecord",
-                categoryOptions: ["defaultToSpeaker", "allowBluetooth", "mixWithOthers"],
-                mode: "measurement",
+                categoryOptions: ["defaultToSpeaker", "allowBluetooth", "allowBluetoothA2DP", "mixWithOthers"],
+                mode: "default",
               },
             }),
             contextualStrings: [

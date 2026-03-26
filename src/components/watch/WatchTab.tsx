@@ -121,7 +121,6 @@ const WatchTab: React.FC<WatchTabProps> = ({
     permissionDenied: voicePermissionDenied,
     startListening,
     stopListening,
-    closeConnection,
   } = useVoiceCommand({
     persistentListening: true,
     onPlay: async () => {
@@ -148,14 +147,12 @@ const WatchTab: React.FC<WatchTabProps> = ({
       setActiveCommand("previous");
       handlePreviousSentence();
     },
-    onShadowMode: async () => {
+    onShadowMode: () => {
       setActiveCommand("shadow_mode");
-      await closeConnection();
       dispatch(setCurrentTab("shadow"));
     },
-    onReviewMode: async () => {
+    onReviewMode: () => {
       setActiveCommand("review_mode");
-      await closeConnection();
       dispatch(setCurrentTab("discuss"));
     },
   });
