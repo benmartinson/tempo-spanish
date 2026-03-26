@@ -73,7 +73,7 @@ import {
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 import VoiceCommands from "./VoiceCommands";
-import { usePhraseRecording } from "../usePhraseRecording";
+import { useMultiRecording } from "../useMultiRecording";
 import { useVoiceCommand } from "../useVoiceCommand";
 import { computeSubSegments } from "../../helpers";
 
@@ -201,14 +201,22 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     [currentSentenceObject?.words],
   );
   const {
-    phraseRecordings,
-    recordingPhraseIndex,
-    allPhrasesRecorded,
-    startPhraseRecording,
-    stopPhraseRecording,
-    submitPhraseRecordings,
-    resetPhraseRecordings,
-  } = usePhraseRecording(subSegments.length);
+    recordings: phraseRecordings,
+    recordingIndex: recordingPhraseIndex,
+    allRecorded: allPhrasesRecorded,
+    startRecording: startPhraseRecording,
+    stopRecording: stopPhraseRecording,
+    concatenateRecordings: submitPhraseRecordings,
+    resetRecordings: resetPhraseRecordings,
+  } = useMultiRecording(subSegments.length);
+
+  const {
+    recordings: voiceRecordings,
+    recordingCount: voiceRecordingCount,
+    addRecording: addVoiceRecording,
+    concatenateRecordings: concatenateVoiceRecordings,
+    resetRecordings: resetVoiceRecordings,
+  } = useMultiRecording();
 
   const cachedResponses = useSelector(
     (state: RootState) => state.cachedResponses,
@@ -413,8 +421,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsTrimmingAudio(false);
   };
 
-  const handleRecordingComplete = useCallback(
-    async (audioUri: string) => {
+  const submitRecording = useCallback(
+    async (uri: string) => {
       if (!currentVideo) return;
 
       setIsProcessing(true);
@@ -422,7 +430,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
       try {
         const transcriptionResult = await sendAudioForTranscription(
-          audioUri,
+          uri,
           userSettings.targetLanguage,
         );
         const spokenWords = transcriptionResult.transcript
@@ -431,7 +439,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         const accuracy = calculateAccuracyFromWords(spokenWords);
 
         if (selectedTab !== "voice") {
-          console.log({ selectedTab });
           setAccuracyResult(accuracy);
         } else {
           setPreviousResults({
@@ -440,7 +447,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           });
         }
         if (selectedTab === "voice") playCachedResponse(accuracy);
-        setAudioUri(audioUri);
+        setAudioUri(uri);
         saveShadowResult(spokenWords);
       } catch (err) {
         console.error("Transcription error:", err);
@@ -460,6 +467,30 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       selectedTab,
     ],
   );
+
+  const handleRecordingComplete = useCallback(
+    async (audioUri: string) => {
+      if (selectedTab === "voice") {
+        addVoiceRecording(audioUri);
+        return;
+      }
+      submitRecording(audioUri);
+    },
+    [selectedTab, submitRecording, addVoiceRecording],
+  );
+
+  const handleVoiceSubmit = useCallback(async () => {
+    if (voiceRecordingCount === 0) return;
+    try {
+      const uri: string = voiceRecordingCount === 1
+        ? Object.values(voiceRecordings)[0]
+        : await concatenateVoiceRecordings();
+      resetVoiceRecordings();
+      await submitRecording(uri);
+    } catch (err) {
+      console.error("Voice submit error:", err);
+    }
+  }, [voiceRecordingCount, concatenateVoiceRecordings, resetVoiceRecordings, submitRecording]);
 
   // const handleTextSubmit = useCallback(() => {
   //   if (!userAnswer.trim()) return;
@@ -608,6 +639,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await closeConnection();
       dispatch(setCurrentTab("discuss"));
     },
+    onSubmit: async () => {
+      setActiveCommand("submit");
+      await closeConnection();
+      handleVoiceSubmit();
+    },
   });
 
   const startListeningRef = useRef(startListening);
@@ -745,6 +781,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsProcessing(false);
     clearRecordingTimer();
     resetPhraseRecordings();
+    resetVoiceRecordings();
   };
 
   const clearRecordingTimer = () => {
@@ -1160,6 +1197,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                         { command: "previous", label: "Previous", description: "Go to previous segment" },
                         { command: "watch_mode", label: "Watch Mode", description: "Switch to Watch tab" },
                         { command: "review_mode", label: "Review Mode", description: "Switch to Review tab" },
+                        ...(voiceRecordingCount > 0 ? [{ command: "submit" as const, label: "Submit", description: "Submit your recording" }] : []),
                         ...["First Phrase", "Second Phrase", "Third Phrase"]
                           .slice(0, subSegments.length)
                           .map((label, i) => ({

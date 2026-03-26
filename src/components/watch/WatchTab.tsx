@@ -122,14 +122,9 @@ const WatchTab: React.FC<WatchTabProps> = ({
     startListening,
     stopListening,
   } = useVoiceCommand({
-    persistentListening: true,
     onPlay: async () => {
       setActiveCommand("play");
       resumePlayer();
-    },
-    onPause: async () => {
-      setActiveCommand("pause");
-      pausePlayer();
     },
     onRepeat: async () => {
       setActiveCommand("repeat");
@@ -157,19 +152,14 @@ const WatchTab: React.FC<WatchTabProps> = ({
     },
   });
 
-  // Start listening when tab is active
+  // Start listening when paused on voice tab, stop when playing or inactive
   useEffect(() => {
-    if (isActive && selectedTab === "voice") {
+    if (isActive && selectedTab === "voice" && !playerIsPlaying) {
       startListening();
-    }
-  }, [isActive, selectedTab]);
-
-  // Stop listening when tab becomes inactive
-  useEffect(() => {
-    if (!isActive) {
+    } else {
       stopListening();
     }
-  }, [isActive]);
+  }, [isActive, selectedTab, playerIsPlaying]);
 
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
 
@@ -283,7 +273,6 @@ const WatchTab: React.FC<WatchTabProps> = ({
                 onActivate={startListening}
                 commands={[
                   { command: "play", label: "Play", description: "Resume playback" },
-                  { command: "pause", label: "Pause", description: "Pause playback" },
                   { command: "repeat", label: "Repeat", description: "Replay the clip" },
                   { command: "slow", label: "Slowdown", description: "Replay in slow mode" },
                   { command: "next", label: "Next", description: "Go to next segment" },

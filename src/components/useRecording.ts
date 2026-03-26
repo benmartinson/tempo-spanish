@@ -12,7 +12,7 @@ import {
 } from "./streaming_helpers";
 
 const SILENCE_THRESHOLD = -20; // dB — below this is considered silence
-const SILENCE_DURATION = 2500; // ms of silence before auto-stop
+const SILENCE_DURATION = 5000; // ms of silence before auto-stop
 
 export interface UseRecordingOptions {
   onRecordingComplete: (audioUri: string) => void;

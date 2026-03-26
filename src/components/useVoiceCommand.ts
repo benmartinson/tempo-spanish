@@ -26,6 +26,7 @@ interface UseVoiceCommandOptions {
   onPlay?: () => void;
   onPause?: () => void;
   onShadowMode?: () => void;
+  onSubmit?: () => void;
   /** When true, disables the 30s inactivity timeout so listening stays on indefinitely. */
   persistentListening?: boolean;
 }
@@ -47,6 +48,7 @@ export const useVoiceCommand = ({
   onPlay,
   onPause,
   onShadowMode,
+  onSubmit,
   persistentListening = false,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
@@ -73,6 +75,7 @@ export const useVoiceCommand = ({
   const onPlayRef = useRef(onPlay);
   const onPauseRef = useRef(onPause);
   const onShadowModeRef = useRef(onShadowMode);
+  const onSubmitRef = useRef(onSubmit);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
@@ -91,6 +94,7 @@ export const useVoiceCommand = ({
     onPlayRef.current = onPlay;
     onPauseRef.current = onPause;
     onShadowModeRef.current = onShadowMode;
+    onSubmitRef.current = onSubmit;
   }, [
     onRepeat,
     onRecord,
@@ -108,6 +112,7 @@ export const useVoiceCommand = ({
     onPlay,
     onPause,
     onShadowMode,
+    onSubmit,
   ]);
 
   const resetInactivityTimeout = useCallback(() => {
@@ -125,7 +130,7 @@ export const useVoiceCommand = ({
       } catch {}
       setIsListening(false);
       setTimedOut(true);
-    }, 30000);
+    }, 60000);
   }, []);
 
   const resetAudioSession = useCallback(() => {
@@ -218,6 +223,9 @@ export const useVoiceCommand = ({
     } else if (text.includes("hint")) {
       transcriptBufferRef.current = "";
       onHintRef.current?.();
+    } else if (text.includes("submit")) {
+      transcriptBufferRef.current = "";
+      onSubmitRef.current?.();
     } else if (text.includes("pause")) {
       transcriptBufferRef.current = "";
       onPauseRef.current?.();
@@ -286,6 +294,7 @@ export const useVoiceCommand = ({
               "review mode",
               "play",
               "pause",
+              "submit",
             ],
           });
         }
@@ -341,17 +350,18 @@ export const useVoiceCommand = ({
           "review mode",
           "play",
           "pause",
+          "submit",
         ],
       });
 
       setIsListening(true);
 
-      // 30-second inactivity timeout (disabled in persistent mode)
+      // 60-second inactivity timeout (disabled in persistent mode)
       if (!persistentListening) {
         timeoutRef.current = setTimeout(async () => {
           await cleanup();
           setTimedOut(true);
-        }, 30000);
+        }, 60000);
       }
     } catch {
       cleanupWithError();
