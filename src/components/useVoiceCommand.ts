@@ -322,7 +322,17 @@ export const useVoiceCommand = ({
   });
 
   const startListening = useCallback(async () => {
-    if (!ExpoSpeechRecognitionModule) return;
+    if (!ExpoSpeechRecognitionModule) {
+      // Dev mode: fake the listening state so VoiceCommands UI renders
+      if (__DEV__) {
+        isListeningRef.current = true;
+        transcriptBufferRef.current = "";
+        setHasError(false);
+        setTimedOut(false);
+        setIsListening(true);
+      }
+      return;
+    }
     if (isListeningRef.current) return;
     isListeningRef.current = true;
     transcriptBufferRef.current = "";

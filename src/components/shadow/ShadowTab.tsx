@@ -470,7 +470,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleRecordingComplete = useCallback(
     async (audioUri: string) => {
-      if (selectedTab === "voice") {
+      if (selectedTab === "voice" || pauseRecordingRef.current) {
+        pauseRecordingRef.current = false;
         await addVoiceRecording(audioUri);
         return;
       }
@@ -548,18 +549,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   } = useVoiceCommand({
     onRepeat: async () => {
       setActiveCommand("repeat");
-      await stopListening();
       handlePlaySnippetAgain();
     },
     onRecord: async () => {
       setActiveCommand("record");
       resetVoiceRecordings();
+      voiceInitiatedRecordRef.current = true;
       await closeConnection();
       handleEnterRecordingMode();
     },
     onAddTo: async () => {
       if (voiceRecordingCount === 0) return;
       setActiveCommand("add_to");
+      voiceInitiatedRecordRef.current = true;
       await closeConnection();
       handleEnterRecordingMode();
     },
@@ -679,9 +681,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Stop listening when sentence or tab changes
   useEffect(() => {
     stopListening();
-  }, [currentSentenceIndex, isActive]);
+  }, [currentSentenceIndex, isActive, selectedTab]);
 
   const justRecordedRef = useRef(false);
+  const voiceInitiatedRecordRef = useRef(false);
+  const pauseRecordingRef = useRef(false);
+  const isWaitingForSubmitRef = useRef(false);
 
   useEffect(() => {
     if (!isActive) {
@@ -808,7 +813,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleActualStartRecording = async () => {
-    if (selectedTab === "voice") playDing();
+    if (voiceInitiatedRecordRef.current && selectedTab === "voice") playDing();
     await startRecording();
     // playSentence();
     setTimeout(() => {
@@ -816,16 +821,45 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }, 1000);
   };
 
+  const handlePauseRecording = async () => {
+    pausePlayer();
+    pauseRecordingRef.current = true;
+    await stopRecording(false);
+    setIsRecordingMode(false);
+  };
+
+  const handleSubmitRecording = async () => {
+    pausePlayer();
+    pauseRecordingRef.current = true;
+    isWaitingForSubmitRef.current = true;
+    await stopRecording(false);
+    setIsRecordingMode(false);
+  };
+
   const handleStopRecording = async (trashed: boolean = false) => {
-    if (selectedTab === "voice") playDingStop();
+    if (voiceInitiatedRecordRef.current && selectedTab === "voice")
+      playDingStop();
+    voiceInitiatedRecordRef.current = false;
     pausePlayer();
     await stopRecording(trashed);
     setIsRecordingMode(false);
   };
 
+  // Submit all recordings once the last chunk has been added
+  useEffect(() => {
+    if (isWaitingForSubmitRef.current && voiceRecordingCount > 0) {
+      isWaitingForSubmitRef.current = false;
+      handleVoiceSubmit();
+    }
+  }, [voiceRecordingCount]);
+
   // Auto-stop recording after silence on voice tab
   useEffect(() => {
-    if (passedSilenceThreshold && selectedTab === "voice") {
+    if (
+      passedSilenceThreshold &&
+      selectedTab === "voice" &&
+      voiceInitiatedRecordRef.current
+    ) {
       handleStopRecording();
     }
   }, [passedSilenceThreshold]);
@@ -1045,7 +1079,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           <>
             <CountdownTimer
               onStartRecording={handleActualStartRecording}
-              onStopRecording={() => handleStopRecording(false)}
+              onStopRecording={handleSubmitRecording}
+              onPauseRecording={handlePauseRecording}
               sentenceEnded={sentenceEnded}
               bufferDuration={0}
             />
@@ -1192,6 +1227,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       timedOut={voiceCommandTimedOut}
                       permissionDenied={voicePermissionDenied}
                       onActivate={startListening}
+                      priorityCommands={
+                        voiceRecordingCount > 0
+                          ? ["submit", "add_to", "record"]
+                          : undefined
+                      }
                       commands={[
                         ...(voiceRecordingCount > 0
                           ? [
@@ -1271,41 +1311,79 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               style={[
                 styles.trashButton,
                 {
-                  backgroundColor: isRecordingMode ? "white" : "#f0f0f0",
+                  backgroundColor:
+                    isRecordingMode || voiceRecordingCount > 0
+                      ? "white"
+                      : "#f0f0f0",
                 },
               ]}
               onPress={() => {
                 if (isRecordingMode) {
                   handleStopRecording(true);
                 }
+                resetVoiceRecordings();
                 handleResetAnswer();
               }}
+              disabled={!isRecordingMode && voiceRecordingCount === 0}
             >
               <FontAwesome
                 name="trash-o"
                 size={22}
-                color={isRecordingMode ? "red" : "#aaa"}
+                color={
+                  isRecordingMode || voiceRecordingCount > 0 ? "red" : "#aaa"
+                }
               />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.micButton}
-              onPress={handleEnterRecordingMode}
+              onPress={() => {
+                if (isRecordingMode) {
+                  handlePauseRecording();
+                } else if (voiceRecordingCount > 0) {
+                  pauseRecordingRef.current = true;
+                  handleEnterRecordingMode();
+                } else {
+                  resetVoiceRecordings();
+                  pauseRecordingRef.current = true;
+                  handleEnterRecordingMode();
+                }
+              }}
               disabled={!hasPermission || isProcessing}
             >
-              <MaterialIcons name="mic" size={22} color="red" />
+              <MaterialIcons
+                name={
+                  isRecordingMode
+                    ? "pause"
+                    : voiceRecordingCount > 0
+                      ? "add"
+                      : "mic"
+                }
+                size={22}
+                color={
+                  isRecordingMode
+                    ? "#555"
+                    : voiceRecordingCount > 0
+                      ? "#4a69bd"
+                      : "red"
+                }
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                !userAnswer.trim() && styles.sendButtonDisabled,
+                voiceRecordingCount === 0 &&
+                  !isRecording &&
+                  styles.sendButtonDisabled,
               ]}
-              onPress={() => handleStopRecording(false)}
-              disabled={!isRecording}
+              onPress={() => {
+                handleSubmitRecording();
+              }}
+              disabled={voiceRecordingCount === 0 && !isRecording}
             >
               <MaterialIcons
                 name="send"
                 size={22}
-                color={userAnswer.trim() ? "#fff" : "#aaa"}
+                color={voiceRecordingCount > 0 || isRecording ? "#fff" : "#aaa"}
               />
             </TouchableOpacity>
           </View>

@@ -1,5 +1,11 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Linking,
+} from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { VoiceCommand } from "../../types";
 
@@ -18,6 +24,8 @@ interface VoiceCommandsProps {
   permissionDenied: boolean;
   onActivate: () => void;
   commands: CommandEntry[];
+  /** When set, only these commands are shown initially with a "Show More" expander */
+  priorityCommands?: VoiceCommand[];
 }
 
 const VoiceCommands: React.FC<VoiceCommandsProps> = ({
@@ -29,7 +37,9 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   permissionDenied,
   onActivate,
   commands,
+  priorityCommands,
 }) => {
+  const [expanded, setExpanded] = useState(false);
   if (permissionDenied) {
     return (
       <View style={styles.container}>
@@ -77,7 +87,12 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         <MaterialIcons name="hearing" size={16} color="#4a69bd" />
         <Text style={styles.listeningHeaderText}>Listening for commands</Text>
       </View>
-      {commands.map(({ command, label, description }) => (
+      {(priorityCommands && !expanded
+        ? (priorityCommands
+            .map((cmd) => commands.find((c) => c.command === cmd))
+            .filter(Boolean) as CommandEntry[])
+        : commands
+      ).map(({ command, label, description }) => (
         <View
           key={command}
           style={[
@@ -96,6 +111,11 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
           <Text style={styles.commandDescription}>— {description}</Text>
         </View>
       ))}
+      {priorityCommands && !expanded && (
+        <TouchableOpacity onPress={() => setExpanded(true)}>
+          <Text style={styles.showMoreText}>Show All</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -160,6 +180,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textDecorationLine: "underline",
     paddingVertical: 20,
+  },
+  showMoreText: {
+    fontSize: 14,
+    color: "#4a69bd",
+    fontWeight: "600",
+    textAlign: "center",
+    textDecorationLine: "underline",
+    paddingVertical: 10,
   },
 });
 

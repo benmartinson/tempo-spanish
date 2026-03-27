@@ -18,7 +18,17 @@ export const formatTimestamp = (seconds: number): string => {
 };
 
 export const cachedResponses = [
-  "You got above 90 percent correct!",
+  "You got 100% correct!",
+  "You got 99% correct!",
+  "You got 98% correct!",
+  "You got 97% correct!",
+  "You got 96% correct!",
+  "You got 95% correct!",
+  "You got 94% correct!",
+  "You got 93% correct!",
+  "You got 92% correct!",
+  "You got 91% correct!",
+  "You got 90% correct!",
   "You got above 80 percent correct!",
   "You got above 70 percent correct!",
   "You got less than 70 percent correct",
@@ -33,7 +43,7 @@ export const cachedResponses = [
 ];
 
 export const getResponseForPercentage = (percentage: number): string => {
-  if (percentage >= 90) return "You got above 90 percent correct!";
+  if (percentage >= 90) return `You got ${Math.round(percentage)}% correct!`;
   if (percentage >= 80) return "You got above 80 percent correct!";
   if (percentage >= 70) return "You got above 70 percent correct!";
   if (percentage >= 60) return "You got less than 70 percent correct";

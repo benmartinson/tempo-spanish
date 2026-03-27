@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 15,
     color: "#222222",
-    opacity: 0.8,
+    opacity: 0.5,
   },
 });
 

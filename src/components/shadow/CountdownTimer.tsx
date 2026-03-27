@@ -13,6 +13,7 @@ type RecordingPhase = "countdown" | "recording" | "buffer" | "complete";
 interface CountdownTimerProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
+  onPauseRecording?: () => void;
   sentenceEnded: boolean;
   bufferDuration?: number;
   countdownDuration?: number;
@@ -22,6 +23,7 @@ interface CountdownTimerProps {
 const CountdownTimer: React.FC<CountdownTimerProps> = ({
   onStartRecording,
   onStopRecording,
+  onPauseRecording,
   sentenceEnded,
   bufferDuration = 5,
   countdownDuration = 0,
@@ -159,12 +161,23 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
                 Stopping in {remainingSeconds}s
               </Text>
             )}
-            <TouchableOpacity
-              onPress={onStopRecording}
-              style={styles.stopButton}
-            >
-              <Text style={styles.stopButtonText}>Submit</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonRow}>
+              {onPauseRecording && (
+                <TouchableOpacity
+                  onPress={onPauseRecording}
+                  style={styles.pauseButton}
+                >
+                  <MaterialIcons name="pause" size={20} color="#fff" />
+                  <Text style={styles.stopButtonText}>Pause</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={onStopRecording}
+                style={styles.stopButton}
+              >
+                <Text style={styles.stopButtonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         );
 
@@ -282,6 +295,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#4ade80",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  pauseButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 6,
   },
   stopButton: {
     flexDirection: "row",
