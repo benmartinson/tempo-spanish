@@ -28,6 +28,7 @@ interface UseVoiceCommandOptions {
   onShadowMode?: () => void;
   onSubmit?: () => void;
   onAddTo?: () => void;
+  onResults?: () => void;
   /** When true, disables the 30s inactivity timeout so listening stays on indefinitely. */
   persistentListening?: boolean;
 }
@@ -51,6 +52,7 @@ export const useVoiceCommand = ({
   onShadowMode,
   onSubmit,
   onAddTo,
+  onResults,
   persistentListening = false,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
@@ -80,6 +82,7 @@ export const useVoiceCommand = ({
   const onShadowModeRef = useRef(onShadowMode);
   const onSubmitRef = useRef(onSubmit);
   const onAddToRef = useRef(onAddTo);
+  const onResultsRef = useRef(onResults);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
@@ -100,6 +103,7 @@ export const useVoiceCommand = ({
     onShadowModeRef.current = onShadowMode;
     onSubmitRef.current = onSubmit;
     onAddToRef.current = onAddTo;
+    onResultsRef.current = onResults;
   }, [
     onRepeat,
     onRecord,
@@ -119,6 +123,7 @@ export const useVoiceCommand = ({
     onShadowMode,
     onSubmit,
     onAddTo,
+    onResults,
   ]);
 
   const resetInactivityTimeout = useCallback(() => {
@@ -238,6 +243,9 @@ export const useVoiceCommand = ({
     } else if (text.includes("submit")) {
       transcriptBufferRef.current = "";
       onSubmitRef.current?.();
+    } else if (text.includes("result")) {
+      transcriptBufferRef.current = "";
+      onResultsRef.current?.();
     } else if (text.includes("pause")) {
       transcriptBufferRef.current = "";
       onPauseRef.current?.();
@@ -315,6 +323,7 @@ export const useVoiceCommand = ({
             "pause",
             "submit",
             "add to",
+            "results",
           ],
         });
       }

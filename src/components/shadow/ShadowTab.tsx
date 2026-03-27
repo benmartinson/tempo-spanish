@@ -224,18 +224,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const dispatch = useDispatch();
 
-  const getOrCreateWordRecording = useCallback(
-    async (wordRaw: string): Promise<string | null> => {
-      const word = stripPunctuation(wordRaw);
-      const existing = cachedResponses.find((r) => r.response_text === word);
+  const getOrCreatePhraseRecording = useCallback(
+    async (phrase: string): Promise<string | null> => {
+      const existing = cachedResponses.find((r) => r.response_text === phrase);
       if (existing?.recording) return existing.recording;
 
       try {
-        const base64 = await generateTTS(word);
+        const base64 = await generateTTS(phrase);
         if (supabase) {
           const { data } = await supabase
             .from("cached_response")
-            .insert({ response_text: word, recording: base64 })
+            .insert({ response_text: phrase, recording: base64 })
             .select()
             .single();
           if (data) {
@@ -244,7 +243,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         }
         return base64;
       } catch (err) {
-        console.error(`Error generating TTS for "${word}":`, err);
+        console.error(`Error generating TTS for "${phrase}":`, err);
         return null;
       }
     },
@@ -280,7 +279,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       //     if (i > 0 && andClip?.recording) {
       //       clips.push(andClip.recording);
       //     }
-      //     const wordRecording = await getOrCreateWordRecording(missedWords[i]);
+      //     const wordRecording = await getOrCreatePhraseRecording(missedWords[i]);
       //     if (wordRecording) {
       //       clips.push(wordRecording);
       //     }
@@ -292,7 +291,103 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setIsSpeakingResponse(false);
       startListeningRef.current();
     },
-    [cachedResponses, getOrCreateWordRecording],
+    [cachedResponses, getOrCreatePhraseRecording],
+  );
+
+  const playResultsReview = useCallback(
+    async (accuracy: AccuracyResult) => {
+      // 100%: just say "You got 100% correct!"
+      if (Math.round(accuracy.percentage) >= 100) {
+        const perfect = cachedResponses.find(
+          (r) => r.response_text === "You got 100% correct!",
+        );
+        if (perfect?.recording) {
+          setIsSpeakingResponse(true);
+          await playAudioSequence([perfect.recording]);
+          setIsSpeakingResponse(false);
+        }
+        return;
+      }
+
+      // < 70%: review unavailable
+      if (accuracy.percentage < 70) {
+        const recording = await getOrCreatePhraseRecording(
+          "Review unavailable for scores less than 70%",
+        );
+        if (recording) {
+          setIsSpeakingResponse(true);
+          await playAudio(recording);
+          setIsSpeakingResponse(false);
+        }
+        return;
+      }
+
+      // Group consecutive unmatched words into phrases
+      const unmatchedPhrases: string[] = [];
+      let currentPhrase: string[] = [];
+      for (const detail of accuracy.details) {
+        if (!detail.matched || detail._matchScore === 0) {
+          currentPhrase.push(detail.targetWord);
+        } else {
+          if (currentPhrase.length > 0) {
+            unmatchedPhrases.push(currentPhrase.join(" "));
+            currentPhrase = [];
+          }
+        }
+      }
+      if (currentPhrase.length > 0) {
+        unmatchedPhrases.push(currentPhrase.join(" "));
+      }
+
+      // Find words with spelling errors
+      const misspelled = accuracy.details.filter(
+        (d) =>
+          d.matched &&
+          d._matchScore !== undefined &&
+          d._matchScore > 0 &&
+          d._matchScore < 1 &&
+          d.spokenWord &&
+          d.spokenWord.toLowerCase() !== d.targetWord.toLowerCase(),
+      );
+
+      // Build the full text to speak
+      const parts: string[] = [];
+
+      if (unmatchedPhrases.length === 1) {
+        parts.push(`Te faltó la palabra "${unmatchedPhrases[0]}"`);
+      } else if (unmatchedPhrases.length > 1) {
+        const last = `"${unmatchedPhrases[unmatchedPhrases.length - 1]}"`;
+        const rest = unmatchedPhrases
+          .slice(0, -1)
+          .map((p) => `"${p}"`)
+          .join(", ");
+        parts.push(`Te faltaron las palabras ${rest}, y ${last}`);
+      }
+
+      if (misspelled.length === 1) {
+        parts.push(
+          `Usted dijo "${misspelled[0].spokenWord}" en vez de "${misspelled[0].targetWord}"`,
+        );
+      } else if (misspelled.length > 1) {
+        const pairs = misspelled.map(
+          (d) => `"${d.spokenWord}" en vez de "${d.targetWord}"`,
+        );
+        const last = pairs[pairs.length - 1];
+        const rest = pairs.slice(0, -1).join(", ");
+        parts.push(`Usted dijo ${rest}, y ${last}`);
+      }
+
+      const fullText = parts.join(". ");
+      if (!fullText) return;
+
+      const recording = await getOrCreatePhraseRecording(fullText);
+      if (recording) {
+        setIsSpeakingResponse(true);
+        await playAudio(recording);
+        setIsSpeakingResponse(false);
+      }
+    },
+    [cachedResponses, getOrCreatePhraseRecording],
   );
 
   const calculateAccuracyFromWords = useCallback(
@@ -570,19 +665,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await closeConnection();
       handlePlaySnippetSlow();
     },
-    onTranslation: async () => {
-      setActiveCommand("translation");
-      await stopListening();
-      if (sentenceTranslation) {
-        const recording = await getOrCreateWordRecording(sentenceTranslation);
-        if (recording) {
-          setIsSpeakingResponse(true);
-          await playAudio(recording);
-          setIsSpeakingResponse(false);
-        }
-        startListeningRef.current();
-      }
-    },
+    // onTranslation: async () => {
+    //   setActiveCommand("translation");
+    //   await stopListening();
+    //   if (sentenceTranslation) {
+    //     const recording = await getOrCreatePhraseRecording(sentenceTranslation);
+    //     if (recording) {
+    //       setIsSpeakingResponse(true);
+    //       await playAudio(recording);
+    //       setIsSpeakingResponse(false);
+    //     }
+    //     startListeningRef.current();
+    //   }
+    // },
     // onArtificial: async () => {
     //   setActiveCommand("artificial");
     //   await stopListening();
@@ -613,7 +708,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await stopListening();
       if (hintWords.length > 0) {
         const word = hintWords[voiceHintIndex];
-        const recording = await getOrCreateWordRecording(word.word);
+        const recording = await getOrCreatePhraseRecording(word.word);
         if (recording) {
           setIsSpeakingResponse(true);
           await playAudio(recording);
@@ -650,10 +745,64 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await closeConnection();
       handleVoiceSubmit();
     },
+    onResults: async () => {
+      if (!previousResults) return;
+      setActiveCommand("results");
+      await stopListening();
+      await playResultsReview(previousResults);
+      startListeningRef.current();
+    },
   });
 
   const startListeningRef = useRef(startListening);
   startListeningRef.current = startListening;
+
+  const commandHandlersRef = useRef<Record<string, (() => void) | undefined>>(
+    {},
+  );
+  commandHandlersRef.current = {
+    repeat: () => {
+      setActiveCommand("repeat");
+      handlePlaySnippetAgain();
+    },
+    record: () => {
+      setActiveCommand("record");
+      resetVoiceRecordings();
+      handleEnterRecordingMode();
+    },
+    add_to: () => {
+      if (voiceRecordingCount === 0) return;
+      setActiveCommand("add_to");
+      handleEnterRecordingMode();
+    },
+    slow: () => {
+      setActiveCommand("slow");
+      handlePlaySnippetSlow();
+    },
+    next: () => {
+      setActiveCommand("next");
+      handleNextRef.current();
+    },
+    previous: () => {
+      setActiveCommand("previous");
+      handlePreviousRef.current();
+    },
+    submit: () => {
+      if (voiceRecordingCount === 0) return;
+      setActiveCommand("submit");
+      handleVoiceSubmit();
+    },
+    results: () => {
+      if (!previousResults) return;
+      setActiveCommand("results");
+      playResultsReview(previousResults);
+    },
+  };
+
+  const handleCommandPress = useCallback((command: VoiceCommand) => {
+    if (!command) return;
+    commandHandlersRef.current[command]?.();
+  }, []);
 
   // Start listening when on voice tab and nothing is playing
   useEffect(() => {
@@ -1227,10 +1376,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       timedOut={voiceCommandTimedOut}
                       permissionDenied={voicePermissionDenied}
                       onActivate={startListening}
+                      onCommandPress={handleCommandPress}
                       priorityCommands={
-                        voiceRecordingCount > 0
-                          ? ["submit", "add_to", "record"]
-                          : undefined
+                        previousResults
+                          ? ["results", "next"]
+                          : voiceRecordingCount > 0
+                            ? ["submit", "add_to", "record"]
+                            : undefined
                       }
                       commands={[
                         ...(voiceRecordingCount > 0
@@ -1262,11 +1414,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                           label: "Slowdown",
                           description: "Replay the clip in slow mode",
                         },
-                        {
-                          command: "translation",
-                          label: "Translation",
-                          description: "Hear the translation",
-                        },
+                        // {
+                        //   command: "translation",
+                        //   label: "Translation",
+                        //   description: "Hear the translation",
+                        // },
                         {
                           command: "hint",
                           label: "Word Hint",
@@ -1282,6 +1434,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                           label: "Previous",
                           description: "Go to previous segment",
                         },
+                        ...(previousResults
+                          ? [
+                              {
+                                command: "results" as const,
+                                label: "Results",
+                                description: "Hear review of missed words",
+                              },
+                            ]
+                          : []),
                         ...["First Phrase", "Second Phrase", "Third Phrase"]
                           .slice(0, subSegments.length)
                           .map((label, i) => ({

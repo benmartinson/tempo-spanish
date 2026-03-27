@@ -50,8 +50,8 @@ def generate_tts_audio(text: str) -> str | None:
             text=text,
             voice_id="jBlmi27XRORxjPquUeCh",
             model_id="eleven_multilingual_v2",
-            output_format="mp3_44100_192",
-            voice_settings={"stability": 0.5, "similarity_boost": 0.75},
+            output_format="mp3_44100_128",
+            voice_settings={"stability": 0.5, "similarity_boost": 0.75, "speed": 0.85},
         )
         audio_bytes = b"".join(audio_generator)
         return base64.b64encode(audio_bytes).decode("utf-8")

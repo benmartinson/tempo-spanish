@@ -26,6 +26,7 @@ interface VoiceCommandsProps {
   commands: CommandEntry[];
   /** When set, only these commands are shown initially with a "Show More" expander */
   priorityCommands?: VoiceCommand[];
+  onCommandPress?: (command: VoiceCommand) => void;
 }
 
 const VoiceCommands: React.FC<VoiceCommandsProps> = ({
@@ -38,6 +39,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   onActivate,
   commands,
   priorityCommands,
+  onCommandPress,
 }) => {
   const [expanded, setExpanded] = useState(false);
   if (permissionDenied) {
@@ -93,12 +95,13 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
             .filter(Boolean) as CommandEntry[])
         : commands
       ).map(({ command, label, description }) => (
-        <View
+        <TouchableOpacity
           key={command}
           style={[
             styles.commandRow,
             activeCommand === command && styles.commandRowActive,
           ]}
+          onPress={() => onCommandPress?.(command)}
         >
           <Text
             style={[
@@ -109,7 +112,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
             "{label}"
           </Text>
           <Text style={styles.commandDescription}>— {description}</Text>
-        </View>
+        </TouchableOpacity>
       ))}
       {priorityCommands && !expanded && (
         <TouchableOpacity onPress={() => setExpanded(true)}>

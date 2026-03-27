@@ -40,6 +40,9 @@ export const cachedResponses = [
   "You got less than 10 percent correct",
   "You missed the word",
   "and,",
+  "Review unavailable for scores less than 70%",
+  "You said",
+  "instead of",
 ];
 
 export const getResponseForPercentage = (percentage: number): string => {
