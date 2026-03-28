@@ -29,6 +29,7 @@ interface UseVoiceCommandOptions {
   onSubmit?: () => void;
   onAddTo?: () => void;
   onResults?: () => void;
+  onAgain?: () => void;
   /** When true, disables the 30s inactivity timeout so listening stays on indefinitely. */
   persistentListening?: boolean;
 }
@@ -53,6 +54,7 @@ export const useVoiceCommand = ({
   onSubmit,
   onAddTo,
   onResults,
+  onAgain,
   persistentListening = false,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
@@ -83,6 +85,7 @@ export const useVoiceCommand = ({
   const onSubmitRef = useRef(onSubmit);
   const onAddToRef = useRef(onAddTo);
   const onResultsRef = useRef(onResults);
+  const onAgainRef = useRef(onAgain);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
@@ -104,6 +107,7 @@ export const useVoiceCommand = ({
     onSubmitRef.current = onSubmit;
     onAddToRef.current = onAddTo;
     onResultsRef.current = onResults;
+    onAgainRef.current = onAgain;
   }, [
     onRepeat,
     onRecord,
@@ -124,6 +128,7 @@ export const useVoiceCommand = ({
     onSubmit,
     onAddTo,
     onResults,
+    onAgain,
   ]);
 
   const resetInactivityTimeout = useCallback(() => {
@@ -252,6 +257,9 @@ export const useVoiceCommand = ({
     } else if (text.includes("play")) {
       transcriptBufferRef.current = "";
       onPlayRef.current?.();
+    } else if (text.includes("again")) {
+      transcriptBufferRef.current = "";
+      onAgainRef.current?.();
     }
   });
 
@@ -324,6 +332,7 @@ export const useVoiceCommand = ({
             "submit",
             "add to",
             "results",
+            "again",
           ],
         });
       }

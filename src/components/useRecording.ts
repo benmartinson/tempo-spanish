@@ -52,7 +52,6 @@ export const useRecording = (
     }
 
     const metering = recorderState.metering;
-    console.log({ metering });
     if (metering == null) return;
 
     if (metering > SILENCE_THRESHOLD) {

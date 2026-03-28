@@ -58,6 +58,8 @@ const Insights: React.FC<InsightsProps> = ({
   const [isShowingCharacters, setIsShowingCharacters] =
     useState<boolean>(showCharacters);
   const [isShowingNotes, setIsShowingNotes] = useState<boolean>(true);
+  const [isShowingTranscript, setIsShowingTranscript] =
+    useState<boolean>(false);
 
   useEffect(() => {
     setIsShowingCharacters(showCharacters);
@@ -85,6 +87,18 @@ const Insights: React.FC<InsightsProps> = ({
         showPhrases={showPhrases}
         isRecordingMode={isRecordingMode}
       />
+      <View style={styles.headerContainer}>
+        <ToggleHeader
+          title="Transcript"
+          isVisible={isShowingTranscript}
+          onToggle={() => setIsShowingTranscript(!isShowingTranscript)}
+        />
+      </View>
+      {isShowingTranscript && (
+        <View style={styles.notesList}>
+          <Text style={styles.transcriptText}>{sentenceText}</Text>
+        </View>
+      )}
       <WordHints
         hintWords={hintWords}
         handlePlayWordSnippet={handlePlayWordSnippet}
@@ -192,6 +206,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#222222",
     opacity: 0.5,
+  },
+  transcriptText: {
+    fontSize: 15,
+    color: "#222222",
+    opacity: 0.8,
   },
 });
 

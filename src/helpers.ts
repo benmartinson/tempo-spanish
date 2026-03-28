@@ -43,6 +43,7 @@ export const cachedResponses = [
   "Review unavailable for scores less than 70%",
   "You said",
   "instead of",
+  "Fetching...",
 ];
 
 export const getResponseForPercentage = (percentage: number): string => {

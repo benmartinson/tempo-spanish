@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Linking,
+  ActivityIndicator,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { VoiceCommand } from "../../types";
@@ -27,6 +28,7 @@ interface VoiceCommandsProps {
   /** When set, only these commands are shown initially with a "Show More" expander */
   priorityCommands?: VoiceCommand[];
   onCommandPress?: (command: VoiceCommand) => void;
+  isAnalyzingHint?: boolean;
 }
 
 const VoiceCommands: React.FC<VoiceCommandsProps> = ({
@@ -40,6 +42,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   commands,
   priorityCommands,
   onCommandPress,
+  isAnalyzingHint,
 }) => {
   const [expanded, setExpanded] = useState(false);
   if (permissionDenied) {
@@ -83,6 +86,19 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
     );
   }
 
+  if (isAnalyzingHint) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.analyzingRow}>
+          <ActivityIndicator size="small" color="#4a69bd" />
+          <Text style={styles.analyzingText}>
+            Analyzing your speech and fetching next word in sentence...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.listeningHeader}>
@@ -97,20 +113,10 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
       ).map(({ command, label, description }) => (
         <TouchableOpacity
           key={command}
-          style={[
-            styles.commandRow,
-            activeCommand === command && styles.commandRowActive,
-          ]}
+          style={[styles.commandRow]}
           onPress={() => onCommandPress?.(command)}
         >
-          <Text
-            style={[
-              styles.commandText,
-              activeCommand === command && styles.commandTextActive,
-            ]}
-          >
-            "{label}"
-          </Text>
+          <Text style={[styles.commandText]}>"{label}"</Text>
           <Text style={styles.commandDescription}>— {description}</Text>
         </TouchableOpacity>
       ))}
@@ -191,6 +197,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textDecorationLine: "underline",
     paddingVertical: 10,
+  },
+  analyzingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 20,
+  },
+  analyzingText: {
+    fontSize: 14,
+    color: "#666",
+    flex: 1,
   },
 });
 
