@@ -359,6 +359,11 @@ export const useVoiceCommand = ({
 
     const { granted, canAskAgain } =
       await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+
+    // If we were stopped while awaiting permissions (e.g. by the stop-on-tab-change
+    // effect), bail out instead of starting recognition with a stale audio session.
+    if (!isListeningRef.current) return;
+
     if (!granted) {
       isListeningRef.current = false;
       if (!canAskAgain) {
