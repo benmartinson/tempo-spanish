@@ -18,7 +18,7 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { RootState, SegmentWord } from "../../types";
-import { fetchTranslationInsights } from "../../requests";
+import { loadSentenceInsights } from "../../requests";
 import {
   setSentenceByTime,
   setCurrentSentence as setCurrentSentenceAction,
@@ -186,63 +186,24 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     setOrderedCharacters([]);
     setSentenceTranslation(null);
 
-    const translationColumn = `translation_${translationLanguage}`;
-
     try {
-      // Check Supabase cache first
-      const { data: cached, error: cacheError } = (await supabase
-        .from("sentence_insights")
-        .select(`proper_nouns, ${translationColumn}`)
-        .eq("video_id", parseInt(currentVideo.recordId))
-        .eq("sentence_index", currentSentenceIndex)
-        .maybeSingle()) as { data: any; error: any };
-
-      if (!cacheError && cached) {
-        if (cached.proper_nouns) {
-          const ordered = orderCharactersByAppearance(
-            cached.proper_nouns,
-            currentSentenceObject.text,
-          );
-          setOrderedCharacters(ordered);
-        }
-
-        if (cached[translationColumn]) {
-          setSentenceTranslation(cached[translationColumn]);
-        }
-
-        if (cached.proper_nouns && cached[translationColumn]) {
-          return;
-        }
-      }
-
-      // Fetch from backend
-      const result = await fetchTranslationInsights({
-        text: currentSentenceObject.text,
-        language: translationLanguage,
+      const result = await loadSentenceInsights({
+        supabase,
+        sentenceText: currentSentenceObject.text,
+        videoRecordId: currentVideo.recordId,
+        sentenceIndex: currentSentenceIndex,
+        translationLanguage,
       });
 
-      if (result) {
-        // Save to Supabase for future lookups
-        await supabase.from("sentence_insights").upsert(
-          {
-            video_id: parseInt(currentVideo.recordId),
-            sentence_index: currentSentenceIndex,
-            proper_nouns: result.properNouns,
-            [translationColumn]: result.translation,
-          },
-          { onConflict: "video_id,sentence_index" },
+      if (result.properNouns.length > 0) {
+        const ordered = orderCharactersByAppearance(
+          result.properNouns,
+          currentSentenceObject.text,
         );
-
-        if (result.properNouns.length > 0) {
-          const ordered = orderCharactersByAppearance(
-            result.properNouns,
-            currentSentenceObject.text,
-          );
-          setOrderedCharacters(ordered);
-        }
-
-        setSentenceTranslation(result.translation);
+        setOrderedCharacters(ordered);
       }
+
+      setSentenceTranslation(result.translation);
     } catch (err) {
       console.error("Failed to load translation insights:", err);
     } finally {
@@ -619,7 +580,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       {selectedNavTab === "review" && (
         <View style={getTabStyle(selectedNavTab === "review")}>
           <DiscussTab
-            onPlayClip={handlePlayClip}
+            onPlayClip={playClipSnippet}
             isKeyboardVisible={isKeyboardVisible}
             setShowVideo={setShowVideo}
           />

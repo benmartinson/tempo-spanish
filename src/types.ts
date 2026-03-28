@@ -171,7 +171,7 @@ export interface Sentence {
   words: SegmentWord[];
 }
 
-export type QuizType = "Vocab" | "Phrases";
+export type QuizType = "Vocab" | "Phrases" | "Translate";
 
 export interface SegmentWord {
   word: string;

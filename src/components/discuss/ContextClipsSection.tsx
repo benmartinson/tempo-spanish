@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ContextSegment } from "../../types";
 import { formatTimestamp } from "../../helpers";
+import ToggleHeader from "../common/ToggleHeader";
 
 interface ContextClipsSectionProps {
   loading: boolean;
@@ -23,6 +24,8 @@ const ContextClipsSection: React.FC<ContextClipsSectionProps> = ({
   onPlayClip,
   isVocabMode,
 }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
   if (loading) {
     return (
       <View style={styles.contextSection}>
@@ -42,30 +45,31 @@ const ContextClipsSection: React.FC<ContextClipsSectionProps> = ({
 
   return (
     <View style={styles.contextSection}>
-      <Text style={styles.contextTitle}>
-        Context Clips{" "}
-        {!isVocabMode && (
-          <Text style={styles.contextTitleSubtext}>(ordered by relevance)</Text>
-        )}
-      </Text>
-      <View style={styles.timestampRow}>
-        {segments.map((segment, index) => (
-          <TouchableOpacity
-            key={`${segment.segment_id}-${index}`}
-            style={styles.timestampButton}
-            onPress={() => onPlayClip(segment)}
-          >
-            <MaterialIcons
-              name="play-circle-outline"
-              size={16}
-              color="#4a69bd"
-            />
-            <Text style={styles.timestampText}>
-              {formatTimestamp(segment.start)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <ToggleHeader
+        title="Context Clips"
+        isVisible={isVisible}
+        onToggle={() => setIsVisible((v) => !v)}
+      />
+      {isVisible && (
+        <View style={styles.timestampRow}>
+          {segments.map((segment, index) => (
+            <TouchableOpacity
+              key={`${segment.segment_id}-${index}`}
+              style={styles.timestampButton}
+              onPress={() => onPlayClip(segment)}
+            >
+              <MaterialIcons
+                name="play-circle-outline"
+                size={16}
+                color="#4a69bd"
+              />
+              <Text style={styles.timestampText}>
+                {formatTimestamp(segment.start)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
     </View>
   );
 };
@@ -80,26 +84,16 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
   },
-  contextTitleSubtext: {
-    fontSize: 11,
-    fontWeight: "400",
-    color: "#666",
-  },
   contextLoadingText: {
     fontSize: 14,
     color: "#666",
     fontStyle: "italic",
   },
-  contextTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 8,
-  },
   timestampRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    marginTop: 8,
   },
   timestampButton: {
     flexDirection: "row",

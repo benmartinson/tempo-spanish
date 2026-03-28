@@ -14,6 +14,7 @@ import { QuizType } from "../../types";
 const QUIZ_TYPES: { value: QuizType; label: string; icon: string }[] = [
   { value: "Vocab", label: "Vocab Words", icon: "translate" },
   { value: "Phrases", label: "Selected Phrases", icon: "short-text" },
+  { value: "Translate", label: "Translate Phrases", icon: "g-translate" },
 ];
 
 interface ReviewTypeSelectorProps {

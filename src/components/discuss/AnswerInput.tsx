@@ -9,6 +9,10 @@ interface AnswerInputProps {
   onSubmit: () => void;
   onClear: () => void;
   isKeyboardVisible: boolean;
+  showRecordButton?: boolean;
+  isRecording?: boolean;
+  onRecordStart?: () => void;
+  onRecordStop?: () => void;
 }
 
 const AnswerInput: React.FC<AnswerInputProps> = ({
@@ -17,15 +21,16 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   onSubmit,
   onClear,
   isKeyboardVisible,
+  showRecordButton,
+  isRecording,
+  onRecordStart,
+  onRecordStop,
 }) => {
   const trimmedValue = value.trim();
 
   return (
     <View
-      style={[
-        styles.inputArea,
-        { paddingBottom: isKeyboardVisible ? 10 : 40 },
-      ]}
+      style={[styles.inputArea, { paddingBottom: isKeyboardVisible ? 10 : 40 }]}
     >
       <TextInput
         style={styles.textInput}
@@ -38,6 +43,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
         autoCapitalize="none"
         multiline
         maxLength={500}
+        editable={!isRecording}
       />
       <TouchableOpacity
         style={[
@@ -52,15 +58,27 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
           color={isKeyboardVisible ? "red" : "#aaa"}
         />
       </TouchableOpacity>
+      {showRecordButton && (
+        <TouchableOpacity
+          style={[styles.recordButton, isRecording && styles.recordButtonActive]}
+          onPress={isRecording ? onRecordStop : onRecordStart}
+        >
+          <MaterialIcons
+            name={isRecording ? "stop" : "mic"}
+            size={22}
+            color="#fff"
+          />
+        </TouchableOpacity>
+      )}
       <TouchableOpacity
-        style={[styles.sendButton, !trimmedValue && styles.sendButtonDisabled]}
+        style={[styles.sendButton, (!trimmedValue || isRecording) && styles.sendButtonDisabled]}
         onPress={onSubmit}
-        disabled={!trimmedValue}
+        disabled={!trimmedValue || isRecording}
       >
         <MaterialIcons
           name="send"
           size={22}
-          color={trimmedValue ? "#fff" : "#aaa"}
+          color={trimmedValue && !isRecording ? "#fff" : "#aaa"}
         />
       </TouchableOpacity>
     </View>
@@ -72,7 +90,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: "#eee",
     backgroundColor: "#fafafa",
@@ -108,6 +126,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f0f0f0",
+  },
+  recordButton: {
+    backgroundColor: "#4a69bd",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recordButtonActive: {
+    backgroundColor: "#ef4444",
   },
 });
 

@@ -125,7 +125,7 @@ export interface EvaluateVocabAnswerParams {
   userAnswer: string;
   contextSegments: { text: string }[];
   vocabWord: string;
-  quizType?: "vocab" | "phrase";
+  quizType?: "vocab" | "phrase" | "translate";
 }
 
 export const evaluateVocabAnswer = async ({
@@ -189,6 +189,74 @@ export const fetchTranslationInsights = async ({
   return {
     properNouns: data.proper_nouns,
     translation: data.translation,
+  };
+};
+
+export interface LoadSentenceInsightsParams {
+  supabase: any;
+  sentenceText: string;
+  videoRecordId: string;
+  sentenceIndex: number;
+  translationLanguage: string;
+}
+
+export interface SentenceInsightsResult {
+  properNouns: string[];
+  translation: string | null;
+}
+
+export const loadSentenceInsights = async ({
+  supabase,
+  sentenceText,
+  videoRecordId,
+  sentenceIndex,
+  translationLanguage,
+}: LoadSentenceInsightsParams): Promise<SentenceInsightsResult> => {
+  const translationColumn = `translation_${translationLanguage}`;
+
+  // Check Supabase cache first
+  const { data: cached, error: cacheError } = (await supabase
+    .from("sentence_insights")
+    .select(`proper_nouns, ${translationColumn}`)
+    .eq("video_id", parseInt(videoRecordId))
+    .eq("sentence_index", sentenceIndex)
+    .maybeSingle()) as { data: any; error: any };
+
+  if (!cacheError && cached && cached.proper_nouns && cached[translationColumn]) {
+    return {
+      properNouns: cached.proper_nouns,
+      translation: cached[translationColumn],
+    };
+  }
+
+  // Fetch from backend
+  const result = await fetchTranslationInsights({
+    text: sentenceText,
+    language: translationLanguage,
+  });
+
+  if (result) {
+    // Save to Supabase for future lookups
+    await supabase.from("sentence_insights").upsert(
+      {
+        video_id: parseInt(videoRecordId),
+        sentence_index: sentenceIndex,
+        proper_nouns: result.properNouns,
+        [translationColumn]: result.translation,
+      },
+      { onConflict: "video_id,sentence_index" },
+    );
+
+    return {
+      properNouns: result.properNouns ?? [],
+      translation: result.translation,
+    };
+  }
+
+  // Return partial cached data if available
+  return {
+    properNouns: cached?.proper_nouns ?? [],
+    translation: cached?.[translationColumn] ?? null,
   };
 };
 

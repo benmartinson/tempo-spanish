@@ -10,7 +10,7 @@ import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import ReviewChat from "./ReviewChat";
 
 interface DiscussTabProps {
-  onPlayClip: (start: number) => void;
+  onPlayClip: (start: number, end: number) => void;
   isKeyboardVisible: boolean;
   setShowVideo: (show: boolean) => void;
 }
@@ -23,13 +23,13 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
   const [selectedQuizType, setSelectedQuizType] =
-    useState<QuizType>("Vocab");
+    useState<QuizType>("Translate");
 
   // Handle clicking a context segment timestamp
   const handlePlayClip = useCallback(
     (segment: ContextSegment) => {
       setShowVideo(true);
-      onPlayClip(segment.start);
+      onPlayClip(segment.start, segment.end);
     },
     [onPlayClip],
   );

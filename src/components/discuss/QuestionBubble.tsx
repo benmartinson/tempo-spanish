@@ -3,12 +3,13 @@ import { StyleSheet, View, Text } from "react-native";
 
 interface QuestionBubbleProps {
   question: string;
+  label?: string;
 }
 
-const QuestionBubble: React.FC<QuestionBubbleProps> = ({ question }) => {
+const QuestionBubble: React.FC<QuestionBubbleProps> = ({ question, label }) => {
   return (
     <View style={styles.questionBubble}>
-      <Text style={styles.questionLabel}>Question</Text>
+      <Text style={styles.questionLabel}>{label ?? "Question"}</Text>
       <Text style={styles.questionText}>{question}</Text>
     </View>
   );
