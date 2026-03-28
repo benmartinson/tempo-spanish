@@ -180,9 +180,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [activeCommand, setActiveCommandState] = useState<VoiceCommand>(null);
   const setActiveCommand = useCallback((command: VoiceCommand) => {
     setActiveCommandState(command);
-    if (command && command !== "again") {
-      lastCommandRef.current = command;
-    }
   }, []);
   const [voiceHintIndex, setVoiceHintIndex] = useState(0);
 
@@ -311,19 +308,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         if (perfect?.recording) {
           setIsSpeakingResponse(true);
           await playAudioSequence([perfect.recording]);
-          setIsSpeakingResponse(false);
-        }
-        return;
-      }
-
-      // < 70%: review unavailable
-      if (accuracy.percentage < 70) {
-        const recording = await getOrCreatePhraseRecording(
-          "Review unavailable for scores less than 70%",
-        );
-        if (recording) {
-          setIsSpeakingResponse(true);
-          await playAudio(recording);
           setIsSpeakingResponse(false);
         }
         return;
@@ -850,12 +834,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await playResultsReview(previousResults);
       startListeningRef.current();
     },
-    onAgain: async () => {
-      if (!lastCommandRef.current) return;
-      setActiveCommand("again");
-      // Re-invoke the last command's voice handler
-      commandHandlersRef.current[lastCommandRef.current]?.();
-    },
   });
 
   const startListeningRef = useRef(startListening);
@@ -972,11 +950,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleCommandPress = useCallback((command: VoiceCommand) => {
     if (!command) return;
-    if (command === "again") {
-      if (!lastCommandRef.current) return;
-      commandHandlersRef.current[lastCommandRef.current]?.();
-      return;
-    }
     commandHandlersRef.current[command]?.();
   }, []);
 
@@ -1011,7 +984,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const justRecordedRef = useRef(false);
   const voiceInitiatedRecordRef = useRef(false);
   const pauseRecordingRef = useRef(false);
-  const lastCommandRef = useRef<string | null>(null);
+
   const isWaitingForSubmitRef = useRef(false);
   const isFakingSubmissionRef = useRef(false);
 
@@ -1622,15 +1595,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                                 command: "results" as const,
                                 label: "Results",
                                 description: "Hear review of missed words",
-                              },
-                            ]
-                          : []),
-                        ...(lastCommandRef.current
-                          ? [
-                              {
-                                command: "again" as const,
-                                label: "Again",
-                                description: "Repeat last command",
                               },
                             ]
                           : []),

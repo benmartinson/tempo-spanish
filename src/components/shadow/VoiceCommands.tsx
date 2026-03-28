@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -45,6 +45,19 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   isAnalyzingHint,
 }) => {
   const [expanded, setExpanded] = useState(false);
+
+  const priorityKey = priorityCommands?.join(",") ?? "";
+  useEffect(() => {
+    setExpanded(false);
+  }, [priorityKey]);
+
+  useEffect(() => {
+    console.log({ activeCommand });
+    if (activeCommand) {
+      setExpanded(true);
+    }
+  }, [activeCommand]);
+
   if (permissionDenied) {
     return (
       <View style={styles.container}>
