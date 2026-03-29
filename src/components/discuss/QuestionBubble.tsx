@@ -23,7 +23,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     alignSelf: "flex-start",
-    maxWidth: "90%",
   },
   questionLabel: {
     fontSize: 11,

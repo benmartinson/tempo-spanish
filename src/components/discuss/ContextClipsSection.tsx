@@ -76,7 +76,8 @@ const ContextClipsSection: React.FC<ContextClipsSectionProps> = ({
 
 const styles = StyleSheet.create({
   contextSection: {
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    marginVertical: 12,
   },
   contextLoadingRow: {
     flexDirection: "row",

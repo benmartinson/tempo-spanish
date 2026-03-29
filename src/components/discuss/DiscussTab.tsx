@@ -13,12 +13,14 @@ interface DiscussTabProps {
   onPlayClip: (start: number, end: number) => void;
   isKeyboardVisible: boolean;
   setShowVideo: (show: boolean) => void;
+  onSeekAndPause?: (time: number) => void;
 }
 
 const DiscussTab: React.FC<DiscussTabProps> = ({
   onPlayClip,
   isKeyboardVisible,
   setShowVideo,
+  onSeekAndPause,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
@@ -50,6 +52,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
       <ReviewChat
         videoId={currentVideo.videoId}
         onPlayClip={handlePlayClip}
+        onSeekAndPause={onSeekAndPause}
         isKeyboardVisible={isKeyboardVisible}
         selectedQuizType={selectedQuizType}
         onSelectQuizType={setSelectedQuizType}

@@ -22,7 +22,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AntDesign from "@expo/vector-icons/AntDesign";
@@ -39,8 +39,6 @@ import {
   playAudioFromStorage,
   trimSilenceFromAudio,
   playAudio,
-  playAudioSequence,
-  generateTTS,
   playAiSpeech,
   playDing,
   playDingStop,
@@ -51,7 +49,6 @@ import CountdownTimer from "./CountdownTimer";
 import {
   capitalize,
   findSentenceWithVocab,
-  getResponseForPercentage,
   isInterestingVocab,
   normalizeWord,
   splitIntoSentences,
@@ -61,18 +58,16 @@ import ShadowResults from "./ShadowResults";
 import VocabList from "../watch/VocabList";
 import TooltipModal from "../common/TooltipModal";
 import NavSwitcher from "../common/NavSwitcher";
+import ContentTabBar from "../common/ContentTabBar";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import FeaturedVocab from "../watch/FeaturedVocab";
 import Foundation from "@expo/vector-icons/Foundation";
 import FocusSentenceRequest from "./FocusSentenceRequest";
 import { persistUserSettings } from "../../requests";
-import {
-  setCachedResponses,
-  setCurrentTab,
-} from "../../store/actions/dataActions";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 import VoiceCommands from "./VoiceCommands";
+import { useCachedAudio } from "./useCachedAudio";
 import { useMultiRecording } from "../useMultiRecording";
 import { useVoiceCommand } from "../useVoiceCommand";
 import { computeSubSegments } from "../../helpers";
@@ -224,161 +219,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const cachedResponses = useSelector(
     (state: RootState) => state.cachedResponses,
-  );
-
-  const dispatch = useDispatch();
-
-  const getOrCreatePhraseRecording = useCallback(
-    async (phrase: string): Promise<string | null> => {
-      const existing = cachedResponses.find((r) => r.response_text === phrase);
-      if (existing?.recording) return existing.recording;
-
-      try {
-        const base64 = await generateTTS(phrase);
-        if (supabase) {
-          const { data } = await supabase
-            .from("cached_response")
-            .insert({ response_text: phrase, recording: base64 })
-            .select()
-            .single();
-          if (data) {
-            dispatch(setCachedResponses([...cachedResponses, data]));
-          }
-        }
-        return base64;
-      } catch (err) {
-        console.error(`Error generating TTS for "${phrase}":`, err);
-        return null;
-      }
-    },
-    [cachedResponses, supabase, dispatch],
-  );
-
-  const playCachedResponse = useCallback(
-    async (accuracy: AccuracyResult) => {
-      const responseText = getResponseForPercentage(accuracy.percentage);
-      const cached = cachedResponses.find(
-        (r) => r.response_text === responseText,
-      );
-      if (!cached?.recording) return;
-
-      const clips: string[] = [cached.recording];
-
-      // Find missed words (red in results)
-      const missedWords = accuracy.details
-        .filter((d) => !d.matched || d._matchScore === 0)
-        .map((d) => d.targetWord.toLowerCase());
-
-      // if (missedWords.length > 0) {
-      //   const missedPrefix = cachedResponses.find(
-      //     (r) => r.response_text === "You missed the word",
-      //   );
-      //   if (missedPrefix?.recording) {
-      //     clips.push(missedPrefix.recording);
-      //   }
-
-      //   const andClip = cachedResponses.find((r) => r.response_text === "and,");
-
-      //   for (let i = 0; i < missedWords.length; i++) {
-      //     if (i > 0 && andClip?.recording) {
-      //       clips.push(andClip.recording);
-      //     }
-      //     const wordRecording = await getOrCreatePhraseRecording(missedWords[i]);
-      //     if (wordRecording) {
-      //       clips.push(wordRecording);
-      //     }
-      //   }
-      // }
-
-      setIsSpeakingResponse(true);
-      await playAudioSequence(clips);
-      setIsSpeakingResponse(false);
-      startListeningRef.current();
-    },
-    [cachedResponses, getOrCreatePhraseRecording],
-  );
-
-  const playResultsReview = useCallback(
-    async (accuracy: AccuracyResult) => {
-      // 100%: just say "You got 100% correct!"
-      if (Math.round(accuracy.percentage) >= 100) {
-        const perfect = cachedResponses.find(
-          (r) => r.response_text === "You got 100% correct!",
-        );
-        if (perfect?.recording) {
-          setIsSpeakingResponse(true);
-          await playAudioSequence([perfect.recording]);
-          setIsSpeakingResponse(false);
-        }
-        return;
-      }
-
-      // Group consecutive unmatched words into phrases
-      const unmatchedPhrases: string[] = [];
-      let currentPhrase: string[] = [];
-      for (const detail of accuracy.details) {
-        if (!detail.matched || detail._matchScore === 0) {
-          currentPhrase.push(detail.targetWord);
-        } else {
-          if (currentPhrase.length > 0) {
-            unmatchedPhrases.push(currentPhrase.join(" "));
-            currentPhrase = [];
-          }
-        }
-      }
-      if (currentPhrase.length > 0) {
-        unmatchedPhrases.push(currentPhrase.join(" "));
-      }
-
-      // Find words with spelling errors
-      const misspelled = accuracy.details.filter(
-        (d) =>
-          d.matched &&
-          d._matchScore !== undefined &&
-          d._matchScore > 0 &&
-          d._matchScore < 1 &&
-          d.spokenWord &&
-          d.spokenWord.toLowerCase() !== d.targetWord.toLowerCase(),
-      );
-
-      // Build the full text to speak
-      const parts: string[] = [];
-
-      if (unmatchedPhrases.length === 1) {
-        parts.push(`Te faltó la palabra "${unmatchedPhrases[0]}"`);
-      } else if (unmatchedPhrases.length > 1) {
-        const last = `"${unmatchedPhrases[unmatchedPhrases.length - 1]}"`;
-        const rest = unmatchedPhrases
-          .slice(0, -1)
-          .map((p) => `"${p}"`)
-          .join(", ");
-        parts.push(`Te faltaron las palabras ${rest}, y ${last}`);
-      }
-
-      if (misspelled.length === 1) {
-        parts.push(
-          `Usted dijo "${misspelled[0].spokenWord}" en vez de "${misspelled[0].targetWord}"`,
-        );
-      } else if (misspelled.length > 1) {
-        const pairs = misspelled.map(
-          (d) => `"${d.spokenWord}" en vez de "${d.targetWord}"`,
-        );
-        const last = pairs[pairs.length - 1];
-        const rest = pairs.slice(0, -1).join(", ");
-        parts.push(`Usted dijo ${rest}, y ${last}`);
-      }
-
-      const fullText = parts.join(". ");
-      if (!fullText) return;
-
-      const recording = await getOrCreatePhraseRecording(fullText);
-      if (recording) {
-        setIsSpeakingResponse(true);
-        await playAudio(recording);
-        setIsSpeakingResponse(false);
-      }
-    },
-    [cachedResponses, getOrCreatePhraseRecording],
   );
 
   const calculateAccuracyFromWords = useCallback(
@@ -613,29 +453,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     submitRecording,
   ]);
 
-  // const handleTextSubmit = useCallback(() => {
-  //   if (!userAnswer.trim()) return;
-
-  //   Keyboard.dismiss();
-  //   setIsProcessing(true);
-  //   setError(null);
-
-  //   try {
-  //     const typedWords = userAnswer.trim().split(/\s+/).filter(Boolean);
-  //     const accuracy = calculateAccuracyFromWords(typedWords);
-  //     setAccuracyResult(accuracy);
-  //     if (selectedTab === "voice") playCachedResponse(accuracy);
-  //     // Save the shadow result to database
-  //     saveShadowResult(typedWords);
-  //     setUserAnswer("");
-  //   } catch (err) {
-  //     console.error("Text comparison error:", err);
-  //     setError(err instanceof Error ? err.message : "Failed to process text");
-  //   } finally {
-  //     setIsProcessing(false);
-  //   }
-  // }, [userAnswer, calculateAccuracyFromWords, saveShadowResult]);
-
   const handleResetAnswer = useCallback(() => {
     setUserAnswer("");
     Keyboard.dismiss();
@@ -684,34 +501,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await closeConnection();
       handlePlaySnippetSlow();
     },
-    // onTranslation: async () => {
-    //   setActiveCommand("translation");
-    //   await stopListening();
-    //   if (sentenceTranslation) {
-    //     const recording = await getOrCreatePhraseRecording(sentenceTranslation);
-    //     if (recording) {
-    //       setIsSpeakingResponse(true);
-    //       await playAudio(recording);
-    //       setIsSpeakingResponse(false);
-    //     }
-    //     startListeningRef.current();
-    //   }
-    // },
-    // onArtificial: async () => {
-    //   setActiveCommand("artificial");
-    //   await stopListening();
-    //   if (currentSentenceObject?.text && currentVideo) {
-    //     setIsSpeakingResponse(true);
-    //     await playAiSpeech({
-    //       segmentText: currentSentenceObject.text,
-    //       videoId: parseInt(currentVideo.recordId),
-    //       sentenceIndex: currentSentenceIndex,
-    //       supabase,
-    //     });
-    //     setIsSpeakingResponse(false);
-    //     startListeningRef.current();
-    //   }
-    // },
     onNext: async () => {
       setActiveCommand("next");
       await closeConnection();
@@ -728,17 +517,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await stopListening();
 
       if (voiceRecordingCount > 0) {
-        // Play "Fetching..." while analyzing
-        // const fetchingClip = cachedResponses.find(
-        //   (r) => r.response_text === "Fetching...",
-        // );
-        // if (fetchingClip?.recording) {
-        //   setIsSpeakingResponse(true);
-        //   playAudio(fetchingClip.recording).then(() =>
-        //     setIsSpeakingResponse(false),
-        //   );
-        // }
-
         // Silent submission: transcribe + calculate accuracy without changing UI
         setIsAnalyzingHint(true);
         const accuracy = await silentSubmit();
@@ -838,6 +616,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const startListeningRef = useRef(startListening);
   startListeningRef.current = startListening;
+
+  const { getOrCreatePhraseRecording, playCachedResponse, playResultsReview } =
+    useCachedAudio(supabase, setIsSpeakingResponse, startListeningRef);
 
   const commandHandlersRef = useRef<Record<string, (() => void) | undefined>>(
     {},
@@ -1451,43 +1232,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             </>
           )}
           {!accuracyResult && !isProcessing && (
-            <View style={styles.tabBarContainer}>
-              {!isRecordingMode && (
-                <View style={styles.tabBar}>
-                  <TouchableOpacity
-                    style={[
-                      styles.tab,
-                      selectedTab === "insights" && styles.tabActive,
-                    ]}
-                    onPress={() => setSelectedTab("insights")}
-                  >
-                    <Text
-                      style={[
-                        styles.tabText,
-                        selectedTab === "insights" && styles.tabTextActive,
-                      ]}
-                    >
-                      Insights
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.tab,
-                      selectedTab === "voice" && styles.tabActive,
-                    ]}
-                    onPress={() => setSelectedTab("voice")}
-                  >
-                    <Text
-                      style={[
-                        styles.tabText,
-                        selectedTab === "voice" && styles.tabTextActive,
-                      ]}
-                    >
-                      Voice Commands
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+            <ContentTabBar
+              tabs={[
+                { key: "insights", label: "Insights" },
+                { key: "voice", label: "Voice Commands" },
+              ]}
+              selectedTab={selectedTab}
+              onSelectTab={(key) => setSelectedTab(key as "insights" | "voice")}
+              hidden={isRecordingMode}
+            >
               <ScrollView
                 style={styles.transcriptContainer}
                 keyboardShouldPersistTaps="handled"
@@ -1566,11 +1319,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                           label: "Slowdown",
                           description: "Replay the clip in slow mode",
                         },
-                        // {
-                        //   command: "translation",
-                        //   label: "Translation",
-                        //   description: "Hear the translation",
-                        // },
                         {
                           command: "hint",
                           label: "Word Hint",
@@ -1616,7 +1364,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   )
                 )}
               </ScrollView>
-            </View>
+            </ContentTabBar>
           )}
         </View>
 
@@ -2069,39 +1817,6 @@ export const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
     lineHeight: 22,
-  },
-  tabBarContainer: { flex: 1 },
-  tabBar: {
-    flexDirection: "row",
-    paddingTop: 8,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  tab: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    backgroundColor: "#f0f0f0",
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: "transparent",
-  },
-  tabActive: {
-    backgroundColor: "#fff",
-    borderColor: "#e0e0e0",
-    borderBottomWidth: 0,
-    marginBottom: -1,
-    paddingBottom: 9,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#999",
-  },
-  tabTextActive: {
-    color: "#333",
   },
 });
 

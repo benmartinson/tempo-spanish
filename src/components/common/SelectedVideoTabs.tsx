@@ -512,7 +512,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             start: currentSentenceObject?.start,
             end: endTime,
           }}
-          autoplay={effectiveAutoplay}
+          autoplay={selectedNavTab === "shadow"}
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
           muted={false}
@@ -583,6 +583,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             onPlayClip={playClipSnippet}
             isKeyboardVisible={isKeyboardVisible}
             setShowVideo={setShowVideo}
+            onSeekAndPause={(time: number) => {
+              playerRef.current?.seekTo(time);
+              playerRef.current?.pause();
+            }}
           />
         </View>
       )}
