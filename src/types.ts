@@ -9,7 +9,7 @@ export interface UserSettings {
   estimatedHours: number | null;
 }
 
-export type VoiceCommand = "record" | "repeat" | "slow" | "translation" | "artificial" | "next" | "previous" | "hint" | "first_phrase" | "second_phrase" | "third_phrase" | "watch_mode" | "review_mode" | "shadow_mode" | "play" | "pause" | "submit" | "add_to" | "results" | null;
+export type VoiceCommand = "record" | "repeat" | "slow" | "translation" | "artificial" | "next" | "previous" | "hint" | "first_phrase" | "second_phrase" | "third_phrase" | "watch_mode" | "review_mode" | "review_previous" | "shadow_mode" | "play" | "pause" | "submit" | "add_to" | "results" | null;
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   playbackSpeed: 1,
@@ -177,6 +177,12 @@ export interface AutoReviewDetails {
   reviewSegmentId: number;
   quizType: QuizType;
   backToSegmentId: number;
+  isVoiceMode?: boolean;
+}
+
+export interface AutoShadowDetails {
+  backToSegmentId: number;
+  isVoiceMode?: boolean;
 }
 
 export interface SegmentWord {

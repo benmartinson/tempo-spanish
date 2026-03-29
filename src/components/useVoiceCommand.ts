@@ -29,6 +29,7 @@ interface UseVoiceCommandOptions {
   onSubmit?: () => void;
   onAddTo?: () => void;
   onResults?: () => void;
+  onReviewPrevious?: () => void;
   /** When true, disables the 30s inactivity timeout so listening stays on indefinitely. */
   persistentListening?: boolean;
 }
@@ -53,6 +54,7 @@ export const useVoiceCommand = ({
   onSubmit,
   onAddTo,
   onResults,
+  onReviewPrevious,
   persistentListening = false,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
@@ -83,6 +85,7 @@ export const useVoiceCommand = ({
   const onSubmitRef = useRef(onSubmit);
   const onAddToRef = useRef(onAddTo);
   const onResultsRef = useRef(onResults);
+  const onReviewPreviousRef = useRef(onReviewPrevious);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
@@ -104,6 +107,7 @@ export const useVoiceCommand = ({
     onSubmitRef.current = onSubmit;
     onAddToRef.current = onAddTo;
     onResultsRef.current = onResults;
+    onReviewPreviousRef.current = onReviewPrevious;
   }, [
     onRepeat,
     onRecord,
@@ -124,6 +128,7 @@ export const useVoiceCommand = ({
     onSubmit,
     onAddTo,
     onResults,
+    onReviewPrevious,
   ]);
 
   const resetInactivityTimeout = useCallback(() => {
@@ -206,7 +211,7 @@ export const useVoiceCommand = ({
       onWatchModeRef.current?.();
     } else if (text.includes("review")) {
       transcriptBufferRef.current = "";
-      onReviewModeRef.current?.();
+      onReviewPreviousRef.current?.();
     } else if (text.includes("first")) {
       transcriptBufferRef.current = "";
       onFirstPhraseRef.current?.();
@@ -319,6 +324,7 @@ export const useVoiceCommand = ({
             "shadow mode",
             "watch mode",
             "review mode",
+            "review previous",
             "play",
             "pause",
             "submit",
@@ -392,6 +398,7 @@ export const useVoiceCommand = ({
           "shadow mode",
           "watch mode",
           "review mode",
+          "review previous",
           "play",
           "pause",
           "submit",

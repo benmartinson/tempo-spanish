@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { AutoReviewDetails, RootState, SegmentWord } from "../../types";
+import { AutoReviewDetails, AutoShadowDetails, RootState, SegmentWord } from "../../types";
 import { loadSentenceInsights } from "../../requests";
 import {
   setSentenceByTime,
@@ -61,7 +61,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   );
   const dispatch = useDispatch();
 
-  const [backToSegmentId, setBackToSegmentId] = useState<number | null>(null);
+  const [autoShadowDetails, setAutoShadowDetails] = useState<AutoShadowDetails | null>(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -412,7 +412,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   const handleBackToShadow = useCallback(() => {
     const segmentId = autoReviewDetails?.backToSegmentId ?? null;
-    setBackToSegmentId(segmentId);
+    setAutoShadowDetails(segmentId != null ? { backToSegmentId: segmentId, isVoiceMode: true } : null);
     onSelectNavTab("shadow", null);
   }, [onSelectNavTab, autoReviewDetails]);
 
@@ -567,8 +567,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           orderedCharacters={orderedCharacters}
           sentenceTranslation={sentenceTranslation}
           onReviewSegment={handleReviewSegment}
-          backToSegmentId={backToSegmentId}
-          onBackToSegmentHandled={() => setBackToSegmentId(null)}
+          autoShadowDetails={autoShadowDetails}
+          onAutoShadowHandled={() => setAutoShadowDetails(null)}
         />
       </View>
       <View style={getTabStyle(selectedNavTab === "watch")}>

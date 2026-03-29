@@ -123,7 +123,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const [userMessages, setUserMessages] = useState<string[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const [contentTab, setContentTab] = useState<"insights" | "voice">(
-    "insights",
+    autoReviewDetails?.isVoiceMode ? "voice" : "insights",
   );
   const contentTabRef = useRef(contentTab);
   contentTabRef.current = contentTab;
@@ -515,7 +515,12 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     },
     onNext: async () => {
       setActiveCommand("next");
-      handleNext();
+      if (autoReviewDetails && onBackToShadow) {
+        await closeConnection();
+        onBackToShadow();
+      } else {
+        handleNext();
+      }
     },
     onRecord: async () => {
       setActiveCommand("record");
@@ -551,7 +556,11 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     },
     next: () => {
       setActiveCommand("next");
-      handleNext();
+      if (autoReviewDetails && onBackToShadow) {
+        onBackToShadow();
+      } else {
+        handleNext();
+      }
     },
     record: async () => {
       setActiveCommand("record");
@@ -865,7 +874,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
                     {
                       command: "next",
                       label: "Next",
-                      description: "Go to next question",
+                      description: autoReviewDetails
+                        ? "Go back to shadowing"
+                        : "Go to next question",
                     },
                   ]}
                 />

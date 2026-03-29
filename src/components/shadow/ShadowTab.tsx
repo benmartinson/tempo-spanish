@@ -30,6 +30,7 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import { useAuth } from "@clerk/clerk-expo";
 import {
   AutoReviewDetails,
+  AutoShadowDetails,
   RootState,
   SegmentWord,
   VoiceCommand,
@@ -96,8 +97,8 @@ interface ShadowTabProps {
   orderedCharacters: string[];
   sentenceTranslation: string | null;
   onReviewSegment?: (details: AutoReviewDetails) => void;
-  backToSegmentId?: number | null;
-  onBackToSegmentHandled?: () => void;
+  autoShadowDetails?: AutoShadowDetails | null;
+  onAutoShadowHandled?: () => void;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -119,21 +120,24 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   orderedCharacters,
   sentenceTranslation,
   onReviewSegment,
-  backToSegmentId,
-  onBackToSegmentHandled,
+  autoShadowDetails,
+  onAutoShadowHandled,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
   // Jump to a specific segment when returning from review
   useEffect(() => {
-    if (backToSegmentId != null && currentVideo?.sentences && onPlayClip) {
-      const sentence = currentVideo.sentences[backToSegmentId];
+    if (autoShadowDetails && currentVideo?.sentences && onPlayClip) {
+      const sentence = currentVideo.sentences[autoShadowDetails.backToSegmentId];
       if (sentence) {
         onPlayClip(sentence.start);
       }
-      onBackToSegmentHandled?.();
+      if (autoShadowDetails.isVoiceMode) {
+        setSelectedTab("voice");
+      }
+      onAutoShadowHandled?.();
     }
-  }, [backToSegmentId]);
+  }, [autoShadowDetails]);
 
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
@@ -633,6 +637,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await playResultsReview(previousResults);
       startListeningRef.current();
     },
+    onReviewPrevious: async () => {
+      setActiveCommand("review_previous");
+      await closeConnection();
+      handleReviewPreviousSegment();
+    },
   });
 
   const startListeningRef = useRef(startListening);
@@ -680,6 +689,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       if (!previousResults) return;
       setActiveCommand("results");
       playResultsReview(previousResults);
+    },
+    review_previous: () => {
+      setActiveCommand("review_previous");
+      handleReviewPreviousSegment();
     },
     hint: async () => {
       setActiveCommand("hint");
@@ -1070,8 +1083,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       reviewSegmentId,
       quizType: "Translate",
       backToSegmentId: currentSentenceIndex + 1,
+      isVoiceMode: selectedTab === "voice",
     });
-  }, [onReviewSegment, currentSentenceIndex]);
+  }, [onReviewSegment, currentSentenceIndex, selectedTab]);
 
   const handlePreviousResults = () => {
     console.log("handlePreviousResults");
@@ -1319,7 +1333,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       isAnalyzingHint={isAnalyzingHint}
                       priorityCommands={
                         previousResults
-                          ? ["results", "next"]
+                          ? ["results", "next", "review_previous"]
                           : voiceRecordingCount > 0
                             ? ["submit", "add_to", "record", "hint"]
                             : undefined
@@ -1378,6 +1392,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                                 command: "results" as const,
                                 label: "Results",
                                 description: "Hear review of missed words",
+                              },
+                              {
+                                command: "review_previous" as const,
+                                label: "Review Previous",
+                                description: "Review a previous segment",
                               },
                             ]
                           : []),
