@@ -19,6 +19,7 @@ import {
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import {
   AccuracyResult,
+  AutoReviewDetails,
   ContextSegment,
   QuizType,
   RootState,
@@ -38,6 +39,7 @@ import {
   computeSubSegments,
   stripPunctuation,
   isInterestingVocab,
+  removeSpecialPunctuation,
 } from "../../helpers";
 import Phrases from "../shadow/Phrases";
 import WordHints from "../common/WordHints";
@@ -72,20 +74,23 @@ const LANGUAGE_NAMES: Record<string, string> = {
 interface ReviewChatProps {
   videoId: string;
   onPlayClip: (start: ContextSegment) => void;
-  onSeekAndPause?: (time: number) => void;
   isKeyboardVisible: boolean;
   selectedQuizType: QuizType;
   onSelectQuizType: (type: QuizType) => void;
+  autoReviewDetails?: AutoReviewDetails | null;
+  onBackToShadow?: () => void;
 }
 
 const ReviewChat: React.FC<ReviewChatProps> = ({
   videoId,
   onPlayClip,
-  onSeekAndPause,
   isKeyboardVisible,
   selectedQuizType,
   onSelectQuizType,
+  autoReviewDetails,
+  onBackToShadow,
 }) => {
+  console.log({ autoReviewDetails });
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const sentences = currentVideo?.sentences ?? [];
   const focusVocab = currentVideo?.focusVocab;
@@ -97,7 +102,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const isVocabMode = selectedQuizType === "Vocab";
   const isPhraseMode = selectedQuizType === "Phrases";
   const isTranslateMode = selectedQuizType === "Translate";
-  console.log({ isTranslateMode });
 
   const [contextSegments, setContextSegments] = useState<ContextSegment[]>([]);
   const [userAnswer, setUserAnswer] = useState("");
@@ -209,10 +213,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     const shadowSet = new Set(shadowResultIndices);
     const all = sentences.map((s, i) => ({ sentence: s, index: i }));
 
-    const prioritized = all.filter((item) => shadowSet.has(item.index));
-    const rest = all.filter((item) => !shadowSet.has(item.index));
-
-    // Shuffle each group, then show shadow results first
     const shuffle = <T,>(arr: T[]): T[] => {
       const shuffled = [...arr];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -222,7 +222,17 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       return shuffled;
     };
 
-    const ordered = [...shuffle(prioritized), ...shuffle(rest)];
+    let ordered: typeof all;
+    if (autoReviewDetails) {
+      // Put the target segment first, then the rest in order
+      const target = all.find((item) => item.index === autoReviewDetails.reviewSegmentId);
+      const rest = all.filter((item) => item.index !== autoReviewDetails.reviewSegmentId);
+      ordered = target ? [target, ...rest] : all;
+    } else {
+      const prioritized = all.filter((item) => shadowSet.has(item.index));
+      const rest = all.filter((item) => !shadowSet.has(item.index));
+      ordered = [...shuffle(prioritized), ...shuffle(rest)];
+    }
 
     return ordered.map(({ sentence, index }) => ({
       id: index,
@@ -238,10 +248,20 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         },
       ],
     }));
-  }, [sentences, shadowResultIndices]);
+  }, [sentences, shadowResultIndices, autoReviewDetails]);
 
   const activeVocabItems =
     selectedQuizType === "Vocab" ? vocabItems : phraseItems;
+
+  // Jump to specific segment when coming from shadow tab
+  useEffect(() => {
+    if (autoReviewDetails && activeVocabItems.length > 0) {
+      const idx = activeVocabItems.findIndex(
+        (item) => item.id === autoReviewDetails.reviewSegmentId,
+      );
+      if (idx >= 0) setVocabQuestionIndex(idx);
+    }
+  }, [autoReviewDetails, activeVocabItems.length]);
 
   const currentVocabItem =
     vocabQuestionIndex !== undefined && activeVocabItems.length > 0
@@ -280,9 +300,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
               await playAudio(recording);
             }
             if (!cancelled) setIsSpeakingTranslation(false);
-          }
-          if (currentVocabItem.contextSegments?.[0]) {
-            onSeekAndPause?.(currentVocabItem.contextSegments[0].start);
           }
         }
       })
@@ -685,6 +702,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             handleNextSentence={handleVocabNext}
             handleRetry={handleRetry}
             properNouns={properNouns}
+            onBackToShadow={autoReviewDetails ? onBackToShadow : undefined}
           />
         </ScrollView>
       ) : isTranslateMode && translationLoading ? (
@@ -699,7 +717,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
               <View style={styles.questionRow}>
                 <View style={styles.questionBubbleWrap}>
                   <QuestionBubble
-                    question={displayQuestion}
+                    question={removeSpecialPunctuation(displayQuestion)}
                     label={
                       isTranslateMode
                         ? `Translate into ${LANGUAGE_NAMES[userSettings.targetLanguage] || userSettings.targetLanguage}`
@@ -754,7 +772,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
                     <Phrases
                       subSegments={currentSubSegments}
                       sentenceText={currentVocabItem.word}
-                      showPhrases={true}
+                      showPhrases={false}
                       isRecordingMode={true}
                     />
                   )}
@@ -763,7 +781,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
                       hintWords={hintWords}
                       handlePlayWordSnippet={() => {}}
                       isPlayingWordSnippet={false}
-                      showWordHints={true}
+                      showWordHints={false}
                       showSlowPlay={false}
                     />
                   )}
@@ -899,6 +917,7 @@ const styles = StyleSheet.create({
   },
   questionBubbleWrap: {
     flex: 1,
+    marginBottom: 12,
   },
   aiVoiceButton: {
     width: 40,

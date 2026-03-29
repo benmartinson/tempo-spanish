@@ -173,6 +173,12 @@ export interface Sentence {
 
 export type QuizType = "Vocab" | "Phrases" | "Translate";
 
+export interface AutoReviewDetails {
+  reviewSegmentId: number;
+  quizType: QuizType;
+  backToSegmentId: number;
+}
+
 export interface SegmentWord {
   word: string;
   start: number;

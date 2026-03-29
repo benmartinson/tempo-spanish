@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { RootState, SegmentWord } from "../../types";
+import { AutoReviewDetails, RootState, SegmentWord } from "../../types";
 import { loadSentenceInsights } from "../../requests";
 import {
   setSentenceByTime,
@@ -39,6 +39,7 @@ import SlideModal from "./SlideModal";
 
 interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";
+  onSelectNavTab: (tab: "watch" | "shadow" | "review") => void;
 }
 
 if (
@@ -50,6 +51,7 @@ if (
 
 const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   selectedNavTab,
+  onSelectNavTab,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const videoRefreshKey = useSelector(
@@ -57,6 +59,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   );
   const dispatch = useDispatch();
 
+  const [autoReviewDetails, setAutoReviewDetails] = useState<AutoReviewDetails | null>(null);
+  const [backToSegmentId, setBackToSegmentId] = useState<number | null>(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -401,6 +405,18 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     playerRef.current?.play();
   }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
+  const handleReviewSegment = useCallback((details: AutoReviewDetails) => {
+    setAutoReviewDetails(details);
+    onSelectNavTab("review");
+  }, [onSelectNavTab]);
+
+  const handleBackToShadow = useCallback(() => {
+    const segmentId = autoReviewDetails?.backToSegmentId ?? null;
+    setAutoReviewDetails(null);
+    setBackToSegmentId(segmentId);
+    onSelectNavTab("shadow");
+  }, [onSelectNavTab, autoReviewDetails]);
+
   const playSentence = useCallback(() => {
     handleTransition();
     setAutoplay(true);
@@ -551,6 +567,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           isLoadingInsights={isLoadingInsights}
           orderedCharacters={orderedCharacters}
           sentenceTranslation={sentenceTranslation}
+          onReviewSegment={handleReviewSegment}
+          backToSegmentId={backToSegmentId}
+          onBackToSegmentHandled={() => setBackToSegmentId(null)}
         />
       </View>
       <View style={getTabStyle(selectedNavTab === "watch")}>
@@ -583,10 +602,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             onPlayClip={playClipSnippet}
             isKeyboardVisible={isKeyboardVisible}
             setShowVideo={setShowVideo}
-            onSeekAndPause={(time: number) => {
-              playerRef.current?.seekTo(time);
-              playerRef.current?.pause();
-            }}
+            autoReviewDetails={autoReviewDetails}
+            onBackToShadow={handleBackToShadow}
           />
         </View>
       )}

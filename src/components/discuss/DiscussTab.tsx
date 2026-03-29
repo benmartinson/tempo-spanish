@@ -1,11 +1,7 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
-import {
-  RootState,
-  ContextSegment,
-  QuizType,
-} from "../../types";
+import { AutoReviewDetails, RootState, ContextSegment, QuizType } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import ReviewChat from "./ReviewChat";
 
@@ -13,19 +9,31 @@ interface DiscussTabProps {
   onPlayClip: (start: number, end: number) => void;
   isKeyboardVisible: boolean;
   setShowVideo: (show: boolean) => void;
-  onSeekAndPause?: (time: number) => void;
+  autoReviewDetails?: AutoReviewDetails | null;
+  onBackToShadow?: () => void;
 }
 
 const DiscussTab: React.FC<DiscussTabProps> = ({
   onPlayClip,
   isKeyboardVisible,
   setShowVideo,
-  onSeekAndPause,
+  autoReviewDetails,
+  onBackToShadow,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
   const [selectedQuizType, setSelectedQuizType] =
-    useState<QuizType>("Translate");
+    useState<QuizType>(autoReviewDetails?.quizType ?? "Translate");
+
+  useEffect(() => {
+    if (autoReviewDetails) {
+      setSelectedQuizType(autoReviewDetails.quizType);
+    }
+  }, [autoReviewDetails]);
+
+  useEffect(() => {
+    setShowVideo(selectedQuizType !== "Translate");
+  }, [selectedQuizType, currentVideo.currentSentence]);
 
   // Handle clicking a context segment timestamp
   const handlePlayClip = useCallback(
@@ -52,10 +60,11 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
       <ReviewChat
         videoId={currentVideo.videoId}
         onPlayClip={handlePlayClip}
-        onSeekAndPause={onSeekAndPause}
         isKeyboardVisible={isKeyboardVisible}
         selectedQuizType={selectedQuizType}
         onSelectQuizType={setSelectedQuizType}
+        autoReviewDetails={autoReviewDetails}
+        onBackToShadow={onBackToShadow}
       />
     </View>
   );

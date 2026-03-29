@@ -10,6 +10,8 @@ interface ShadowResultsProps {
   handleNextSentence: () => void;
   handleRetry: () => void;
   properNouns?: string[];
+  onReviewSegment?: () => void;
+  onBackToShadow?: () => void;
 }
 
 const ShadowResults: React.FC<ShadowResultsProps> = ({
@@ -17,6 +19,8 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   handleNextSentence,
   handleRetry,
   properNouns = [],
+  onReviewSegment,
+  onBackToShadow,
 }) => {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const missedWords = accuracyResult.details
@@ -133,6 +137,24 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           </TouchableOpacity>
         )}
       </View>
+      {isAccuracyGood && onReviewSegment && (
+        <TouchableOpacity
+          style={[styles.actionButton, styles.reviewButton]}
+          onPress={onReviewSegment}
+        >
+          <MaterialIcons name="rate-review" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>Review a previous Segment</Text>
+        </TouchableOpacity>
+      )}
+      {onBackToShadow && (
+        <TouchableOpacity
+          style={[styles.actionButton, styles.backToShadowButton]}
+          onPress={onBackToShadow}
+        >
+          <MaterialIcons name="arrow-back" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>Back to Shadowing</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -210,6 +232,14 @@ export const styles = StyleSheet.create({
   },
   tryAgainButton: {
     backgroundColor: "#3d3a52",
+  },
+  reviewButton: {
+    backgroundColor: "#4a69bd",
+    marginTop: 12,
+  },
+  backToShadowButton: {
+    backgroundColor: "#4a69bd",
+    marginTop: 12,
   },
   playAgainButton: {
     backgroundColor: "white",

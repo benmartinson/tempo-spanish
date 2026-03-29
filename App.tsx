@@ -264,7 +264,7 @@ const AuthenticatedApp: React.FC = () => {
   };
 
   const renderTabContent = () => {
-    return <SelectedVideoTabs selectedNavTab={selectedNavTab} />;
+    return <SelectedVideoTabs selectedNavTab={selectedNavTab} onSelectNavTab={handleNavTabSelect} />;
   };
 
   if (showTabsBelow) {

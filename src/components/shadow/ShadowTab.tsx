@@ -28,7 +28,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 
 import { useAuth } from "@clerk/clerk-expo";
-import { RootState, SegmentWord, VoiceCommand } from "../../types";
+import { AutoReviewDetails, RootState, SegmentWord, VoiceCommand } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
@@ -90,6 +90,9 @@ interface ShadowTabProps {
   isLoadingInsights: boolean;
   orderedCharacters: string[];
   sentenceTranslation: string | null;
+  onReviewSegment?: (details: AutoReviewDetails) => void;
+  backToSegmentId?: number | null;
+  onBackToSegmentHandled?: () => void;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -110,8 +113,22 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isLoadingInsights,
   orderedCharacters,
   sentenceTranslation,
+  onReviewSegment,
+  backToSegmentId,
+  onBackToSegmentHandled,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+
+  // Jump to a specific segment when returning from review
+  useEffect(() => {
+    if (backToSegmentId != null && currentVideo?.sentences && onPlayClip) {
+      const sentence = currentVideo.sentences[backToSegmentId];
+      if (sentence) {
+        onPlayClip(sentence.start);
+      }
+      onBackToSegmentHandled?.();
+    }
+  }, [backToSegmentId]);
 
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
@@ -1041,6 +1058,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setCurrentRecordingId(null);
   };
 
+  const handleReviewPreviousSegment = useCallback(() => {
+    if (!onReviewSegment) return;
+    const reviewSegmentId = currentSentenceIndex > 3 ? currentSentenceIndex - 3 : 0;
+    onReviewSegment({
+      reviewSegmentId,
+      quizType: "Translate",
+      backToSegmentId: currentSentenceIndex + 1,
+    });
+  }, [onReviewSegment, currentSentenceIndex]);
+
   const handlePreviousResults = () => {
     console.log("handlePreviousResults");
     setAccuracyResult(previousResults);
@@ -1182,6 +1209,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   handleNextSentence={handleShadowNextSentence}
                   handleRetry={handleRetry}
                   properNouns={orderedCharacters}
+                  onReviewSegment={onReviewSegment ? handleReviewPreviousSegment : undefined}
                 />
                 {nextSentenceCountdown > 0 && (
                   <View style={styles.nextSentenceCountdownRefContainer}>
