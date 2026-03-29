@@ -39,7 +39,8 @@ import SlideModal from "./SlideModal";
 
 interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";
-  onSelectNavTab: (tab: "watch" | "shadow" | "review") => void;
+  onSelectNavTab: (tab: "watch" | "shadow" | "review", reviewDetails?: AutoReviewDetails | null) => void;
+  autoReviewDetails?: AutoReviewDetails | null;
 }
 
 if (
@@ -52,6 +53,7 @@ if (
 const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   selectedNavTab,
   onSelectNavTab,
+  autoReviewDetails,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const videoRefreshKey = useSelector(
@@ -59,7 +61,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   );
   const dispatch = useDispatch();
 
-  const [autoReviewDetails, setAutoReviewDetails] = useState<AutoReviewDetails | null>(null);
   const [backToSegmentId, setBackToSegmentId] = useState<number | null>(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -406,15 +407,13 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
   const handleReviewSegment = useCallback((details: AutoReviewDetails) => {
-    setAutoReviewDetails(details);
-    onSelectNavTab("review");
+    onSelectNavTab("review", details);
   }, [onSelectNavTab]);
 
   const handleBackToShadow = useCallback(() => {
     const segmentId = autoReviewDetails?.backToSegmentId ?? null;
-    setAutoReviewDetails(null);
     setBackToSegmentId(segmentId);
-    onSelectNavTab("shadow");
+    onSelectNavTab("shadow", null);
   }, [onSelectNavTab, autoReviewDetails]);
 
   const playSentence = useCallback(() => {

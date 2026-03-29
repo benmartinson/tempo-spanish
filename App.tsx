@@ -22,7 +22,7 @@ import {
   setUserSettings,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
-import { VideoView, Vocabulary, RootState, UserUIState } from "./src/types";
+import { AutoReviewDetails, VideoView, Vocabulary, RootState, UserUIState } from "./src/types";
 import { createVocabHash } from "./src/helpers";
 import {
   fetchVideoContext,
@@ -163,6 +163,7 @@ const AuthenticatedApp: React.FC = () => {
   const [selectedNavTab, setSelectedNavTab] = useState<
     "watch" | "shadow" | "review"
   >("watch");
+  const [autoReviewDetails, setAutoReviewDetails] = useState<AutoReviewDetails | null>(null);
   const [isRestoringState, setIsRestoringState] = useState(true);
 
   // Sync currentSentence changes to the database
@@ -253,7 +254,11 @@ const AuthenticatedApp: React.FC = () => {
     }
   }, [currentVideo?.videoId, isRestoringState]);
 
-  const handleNavTabSelect = async (tab: "watch" | "shadow" | "review") => {
+  const handleNavTabSelect = async (
+    tab: "watch" | "shadow" | "review",
+    reviewDetails?: AutoReviewDetails | null,
+  ) => {
+    setAutoReviewDetails(reviewDetails ?? null);
     setSelectedNavTab(tab);
     // Also update redux current tab for consistency
     const reduxTab = tab === "review" ? "discuss" : tab;
@@ -264,7 +269,13 @@ const AuthenticatedApp: React.FC = () => {
   };
 
   const renderTabContent = () => {
-    return <SelectedVideoTabs selectedNavTab={selectedNavTab} onSelectNavTab={handleNavTabSelect} />;
+    return (
+      <SelectedVideoTabs
+        selectedNavTab={selectedNavTab}
+        onSelectNavTab={handleNavTabSelect}
+        autoReviewDetails={autoReviewDetails}
+      />
+    );
   };
 
   if (showTabsBelow) {

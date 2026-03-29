@@ -29,7 +29,10 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
 
   const isAccuracyGood = accuracyResult.percentage >= 80;
 
-  const renderSpokenWord = (detail: AccuracyResult["details"][0], index: number) => {
+  const renderSpokenWord = (
+    detail: AccuracyResult["details"][0],
+    index: number,
+  ) => {
     const isProperNoun = properNouns.some(
       (noun) => normalizeWord(noun) === normalizeWord(detail.targetWord),
     );
@@ -66,7 +69,10 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
     );
   };
 
-  const renderTargetWord = (detail: AccuracyResult["details"][0], index: number) => {
+  const renderTargetWord = (
+    detail: AccuracyResult["details"][0],
+    index: number,
+  ) => {
     const isLast = index === accuracyResult.details.length - 1;
     let targetText = removeSpecialPunctuation(detail.targetWord);
     if (isLast && targetText.endsWith(",")) {
@@ -143,7 +149,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           onPress={onReviewSegment}
         >
           <MaterialIcons name="rate-review" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Review a previous Segment</Text>
+          <Text style={styles.actionButtonText}>Review Previous Segment</Text>
         </TouchableOpacity>
       )}
       {onBackToShadow && (

@@ -28,7 +28,12 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 
 import { useAuth } from "@clerk/clerk-expo";
-import { AutoReviewDetails, RootState, SegmentWord, VoiceCommand } from "../../types";
+import {
+  AutoReviewDetails,
+  RootState,
+  SegmentWord,
+  VoiceCommand,
+} from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
@@ -529,7 +534,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       handlePreviousRef.current();
     },
     onHint: async () => {
-      console.log("here");
       setActiveCommand("hint");
       await stopListening();
 
@@ -1060,7 +1064,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleReviewPreviousSegment = useCallback(() => {
     if (!onReviewSegment) return;
-    const reviewSegmentId = currentSentenceIndex > 3 ? currentSentenceIndex - 3 : 0;
+    const reviewSegmentId =
+      currentSentenceIndex > 3 ? currentSentenceIndex - 1 : 0;
     onReviewSegment({
       reviewSegmentId,
       quizType: "Translate",
@@ -1209,7 +1214,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   handleNextSentence={handleShadowNextSentence}
                   handleRetry={handleRetry}
                   properNouns={orderedCharacters}
-                  onReviewSegment={onReviewSegment ? handleReviewPreviousSegment : undefined}
+                  onReviewSegment={
+                    onReviewSegment ? handleReviewPreviousSegment : undefined
+                  }
                 />
                 {nextSentenceCountdown > 0 && (
                   <View style={styles.nextSentenceCountdownRefContainer}>
