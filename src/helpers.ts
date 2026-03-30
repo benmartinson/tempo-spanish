@@ -741,3 +741,80 @@ const findSubSegmentBySplitWord = (
     },
   ];
 };
+
+export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
+export const CEFR_COLORS: Record<CefrLevel, string> = {
+  A1: "#2ecc71",
+  A2: "#27ae60",
+  B1: "#f39c12",
+  B2: "#e67e22",
+  C1: "#e74c3c",
+  C2: "#8e44ad",
+};
+
+export const determineCefrLevel = (
+  sentence: Sentence,
+  allVocabulary: Record<string, Vocabulary>,
+): CefrLevel => {
+  const words = sentence.words;
+  if (words.length === 0) return "A1";
+
+  // 1. Words per minute (speech rate)
+  const durationSeconds = sentence.end - sentence.start;
+  const wpm = durationSeconds > 0 ? (words.length / durationSeconds) * 60 : 0;
+
+  // 2. Vocabulary rarity - average percentile of known words
+  let totalPercentile = 0;
+  let vocabMatchCount = 0;
+  let unknownWordCount = 0;
+  for (const w of words) {
+    const key = vocabFormatWord(w.word);
+    const vocab = allVocabulary[key];
+    if (vocab) {
+      totalPercentile += vocab.percentile;
+      vocabMatchCount++;
+    } else if (key.length > 2) {
+      // Word not in vocabulary at all — likely rare/specialized
+      unknownWordCount++;
+    }
+  }
+  const avgPercentile =
+    vocabMatchCount > 0 ? totalPercentile / vocabMatchCount : 50;
+  const unknownRatio =
+    words.length > 0 ? unknownWordCount / words.length : 0;
+
+  // 3. Sentence length (word count)
+  const wordCount = words.length;
+
+  // 4. Average word length (character complexity)
+  const avgWordLength =
+    words.reduce((sum, w) => sum + w.word.length, 0) / words.length;
+
+  // Score each factor 0-100
+  // WPM: typical range 80-220 for speech
+  const wpmScore = Math.min(100, Math.max(0, ((wpm - 80) / 140) * 100));
+
+  // Percentile: 1=common, 100=rare — use directly
+  const vocabScore = avgPercentile + unknownRatio * 40;
+
+  // Word count: 1-20+ words per sentence
+  const lengthScore = Math.min(100, Math.max(0, ((wordCount - 2) / 16) * 100));
+
+  // Avg word length: typically 3-10 chars
+  const charScore = Math.min(
+    100,
+    Math.max(0, ((avgWordLength - 3) / 5) * 100),
+  );
+
+  // Weighted composite
+  const composite =
+    wpmScore * 0.25 + vocabScore * 0.4 + lengthScore * 0.2 + charScore * 0.15;
+
+  if (composite < 15) return "A1";
+  if (composite < 30) return "A2";
+  if (composite < 45) return "B1";
+  if (composite < 60) return "B2";
+  if (composite < 75) return "C1";
+  return "C2";
+};

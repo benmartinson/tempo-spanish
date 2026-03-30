@@ -79,7 +79,7 @@ interface ReviewChatProps {
   selectedQuizType: QuizType;
   onSelectQuizType: (type: QuizType) => void;
   autoReviewDetails?: AutoReviewDetails | null;
-  onBackToShadow?: () => void;
+  onBackToShadow?: (isVoiceMode) => void;
   playerIsPlaying: boolean;
 }
 
@@ -520,7 +520,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       setActiveCommand("next");
       if (autoReviewDetails && onBackToShadow) {
         await closeConnection();
-        onBackToShadow();
+        onBackToShadow(contentTab === "voice");
       } else {
         handleNext();
       }
@@ -561,7 +561,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     next: () => {
       setActiveCommand("next");
       if (autoReviewDetails && onBackToShadow) {
-        onBackToShadow();
+        onBackToShadow(contentTab === "voice");
       } else {
         handleNext();
       }
@@ -752,7 +752,11 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             handleNextSentence={handleNext}
             handleRetry={handleRetry}
             properNouns={properNouns}
-            onBackToShadow={autoReviewDetails ? onBackToShadow : undefined}
+            onBackToShadow={
+              autoReviewDetails
+                ? () => onBackToShadow(contentTab === "voice")
+                : undefined
+            }
           />
         </ScrollView>
       ) : isTranslateMode && translationLoading ? (
@@ -907,11 +911,13 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           onRecordStop={() => stopRecording()}
         />
       ) : (
-        <AnswerActions
-          onRetry={handleRetry}
-          onNext={handleNext}
-          isLastQuestion={questionIndex >= totalItems - 1}
-        />
+        !isTranslateMode && (
+          <AnswerActions
+            onRetry={handleRetry}
+            onNext={handleNext}
+            isLastQuestion={questionIndex >= totalItems - 1}
+          />
+        )
       )}
     </KeyboardAvoidingView>
   );

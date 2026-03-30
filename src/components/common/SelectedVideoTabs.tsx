@@ -17,7 +17,12 @@ import {
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { AutoReviewDetails, AutoShadowDetails, RootState, SegmentWord } from "../../types";
+import {
+  AutoReviewDetails,
+  AutoShadowDetails,
+  RootState,
+  SegmentWord,
+} from "../../types";
 import { loadSentenceInsights } from "../../requests";
 import {
   setSentenceByTime,
@@ -39,7 +44,10 @@ import SlideModal from "./SlideModal";
 
 interface SelectedVideoTabsProps {
   selectedNavTab: "watch" | "shadow" | "review";
-  onSelectNavTab: (tab: "watch" | "shadow" | "review", reviewDetails?: AutoReviewDetails | null) => void;
+  onSelectNavTab: (
+    tab: "watch" | "shadow" | "review",
+    reviewDetails?: AutoReviewDetails | null,
+  ) => void;
   autoReviewDetails?: AutoReviewDetails | null;
 }
 
@@ -61,7 +69,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   );
   const dispatch = useDispatch();
 
-  const [autoShadowDetails, setAutoShadowDetails] = useState<AutoShadowDetails | null>(null);
+  const [autoShadowDetails, setAutoShadowDetails] =
+    useState<AutoShadowDetails | null>(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -406,15 +415,23 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     playerRef.current?.play();
   }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
-  const handleReviewSegment = useCallback((details: AutoReviewDetails) => {
-    onSelectNavTab("review", details);
-  }, [onSelectNavTab]);
+  const handleReviewSegment = useCallback(
+    (details: AutoReviewDetails) => {
+      onSelectNavTab("review", details);
+    },
+    [onSelectNavTab],
+  );
 
-  const handleBackToShadow = useCallback(() => {
-    const segmentId = autoReviewDetails?.backToSegmentId ?? null;
-    setAutoShadowDetails(segmentId != null ? { backToSegmentId: segmentId, isVoiceMode: true } : null);
-    onSelectNavTab("shadow", null);
-  }, [onSelectNavTab, autoReviewDetails]);
+  const handleBackToShadow = useCallback(
+    (isVoiceMode) => {
+      const segmentId = autoReviewDetails?.backToSegmentId ?? null;
+      setAutoShadowDetails(
+        segmentId != null ? { backToSegmentId: segmentId, isVoiceMode } : null,
+      );
+      onSelectNavTab("shadow", null);
+    },
+    [onSelectNavTab, autoReviewDetails],
+  );
 
   const playSentence = useCallback(() => {
     handleTransition();

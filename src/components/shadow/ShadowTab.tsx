@@ -59,6 +59,8 @@ import {
   normalizeWord,
   splitIntoSentences,
   stripPunctuation,
+  determineCefrLevel,
+  CEFR_COLORS,
 } from "../../helpers";
 import ShadowResults from "./ShadowResults";
 import VocabList from "../watch/VocabList";
@@ -77,6 +79,7 @@ import { useCachedAudio } from "./useCachedAudio";
 import { useMultiRecording } from "../useMultiRecording";
 import { useVoiceCommand } from "../useVoiceCommand";
 import { computeSubSegments } from "../../helpers";
+import { setCurrentSentence } from "../../store/actions/dataActions";
 
 interface ShadowTabProps {
   time: number;
@@ -124,6 +127,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   onAutoShadowHandled,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
   // Jump to a specific segment when returning from review
   useEffect(() => {
@@ -132,6 +136,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         currentVideo.sentences[autoShadowDetails.backToSegmentId];
       if (sentence) {
         onPlayClip(sentence.start);
+        setCurrentSentence(sentence.index);
       }
       if (autoShadowDetails.isVoiceMode) {
         setSelectedTab("voice");
@@ -144,6 +149,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const currentSentenceObject = currentVideo
     ? { ...currentVideo.sentences[currentSentenceIndex] }
     : null;
+  // const cefrLevel = useMemo(() => {
+  //   if (!currentSentenceObject) return null;
+  //   return determineCefrLevel(currentSentenceObject, allVocabulary);
+  // }, [currentSentenceIndex, allVocabulary]);
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
@@ -300,7 +309,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         .eq("video_id", parseInt(currentVideo.recordId))
         .eq("sentence", currentSentenceIndex)
         .single();
-
       if (error || !data) return null;
       return { spokenWords: data.spoken_words, recordingId: data.recording_id };
     } catch (err) {
@@ -308,6 +316,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       return null;
     }
   }, [supabase, userId, currentVideo, currentSentenceIndex]);
+
+  useEffect(() => {
+    console.log({ previousResults });
+  }, [previousResults]);
 
   const loadExistingShadowResult = async () => {
     console.log("loadExisting");
@@ -318,7 +330,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         const accuracy = calculateAccuracyFromWords(spokenWords);
         if (selectedTab !== "voice") {
           setAccuracyResult(accuracy);
+        } else {
+          setAccuracyResult(null);
         }
+
         setPreviousResults({ ...accuracy, recordingId: result.recordingId });
         setCurrentRecordingId(result.recordingId || null);
       } else {
@@ -447,7 +462,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       const spokenWords = transcriptionResult.transcript
         .split(/\s+/)
         .filter(Boolean);
-      console.log({ spokenWords });
       return calculateAccuracyFromWords(spokenWords);
     } catch (err) {
       console.error("Silent submit error:", err);
@@ -1139,6 +1153,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           videoId={currentVideo.videoId}
           recordId={currentVideo.recordId}
         >
+          {/* {cefrLevel && (
+            <View
+              style={[
+                styles.cefrBadge,
+                { backgroundColor: CEFR_COLORS[cefrLevel] },
+              ]}
+            >
+              <Text style={styles.cefrBadgeText}>{cefrLevel}</Text>
+            </View>
+          )} */}
           <Text style={styles.segmentNavText}>
             Segment {currentSentenceIndex + 1} of{" "}
             {currentVideo.sentences.length + 1}
@@ -1640,6 +1664,16 @@ export const styles = StyleSheet.create({
   },
   segmentNavText: {
     opacity: 0.6,
+  },
+  cefrBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  cefrBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
   noVocabFoundTooltipText: {
     color: "#fff",
