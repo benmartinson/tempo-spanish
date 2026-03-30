@@ -2,11 +2,17 @@ import { useState, useCallback, useRef, useEffect } from "react";
 
 let ExpoSpeechRecognitionModule: any = null;
 let useSpeechRecognitionEvent: any = (_event: string, _handler: any) => {};
+let setAudioModeAsync: any = null;
 
 try {
   const mod = require("expo-speech-recognition");
   ExpoSpeechRecognitionModule = mod.ExpoSpeechRecognitionModule;
   useSpeechRecognitionEvent = mod.useSpeechRecognitionEvent;
+} catch {}
+
+try {
+  const audioMod = require("expo-audio");
+  setAudioModeAsync = audioMod.setAudioModeAsync;
 } catch {}
 
 interface UseVoiceCommandOptions {
@@ -30,8 +36,6 @@ interface UseVoiceCommandOptions {
   onAddTo?: () => void;
   onResults?: () => void;
   onReviewPrevious?: () => void;
-  /** When true, disables the 30s inactivity timeout so listening stays on indefinitely. */
-  persistentListening?: boolean;
 }
 
 export const useVoiceCommand = ({
@@ -55,7 +59,6 @@ export const useVoiceCommand = ({
   onAddTo,
   onResults,
   onReviewPrevious,
-  persistentListening = false,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -196,8 +199,8 @@ export const useVoiceCommand = ({
     // Track that the user spoke during this session
     lastCommandTimeRef.current = Date.now();
 
-    // Reset inactivity timeout on each result (skip in persistent mode)
-    if (!persistentListening) resetInactivityTimeout();
+    // Reset inactivity timeout on each result
+    resetInactivityTimeout();
 
     // Interim results contain the full text so far, so set (not append)
     transcriptBufferRef.current = transcript.toLowerCase();
@@ -301,13 +304,6 @@ export const useVoiceCommand = ({
           interimResults: true,
           continuous: true,
           requiresOnDeviceRecognition: true,
-          ...(persistentListening && {
-            iosCategory: {
-              category: "playAndRecord",
-              categoryOptions: ["defaultToSpeaker", "allowBluetooth", "allowBluetoothA2DP", "mixWithOthers"],
-              mode: "default",
-            },
-          }),
           contextualStrings: [
             "record",
             "translate",
@@ -330,7 +326,6 @@ export const useVoiceCommand = ({
             "submit",
             "add to",
             "results",
-
           ],
         });
       }
@@ -370,6 +365,12 @@ export const useVoiceCommand = ({
       return;
     }
 
+    // Ensure audio session allows recording — playAudio sets allowsRecording: false
+    // which prevents the speech recognizer from accessing the mic.
+    try {
+      await setAudioModeAsync?.({ allowsRecording: true });
+    } catch {}
+
     shouldRetryRef.current = true;
 
     try {
@@ -378,13 +379,6 @@ export const useVoiceCommand = ({
         interimResults: true,
         continuous: true,
         requiresOnDeviceRecognition: true,
-        ...(persistentListening && {
-          iosCategory: {
-            category: "playAndRecord",
-            categoryOptions: ["defaultToSpeaker", "allowBluetooth", "mixWithOthers"],
-            mode: "measurement",
-          },
-        }),
         contextualStrings: [
           "record",
           "translate",
@@ -408,13 +402,11 @@ export const useVoiceCommand = ({
 
       setIsListening(true);
 
-      // 60-second inactivity timeout (disabled in persistent mode)
-      if (!persistentListening) {
-        timeoutRef.current = setTimeout(async () => {
-          await cleanup();
-          setTimedOut(true);
-        }, 60000);
-      }
+      // 60-second inactivity timeout
+      timeoutRef.current = setTimeout(async () => {
+        await cleanup();
+        setTimedOut(true);
+      }, 60000);
     } catch {
       cleanupWithError();
     }
