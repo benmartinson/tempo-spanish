@@ -80,6 +80,7 @@ interface ReviewChatProps {
   onSelectQuizType: (type: QuizType) => void;
   autoReviewDetails?: AutoReviewDetails | null;
   onBackToShadow?: () => void;
+  playerIsPlaying: boolean;
 }
 
 const ReviewChat: React.FC<ReviewChatProps> = ({
@@ -90,6 +91,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   onSelectQuizType,
   autoReviewDetails,
   onBackToShadow,
+  playerIsPlaying,
 }) => {
   const dispatch = useDispatch();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -510,6 +512,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     onRepeat: async () => {
       setActiveCommand("repeat");
       if (contextSegments.length > 0) {
+        await stopListening();
         onPlayClip(contextSegments[0]);
       }
     },
@@ -548,9 +551,10 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 
   const commandHandlersRef = useRef<Record<string, () => void>>({});
   commandHandlersRef.current = {
-    repeat: () => {
+    repeat: async () => {
       setActiveCommand("repeat");
       if (contextSegments.length > 0) {
+        await stopListening();
         onPlayClip(contextSegments[0]);
       }
     },
@@ -591,11 +595,13 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     commandHandlersRef.current[command]?.();
   }, []);
 
-  // Start listening when on voice tab
+  // Start listening when on voice tab and nothing is playing
   useEffect(() => {
     if (
       contentTab === "voice" &&
       isTranslateMode &&
+      !playerIsPlaying &&
+      !isSpeakingTranslation &&
       !isRecording &&
       !isProcessingAudio &&
       !accuracyResult
@@ -605,6 +611,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   }, [
     contentTab,
     isTranslateMode,
+    playerIsPlaying,
+    isSpeakingTranslation,
     isRecording,
     isProcessingAudio,
     accuracyResult,
@@ -843,7 +851,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
               ) : (
                 <VoiceCommands
                   isListening={isListening}
-                  isClipPlaying={isSpeakingTranslation}
+                  isClipPlaying={isSpeakingTranslation || playerIsPlaying}
                   activeCommand={activeCommand}
                   hasError={voiceCommandError}
                   timedOut={voiceCommandTimedOut}

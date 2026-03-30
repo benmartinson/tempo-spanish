@@ -128,7 +128,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Jump to a specific segment when returning from review
   useEffect(() => {
     if (autoShadowDetails && currentVideo?.sentences && onPlayClip) {
-      const sentence = currentVideo.sentences[autoShadowDetails.backToSegmentId];
+      const sentence =
+        currentVideo.sentences[autoShadowDetails.backToSegmentId];
       if (sentence) {
         onPlayClip(sentence.start);
       }
@@ -1078,7 +1079,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handleReviewPreviousSegment = useCallback(() => {
     if (!onReviewSegment) return;
     const reviewSegmentId =
-      currentSentenceIndex > 3 ? currentSentenceIndex - 1 : 0;
+      currentSentenceIndex > 3 ? currentSentenceIndex - 2 : 0;
     onReviewSegment({
       reviewSegmentId,
       quizType: "Translate",

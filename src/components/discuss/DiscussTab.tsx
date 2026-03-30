@@ -11,6 +11,7 @@ interface DiscussTabProps {
   setShowVideo: (show: boolean) => void;
   autoReviewDetails?: AutoReviewDetails | null;
   onBackToShadow?: () => void;
+  playerIsPlaying: boolean;
 }
 
 const DiscussTab: React.FC<DiscussTabProps> = ({
@@ -19,6 +20,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
   setShowVideo,
   autoReviewDetails,
   onBackToShadow,
+  playerIsPlaying,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
@@ -65,6 +67,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
         onSelectQuizType={setSelectedQuizType}
         autoReviewDetails={autoReviewDetails}
         onBackToShadow={onBackToShadow}
+        playerIsPlaying={playerIsPlaying}
       />
     </View>
   );

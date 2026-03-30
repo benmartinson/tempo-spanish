@@ -603,6 +603,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             setShowVideo={setShowVideo}
             autoReviewDetails={autoReviewDetails}
             onBackToShadow={handleBackToShadow}
+            playerIsPlaying={playerIsPlaying}
           />
         </View>
       )}
