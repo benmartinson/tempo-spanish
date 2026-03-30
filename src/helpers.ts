@@ -102,6 +102,10 @@ export const ignoreVocab = [
   "todos",
 ];
 
+export const addEllipsis = (text: string) => {
+  return text.endsWith(",") ? text.slice(0, -1) + "..." : text;
+};
+
 export const capitalize = (word: string) => {
   return word.charAt(0).toUpperCase() + word.slice(1);
 };
@@ -571,25 +575,30 @@ export const selectGuidedVocab = (
   return [...focusWords, ...poolWords.slice(0, remaining)];
 };
 
-export const removeSpecialPunctuation = (word: string) => {
-  if (word.endsWith("...,") || word.endsWith(",...")) {
-    return word.slice(0, -4);
-  }
-  if (word.startsWith("...")) {
-    return word.slice(3);
-  }
-  if (word.endsWith("...")) {
-    return word.slice(0, -3);
-  }
-  if (
-    word.endsWith(".,") ||
-    word.endsWith(",.") ||
-    word.endsWith("!,") ||
-    word.endsWith("?,")
-  ) {
-    return word.slice(0, -1);
-  }
-  return word;
+export const removeSpecialPunctuation = (text: string) => {
+  return text
+    .split(" ")
+    .map((word) => {
+      if (word.endsWith("...,") || word.endsWith(",...")) {
+        return word.slice(0, -4);
+      }
+      if (word.startsWith("...")) {
+        return word.slice(3);
+      }
+      if (word.endsWith("...")) {
+        return word.slice(0, -3);
+      }
+      if (
+        word.endsWith(".,") ||
+        word.endsWith(",.") ||
+        word.endsWith("!,") ||
+        word.endsWith("?,")
+      ) {
+        return word.slice(0, -1);
+      }
+      return word;
+    })
+    .join(" ");
 };
 
 export interface SubSegment {
@@ -781,8 +790,7 @@ export const determineCefrLevel = (
   }
   const avgPercentile =
     vocabMatchCount > 0 ? totalPercentile / vocabMatchCount : 50;
-  const unknownRatio =
-    words.length > 0 ? unknownWordCount / words.length : 0;
+  const unknownRatio = words.length > 0 ? unknownWordCount / words.length : 0;
 
   // 3. Sentence length (word count)
   const wordCount = words.length;
@@ -802,10 +810,7 @@ export const determineCefrLevel = (
   const lengthScore = Math.min(100, Math.max(0, ((wordCount - 2) / 16) * 100));
 
   // Avg word length: typically 3-10 chars
-  const charScore = Math.min(
-    100,
-    Math.max(0, ((avgWordLength - 3) / 5) * 100),
-  );
+  const charScore = Math.min(100, Math.max(0, ((avgWordLength - 3) / 5) * 100));
 
   // Weighted composite
   const composite =

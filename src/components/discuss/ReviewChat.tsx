@@ -459,6 +459,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   });
 
   const handleResetAnswer = () => {
+    if (isRecording) {
+      stopRecording(true);
+    }
     setUserAnswer("");
     setVocabEvaluation(null);
     setAnswered(false);

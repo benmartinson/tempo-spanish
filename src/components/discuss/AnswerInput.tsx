@@ -48,19 +48,25 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
       <TouchableOpacity
         style={[
           styles.trashButton,
-          { backgroundColor: isKeyboardVisible ? "white" : "#f0f0f0" },
+          {
+            backgroundColor:
+              isKeyboardVisible || isRecording ? "white" : "#f0f0f0",
+          },
         ]}
         onPress={onClear}
       >
         <FontAwesome
           name="trash-o"
           size={22}
-          color={isKeyboardVisible ? "red" : "#aaa"}
+          color={isKeyboardVisible || isRecording ? "red" : "#aaa"}
         />
       </TouchableOpacity>
       {showRecordButton && (
         <TouchableOpacity
-          style={[styles.recordButton, isRecording && styles.recordButtonActive]}
+          style={[
+            styles.recordButton,
+            isRecording && styles.recordButtonActive,
+          ]}
           onPress={isRecording ? onRecordStop : onRecordStart}
         >
           <MaterialIcons
@@ -71,14 +77,17 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
         </TouchableOpacity>
       )}
       <TouchableOpacity
-        style={[styles.sendButton, (!trimmedValue || isRecording) && styles.sendButtonDisabled]}
-        onPress={onSubmit}
-        disabled={!trimmedValue || isRecording}
+        style={[
+          styles.sendButton,
+          !isRecording && !trimmedValue && styles.sendButtonDisabled,
+        ]}
+        onPress={isRecording ? onRecordStop : onSubmit}
+        disabled={!isRecording && !trimmedValue}
       >
         <MaterialIcons
           name="send"
           size={22}
-          color={trimmedValue && !isRecording ? "#fff" : "#aaa"}
+          color={trimmedValue || isRecording ? "white" : "#aaa"}
         />
       </TouchableOpacity>
     </View>

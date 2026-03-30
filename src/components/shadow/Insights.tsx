@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { SegmentWord } from "../../types";
-import { SubSegment } from "../../helpers";
+import {
+  addEllipsis,
+  removeSpecialPunctuation,
+  SubSegment,
+} from "../../helpers";
 import WordHints from "../common/WordHints";
 import ToggleHeader from "../common/ToggleHeader";
 import Phrases from "./Phrases";
@@ -96,7 +100,9 @@ const Insights: React.FC<InsightsProps> = ({
       </View>
       {isShowingTranscript && (
         <View style={styles.notesList}>
-          <Text style={styles.transcriptText}>{sentenceText}</Text>
+          <Text style={styles.transcriptText}>
+            {addEllipsis(removeSpecialPunctuation(sentenceText))}
+          </Text>
         </View>
       )}
       <WordHints

@@ -1519,7 +1519,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   styles.sendButtonDisabled,
               ]}
               onPress={() => {
-                handleSubmitRecording();
+                if (isRecording) {
+                  handleSubmitRecording();
+                  return;
+                }
+                if (voiceRecordingCount > 0) {
+                  handleVoiceSubmit();
+                }
               }}
               disabled={voiceRecordingCount === 0 && !isRecording}
             >

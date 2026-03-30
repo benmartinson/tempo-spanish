@@ -100,16 +100,19 @@ export const playAudio = async (audioBase64: string) => {
     sound.play();
     // Resolve when finished, and clean up
     return new Promise<void>((resolve) => {
-      const subscription = sound.addListener("playbackStatusUpdate", (status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.remove();
-          subscription.remove();
-          if (currentPlayingSound === sound) {
-            currentPlayingSound = null;
+      const subscription = sound.addListener(
+        "playbackStatusUpdate",
+        (status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            sound.remove();
+            subscription.remove();
+            if (currentPlayingSound === sound) {
+              currentPlayingSound = null;
+            }
+            resolve();
           }
-          resolve();
-        }
-      });
+        },
+      );
     });
   } catch (err) {
     console.error("Error playing audio:", err);
@@ -915,10 +918,10 @@ export const calculateAccuracy = (
   if (targetWords.length === 0) {
     return { percentage: 100, matchedWords: 0, totalWords: 0, details: [] };
   }
-  console.log({ targetWords, spokenWords });
 
   const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
   const normalizedProperNouns = properNouns.map((n) => normalize(n));
+  console.log({ normalizedSpoken });
 
   // Build initial details, auto-match proper nouns
   const details: AccuracyResult["details"] = [];
@@ -928,6 +931,7 @@ export const calculateAccuracy = (
 
   for (const targetWord of targetWords) {
     const nt = normalize(targetWord);
+    console.log({ nt });
     if (!nt) continue;
     normalizedTargets.push(nt);
 
