@@ -11,7 +11,7 @@ import { RootState, SegmentWord } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import TooltipModal from "../common/TooltipModal";
 import { useSelector } from "react-redux";
-import { vocabFormatWord } from "../../helpers";
+import { vocabFormatWord } from "../../helpers/helpers";
 
 interface FullSegmentTranscriptBubbleProps {
   words?: SegmentWord[];

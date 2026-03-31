@@ -14,7 +14,7 @@ import {
   normalizeWord,
   stripPunctuation,
   vocabFormatWord,
-} from "../../helpers";
+} from "../../helpers/helpers";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../types";
 import {

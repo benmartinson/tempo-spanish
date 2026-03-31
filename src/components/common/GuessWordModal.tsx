@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
 import { MaterialIcons } from "@expo/vector-icons";
-import { capitalize } from "../../helpers";
+import { capitalize } from "../../helpers/helpers";
 import { evaluateVocabAnswer } from "../../requests";
 import SlideModal from "./SlideModal";
 

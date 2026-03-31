@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { RootState, Vocabulary } from "../../types";
 import { addUserKnownVocab } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { selectGuidedVocab } from "../../helpers";
+import { selectGuidedVocab } from "../../helpers/helpers";
 import VocabClips from "./VocabClips";
 import SelectVocabFilterModal from "./SelectVocabFilterModal";
 
@@ -36,7 +36,9 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
   const { userId } = useAuth();
   const supabase = useSupabaseWithClerk();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [percentileRange, setPercentileRange] = useState<[number, number]>([1, 3]);
+  const [percentileRange, setPercentileRange] = useState<[number, number]>([
+    1, 3,
+  ]);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const userKnownVocab = useSelector(
     (state: RootState) => state.userKnownVocab,
@@ -211,11 +213,7 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
             style={styles.headerButton}
             onPress={() => setIsFilterOpen(true)}
           >
-            <Ionicons
-              name="options-outline"
-              size={22}
-              color="#4a69bd"
-            />
+            <Ionicons name="options-outline" size={22} color="#4a69bd" />
           </TouchableOpacity>
         )}
       </View>

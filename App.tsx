@@ -22,8 +22,14 @@ import {
   setUserSettings,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
-import { AutoReviewDetails, VideoView, Vocabulary, RootState, UserUIState } from "./src/types";
-import { createVocabHash } from "./src/helpers";
+import {
+  AutoReviewDetails,
+  VideoView,
+  Vocabulary,
+  RootState,
+  UserUIState,
+} from "./src/types";
+import { createVocabHash } from "./src/helpers/helpers";
 import {
   fetchVideoContext,
   fetchAllVideos,
@@ -163,7 +169,8 @@ const AuthenticatedApp: React.FC = () => {
   const [selectedNavTab, setSelectedNavTab] = useState<
     "watch" | "shadow" | "review"
   >("watch");
-  const [autoReviewDetails, setAutoReviewDetails] = useState<AutoReviewDetails | null>(null);
+  const [autoReviewDetails, setAutoReviewDetails] =
+    useState<AutoReviewDetails | null>(null);
   const [isRestoringState, setIsRestoringState] = useState(true);
 
   // Sync currentSentence changes to the database

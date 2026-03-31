@@ -9,7 +9,7 @@ import {
   ImageStyle,
 } from "react-native";
 import { Channel, Video } from "../../types";
-import { formatTimestamp } from "../../helpers";
+import { formatTimestamp } from "../../helpers/helpers";
 
 const VideoCard: React.FC<{
   video: Video;

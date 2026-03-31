@@ -5,7 +5,7 @@ import {
   getRecordingConfig,
   setAudioModeForRecording,
   concatenateWavFiles,
-} from "./streaming_helpers";
+} from "../helpers/streaming_helpers";
 
 const MAX_PHRASE_RECORDING_MS = 30000;
 

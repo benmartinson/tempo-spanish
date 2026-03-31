@@ -1,13 +1,11 @@
 import React from "react";
 import { StyleSheet, View, Text, ActivityIndicator } from "react-native";
-import {
-  VocabEvaluation,
-} from "../../types";
+import { VocabEvaluation } from "../../types";
 import {
   VOCAB_SCORE_COLORS,
   VOCAB_SCORE_BG_COLORS,
   VOCAB_SCORE_LABELS,
-} from "../../helpers";
+} from "../../helpers/helpers";
 
 interface EvaluatingBubbleProps {
   isEvaluating: boolean;

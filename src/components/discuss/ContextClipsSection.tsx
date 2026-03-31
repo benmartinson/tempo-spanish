@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ContextSegment } from "../../types";
-import { formatTimestamp } from "../../helpers";
+import { formatTimestamp } from "../../helpers/helpers";
 import ToggleHeader from "../common/ToggleHeader";
 
 interface ContextClipsSectionProps {

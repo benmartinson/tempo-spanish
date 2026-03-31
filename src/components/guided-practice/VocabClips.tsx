@@ -14,7 +14,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import YouTubePlayer, { YouTubePlayerHandle } from "../common/YouTubePlayer";
 import SelectedVideoBanner from "../common/SelectedVideoBanner";
 import PlayerControls from "../shadow/PlayerControls";
-import { capitalize } from "../../helpers";
+import { capitalize } from "../../helpers/helpers";
 import { fetchVideoContext } from "../../requests";
 import GuessWordModal from "../common/GuessWordModal";
 import {

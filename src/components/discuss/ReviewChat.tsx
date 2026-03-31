@@ -42,7 +42,7 @@ import {
   isInterestingVocab,
   removeSpecialPunctuation,
   addEllipsis,
-} from "../../helpers";
+} from "../../helpers/helpers";
 import Phrases from "../shadow/Phrases";
 import WordHints from "../common/WordHints";
 import { evaluateVocabAnswer, loadSentenceInsights } from "../../requests";
@@ -59,13 +59,13 @@ import { useRecording } from "../useRecording";
 import { useVoiceCommand } from "../useVoiceCommand";
 import {
   sendAudioForTranscription,
-  calculateAccuracy,
   playAiSpeech,
   playAudio,
-} from "../streaming_helpers";
+} from "../../helpers/streaming_helpers";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useCachedAudio } from "../shadow/useCachedAudio";
 import { useAuth } from "@clerk/clerk-expo";
+import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 
 const LANGUAGE_NAMES: Record<string, string> = {
   es: "Spanish",
@@ -301,7 +301,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setTranslationLoading(true);
     setTranslationText(null);
 
-    console.log({ questionIndex });
     loadSentenceInsights({
       supabase,
       sentenceText: currentVocabItem.word,

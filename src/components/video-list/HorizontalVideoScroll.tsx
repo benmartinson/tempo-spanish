@@ -6,7 +6,7 @@ import {
   View,
 } from "react-native";
 import { Video } from "../../types";
-import { formatTimestamp } from "../../helpers";
+import { formatTimestamp } from "../../helpers/helpers";
 import VideoCard from "./VideoCard";
 
 const MAX_VISIBLE = 10;
@@ -17,7 +17,13 @@ const HorizontalVideoScroll: React.FC<{
   loadingVideo: boolean;
   showClips?: boolean;
   onViewAll?: () => void;
-}> = ({ videos, handleWatchPress, loadingVideo, showClips = false, onViewAll }) => {
+}> = ({
+  videos,
+  handleWatchPress,
+  loadingVideo,
+  showClips = false,
+  onViewAll,
+}) => {
   const displayedVideos = videos.slice(0, MAX_VISIBLE);
   const hasMore = videos.length > MAX_VISIBLE;
 

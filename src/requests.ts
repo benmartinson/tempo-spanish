@@ -1,7 +1,4 @@
-import {
-  BACKEND_BASE_URL,
-  generateTTS,
-} from "./components/streaming_helpers";
+import { BACKEND_BASE_URL, generateTTS } from "./helpers/streaming_helpers";
 import {
   CachedResponse,
   ContextSegment,
@@ -14,7 +11,7 @@ import {
   UserSettings,
   DEFAULT_USER_SETTINGS,
 } from "./types";
-import { cachedResponses, splitSegmentsIntoSentences } from "./helpers";
+import { cachedResponses, splitSegmentsIntoSentences } from "./helpers/helpers";
 import { setCachedResponses } from "./store/actions/dataActions";
 
 export interface FetchVideoContextParams {
@@ -222,7 +219,12 @@ export const loadSentenceInsights = async ({
     .eq("sentence_index", sentenceIndex)
     .maybeSingle()) as { data: any; error: any };
 
-  if (!cacheError && cached && cached.proper_nouns && cached[translationColumn]) {
+  if (
+    !cacheError &&
+    cached &&
+    cached.proper_nouns &&
+    cached[translationColumn]
+  ) {
     return {
       properNouns: cached.proper_nouns,
       translation: cached[translationColumn],
@@ -652,16 +654,11 @@ export const loadAndCacheTTSResponses = async ({
           continue;
         }
 
-        const idx = results.findIndex(
-          (r) => r.response_text === responseText,
-        );
+        const idx = results.findIndex((r) => r.response_text === responseText);
         if (idx >= 0) results[idx] = data;
         else results.push(data);
       } catch (err) {
-        console.error(
-          `Error generating TTS for "${responseText}":`,
-          err,
-        );
+        console.error(`Error generating TTS for "${responseText}":`, err);
       }
     }
   }

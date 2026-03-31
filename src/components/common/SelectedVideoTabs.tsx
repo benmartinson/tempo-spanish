@@ -39,7 +39,7 @@ import {
   normalizeWord,
   stripPunctuation,
   vocabFormatWord,
-} from "../../helpers";
+} from "../../helpers/helpers";
 import SlideModal from "./SlideModal";
 
 interface SelectedVideoTabsProps {

@@ -1,7 +1,13 @@
-import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
-import { BACKEND_BASE_URL } from './streaming_helpers';
-import { ChatMessage } from './ChatBubble';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
+import { StyleSheet, View, Text } from "react-native";
+import { BACKEND_BASE_URL } from "../helpers/streaming_helpers";
+import { ChatMessage } from "./ChatBubble";
 
 const SUGGESTION_DELAY_MS = 2000;
 
@@ -22,12 +28,12 @@ export interface SuggestionBoxRef {
  */
 export const SuggestionBox = forwardRef<SuggestionBoxRef, SuggestionBoxProps>(
   ({ transcript, interimTranscript, messages, isRecording }, ref) => {
-    const [suggestion, setSuggestion] = useState<string>('');
+    const [suggestion, setSuggestion] = useState<string>("");
     const [isLoading, setIsLoading] = useState(false);
 
     const pauseTimerRef = useRef<NodeJS.Timeout | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-    const lastTranscriptRef = useRef<string>('');
+    const lastTranscriptRef = useRef<string>("");
     const messagesRef = useRef<ChatMessage[]>(messages);
 
     // Keep messagesRef in sync with props
@@ -40,7 +46,7 @@ export const SuggestionBox = forwardRef<SuggestionBoxRef, SuggestionBoxProps>(
       stop: () => {
         clearPauseTimer();
         abortRequest();
-        setSuggestion('');
+        setSuggestion("");
         setIsLoading(false);
       },
     }));
@@ -72,9 +78,9 @@ export const SuggestionBox = forwardRef<SuggestionBoxRef, SuggestionBoxProps>(
 
       try {
         const response = await fetch(`${BACKEND_BASE_URL}/suggestion`, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             partial_transcript: currentTranscript,
@@ -84,7 +90,7 @@ export const SuggestionBox = forwardRef<SuggestionBoxRef, SuggestionBoxProps>(
         });
 
         if (!response.ok) {
-          throw new Error('Failed to get suggestion');
+          throw new Error("Failed to get suggestion");
         }
 
         const data = await response.json();
@@ -98,8 +104,8 @@ export const SuggestionBox = forwardRef<SuggestionBoxRef, SuggestionBoxProps>(
         }
       } catch (err: any) {
         // Ignore abort errors
-        if (err.name !== 'AbortError') {
-          console.error('Error fetching suggestion:', err);
+        if (err.name !== "AbortError") {
+          console.error("Error fetching suggestion:", err);
         }
       } finally {
         setIsLoading(false);
@@ -119,8 +125,9 @@ export const SuggestionBox = forwardRef<SuggestionBoxRef, SuggestionBoxProps>(
     useEffect(() => {
       if (!isRecording) return;
 
-      const combinedTranscript = transcript + (interimTranscript ? ' ' + interimTranscript : '');
-      
+      const combinedTranscript =
+        transcript + (interimTranscript ? " " + interimTranscript : "");
+
       // Only reset timer if transcript actually changed
       if (combinedTranscript !== lastTranscriptRef.current) {
         lastTranscriptRef.current = combinedTranscript;
@@ -145,9 +152,9 @@ export const SuggestionBox = forwardRef<SuggestionBoxRef, SuggestionBoxProps>(
       if (!isRecording) {
         clearPauseTimer();
         abortRequest();
-        setSuggestion('');
+        setSuggestion("");
         setIsLoading(false);
-        lastTranscriptRef.current = '';
+        lastTranscriptRef.current = "";
       }
     }, [isRecording]);
 
@@ -159,40 +166,42 @@ export const SuggestionBox = forwardRef<SuggestionBoxRef, SuggestionBoxProps>(
         ) : suggestion ? (
           <Text style={styles.suggestionText}>{suggestion}</Text>
         ) : (
-          <Text style={styles.placeholderText}>Pause speaking for a suggestion...</Text>
+          <Text style={styles.placeholderText}>
+            Pause speaking for a suggestion...
+          </Text>
         )}
       </View>
     );
-  }
+  },
 );
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2d4a3e',
+    backgroundColor: "#2d4a3e",
     borderRadius: 16,
     padding: 16,
   },
   sectionLabel: {
     fontSize: 12,
-    color: '#888',
+    color: "#888",
     marginBottom: 8,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
   },
   suggestionText: {
     fontSize: 18,
-    color: '#7dd3a8',
-    fontStyle: 'italic',
+    color: "#7dd3a8",
+    fontStyle: "italic",
   },
   loadingText: {
     fontSize: 16,
-    color: '#5a9a7d',
-    fontStyle: 'italic',
+    color: "#5a9a7d",
+    fontStyle: "italic",
   },
   placeholderText: {
     fontSize: 16,
-    color: '#4a6a5e',
-    fontStyle: 'italic',
+    color: "#4a6a5e",
+    fontStyle: "italic",
   },
 });

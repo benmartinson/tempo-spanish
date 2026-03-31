@@ -18,7 +18,7 @@ import {
   normalizeWord,
   ignoreVocab,
   autoSelectVocabForVideo,
-} from "../../helpers";
+} from "../../helpers/helpers";
 import TooltipModal from "../common/TooltipModal";
 import WordHints from "../common/WordHints";
 import ToggleHeader from "../common/ToggleHeader";

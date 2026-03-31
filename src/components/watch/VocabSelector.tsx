@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Vocabulary } from "../../types";
-import { capitalize } from "../../helpers";
+import { capitalize } from "../../helpers/helpers";
 
 interface VocabSelectorProps {
   vocab: Vocabulary[];

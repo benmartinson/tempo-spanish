@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { playAiSpeech } from "../streaming_helpers";
+import { playAiSpeech } from "../../helpers/streaming_helpers";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 
 interface PlayerControlsProps {

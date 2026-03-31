@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { SubSegment, stripPunctuation } from "../../helpers";
+import { SubSegment, stripPunctuation } from "../../helpers/helpers";
 import ToggleHeader from "../common/ToggleHeader";
 
 interface PhrasesProps {

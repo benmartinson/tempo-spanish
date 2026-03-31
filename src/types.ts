@@ -9,7 +9,29 @@ export interface UserSettings {
   estimatedHours: number | null;
 }
 
-export type VoiceCommand = "record" | "repeat" | "slow" | "translation" | "artificial" | "next" | "previous" | "hint" | "hear" | "first_phrase" | "second_phrase" | "third_phrase" | "watch_mode" | "review_mode" | "review_previous" | "shadow_mode" | "play" | "pause" | "submit" | "add_to" | "results" | null;
+export type VoiceCommand =
+  | "record"
+  | "repeat"
+  | "slow"
+  | "translation"
+  | "artificial"
+  | "next"
+  | "previous"
+  | "hint"
+  | "hear"
+  | "first_phrase"
+  | "second_phrase"
+  | "third_phrase"
+  | "watch_mode"
+  | "review_mode"
+  | "review_previous"
+  | "shadow_mode"
+  | "play"
+  | "pause"
+  | "submit"
+  | "add_to"
+  | "results"
+  | null;
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   playbackSpeed: 1,
@@ -244,6 +266,14 @@ export interface TranscriptionResponse {
 /**
  * Accuracy calculation result
  */
+export interface AccuracyDetail {
+  targetWord: string;
+  spokenWord?: string;
+  matched: boolean;
+  isProperNoun: boolean;
+  _matchScore?: number;
+  _spokenIndex?: number;
+}
 export interface AccuracyResult {
   percentage: number;
   matchedWords: number;
@@ -256,7 +286,7 @@ export interface AccuracyResult {
     _spokenIndex?: number;
     _matchScore?: number;
   }[];
-  targetSentence: string;
+  targetSentence?: string;
 }
 
 export interface TranscriptWord {

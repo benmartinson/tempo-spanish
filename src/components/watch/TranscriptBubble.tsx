@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
 import { RootState, SegmentWord } from "../../types";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
-import { stripPunctuation, vocabFormatWord } from "../../helpers";
+import { stripPunctuation, vocabFormatWord } from "../../helpers/helpers";
 
 interface TranscriptBubbleProps {
   words: SegmentWord[];

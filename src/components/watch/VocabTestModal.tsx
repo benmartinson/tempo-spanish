@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import SlideModal from "../common/SlideModal";
 import { Vocabulary } from "../../types";
-import { normalizeWord } from "../../helpers";
+import { normalizeWord } from "../../helpers/helpers";
 
 interface VocabTestModalProps {
   visible: boolean;

@@ -9,7 +9,7 @@ import {
   setIsSearching,
   setHasSearched,
 } from "../../store/actions/dataActions";
-import { stripDiacritics } from "../../helpers";
+import { stripDiacritics } from "../../helpers/helpers";
 
 const WordSearch: React.FC = () => {
   const currentSearchTerm = useSelector(

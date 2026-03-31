@@ -3,7 +3,7 @@ import { AccuracyResult } from "../../types";
 import { MaterialIcons } from "@expo/vector-icons";
 import TooltipModal from "../common/TooltipModal";
 import { useState } from "react";
-import { normalizeWord, removeSpecialPunctuation } from "../../helpers";
+import { normalizeWord, removeSpecialPunctuation } from "../../helpers/helpers";
 
 interface ShadowResultsProps {
   accuracyResult: AccuracyResult;
@@ -102,7 +102,6 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       )
       .join(" ");
   };
-  console.log({ onBackToShadow: Boolean(onBackToShadow) });
 
   return (
     <View style={styles.resultsContainer}>

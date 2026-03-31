@@ -9,7 +9,7 @@ import {
   getRecordingConfig,
   requestMicrophonePermission,
   setAudioModeForRecording,
-} from "./streaming_helpers";
+} from "../helpers/streaming_helpers";
 
 const SILENCE_THRESHOLD = -20; // dB — below this is considered silence
 const SILENCE_DURATION = 5000; // ms of silence before auto-stop

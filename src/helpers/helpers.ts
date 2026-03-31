@@ -5,7 +5,9 @@ import {
   VideoContext,
   Vocabulary,
   ContextSegment,
-} from "./types";
+  AccuracyResult,
+} from "../types";
+import { levenshtein } from "./calculate_accuracy";
 
 export const formatTimestamp = (seconds: number): string => {
   const hrs = Math.floor(seconds / 3600);
@@ -141,64 +143,6 @@ export const randomlySelectVocabFromVocabulary = (
     .sort(() => Math.random() - 0.5)
     .slice(0, count);
 };
-
-// export const findTimesForVocab = (
-//   allWords: SegmentWord[],
-//   currentVideo: VideoContext,
-// ): SegmentWord[] => {
-//   const wordTimes = [];
-//   if (!currentVideo || !currentVideo.segments) return [];
-//   const vocab: SegmentWord[] = currentVideo?.focusVocab || [];
-//   const lastPossibleTime =
-//     currentVideo?.segments[currentVideo?.segments.length - 1].end;
-//   for (const word of vocab) {
-//     const normalizedWord = normalizeWord(word.word);
-//     const currentWordTimes = allWords
-//       .filter((w) => normalizeWord(w.word) === normalizedWord)
-//       .filter((w) => w.start < lastPossibleTime)
-//       .map((w) => ({
-//         ...w,
-//         word: normalizeWord(word.word),
-//         translation: normalizeWord(word.translation),
-//       }));
-//     wordTimes.push(...currentWordTimes);
-//   }
-//   return wordTimes.sort((a, b) => a.start - b.start);
-// };
-
-// export const findNextSegmentWithVocab = (
-//   focusVocab: SegmentWord[],
-//   word: SegmentWord,
-//   segments: Segment[],
-//   currentSegment: number,
-// ): [Segment, SegmentWord] => {
-//   const nextSegmentStart = segments[currentSegment + 1].start;
-//   // console.log({
-//   //   focusVocabTimes: focusVocabTimes.map((v) => {
-//   //     return { word: normalizeWord(v.word), start: v.start, end: v.end };
-//   //   }),
-//   //   nextSegmentStart,
-//   //   normalizeWord: normalizeWord(word.word),
-//   // });
-//   const nextFocusVocabTime = focusVocab.find(
-//     (v) =>
-//       normalizeWord(word.word) === normalizeWord(v.word) &&
-//       v.start >= nextSegmentStart,
-//   );
-//   if (!nextFocusVocabTime) {
-//     return [null, null];
-//   }
-//   for (let i = currentSegment + 1; i < segments.length; i++) {
-//     const segment = segments[i];
-//     if (
-//       nextFocusVocabTime.start >= segment.start &&
-//       nextFocusVocabTime.start <= segment.end
-//     ) {
-//       return [segment, nextFocusVocabTime];
-//     }
-//   }
-//   return [null, null];
-// };
 
 // Helper function to split words into sentences based on punctuation
 export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
@@ -390,6 +334,95 @@ export const createVocabHash = (
     },
     {} as Record<string, Vocabulary>,
   );
+};
+
+export const normalize = (s: string): string =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/[^\w\s]/g, "") // punctuation
+    .trim();
+
+/**
+ * Calculate similarity between two strings (0-1)
+ */
+function similarity(a: string, b: string): number {
+  if (a.length === 0 && b.length === 0) return 1;
+  if (a.length === 0 || b.length === 0) return 0;
+  const distance = levenshtein(a, b);
+  return 1 - distance / Math.max(a.length, b.length);
+}
+
+/**
+ * Check if two words are similar enough to be considered a match
+ */
+function wordMatches(spoken: string, target: string, threshold = 0.7): boolean {
+  const normalizedSpoken = normalize(spoken);
+  const normalizedTarget = normalize(target);
+
+  // Exact match
+  if (normalizedSpoken === normalizedTarget) return true;
+
+  // Partial match (one contains the other)
+  if (
+    normalizedSpoken.includes(normalizedTarget) ||
+    normalizedTarget.includes(normalizedSpoken)
+  ) {
+    return true;
+  }
+
+  // Fuzzy match using similarity
+  return similarity(normalizedSpoken, normalizedTarget) >= threshold;
+}
+
+export const getNextHintText = (
+  details: {
+    targetWord: string;
+    matched: boolean;
+    _matchScore?: number;
+  }[],
+): string | null => {
+  let lastMatchedIndex = -1;
+  for (let i = details.length - 1; i >= 0; i--) {
+    if (details[i].matched && (details[i]._matchScore ?? 0) > 0) {
+      lastMatchedIndex = i;
+      break;
+    }
+  }
+
+  const remaining = details.slice(lastMatchedIndex + 1);
+  if (remaining.length === 0) return null;
+
+  const firstWord = remaining[0].targetWord;
+  return firstWord.length > 5 || remaining.length === 1
+    ? firstWord
+    : `${firstWord} ${remaining[1].targetWord}`;
+};
+
+export const findClosestWord = (
+  spoken: string,
+  words: SegmentWord[],
+): SegmentWord => {
+  const spokenLower = spoken.toLowerCase();
+
+  let bestMatch = words[0];
+  let bestDistance = Infinity;
+
+  for (const hw of words) {
+    const candidate = stripPunctuation(hw.word.toLowerCase());
+
+    if (candidate === spokenLower) return hw;
+
+    const distance = levenshtein(spokenLower, candidate);
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestMatch = hw;
+    }
+  }
+
+  return bestMatch;
 };
 
 export const areWordsSimilar = (word1: string, word2: string) => {
@@ -823,3 +856,88 @@ export const determineCefrLevel = (
   if (composite < 75) return "C1";
   return "C2";
 };
+
+// @ts-ignore
+function _tryStealBetterMatch(
+  details: AccuracyResult["details"],
+  normalizedSpoken: string[],
+  normalizedTarget: string,
+  usedSpokenIndices: Set<number>,
+  spokenWords: string[],
+): {
+  bestMatchIndex: number;
+  bestMatchScore: number;
+  matchedCountDelta: number;
+  matchedScoreDelta: number;
+} | null {
+  let stealFrom = -1;
+  let stealScore = 0;
+
+  for (let d = 0; d < details.length; d++) {
+    const prev = details[d];
+    if (!prev.matched || prev.isProperNoun || prev._spokenIndex == null)
+      continue;
+    if (prev._matchScore === 1) continue; // don't steal perfect matches
+
+    const scoreForCurrent = similarity(
+      normalizedSpoken[prev._spokenIndex],
+      normalizedTarget,
+    );
+    if (
+      scoreForCurrent >= 0.6 &&
+      scoreForCurrent > prev._matchScore! &&
+      scoreForCurrent > stealScore
+    ) {
+      stealFrom = d;
+      stealScore = scoreForCurrent;
+    }
+  }
+
+  if (stealFrom === -1) return null;
+
+  const prev = details[stealFrom];
+  const stolenIndex = prev._spokenIndex!;
+  let matchedCountDelta = 0;
+  let matchedScoreDelta = 0;
+
+  // Try to find a new match for the previous target among remaining words
+  usedSpokenIndices.delete(stolenIndex);
+  const prevNormTarget = normalize(prev.targetWord);
+  let newBestIndex = -1;
+  let newBestScore = 0;
+
+  for (let i = 0; i < normalizedSpoken.length; i++) {
+    if (usedSpokenIndices.has(i) || i === stolenIndex) continue;
+    const s = similarity(normalizedSpoken[i], prevNormTarget);
+    if (s > newBestScore && s >= 0.6) {
+      newBestScore = s;
+      newBestIndex = i;
+    }
+  }
+
+  if (newBestIndex !== -1) {
+    // Previous target gets a new (worse) match
+    usedSpokenIndices.add(newBestIndex);
+    prev.spokenWord =
+      newBestScore === 1 ? prev.targetWord : spokenWords[newBestIndex];
+    prev._spokenIndex = newBestIndex;
+    matchedScoreDelta -= prev._matchScore!;
+    matchedScoreDelta += newBestScore;
+    prev._matchScore = newBestScore;
+  } else {
+    // Previous target becomes unmatched
+    prev.matched = false;
+    prev.spokenWord = undefined;
+    prev._spokenIndex = undefined;
+    matchedCountDelta--;
+    matchedScoreDelta -= prev._matchScore!;
+    prev._matchScore = undefined;
+  }
+
+  return {
+    bestMatchIndex: stolenIndex,
+    bestMatchScore: stealScore,
+    matchedCountDelta,
+    matchedScoreDelta,
+  };
+}

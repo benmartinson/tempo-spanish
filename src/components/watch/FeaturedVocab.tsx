@@ -12,7 +12,7 @@ import {
   normalizeWord,
   stripPunctuation,
   vocabFormatWord,
-} from "../../helpers";
+} from "../../helpers/helpers";
 import Entypo from "@expo/vector-icons/Entypo";
 import { useDispatch, useSelector } from "react-redux";
 import {

@@ -5,7 +5,7 @@ import {
   getRecordingConfig,
   setAudioModeForRecording,
   concatenateWavFiles,
-} from "./streaming_helpers";
+} from "../helpers/streaming_helpers";
 
 const MAX_RECORDING_MS = 30000;
 
@@ -113,7 +113,9 @@ export const useMultiRecording = (
   );
 
   const concatenateRecordings = useCallback(async (): Promise<string> => {
-    const maxIndex = Math.max(...Object.keys(recordingsRef.current).map(Number));
+    const maxIndex = Math.max(
+      ...Object.keys(recordingsRef.current).map(Number),
+    );
     const orderedUris: string[] = [];
     for (let i = 0; i <= maxIndex; i++) {
       const uri = recordingsRef.current[i];
@@ -124,7 +126,8 @@ export const useMultiRecording = (
   }, []);
 
   const addRecording = useCallback(async (uri: string) => {
-    const nextIndex = Math.max(-1, ...Object.keys(recordingsRef.current).map(Number)) + 1;
+    const nextIndex =
+      Math.max(-1, ...Object.keys(recordingsRef.current).map(Number)) + 1;
     const stableUri = `${FileSystem.cacheDirectory}recording_${nextIndex}_${Date.now()}.wav`;
     await FileSystem.copyAsync({ from: uri, to: stableUri });
     setRecordings((prev) => ({ ...prev, [nextIndex]: stableUri }));

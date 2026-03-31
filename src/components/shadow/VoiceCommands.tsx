@@ -52,7 +52,6 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   }, [priorityKey]);
 
   useEffect(() => {
-    console.log({ activeCommand });
     if (activeCommand) {
       setExpanded(true);
     }

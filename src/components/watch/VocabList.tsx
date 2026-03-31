@@ -8,7 +8,7 @@ import {
 import { KeyVocabulary, SegmentWord, Vocabulary } from "../../types";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { normalizeWord } from "../../helpers";
+import { normalizeWord } from "../../helpers/helpers";
 
 const VocabList: React.FC<{
   vocab: SegmentWord[];
@@ -23,7 +23,7 @@ const VocabList: React.FC<{
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const autoScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [manualTranslations, setManualTranslations] = useState<SegmentWord[]>(
-    []
+    [],
   );
   // create a array of unique words segmentWord objects
   const wordSet = vocab.reduce((acc, word) => {
@@ -35,11 +35,11 @@ const VocabList: React.FC<{
 
   const toggleTranslation = (word: SegmentWord) => {
     const isAlreadyShown = manualTranslations.find(
-      (translation) => translation.word === word.word
+      (translation) => translation.word === word.word,
     );
     if (isAlreadyShown) {
       setManualTranslations((prev) =>
-        prev.filter((translation) => translation.word !== word.word)
+        prev.filter((translation) => translation.word !== word.word),
       );
     } else {
       setManualTranslations((prev) => [...prev, word]);
@@ -91,7 +91,7 @@ const VocabList: React.FC<{
     // Show translation if highlighted OR if manually toggled
     // const isHighlighted = shouldHighlight(word);
     const isManuallyShown = manualTranslations.find(
-      (translation) => translation.word === word.word
+      (translation) => translation.word === word.word,
     );
     return isManuallyShown;
   };

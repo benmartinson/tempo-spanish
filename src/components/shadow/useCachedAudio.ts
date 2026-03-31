@@ -5,8 +5,8 @@ import {
   generateTTS,
   playAudioSequence,
   playAudio,
-} from "../streaming_helpers";
-import { getResponseForPercentage } from "../../helpers";
+} from "../../helpers/streaming_helpers";
+import { getResponseForPercentage } from "../../helpers/helpers";
 import { setCachedResponses } from "../../store/actions/dataActions";
 import { SupabaseClient } from "@supabase/supabase-js";
 

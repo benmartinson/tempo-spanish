@@ -40,7 +40,6 @@ import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
 import {
   sendAudioForTranscription,
-  calculateAccuracy,
   uploadAudioToStorage,
   playAudioFromStorage,
   trimSilenceFromAudio,
@@ -48,20 +47,21 @@ import {
   playAiSpeech,
   playDing,
   playDingStop,
-} from "../streaming_helpers";
+} from "../../helpers/streaming_helpers";
 import { AccuracyResult, CachedResponse } from "../../types";
 import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
 import {
   capitalize,
+  findClosestWord,
+  getNextHintText,
   findSentenceWithVocab,
   isInterestingVocab,
   normalizeWord,
   splitIntoSentences,
-  stripPunctuation,
   determineCefrLevel,
   CEFR_COLORS,
-} from "../../helpers";
+} from "../../helpers/helpers";
 import ShadowResults from "./ShadowResults";
 import VocabList from "../watch/VocabList";
 import TooltipModal from "../common/TooltipModal";
@@ -78,8 +78,9 @@ import VoiceCommands from "./VoiceCommands";
 import { useCachedAudio } from "./useCachedAudio";
 import { useMultiRecording } from "../useMultiRecording";
 import { useVoiceCommand } from "../useVoiceCommand";
-import { computeSubSegments } from "../../helpers";
+import { computeSubSegments } from "../../helpers/helpers";
 import { setCurrentSentence } from "../../store/actions/dataActions";
+import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 
 interface ShadowTabProps {
   time: number;
@@ -322,10 +323,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   }, [supabase, userId, currentVideo, currentSentenceIndex]);
 
-  useEffect(() => {
-    console.log({ previousResults });
-  }, [previousResults]);
-
   const loadExistingShadowResult = async () => {
     console.log("loadExisting");
     try {
@@ -562,7 +559,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await stopListening();
 
       if (voiceRecordingCount > 0) {
-        // Silent submission: transcribe + calculate accuracy without changing UI
         setIsAnalyzingHint(true);
         const accuracy = await silentSubmit();
         setIsAnalyzingHint(false);
@@ -571,19 +567,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           return;
         }
 
-        // Find words after the last matched word
-        const details = accuracy.details;
-        let lastMatchedIndex = -1;
-        for (let i = details.length - 1; i >= 0; i--) {
-          if (details[i].matched && (details[i]._matchScore ?? 0) > 0) {
-            lastMatchedIndex = i;
-            break;
-          }
-        }
-
-        const remaining = details.slice(lastMatchedIndex + 1);
-
-        if (remaining.length === 0) {
+        const hintText = getNextHintText(accuracy.details);
+        if (!hintText) {
           const recording = await getOrCreatePhraseRecording(
             "No quedan más palabras en la oración",
           );
@@ -593,13 +578,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             setIsSpeakingResponse(false);
           }
         } else {
-          // Pick next 1-2 unmatched target words
-          const firstWord = remaining[0].targetWord;
-          const hintText =
-            firstWord.length > 5 || remaining.length === 1
-              ? firstWord
-              : `${firstWord} ${remaining[1].targetWord}`;
-
           const recording = await getOrCreatePhraseRecording(hintText);
           if (recording) {
             setIsSpeakingResponse(true);
@@ -628,30 +606,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setActiveCommand("hear");
       await stopListening();
 
-      // Find closest matching hintWord
-      const spoken = spokenWord.toLowerCase();
-      let bestMatch = hintWords[0];
-      let bestScore = -1;
-      for (const hw of hintWords) {
-        const candidate = stripPunctuation(hw.word.toLowerCase());
-        if (candidate === spoken) {
-          bestMatch = hw;
-          bestScore = Infinity;
-          break;
-        }
-        // Simple prefix/substring match scoring
-        let score = 0;
-        if (candidate.startsWith(spoken) || spoken.startsWith(candidate)) {
-          score = Math.min(spoken.length, candidate.length);
-        } else if (candidate.includes(spoken) || spoken.includes(candidate)) {
-          score = Math.min(spoken.length, candidate.length) * 0.5;
-        }
-        if (score > bestScore) {
-          bestScore = score;
-          bestMatch = hw;
-        }
-      }
-
+      const bestMatch = findClosestWord(spokenWord, hintWords);
       const recording = await getOrCreatePhraseRecording(bestMatch.word);
       if (recording) {
         setIsSpeakingResponse(true);
@@ -770,18 +725,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setIsAnalyzingHint(false);
         if (!accuracy) return;
 
-        const details = accuracy.details;
-        let lastMatchedIndex = -1;
-        for (let i = details.length - 1; i >= 0; i--) {
-          if (details[i].matched && (details[i]._matchScore ?? 0) > 0) {
-            lastMatchedIndex = i;
-            break;
-          }
-        }
-
-        const remaining = details.slice(lastMatchedIndex + 1);
-
-        if (remaining.length === 0) {
+        const hintText = getNextHintText(accuracy.details);
+        if (!hintText) {
           const recording = await getOrCreatePhraseRecording(
             "No quedan más palabras en la oración",
           );
@@ -791,12 +736,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             setIsSpeakingResponse(false);
           }
         } else {
-          const firstWord = remaining[0].targetWord;
-          const hintText =
-            firstWord.length > 5 || remaining.length === 1
-              ? firstWord
-              : `${firstWord} ${remaining[1].targetWord}`;
-
           const recording = await getOrCreatePhraseRecording(hintText);
           if (recording) {
             setIsSpeakingResponse(true);
