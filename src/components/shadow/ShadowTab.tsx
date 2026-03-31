@@ -203,6 +203,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
+  const [showHearInfo, setShowHearInfo] = useState<boolean>(false);
   const [selectedTab, setSelectedTab] = useState<"insights" | "voice">(
     "insights",
   );
@@ -618,6 +619,43 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         startListeningRef.current();
       }
     },
+    onHear: async (spokenWord: string) => {
+      if (hintWords.length === 0) return;
+      setActiveCommand("hear");
+      await stopListening();
+
+      // Find closest matching hintWord
+      const spoken = spokenWord.toLowerCase();
+      let bestMatch = hintWords[0];
+      let bestScore = -1;
+      for (const hw of hintWords) {
+        const candidate = stripPunctuation(hw.word.toLowerCase());
+        if (candidate === spoken) {
+          bestMatch = hw;
+          bestScore = Infinity;
+          break;
+        }
+        // Simple prefix/substring match scoring
+        let score = 0;
+        if (candidate.startsWith(spoken) || spoken.startsWith(candidate)) {
+          score = Math.min(spoken.length, candidate.length);
+        } else if (candidate.includes(spoken) || spoken.includes(candidate)) {
+          score = Math.min(spoken.length, candidate.length) * 0.5;
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = hw;
+        }
+      }
+
+      const recording = await getOrCreatePhraseRecording(bestMatch.word);
+      if (recording) {
+        setIsSpeakingResponse(true);
+        await playAudio(recording);
+        setIsSpeakingResponse(false);
+      }
+      startListeningRef.current();
+    },
     onFirstPhrase: async () => {
       if (subSegments.length >= 1) {
         setActiveCommand("first_phrase");
@@ -780,6 +818,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleCommandPress = useCallback((command: VoiceCommand) => {
     if (!command) return;
+    if (command === "hear") {
+      setShowHearInfo(true);
+      return;
+    }
     commandHandlersRef.current[command]?.();
   }, []);
 
@@ -1402,6 +1444,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                               : "Hear a hint word",
                         },
                         {
+                          command: "hear",
+                          label: "Did I Hear?",
+                          description: "Check if a word is in the segment",
+                        },
+                        {
                           command: "next",
                           label: "Next",
                           description: "Go to next segment",
@@ -1578,6 +1625,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           <Text style={styles.shadowInstructionsText}>
             Listen to the sentence until memorized and then press the microphone
             button to record your pronunciation of it...
+          </Text>
+        </TooltipModal>
+      )}
+      {showHearInfo && (
+        <TooltipModal
+          isVisible={showHearInfo}
+          onRequestClose={() => setShowHearInfo(false)}
+        >
+          <Text style={styles.shadowInstructionsText}>
+            Say "Did I hear" followed by a word you think you heard in the clip.
+            {"\n\n"}
+            For example: "Did I hear parece?"
+            {"\n\n"}
+            You will then hear the closest matching word from the sentence to
+            confirm what you heard.
           </Text>
         </TooltipModal>
       )}

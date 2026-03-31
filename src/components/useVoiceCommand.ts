@@ -24,6 +24,7 @@ interface UseVoiceCommandOptions {
   onNext?: () => void;
   onPrevious?: () => void;
   onHint?: () => void;
+  onHear?: (spokenWord: string) => void;
   onFirstPhrase?: () => void;
   onSecondPhrase?: () => void;
   onThirdPhrase?: () => void;
@@ -47,6 +48,7 @@ export const useVoiceCommand = ({
   onNext,
   onPrevious,
   onHint,
+  onHear,
   onFirstPhrase,
   onSecondPhrase,
   onThirdPhrase,
@@ -77,6 +79,7 @@ export const useVoiceCommand = ({
   const onNextRef = useRef(onNext);
   const onPreviousRef = useRef(onPrevious);
   const onHintRef = useRef(onHint);
+  const onHearRef = useRef(onHear);
   const onFirstPhraseRef = useRef(onFirstPhrase);
   const onSecondPhraseRef = useRef(onSecondPhrase);
   const onThirdPhraseRef = useRef(onThirdPhrase);
@@ -99,6 +102,7 @@ export const useVoiceCommand = ({
     onNextRef.current = onNext;
     onPreviousRef.current = onPrevious;
     onHintRef.current = onHint;
+    onHearRef.current = onHear;
     onFirstPhraseRef.current = onFirstPhrase;
     onSecondPhraseRef.current = onSecondPhrase;
     onThirdPhraseRef.current = onThirdPhrase;
@@ -120,6 +124,7 @@ export const useVoiceCommand = ({
     onNext,
     onPrevious,
     onHint,
+    onHear,
     onFirstPhrase,
     onSecondPhrase,
     onThirdPhrase,
@@ -224,6 +229,12 @@ export const useVoiceCommand = ({
     } else if (text.includes("third")) {
       transcriptBufferRef.current = "";
       onThirdPhraseRef.current?.();
+    } else if (text.includes("hear")) {
+      const hearMatch = text.match(/hear\s+(\S+)/);
+      if (hearMatch) {
+        transcriptBufferRef.current = "";
+        onHearRef.current?.(hearMatch[1]);
+      }
     } else if (text.includes("record")) {
       transcriptBufferRef.current = "";
       onRecordRef.current?.();
@@ -314,6 +325,7 @@ export const useVoiceCommand = ({
             "previous",
             "back",
             "hint",
+            "did I hear",
             "first phrase",
             "second phrase",
             "third phrase",
