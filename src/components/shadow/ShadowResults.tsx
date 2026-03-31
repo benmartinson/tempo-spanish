@@ -102,6 +102,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       )
       .join(" ");
   };
+  console.log({ onBackToShadow: Boolean(onBackToShadow) });
 
   return (
     <View style={styles.resultsContainer}>
@@ -143,7 +144,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           </TouchableOpacity>
         )}
       </View>
-      {isAccuracyGood && onReviewSegment && (
+      {onReviewSegment && (
         <TouchableOpacity
           style={[styles.actionButton, styles.reviewButton]}
           onPress={onReviewSegment}

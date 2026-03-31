@@ -553,14 +553,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           onPlayingStateChange={handlePlayingStateChange}
         />
       </View>
-      {!showVideo && !isKeyboardVisible && (
+      {/* {!showVideo && !isKeyboardVisible && (
         <TouchableOpacity
           style={styles.showVideoButton}
           onPress={() => setShowVideo(true)}
         >
           <Text style={styles.showVideoButtonText}>Show Video</Text>
         </TouchableOpacity>
-      )}
+      )} */}
 
       <View style={getTabStyle(selectedNavTab === "shadow")}>
         <ShadowTab

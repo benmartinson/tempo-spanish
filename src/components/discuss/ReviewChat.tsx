@@ -41,6 +41,7 @@ import {
   stripPunctuation,
   isInterestingVocab,
   removeSpecialPunctuation,
+  addEllipsis,
 } from "../../helpers";
 import Phrases from "../shadow/Phrases";
 import WordHints from "../common/WordHints";
@@ -78,6 +79,7 @@ interface ReviewChatProps {
   isKeyboardVisible: boolean;
   selectedQuizType: QuizType;
   onSelectQuizType: (type: QuizType) => void;
+  setShowVideo: (show: boolean) => void;
   autoReviewDetails?: AutoReviewDetails | null;
   onBackToShadow?: (isVoiceMode) => void;
   playerIsPlaying: boolean;
@@ -90,6 +92,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   selectedQuizType,
   onSelectQuizType,
   autoReviewDetails,
+  setShowVideo,
   onBackToShadow,
   playerIsPlaying,
 }) => {
@@ -386,7 +389,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     } else if (isPhraseMode) {
       question = `What does this phrase mean?\n\n"${wordOrPhrase}"`;
     } else if (isTranslateMode) {
-      question = translationText ? `"${translationText}"` : "";
+      question = translationText;
     }
 
     return {
@@ -514,6 +517,12 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   } = useVoiceCommand({
     onRepeat: async () => {
       setActiveCommand("repeat");
+      await stopListening();
+      await playTranslation();
+      startListening();
+    },
+    onPlay: async () => {
+      setActiveCommand("play");
       if (contextSegments.length > 0) {
         await stopListening();
         onPlayClip(contextSegments[0]);
@@ -544,18 +553,18 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         startListening();
       }
     },
-    onTranslation: async () => {
-      setActiveCommand("translation");
-      await stopListening();
-      await playTranslation();
-      startListening();
-    },
   });
 
   const commandHandlersRef = useRef<Record<string, () => void>>({});
   commandHandlersRef.current = {
     repeat: async () => {
       setActiveCommand("repeat");
+      await stopListening();
+      await playTranslation();
+      startListening();
+    },
+    play: async () => {
+      setActiveCommand("play");
       if (contextSegments.length > 0) {
         await stopListening();
         onPlayClip(contextSegments[0]);
@@ -585,12 +594,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         startListening();
       }
     },
-    translation: async () => {
-      setActiveCommand("translation");
-      await stopListening();
-      await playTranslation();
-      startListening();
-    },
   };
 
   const handleCommandPress = useCallback((command: VoiceCommand) => {
@@ -605,6 +608,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       isTranslateMode &&
       !playerIsPlaying &&
       !isSpeakingTranslation &&
+      !translationLoading &&
       !isRecording &&
       !isProcessingAudio &&
       !accuracyResult
@@ -616,6 +620,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     isTranslateMode,
     playerIsPlaying,
     isSpeakingTranslation,
+    translationLoading,
     isRecording,
     isProcessingAudio,
     accuracyResult,
@@ -774,7 +779,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
               <View style={styles.questionRow}>
                 <View style={styles.questionBubbleWrap}>
                   <QuestionBubble
-                    question={removeSpecialPunctuation(displayQuestion)}
+                    question={addEllipsis(
+                      removeSpecialPunctuation(displayQuestion),
+                    )}
                     label={
                       isTranslateMode
                         ? `Translate into ${LANGUAGE_NAMES[userSettings.targetLanguage] || userSettings.targetLanguage}`
@@ -867,12 +874,12 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
                   onCommandPress={handleCommandPress}
                   commands={[
                     {
-                      command: "translation",
-                      label: "Play Translation",
-                      description: "Hear the translation",
+                      command: "repeat",
+                      label: "Repeat",
+                      description: "Hear the translation again",
                     },
                     {
-                      command: "repeat",
+                      command: "play",
                       label: "Play Clip",
                       description: "Play the context clip",
                     },
@@ -910,7 +917,10 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           isKeyboardVisible={isKeyboardVisible}
           showRecordButton={isTranslateMode}
           isRecording={isRecording}
-          onRecordStart={startRecording}
+          onRecordStart={() => {
+            setShowVideo(false);
+            startRecording();
+          }}
           onRecordStop={() => stopRecording()}
         />
       ) : (

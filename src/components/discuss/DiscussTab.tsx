@@ -1,7 +1,12 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
-import { AutoReviewDetails, RootState, ContextSegment, QuizType } from "../../types";
+import {
+  AutoReviewDetails,
+  RootState,
+  ContextSegment,
+  QuizType,
+} from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import ReviewChat from "./ReviewChat";
 
@@ -10,7 +15,7 @@ interface DiscussTabProps {
   isKeyboardVisible: boolean;
   setShowVideo: (show: boolean) => void;
   autoReviewDetails?: AutoReviewDetails | null;
-  onBackToShadow?: () => void;
+  onBackToShadow?: (isVoiceMode) => void;
   playerIsPlaying: boolean;
 }
 
@@ -24,8 +29,9 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
-  const [selectedQuizType, setSelectedQuizType] =
-    useState<QuizType>(autoReviewDetails?.quizType ?? "Translate");
+  const [selectedQuizType, setSelectedQuizType] = useState<QuizType>(
+    autoReviewDetails?.quizType ?? "Translate",
+  );
 
   useEffect(() => {
     if (autoReviewDetails) {
@@ -64,6 +70,7 @@ const DiscussTab: React.FC<DiscussTabProps> = ({
         onPlayClip={handlePlayClip}
         isKeyboardVisible={isKeyboardVisible}
         selectedQuizType={selectedQuizType}
+        setShowVideo={setShowVideo}
         onSelectQuizType={setSelectedQuizType}
         autoReviewDetails={autoReviewDetails}
         onBackToShadow={onBackToShadow}
