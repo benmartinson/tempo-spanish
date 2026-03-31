@@ -129,12 +129,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
+  // Track when a clip was just started so voice mode doesn't connect prematurely
+  const clipJustStartedRef = useRef(false);
+
   // Jump to a specific segment when returning from review
   useEffect(() => {
     if (autoShadowDetails && currentVideo?.sentences && onPlayClip) {
       const sentence =
         currentVideo.sentences[autoShadowDetails.backToSegmentId];
       if (sentence) {
+        clipJustStartedRef.current = true;
         onPlayClip(sentence.start);
         setCurrentSentence(sentence.index);
       }
@@ -825,11 +829,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     commandHandlersRef.current[command]?.();
   }, []);
 
+  // Clear the clip-just-started flag once the player actually starts playing
+  useEffect(() => {
+    if (playerIsPlaying) {
+      clipJustStartedRef.current = false;
+    }
+  }, [playerIsPlaying]);
+
   // Start listening when on voice tab and nothing is playing
   useEffect(() => {
     if (
       selectedTab === "voice" &&
       !playerIsPlaying &&
+      !clipJustStartedRef.current &&
       !isSpeakingResponse &&
       !isRecordingMode &&
       !isRecording &&
