@@ -439,6 +439,7 @@ export const setAudioModeForRecording = async (
       allowsRecording: true,
       playsInSilentMode: true,
       interruptionMode: "mixWithOthers",
+      shouldRouteThroughEarpiece: false,
     });
     return;
   }

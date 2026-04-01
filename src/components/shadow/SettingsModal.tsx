@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
 import SlideModal from "../common/SlideModal";
+import SpeedControl from "../common/SpeedControl";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../types";
 import { setUserSettings } from "../../store/actions/dataActions";
@@ -81,31 +82,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     >
       {/* Speed Controls */}
       <View style={styles.speedControlsContainer}>
-        <View style={styles.speedControlRow}>
-          <Text style={styles.speedLabel}>Playback Speed:</Text>
-          <View style={styles.speedOptions}>
-            {speedOptions.map((speed) => (
-              <TouchableOpacity
-                key={`playback-${speed}`}
-                style={[
-                  styles.speedOption,
-                  editedPlaybackSpeed === speed && styles.speedOptionActive,
-                ]}
-                onPress={() => handlePlaybackSpeedChange(speed)}
-              >
-                <Text
-                  style={[
-                    styles.speedOptionText,
-                    editedPlaybackSpeed === speed &&
-                      styles.speedOptionTextActive,
-                  ]}
-                >
-                  {speed}x
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        <SpeedControl
+          speed={editedPlaybackSpeed}
+          onSpeedChange={handlePlaybackSpeedChange}
+          options={speedOptions}
+        />
 
         {/* <View style={styles.speedControlRow}>
           <Text style={styles.speedLabel}>Record Speed:</Text>

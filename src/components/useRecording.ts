@@ -23,6 +23,7 @@ export interface UseRecordingReturn {
   isRecording: boolean;
   hasPermission: boolean | null;
   passedSilenceThreshold: boolean;
+  getRecorderUri: () => string | null;
   startRecording: () => Promise<void>;
   stopRecording: (userTrashed?: boolean) => Promise<string | null>;
   cleanup: () => Promise<void>;
@@ -179,6 +180,7 @@ export const useRecording = (
     isRecording,
     hasPermission,
     passedSilenceThreshold,
+    getRecorderUri: () => recordingRef.current?.uri ?? null,
     startRecording,
     stopRecording,
     cleanup,

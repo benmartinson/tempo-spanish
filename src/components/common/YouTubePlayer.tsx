@@ -18,6 +18,8 @@ export interface YouTubePlayerHandle {
   seekTo: (time: number) => void;
   setClip: (start: number, end: number) => void;
   setSpeed: (speed: number) => void;
+  mute: () => void;
+  unMute: () => void;
   /** Clears the relay's clip-enforcement intervals and sets up our own
    *  time reporter. Call this when switching to a mode that should play
    *  freely past the relay's original end time. */
@@ -75,6 +77,12 @@ const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       },
       setSpeed: (speed: number) => {
         playerRef.current?.setPlaybackRate(speed);
+      },
+      mute: () => {
+        playerRef.current?.mute();
+      },
+      unMute: () => {
+        playerRef.current?.unMute();
       },
     }));
 
@@ -259,6 +267,16 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       setSpeed: (speed: number) => {
         webViewRef.current?.injectJavaScript(
           `window.postMessage("SET_SPEED:${speed}", "*"); true;`,
+        );
+      },
+      mute: () => {
+        webViewRef.current?.injectJavaScript(
+          `try { if(typeof player !== 'undefined') player.mute(); } catch(e) {} true;`,
+        );
+      },
+      unMute: () => {
+        webViewRef.current?.injectJavaScript(
+          `try { if(typeof player !== 'undefined') player.unMute(); } catch(e) {} true;`,
         );
       },
     }));

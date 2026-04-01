@@ -225,12 +225,12 @@ const AuthenticatedApp: React.FC = () => {
 
       dispatch(setUserSettings(settings));
 
-      if (currentTab && ["watch", "discuss", "shadow"].includes(currentTab)) {
+      if (currentTab && ["watch", "discuss", "shadow", "speed-run"].includes(currentTab)) {
         dispatch(setCurrentTab(currentTab));
         // Also update the local nav tab state
         if (currentTab === "discuss") {
           setSelectedNavTab("review");
-        } else if (currentTab === "watch" || currentTab === "shadow") {
+        } else if (currentTab === "watch" || currentTab === "shadow" || currentTab === "speed-run") {
           setSelectedNavTab(currentTab);
         }
       }
@@ -268,7 +268,7 @@ const AuthenticatedApp: React.FC = () => {
     setAutoReviewDetails(reviewDetails ?? null);
     setSelectedNavTab(tab);
     // Also update redux current tab for consistency
-    const reduxTab = tab === "review" ? "discuss" : tab === "speed-run" ? "watch" : tab;
+    const reduxTab = tab === "review" ? "discuss" : tab;
     dispatch(setCurrentTab(reduxTab));
 
     // Persist tab to database (only for watch/discuss/shadow)
