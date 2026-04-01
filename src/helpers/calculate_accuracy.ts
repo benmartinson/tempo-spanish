@@ -31,7 +31,16 @@ function similarity(a: string, b: string): number {
   if (a.length === 0 && b.length === 0) return 1;
   if (a.length === 0 || b.length === 0) return 0;
   const distance = levenshtein(a, b);
-  return 1 - distance / Math.max(a.length, b.length);
+  const raw = 1 - distance / Math.max(a.length, b.length);
+
+  // For short words (<= 3 chars), a single edit (e.g. "a" vs "al", "te" vs "de")
+  // produces raw similarity of 0.5, which is below the 0.6 match threshold.
+  // Boost these so 1-edit short words count as partial matches.
+  if (Math.min(a.length, b.length) <= 3 && distance <= 1) {
+    return Math.max(raw, 0.6);
+  }
+
+  return raw;
 }
 
 const autoMatchProperNouns = (
@@ -123,10 +132,6 @@ const backtrackMatches = (dp, spoken, targets, targetIndices) => {
   while (i > 0 && j > 0) {
     const tIdx = targetIndices[j - 1];
     let score = similarity(spoken[i - 1], targets[tIdx]);
-    console.log({ spoken: spoken[i - 1], target: targets[tIdx], score });
-    if (spoken[i - 1] === "presente") {
-      console.log({ score });
-    }
 
     if (
       score >= 0.6 &&
@@ -179,191 +184,58 @@ const normalizeWords = (words: string[]) =>
  * alignment between spoken and target words.
  */
 
-// export const calculateAccuracy = (
-//   spokenWords: string[],
-//   targetWords: string[],
-//   properNouns: string[] = [],
-// ) => {
-//   if (targetWords.length === 0) {
-//     return { percentage: 100, matchedWords: 0, totalWords: 0, details: [] };
-//   }
-
-//   const normalizedSpoken = normalizeWords(spokenWords);
-//   const normalizedProperNouns = normalizeWords(properNouns);
-
-//   const { details, normalizedTargets } = buildDetails(
-//     targetWords,
-//     normalizedProperNouns,
-//   );
-
-//   const targetIndices = getNonProperTargetIndices(details);
-
-//   const dp = buildDpMatrix(normalizedSpoken, normalizedTargets, targetIndices);
-
-//   const matches = backtrackMatches(
-//     dp,
-//     normalizedSpoken,
-//     normalizedTargets,
-//     targetIndices,
-//   );
-
-//   const { matchedCount, matchedScore, usedSpokenIndices } = applyMatches(
-//     matches,
-//     details,
-//     normalizedSpoken,
-//     normalizedTargets,
-//     spokenWords,
-//   );
-
-//   const { finalMatchedCount, finalMatchedScore } = autoMatchProperNouns(
-//     details,
-//     normalizedSpoken,
-//     usedSpokenIndices,
-//     matchedCount,
-//     matchedScore,
-//   );
-
-//   const totalWords = details.length;
-//   const percentage =
-//     totalWords > 0 ? Math.floor((finalMatchedScore / totalWords) * 100) : 0;
-
-//   return {
-//     percentage,
-//     matchedWords: finalMatchedCount,
-//     totalWords,
-//     details,
-//   };
-// };
 export const calculateAccuracy = (
   spokenWords: string[],
   targetWords: string[],
   properNouns: string[] = [],
 ) => {
-  console.log({ spokenWords, targetWords, properNouns });
   if (targetWords.length === 0) {
     return { percentage: 100, matchedWords: 0, totalWords: 0, details: [] };
   }
 
-  const normalizedSpoken = spokenWords.map(normalize).filter(Boolean);
-  const normalizedTargets = targetWords.map(normalize);
-  const normalizedProperNouns = properNouns.map(normalize);
+  const normalizedSpoken = normalizeWords(spokenWords);
+  const normalizedProperNouns = normalizeWords(properNouns);
 
-  const details = targetWords.map((t) => ({
-    targetWord: t,
-    matched: false,
-    isProperNoun: normalizedProperNouns.includes(normalize(t)),
-  }));
-
-  const n = normalizedSpoken.length;
-  const m = normalizedTargets.length;
-  const dpTargets = normalizedTargets.map((t, idx) =>
-    details[idx].isProperNoun ? null : t,
+  const { details, normalizedTargets } = buildDetails(
+    targetWords,
+    normalizedProperNouns,
   );
 
-  // dp[i][j] = max total similarity score using spoken[0..i-1] vs target[0..j-1]
-  const dp: number[][] = Array.from({ length: n + 1 }, () =>
-    new Array(m + 1).fill(0),
+  const targetIndices = getNonProperTargetIndices(details);
+
+  const dp = buildDpMatrix(normalizedSpoken, normalizedTargets, targetIndices);
+
+  const matches = backtrackMatches(
+    dp,
+    normalizedSpoken,
+    normalizedTargets,
+    targetIndices,
   );
-  const backtrack: ("diag" | "up" | "left")[][] = Array.from(
-    { length: n + 1 },
-    () => new Array(m + 1).fill("left"),
+
+  const { matchedCount, matchedScore, usedSpokenIndices } = applyMatches(
+    matches,
+    details,
+    normalizedSpoken,
+    normalizedTargets,
+    spokenWords,
   );
 
-  // Fill DP table
-  for (let i = 1; i <= n; i++) {
-    for (let j = 1; j <= m; j++) {
-      const score =
-        dpTargets[j - 1] !== null
-          ? similarity(normalizedSpoken[i - 1], dpTargets[j - 1])
-          : 0;
-
-      // Proximity bonus: favor contiguous matches
-      const proximityBonus =
-        i > 1 && j > 1 ? dp[i - 1][j - 1] - dp[i - 2][j - 2] : 0;
-      const totalScore = score + 0.1 * proximityBonus;
-
-      const choices = [
-        { val: dp[i - 1][j], dir: "up" },
-        { val: dp[i][j - 1], dir: "left" },
-        { val: dp[i - 1][j - 1] + totalScore, dir: "diag" },
-      ];
-
-      // Pick max, break ties in favor of diag (later sequences)
-      let best = choices[0];
-      for (const c of choices) {
-        if (c.val > best.val) best = c;
-        else if (c.val === best.val && c.dir === "diag") best = c;
-      }
-
-      dp[i][j] = best.val;
-      backtrack[i][j] = best.dir as any;
-    }
-  }
-
-  // Backtrack to find matches
-  let i = n;
-  let j = m;
-  const matches: { spokenIdx: number; targetIdx: number; score: number }[] = [];
-
-  while (i > 0 && j > 0) {
-    if (backtrack[i][j] === "diag") {
-      const score =
-        dpTargets[j - 1] !== null
-          ? similarity(normalizedSpoken[i - 1], dpTargets[j - 1])
-          : 0;
-      if (score > 0) {
-        matches.push({ spokenIdx: i - 1, targetIdx: j - 1, score });
-      }
-      i--;
-      j--;
-    } else if (backtrack[i][j] === "up") {
-      i--;
-    } else {
-      j--;
-    }
-  }
-
-  matches.reverse();
-
-  // Apply matches to details
-  const usedSpoken = new Set<number>();
-  let matchedScore = 0;
-  for (const { spokenIdx, targetIdx, score } of matches) {
-    details[targetIdx].matched = true;
-    details[targetIdx].spokenWord =
-      score === 1 ? details[targetIdx].targetWord : spokenWords[spokenIdx];
-    details[targetIdx]._spokenIndex = spokenIdx;
-    details[targetIdx]._matchScore = score;
-    matchedScore += score;
-    usedSpoken.add(spokenIdx);
-  }
-
-  const unmatchedSpokenIndices = normalizedSpoken
-    .map((w, i) => (!usedSpoken.has(i) ? i : -1))
-    .filter((i) => i !== -1);
-
-  let unmatchedIdx = 0;
-  for (const detail of details) {
-    if (
-      !detail.matched &&
-      detail.isProperNoun &&
-      unmatchedIdx < unmatchedSpokenIndices.length
-    ) {
-      const spokenIdx = unmatchedSpokenIndices[unmatchedIdx];
-      detail.matched = true;
-      detail.spokenWord = detail.targetWord;
-      detail._spokenIndex = spokenIdx;
-      detail._matchScore = 1;
-      unmatchedIdx++;
-      matchedScore += 1;
-      matches.push({ spokenIdx, targetIdx: spokenIdx, score: 1 });
-    }
-  }
+  const { finalMatchedCount, finalMatchedScore } = autoMatchProperNouns(
+    details,
+    normalizedSpoken,
+    usedSpokenIndices,
+    matchedCount,
+    matchedScore,
+  );
 
   const totalWords = details.length;
-  const matchedWords = matches.length;
   const percentage =
-    totalWords > 0 ? Math.floor((matchedScore / totalWords) * 100) : 0;
+    totalWords > 0 ? Math.floor((finalMatchedScore / totalWords) * 100) : 0;
 
-  return { details, matchedWords, totalWords, percentage };
+  return {
+    percentage,
+    matchedWords: finalMatchedCount,
+    totalWords,
+    details,
+  };
 };

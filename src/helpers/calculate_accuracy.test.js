@@ -11,7 +11,7 @@ describe("calculateAccuracy", () => {
     const expectedResult = {
       details: [
         {
-          _matchScore: 0.5,
+          _matchScore: 0.6,
           _spokenIndex: 0,
           isProperNoun: false,
           matched: true,
@@ -27,7 +27,7 @@ describe("calculateAccuracy", () => {
           targetWord: "vuelta",
         },
         {
-          _matchScore: 0.5,
+          _matchScore: 0.6,
           _spokenIndex: 2,
           isProperNoun: false,
           matched: true,
@@ -64,7 +64,7 @@ describe("calculateAccuracy", () => {
         },
       ],
       matchedWords: 4,
-      percentage: 35,
+      percentage: 37,
       totalWords: 8,
     };
 
@@ -117,8 +117,8 @@ describe("calculateAccuracy - last 4 words sequence", () => {
           spokenWord: "a",
           matched: true,
           isProperNoun: false,
+          _matchScore: 0.6,
           _spokenIndex: 2,
-          _matchScore: 0.5,
         },
         {
           targetWord: "presente",
@@ -131,7 +131,7 @@ describe("calculateAccuracy - last 4 words sequence", () => {
       ],
       matchedWords: 4,
       totalWords: 9,
-      percentage: 38,
+      percentage: 40,
     };
 
     expect(result).toEqual(expectedResult);
@@ -207,6 +207,155 @@ describe("calculateAccuracy - later perfect sequence", () => {
   });
 });
 
+describe("calculateAccuracy - mostly unrelated spoken words with proper nouns", () => {
+  it("should only match sugiere and puden besides proper nouns", () => {
+    const spokenWords = [
+      "Eh,",
+      "¿cuántos",
+      "sugieren",
+      "que",
+      "pueden?",
+      "¿Deberían",
+      "preguntar",
+      "por",
+      "ayuda?",
+    ];
+    const targetWords = [
+      "Aragorn",
+      "sugiere",
+      "pedir",
+      "ayuda,",
+      "pero",
+      "Theoden",
+      "responde",
+      "que",
+      "no",
+      "pueden",
+      "contar",
+      "con",
+      "nadie,",
+      "ni",
+      "siquiera",
+      "con",
+      "Gondor.",
+    ];
+    const properNouns = ["Aragorn", "Theoden", "Gondor"];
+
+    const result = calculateAccuracy(spokenWords, targetWords, properNouns);
+
+    expect(result).toEqual({
+      details: [
+        {
+          _matchScore: 1,
+          _spokenIndex: 1,
+          isProperNoun: true,
+          matched: true,
+          spokenWord: "Aragorn",
+          targetWord: "Aragorn",
+        },
+        {
+          _matchScore: 0.875,
+          _spokenIndex: 2,
+          isProperNoun: false,
+          matched: true,
+          spokenWord: "sugieren",
+          targetWord: "sugiere",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "pedir",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "ayuda,",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "pero",
+        },
+        {
+          _matchScore: 1,
+          _spokenIndex: 5,
+          isProperNoun: true,
+          matched: true,
+          spokenWord: "Theoden",
+          targetWord: "Theoden",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "responde",
+        },
+        {
+          _matchScore: 1,
+          _spokenIndex: 3,
+          isProperNoun: false,
+          matched: true,
+          spokenWord: "que",
+          targetWord: "que",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "no",
+        },
+        {
+          _matchScore: 1,
+          _spokenIndex: 4,
+          isProperNoun: false,
+          matched: true,
+          spokenWord: "pueden",
+          targetWord: "pueden",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "contar",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "con",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "nadie,",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "ni",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "siquiera",
+        },
+        {
+          isProperNoun: false,
+          matched: false,
+          targetWord: "con",
+        },
+        {
+          _matchScore: 1,
+          _spokenIndex: 6,
+          isProperNoun: true,
+          matched: true,
+          spokenWord: "Gondor.",
+          targetWord: "Gondor.",
+        },
+      ],
+      matchedWords: 6,
+      percentage: 34,
+      totalWords: 17,
+    });
+  });
+});
+
 describe("calculateAccuracy - proper nouns auto-match", () => {
   it("matches proper nouns and regular words correctly", () => {
     const properNouns = ["Legolas", "Aragorn"];
@@ -268,7 +417,7 @@ describe("calculateAccuracy - proper nouns auto-match", () => {
 
     const result = calculateAccuracy(spokenWords, targetWords, properNouns);
 
-    // Check proper nouns matched
+    // // Check proper nouns matched
     const legolasMatch = result.details.find((d) => d.targetWord === "Legolas");
     expect(legolasMatch?.matched).toBe(true);
     expect(legolasMatch?.spokenWord).toBe("Legolas");

@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import Foundation from "@expo/vector-icons/Foundation";
 import {
   AccuracyResult,
   AutoReviewDetails,
@@ -160,6 +161,9 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   );
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [isSpeakingTranslation, setIsSpeakingTranslation] = useState(false);
+  const [previousResults, setPreviousResults] = useState<AccuracyResult | null>(
+    null,
+  );
 
   const { getOrCreatePhraseRecording } = useCachedAudio(
     supabase,
@@ -440,10 +444,12 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           targetWords,
           properNouns,
         );
-        setAccuracyResult({
-          ...accuracy,
-          targetSentence: currentVocabItem.word,
-        });
+        if (contentTab !== "voice") {
+          setAccuracyResult({
+            ...accuracy,
+          });
+        }
+        setPreviousResults(accuracy);
       } catch (err) {
         console.error("Transcription error:", err);
       } finally {
@@ -464,6 +470,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     if (isRecording) {
       stopRecording(true);
     }
+    if (accuracyResult) setPreviousResults(accuracyResult);
     setUserAnswer("");
     setVocabEvaluation(null);
     setAnswered(false);
@@ -473,6 +480,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 
   const handleNext = () => {
     handleResetAnswer();
+    setPreviousResults(null);
     setQuestionIndex((prev) => {
       const next = prev + 1;
       if (isTranslateMode) dispatch(setCurrentSentenceAction(next));
@@ -688,11 +696,16 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   };
 
   const handleRetry = () => {
+    if (accuracyResult) setPreviousResults(accuracyResult);
     setUserAnswer("");
     setVocabEvaluation(null);
     setAnswered(false);
     setUserMessages([]);
     setAccuracyResult(null);
+  };
+
+  const handlePreviousResults = () => {
+    setAccuracyResult(previousResults);
   };
 
   if (vocabLoading && isVocabMode) {
@@ -789,21 +802,35 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
                   />
                 </View>
                 {isTranslateMode && translationText && (
-                  <TouchableOpacity
-                    style={styles.aiVoiceButton}
-                    onPress={playTranslation}
-                    disabled={isSpeakingTranslation}
-                  >
-                    {isSpeakingTranslation ? (
-                      <ActivityIndicator size="small" color="#7C3AED" />
-                    ) : (
-                      <MaterialIcons
-                        name="record-voice-over"
-                        size={22}
-                        color="#7C3AED"
-                      />
+                  <View style={styles.questionActions}>
+                    <TouchableOpacity
+                      style={styles.aiVoiceButton}
+                      onPress={playTranslation}
+                      disabled={isSpeakingTranslation}
+                    >
+                      {isSpeakingTranslation ? (
+                        <ActivityIndicator size="small" color="#7C3AED" />
+                      ) : (
+                        <MaterialIcons
+                          name="record-voice-over"
+                          size={22}
+                          color="#7C3AED"
+                        />
+                      )}
+                    </TouchableOpacity>
+                    {previousResults && (
+                      <TouchableOpacity
+                        style={styles.previousResultsButton}
+                        onPress={handlePreviousResults}
+                      >
+                        <Foundation
+                          name="clipboard-notes"
+                          size={24}
+                          color="#4a69bd"
+                        />
+                      </TouchableOpacity>
                     )}
-                  </TouchableOpacity>
+                  </View>
                 )}
               </View>
             </View>
@@ -997,6 +1024,18 @@ const styles = StyleSheet.create({
     alignItems: "center" as const,
     justifyContent: "center" as const,
     marginTop: 4,
+  },
+  questionActions: {
+    alignItems: "center" as const,
+    gap: 6,
+  },
+  previousResultsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#eef2ff",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
   },
 });
 
