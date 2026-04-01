@@ -7,6 +7,8 @@ export interface UserSettings {
   targetLanguage: "en" | "es" | "pt";
   translationLanguage: "en" | "es" | "pt";
   estimatedHours: number | null;
+  autoSubmit: boolean;
+  autoResults: boolean;
 }
 
 export type VoiceCommand =
@@ -42,6 +44,8 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   targetLanguage: "es",
   translationLanguage: "en",
   estimatedHours: null,
+  autoSubmit: true,
+  autoResults: true,
 };
 
 export interface CachedResponse {
@@ -327,4 +331,6 @@ export interface UserUIState {
   target_language: "en" | "es" | "pt" | null;
   translation_language: "en" | "es" | "pt" | null;
   estimated_hours: number | null;
+  auto_submit: boolean | null;
+  auto_results: boolean | null;
 }

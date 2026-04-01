@@ -46,7 +46,7 @@ import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import TabIcon from "./src/components/tabs/TabIcon";
-import WatchTab from "./src/components/watch/WatchTab";
+import WatchTab from "./src/components/speed-run/SpeedRunTab";
 import TopNavBar from "./src/components/TopNavBar";
 import DiscussTab from "./src/components/discuss/DiscussTab";
 import VideoList from "./src/components/video-list/VideoList";
@@ -167,7 +167,7 @@ const AuthenticatedApp: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const [selectedNavTab, setSelectedNavTab] = useState<
-    "watch" | "shadow" | "review"
+    "watch" | "shadow" | "review" | "speed-run"
   >("watch");
   const [autoReviewDetails, setAutoReviewDetails] =
     useState<AutoReviewDetails | null>(null);
@@ -262,13 +262,13 @@ const AuthenticatedApp: React.FC = () => {
   }, [currentVideo?.videoId, isRestoringState]);
 
   const handleNavTabSelect = async (
-    tab: "watch" | "shadow" | "review",
+    tab: "watch" | "shadow" | "review" | "speed-run",
     reviewDetails?: AutoReviewDetails | null,
   ) => {
     setAutoReviewDetails(reviewDetails ?? null);
     setSelectedNavTab(tab);
     // Also update redux current tab for consistency
-    const reduxTab = tab === "review" ? "discuss" : tab;
+    const reduxTab = tab === "review" ? "discuss" : tab === "speed-run" ? "watch" : tab;
     dispatch(setCurrentTab(reduxTab));
 
     // Persist tab to database (only for watch/discuss/shadow)

@@ -36,7 +36,6 @@ import {
   VoiceCommand,
 } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
-import FullSegmentTranscriptBubble from "../watch/FullSegmentTranscriptBubble";
 import { useRecording } from "../useRecording";
 import {
   sendAudioForTranscription,
@@ -60,14 +59,11 @@ import {
   CEFR_COLORS,
 } from "../../helpers/helpers";
 import ShadowResults from "./ShadowResults";
-import VocabList from "../watch/VocabList";
 import TooltipModal from "../common/TooltipModal";
 import NavSwitcher from "../common/NavSwitcher";
 import ContentTabBar from "../common/ContentTabBar";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import FeaturedVocab from "../watch/FeaturedVocab";
 import Foundation from "@expo/vector-icons/Foundation";
-import FocusSentenceRequest from "./FocusSentenceRequest";
 import { persistUserSettings } from "../../requests";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
@@ -380,6 +376,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsTrimmingAudio(false);
   };
 
+  const playResultsReviewRef = useRef<
+    (accuracy: AccuracyResult) => Promise<void>
+  >(async () => {});
+  const stopListeningRef = useRef<() => Promise<void>>(async () => {});
+  const startListeningRef = useRef<() => void>(() => {});
+
   const submitRecording = useCallback(
     async (uri: string) => {
       if (!currentVideo) return;
@@ -405,7 +407,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             recordingId: null,
           });
         }
-        if (selectedTab === "voice") playCachedResponse(accuracy);
+        if (selectedTab === "voice") {
+          if (userSettings.autoResults) {
+            await playCachedResponse(accuracy, { resumeListening: false });
+            await playResultsReviewRef.current?.(accuracy);
+            startListeningRef.current();
+          } else {
+            await playCachedResponse(accuracy);
+          }
+        }
         setAudioUri(uri);
         saveShadowResult(spokenWords);
       } catch (err) {
@@ -424,6 +434,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       currentVideo,
       currentSentenceIndex,
       selectedTab,
+      userSettings.autoResults,
     ],
   );
 
@@ -557,11 +568,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     },
   });
 
-  const startListeningRef = useRef(startListening);
   startListeningRef.current = startListening;
+  stopListeningRef.current = stopListening;
 
-  const { playCachedResponse, playResultsReview } =
-    useCachedAudio(supabase, setIsSpeakingResponse, startListeningRef);
+  const { playCachedResponse, playResultsReview } = useCachedAudio(
+    supabase,
+    setIsSpeakingResponse,
+    startListeningRef,
+  );
+  playResultsReviewRef.current = playResultsReview;
 
   const commandHandlersRef = useRef<Record<string, (() => void) | undefined>>(
     {},
@@ -808,8 +823,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handleStopRecording = async (trashed: boolean = false) => {
     if (voiceInitiatedRecordRef.current && selectedTab === "voice")
       playDingStop();
+    const wasVoiceInitiated = voiceInitiatedRecordRef.current;
     voiceInitiatedRecordRef.current = false;
     pausePlayer();
+    if (
+      wasVoiceInitiated &&
+      selectedTab === "voice" &&
+      userSettings.autoSubmit
+    ) {
+      isWaitingForSubmitRef.current = true;
+    }
     await stopRecording(trashed);
     setIsRecordingMode(false);
   };

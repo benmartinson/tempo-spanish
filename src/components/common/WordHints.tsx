@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { SegmentWord } from "../../types";
-import FeaturedVocab from "../watch/FeaturedVocab";
+import FeaturedVocab from "../speed-run/FeaturedVocab";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import ToggleHeader from "./ToggleHeader";
 

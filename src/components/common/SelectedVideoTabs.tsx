@@ -30,7 +30,7 @@ import {
   refreshVideoPlayer as refreshVideoPlayerAction,
 } from "../../store/actions/dataActions";
 import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
-import WatchTab from "../watch/WatchTab";
+import SpeedRunTab from "../speed-run/SpeedRunTab";
 import ShadowTab from "../shadow/ShadowTab";
 import DiscussTab from "../discuss/DiscussTab";
 import {
@@ -43,9 +43,9 @@ import {
 import SlideModal from "./SlideModal";
 
 interface SelectedVideoTabsProps {
-  selectedNavTab: "watch" | "shadow" | "review";
+  selectedNavTab: "watch" | "shadow" | "review" | "speed-run";
   onSelectNavTab: (
-    tab: "watch" | "shadow" | "review",
+    tab: "watch" | "shadow" | "review" | "speed-run",
     reviewDetails?: AutoReviewDetails | null,
   ) => void;
   autoReviewDetails?: AutoReviewDetails | null;
@@ -442,7 +442,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     currentClipSnippetRef.current = null;
     playerRef.current?.setClip(
       currentSentenceObject?.start ?? 0,
-      selectedNavTab === "watch"
+      selectedNavTab === "watch" || selectedNavTab === "speed-run"
         ? undefined
         : (currentSentenceObject?.end ?? undefined),
     );
@@ -525,7 +525,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     }) as const;
 
   const endTime =
-    selectedNavTab !== "watch" ? currentSentenceObject?.end : undefined;
+    selectedNavTab !== "watch" && selectedNavTab !== "speed-run"
+      ? currentSentenceObject?.end
+      : undefined;
   return (
     <View style={styles.container}>
       <View
@@ -547,7 +549,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           autoplay={selectedNavTab === "shadow"}
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
-          muted={false}
+          muted={selectedNavTab === "speed-run"}
           playbackSpeed={playerSpeed}
           startTime={startTimeForPlayer}
           onPlayingStateChange={handlePlayingStateChange}
@@ -588,14 +590,14 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           onAutoShadowHandled={() => setAutoShadowDetails(null)}
         />
       </View>
-      <View style={getTabStyle(selectedNavTab === "watch")}>
-        <WatchTab
+      <View style={getTabStyle(selectedNavTab === "speed-run")}>
+        <SpeedRunTab
           time={time}
           currentSentence={currentSentenceObject}
           setCurrentSentence={setCurrentSentence}
           setAutoplay={setAutoplay}
           refreshPlayer={refreshPlayer}
-          isActive={selectedNavTab === "watch"}
+          isActive={selectedNavTab === "speed-run"}
           hintWords={hintWords}
           handlePlayWordSnippet={(word: SegmentWord) =>
             playClipSnippet(word.start - 0.3, word.end + 0.3)

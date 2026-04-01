@@ -20,7 +20,7 @@ import {
   persistVideoUnselection,
 } from "../../requests";
 
-type NavTab = "watch" | "shadow" | "review";
+type NavTab = "watch" | "shadow" | "review" | "speed-run";
 
 interface NavTabBannerProps {
   selectedTab: NavTab;
@@ -57,6 +57,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
 
   const tabs: { key: NavTab; label: string }[] = [
     { key: "shadow", label: "Shadow" },
+    { key: "speed-run", label: "Speed Run" },
     { key: "review", label: "Review" },
   ];
 
