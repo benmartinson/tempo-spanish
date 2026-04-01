@@ -43,7 +43,6 @@ import {
   uploadAudioToStorage,
   playAudioFromStorage,
   trimSilenceFromAudio,
-  playAudio,
   playAiSpeech,
   playDing,
   playDingStop,
@@ -53,8 +52,6 @@ import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
 import {
   capitalize,
-  findClosestWord,
-  getNextHintText,
   findSentenceWithVocab,
   isInterestingVocab,
   normalizeWord,
@@ -208,17 +205,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
-  const [showHearInfo, setShowHearInfo] = useState<boolean>(false);
   const [selectedTab, setSelectedTab] = useState<"insights" | "voice">(
     "insights",
   );
   const [isSpeakingResponse, setIsSpeakingResponse] = useState(false);
-  const [isAnalyzingHint, setIsAnalyzingHint] = useState(false);
   const [activeCommand, setActiveCommandState] = useState<VoiceCommand>(null);
   const setActiveCommand = useCallback((command: VoiceCommand) => {
     setActiveCommandState(command);
   }, []);
-  const [voiceHintIndex, setVoiceHintIndex] = useState(0);
 
   // Text input state
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -258,10 +252,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     concatenateRecordings: concatenateVoiceRecordings,
     resetRecordings: resetVoiceRecordings,
   } = useMultiRecording();
-
-  const cachedResponses = useSelector(
-    (state: RootState) => state.cachedResponses,
-  );
 
   const calculateAccuracyFromWords = useCallback(
     (spokenWords: string[]) => {
@@ -359,7 +349,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
     setCurrentRecordingId(null);
     setIsPlayingRecording(false);
-    setVoiceHintIndex(0);
 
     return () => {
       if (recordingExtensionRef.current) {
@@ -450,33 +439,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     [selectedTab, submitRecording, addVoiceRecording],
   );
 
-  const silentSubmit = useCallback(async (): Promise<AccuracyResult | null> => {
-    if (voiceRecordingCount === 0) return null;
-    try {
-      const uri: string =
-        voiceRecordingCount === 1
-          ? Object.values(voiceRecordings)[0]
-          : await concatenateVoiceRecordings();
-      const transcriptionResult = await sendAudioForTranscription(
-        uri,
-        userSettings.targetLanguage,
-      );
-      const spokenWords = transcriptionResult.transcript
-        .split(/\s+/)
-        .filter(Boolean);
-      return calculateAccuracyFromWords(spokenWords);
-    } catch (err) {
-      console.error("Silent submit error:", err);
-      return null;
-    }
-  }, [
-    voiceRecordingCount,
-    voiceRecordings,
-    concatenateVoiceRecordings,
-    calculateAccuracyFromWords,
-    userSettings.targetLanguage,
-  ]);
-
   const handleVoiceSubmit = useCallback(async () => {
     if (voiceRecordingCount === 0) return;
     try {
@@ -554,67 +516,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await closeConnection();
       handlePreviousRef.current();
     },
-    onHint: async () => {
-      setActiveCommand("hint");
-      await stopListening();
-
-      if (voiceRecordingCount > 0) {
-        setIsAnalyzingHint(true);
-        const accuracy = await silentSubmit();
-        setIsAnalyzingHint(false);
-        if (!accuracy) {
-          startListeningRef.current();
-          return;
-        }
-
-        const hintText = getNextHintText(accuracy.details);
-        if (!hintText) {
-          const recording = await getOrCreatePhraseRecording(
-            "No quedan más palabras en la oración",
-          );
-          if (recording) {
-            setIsSpeakingResponse(true);
-            await playAudio(recording);
-            setIsSpeakingResponse(false);
-          }
-        } else {
-          const recording = await getOrCreatePhraseRecording(hintText);
-          if (recording) {
-            setIsSpeakingResponse(true);
-            await playAudio(recording);
-            setIsSpeakingResponse(false);
-          }
-        }
-        startListeningRef.current();
-        return;
-      }
-
-      if (hintWords.length > 0) {
-        const word = hintWords[voiceHintIndex];
-        const recording = await getOrCreatePhraseRecording(word.word);
-        if (recording) {
-          setIsSpeakingResponse(true);
-          await playAudio(recording);
-          setIsSpeakingResponse(false);
-        }
-        setVoiceHintIndex((prev) => (prev + 1) % hintWords.length);
-        startListeningRef.current();
-      }
-    },
-    onHear: async (spokenWord: string) => {
-      if (hintWords.length === 0) return;
-      setActiveCommand("hear");
-      await stopListening();
-
-      const bestMatch = findClosestWord(spokenWord, hintWords);
-      const recording = await getOrCreatePhraseRecording(bestMatch.word);
-      if (recording) {
-        setIsSpeakingResponse(true);
-        await playAudio(recording);
-        setIsSpeakingResponse(false);
-      }
-      startListeningRef.current();
-    },
     onFirstPhrase: async () => {
       if (subSegments.length >= 1) {
         setActiveCommand("first_phrase");
@@ -659,7 +560,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const startListeningRef = useRef(startListening);
   startListeningRef.current = startListening;
 
-  const { getOrCreatePhraseRecording, playCachedResponse, playResultsReview } =
+  const { playCachedResponse, playResultsReview } =
     useCachedAudio(supabase, setIsSpeakingResponse, startListeningRef);
 
   const commandHandlersRef = useRef<Record<string, (() => void) | undefined>>(
@@ -706,65 +607,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setActiveCommand("review_previous");
       handleReviewPreviousSegment();
     },
-    hint: async () => {
-      setActiveCommand("hint");
-
-      if (voiceRecordingCount > 0) {
-        const fetchingClip = cachedResponses.find(
-          (r) => r.response_text === "Fetching...",
-        );
-        if (fetchingClip?.recording) {
-          setIsSpeakingResponse(true);
-          playAudio(fetchingClip.recording).then(() =>
-            setIsSpeakingResponse(false),
-          );
-        }
-
-        setIsAnalyzingHint(true);
-        const accuracy = await silentSubmit();
-        setIsAnalyzingHint(false);
-        if (!accuracy) return;
-
-        const hintText = getNextHintText(accuracy.details);
-        if (!hintText) {
-          const recording = await getOrCreatePhraseRecording(
-            "No quedan más palabras en la oración",
-          );
-          if (recording) {
-            setIsSpeakingResponse(true);
-            await playAudio(recording);
-            setIsSpeakingResponse(false);
-          }
-        } else {
-          const recording = await getOrCreatePhraseRecording(hintText);
-          if (recording) {
-            setIsSpeakingResponse(true);
-            await playAudio(recording);
-            setIsSpeakingResponse(false);
-          }
-        }
-        return;
-      }
-
-      if (hintWords.length > 0) {
-        const word = hintWords[voiceHintIndex];
-        const recording = await getOrCreatePhraseRecording(word.word);
-        if (recording) {
-          setIsSpeakingResponse(true);
-          await playAudio(recording);
-          setIsSpeakingResponse(false);
-        }
-        setVoiceHintIndex((prev) => (prev + 1) % hintWords.length);
-      }
-    },
   };
 
   const handleCommandPress = useCallback((command: VoiceCommand) => {
     if (!command) return;
-    if (command === "hear") {
-      setShowHearInfo(true);
-      return;
-    }
     commandHandlersRef.current[command]?.();
   }, []);
 
@@ -1348,12 +1194,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       permissionDenied={voicePermissionDenied}
                       onActivate={startListening}
                       onCommandPress={handleCommandPress}
-                      isAnalyzingHint={isAnalyzingHint}
                       priorityCommands={
                         previousResults
                           ? ["results", "next", "review_previous"]
                           : voiceRecordingCount > 0
-                            ? ["submit", "add_to", "record", "hint"]
+                            ? ["submit", "add_to", "record"]
                             : undefined
                       }
                       commands={[
@@ -1385,19 +1230,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                           command: "slow",
                           label: "Slowdown",
                           description: "Replay the clip in slow mode",
-                        },
-                        {
-                          command: "hint",
-                          label: "Word Hint",
-                          description:
-                            voiceRecordingCount > 0
-                              ? "Hear the next 1-2 words"
-                              : "Hear a hint word",
-                        },
-                        {
-                          command: "hear",
-                          label: "Did I Hear?",
-                          description: "Check if a word is in the segment",
                         },
                         {
                           command: "next",
@@ -1576,21 +1408,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           <Text style={styles.shadowInstructionsText}>
             Listen to the sentence until memorized and then press the microphone
             button to record your pronunciation of it...
-          </Text>
-        </TooltipModal>
-      )}
-      {showHearInfo && (
-        <TooltipModal
-          isVisible={showHearInfo}
-          onRequestClose={() => setShowHearInfo(false)}
-        >
-          <Text style={styles.shadowInstructionsText}>
-            Say "Did I hear" followed by a word you think you heard in the clip.
-            {"\n\n"}
-            For example: "Did I hear parece?"
-            {"\n\n"}
-            You will then hear the closest matching word from the sentence to
-            confirm what you heard.
           </Text>
         </TooltipModal>
       )}

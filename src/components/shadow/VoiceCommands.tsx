@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Linking,
-  ActivityIndicator,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { VoiceCommand } from "../../types";
@@ -28,7 +27,6 @@ interface VoiceCommandsProps {
   /** When set, only these commands are shown initially with a "Show More" expander */
   priorityCommands?: VoiceCommand[];
   onCommandPress?: (command: VoiceCommand) => void;
-  isAnalyzingHint?: boolean;
 }
 
 const VoiceCommands: React.FC<VoiceCommandsProps> = ({
@@ -42,7 +40,6 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   commands,
   priorityCommands,
   onCommandPress,
-  isAnalyzingHint,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -94,19 +91,6 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         <TouchableOpacity onPress={onActivate}>
           <Text style={styles.activateText}>Activate Voice Mode</Text>
         </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (isAnalyzingHint) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.analyzingRow}>
-          <ActivityIndicator size="small" color="#4a69bd" />
-          <Text style={styles.analyzingText}>
-            Analyzing your speech and fetching next word in sentence...
-          </Text>
-        </View>
       </View>
     );
   }
@@ -209,17 +193,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textDecorationLine: "underline",
     paddingVertical: 10,
-  },
-  analyzingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 20,
-  },
-  analyzingText: {
-    fontSize: 14,
-    color: "#666",
-    flex: 1,
   },
 });
 
