@@ -309,7 +309,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   useEffect(() => {
     setPlayerSpeed(1);
-    if (selectedNavTab !== "review") {
+    if (selectedNavTab !== "review" && selectedNavTab !== "translate") {
       setShowVideo(true);
     }
   }, [selectedNavTab]);
@@ -656,6 +656,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             onPlayClipStart={handlePlayClip}
             isKeyboardVisible={isKeyboardVisible}
             playerIsPlaying={playerIsPlaying}
+            setShowVideo={setShowVideo}
+            playSentence={playSentence}
           />
         </View>
       )}

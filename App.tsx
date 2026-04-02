@@ -222,11 +222,13 @@ const AuthenticatedApp: React.FC = () => {
 
       dispatch(setUserSettings(settings));
 
-      if (currentTab && ["watch", "discuss", "shadow", "speed-run"].includes(currentTab)) {
-        dispatch(setCurrentTab(currentTab));
+      if (currentTab && ["watch", "discuss", "shadow", "speed-run", "translate"].includes(currentTab)) {
+        dispatch(setCurrentTab(currentTab === "translate" ? "discuss" : currentTab));
         // Also update the local nav tab state
         if (currentTab === "discuss") {
           setSelectedNavTab("review");
+        } else if (currentTab === "translate") {
+          setSelectedNavTab("translate");
         } else if (currentTab === "watch" || currentTab === "shadow" || currentTab === "speed-run") {
           setSelectedNavTab(currentTab);
         }
@@ -263,21 +265,23 @@ const AuthenticatedApp: React.FC = () => {
   ) => {
     setSelectedNavTab(tab);
     // Also update redux current tab for consistency
-    const reduxTab =
-      tab === "review" || tab === "translate" ? "discuss" : tab;
+    const reduxTab = tab === "review" ? "discuss" : tab;
     dispatch(
       setCurrentTab(
         reduxTab as "watch" | "shadow" | "discuss" | "home" | "videos",
       ),
     );
 
-    // Persist tab to database (only for watch/discuss/shadow)
+    // Persist tab to database
+    const persistTab =
+      tab === "review" ? "discuss" : tab === "translate" ? "translate" : tab;
     if (
-      reduxTab === "watch" ||
-      reduxTab === "discuss" ||
-      reduxTab === "shadow"
+      persistTab === "watch" ||
+      persistTab === "discuss" ||
+      persistTab === "shadow" ||
+      persistTab === "translate"
     ) {
-      await persistUserUITab({ supabase, userId, currentTab: reduxTab });
+      await persistUserUITab({ supabase, userId, currentTab: persistTab });
     }
   };
 

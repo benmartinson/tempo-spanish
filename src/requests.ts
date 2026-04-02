@@ -418,7 +418,7 @@ export interface RestoreUserUIStateParams {
 
 export interface RestoreUserUIStateResult {
   videoContext: VideoContext | null;
-  currentTab: "watch" | "discuss" | "shadow" | null;
+  currentTab: "watch" | "discuss" | "shadow" | "translate" | null;
   settings: UserSettings;
 }
 
@@ -551,7 +551,7 @@ export const persistVideoUnselection = async ({
 export interface PersistUserUITabParams {
   supabase: any;
   userId: string | null;
-  currentTab: "watch" | "discuss" | "shadow";
+  currentTab: "watch" | "discuss" | "shadow" | "translate";
 }
 
 export const persistUserUITab = async ({

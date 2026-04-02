@@ -68,6 +68,8 @@ interface TranslateTabProps {
   onPlayClipStart: (start: number) => void;
   isKeyboardVisible: boolean;
   playerIsPlaying: boolean;
+  setShowVideo: (show: boolean) => void;
+  playSentence: () => void;
 }
 
 const TranslateTab: React.FC<TranslateTabProps> = ({
@@ -75,6 +77,8 @@ const TranslateTab: React.FC<TranslateTabProps> = ({
   onPlayClipStart,
   isKeyboardVisible,
   playerIsPlaying,
+  setShowVideo,
+  playSentence,
 }) => {
   const dispatch = useDispatch();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -83,6 +87,8 @@ const TranslateTab: React.FC<TranslateTabProps> = ({
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const supabase = useSupabaseWithClerk();
 
+  const [error, setError] = useState<string | null>(null);
+  const [clipRevealed, setClipRevealed] = useState(false);
   const [contextSegments, setContextSegments] = useState<ContextSegment[]>([]);
   const [userAnswer, setUserAnswer] = useState("");
   const [answered, setAnswered] = useState(false);
@@ -225,12 +231,20 @@ const TranslateTab: React.FC<TranslateTabProps> = ({
 
   const totalItems = phraseItems.length;
 
+  // Hide video initially
+  useEffect(() => {
+    setShowVideo(false);
+    return () => setShowVideo(true);
+  }, []);
+
   // Reset on question change
   useEffect(() => {
     if (currentVocabItem) {
       setUserAnswer("");
       setAnswered(false);
       setAccuracyResult(null);
+      setClipRevealed(false);
+      setShowVideo(false);
       setContextSegments(currentVocabItem.contextSegments);
     }
   }, [questionIndex, currentVocabItem]);
@@ -263,6 +277,10 @@ const TranslateTab: React.FC<TranslateTabProps> = ({
         setPreviousResults(accuracy);
       } catch (err) {
         console.error("Transcription error:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to process audio",
+        );
+        setAnswered(false);
       } finally {
         setIsProcessingAudio(false);
         setTimeout(() => {
@@ -478,6 +496,17 @@ const TranslateTab: React.FC<TranslateTabProps> = ({
         Platform.OS === "ios" ? (isKeyboardVisible ? 92 : 120) : 0
       }
     >
+      {error && (
+        <View style={styles.errorContainer}>
+          <View style={styles.errorContent}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setError(null)}>
+            <MaterialIcons name="close" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       <NavSwitcher
         onPrev={handlePrev}
         onNext={handleNext}
@@ -511,6 +540,19 @@ const TranslateTab: React.FC<TranslateTabProps> = ({
             handleRetry={handleRetry}
             properNouns={properNouns}
           />
+          {!clipRevealed && (
+            <TouchableOpacity
+              style={styles.playClipButton}
+              onPress={() => {
+                setClipRevealed(true);
+                setShowVideo(true);
+                playSentence();
+              }}
+            >
+              <MaterialIcons name="play-circle-outline" size={20} color="#fff" />
+              <Text style={styles.playClipButtonText}>Play Clip</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       ) : translationLoading ? (
         <View style={styles.loadingContainer}>
@@ -521,48 +563,76 @@ const TranslateTab: React.FC<TranslateTabProps> = ({
         <>
           {displayQuestion ? (
             <View style={styles.questionAboveBar}>
-              <View style={styles.questionRow}>
-                <View style={styles.questionBubbleWrap}>
-                  <QuestionBubble
-                    question={addEllipsis(
-                      removeSpecialPunctuation(displayQuestion),
-                    )}
-                    label={`Translate into ${LANGUAGE_NAMES[userSettings.targetLanguage] || userSettings.targetLanguage}`}
-                  />
-                </View>
-                <View style={styles.questionActions}>
-                  <TouchableOpacity
-                    style={styles.aiVoiceButton}
-                    onPress={playTranslation}
-                    disabled={isSpeakingTranslation}
-                  >
-                    {isSpeakingTranslation ? (
-                      <ActivityIndicator size="small" color="#7C3AED" />
-                    ) : (
-                      <MaterialIcons
-                        name="record-voice-over"
-                        size={22}
-                        color="#7C3AED"
-                      />
-                    )}
-                  </TouchableOpacity>
-                  {previousResults && (
-                    <TouchableOpacity
-                      style={styles.previousResultsButton}
-                      onPress={handlePreviousResults}
-                    >
-                      <Foundation
-                        name="clipboard-notes"
-                        size={24}
-                        color="#4a69bd"
-                      />
-                    </TouchableOpacity>
+              <QuestionBubble
+                question={addEllipsis(
+                  removeSpecialPunctuation(displayQuestion),
+                )}
+                label={`Translate into ${LANGUAGE_NAMES[userSettings.targetLanguage] || userSettings.targetLanguage}`}
+              />
+              {/* <View style={styles.questionActions}>
+                <TouchableOpacity
+                  style={styles.aiVoiceButton}
+                  onPress={playTranslation}
+                  disabled={isSpeakingTranslation}
+                >
+                  {isSpeakingTranslation ? (
+                    <ActivityIndicator size="small" color="#7C3AED" />
+                  ) : (
+                    <MaterialIcons
+                      name="record-voice-over"
+                      size={22}
+                      color="#7C3AED"
+                    />
                   )}
-                </View>
-              </View>
+                </TouchableOpacity>
+                {previousResults && (
+                  <TouchableOpacity
+                    style={styles.previousResultsButton}
+                    onPress={handlePreviousResults}
+                  >
+                    <Foundation
+                      name="clipboard-notes"
+                      size={24}
+                      color="#4a69bd"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View> */}
             </View>
           ) : null}
-          <ContentTabBar
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.chatArea}
+            contentContainerStyle={styles.chatContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {clipRevealed && (
+              <ContextClipsSection
+                loading={false}
+                segments={contextSegments}
+                onPlayClip={onPlayClip}
+                isVocabMode={false}
+              />
+            )}
+            {currentVocabItem && (
+              <Phrases
+                subSegments={currentSubSegments}
+                sentenceText={currentVocabItem.word}
+                showPhrases={false}
+                isRecordingMode={true}
+              />
+            )}
+            {hintWords.length > 0 && (
+              <WordHints
+                hintWords={hintWords}
+                handlePlayWordSnippet={() => {}}
+                isPlayingWordSnippet={false}
+                showWordHints={false}
+                showSlowPlay={false}
+              />
+            )}
+          </ScrollView>
+          {/* <ContentTabBar
             tabs={[
               { key: "insights", label: "Insights" },
               { key: "voice", label: "Voice Commands" },
@@ -570,79 +640,44 @@ const TranslateTab: React.FC<TranslateTabProps> = ({
             selectedTab={contentTab}
             onSelectTab={(key) => setContentTab(key as "insights" | "voice")}
           >
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.chatArea}
-              contentContainerStyle={styles.chatContent}
-              keyboardShouldPersistTaps="handled"
-            >
-              {contentTab === "insights" ? (
-                <>
-                  <ContextClipsSection
-                    loading={false}
-                    segments={contextSegments}
-                    onPlayClip={onPlayClip}
-                    isVocabMode={false}
-                  />
-                  {currentVocabItem && (
-                    <Phrases
-                      subSegments={currentSubSegments}
-                      sentenceText={currentVocabItem.word}
-                      showPhrases={false}
-                      isRecordingMode={true}
-                    />
-                  )}
-                  {hintWords.length > 0 && (
-                    <WordHints
-                      hintWords={hintWords}
-                      handlePlayWordSnippet={() => {}}
-                      isPlayingWordSnippet={false}
-                      showWordHints={false}
-                      showSlowPlay={false}
-                    />
-                  )}
-                </>
-              ) : (
-                <VoiceCommands
-                  isListening={isListening}
-                  isClipPlaying={isSpeakingTranslation || playerIsPlaying}
-                  activeCommand={activeCommand}
-                  hasError={voiceCommandError}
-                  timedOut={voiceCommandTimedOut}
-                  permissionDenied={voicePermissionDenied}
-                  onActivate={startListening}
-                  onCommandPress={handleCommandPress}
-                  commands={[
-                    {
-                      command: "repeat",
-                      label: "Repeat",
-                      description: "Hear the translation again",
-                    },
-                    {
-                      command: "play",
-                      label: "Play Clip",
-                      description: "Play the context clip",
-                    },
-                    {
-                      command: "record",
-                      label: "Record",
-                      description: "Start recording",
-                    },
-                    {
-                      command: "hint",
-                      label: "Word Hint",
-                      description: "Hear a hint word",
-                    },
-                    {
-                      command: "next",
-                      label: "Next",
-                      description: "Go to next question",
-                    },
-                  ]}
-                />
-              )}
-            </ScrollView>
-          </ContentTabBar>
+            <VoiceCommands
+              isListening={isListening}
+              isClipPlaying={isSpeakingTranslation || playerIsPlaying}
+              activeCommand={activeCommand}
+              hasError={voiceCommandError}
+              timedOut={voiceCommandTimedOut}
+              permissionDenied={voicePermissionDenied}
+              onActivate={startListening}
+              onCommandPress={handleCommandPress}
+              commands={[
+                {
+                  command: "repeat",
+                  label: "Repeat",
+                  description: "Hear the translation again",
+                },
+                {
+                  command: "play",
+                  label: "Play Clip",
+                  description: "Play the context clip",
+                },
+                {
+                  command: "record",
+                  label: "Record",
+                  description: "Start recording",
+                },
+                {
+                  command: "hint",
+                  label: "Word Hint",
+                  description: "Hear a hint word",
+                },
+                {
+                  command: "next",
+                  label: "Next",
+                  description: "Go to next question",
+                },
+              ]}
+            />
+          </ContentTabBar> */}
         </>
       )}
 
@@ -721,6 +756,39 @@ const styles = StyleSheet.create({
   questionActions: {
     alignItems: "center" as const,
     gap: 6,
+  },
+  playClipButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    backgroundColor: "#4a69bd",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+    marginTop: 16,
+  },
+  playClipButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: "#ff4757",
+    borderRadius: 8,
+  },
+  errorContent: {
+    flex: 1,
+  },
+  errorText: {
+    color: "#fff",
+    textAlign: "center",
   },
   previousResultsButton: {
     width: 40,
