@@ -23,7 +23,7 @@ import {
 } from "../../requests";
 import SlideModal from "./SlideModal";
 
-type NavTab = "watch" | "shadow" | "review" | "speed-run";
+type NavTab = "watch" | "shadow" | "review" | "speed-run" | "translate";
 
 interface NavTabBannerProps {
   selectedTab: NavTab;
@@ -42,7 +42,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
   const [profileVisible, setProfileVisible] = useState(false);
   const { signOut } = useClerk();
   const { user } = useUser();
-  const [dropdownPosition, setDropdownPosition] = useState({ x: 0, y: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({ x: 0, y: 0, width: 0 });
   const selectorRef = useRef<View>(null);
 
   if (!currentVideo) {
@@ -67,6 +67,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
   const tabs: { key: NavTab; label: string; icon: string }[] = [
     { key: "shadow", label: "Shadow", icon: "record-voice-over" },
     { key: "speed-run", label: "Memorize", icon: "speed" },
+    { key: "translate", label: "Translate", icon: "g-translate" },
     { key: "review", label: "Review", icon: "rate-review" },
   ];
 
@@ -74,7 +75,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
 
   const handleOpenDropdown = () => {
     selectorRef.current?.measureInWindow((x, y, width, height) => {
-      setDropdownPosition({ x, y: y + height + 4 });
+      setDropdownPosition({ x, y: y + height + 4, width });
       setDropdownOpen(true);
     });
   };
@@ -124,7 +125,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
             <View
               style={[
                 styles.dropdown,
-                { top: dropdownPosition.y, left: dropdownPosition.x - 40 },
+                { top: dropdownPosition.y, left: dropdownPosition.x + dropdownPosition.width / 2 - 90 },
               ]}
             >
               {tabs.map((tab) => (

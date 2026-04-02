@@ -33,6 +33,7 @@ import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import SpeedRunTab from "../speed-run/SpeedRunTab";
 import ShadowTab from "../shadow/ShadowTab";
 import DiscussTab from "../discuss/DiscussTab";
+import TranslateTab from "../translate/TranslateTab";
 import {
   capitalize,
   isInterestingVocab,
@@ -43,12 +44,11 @@ import {
 import SlideModal from "./SlideModal";
 
 interface SelectedVideoTabsProps {
-  selectedNavTab: "watch" | "shadow" | "review" | "speed-run";
+  selectedNavTab: "watch" | "shadow" | "review" | "speed-run" | "translate";
   onSelectNavTab: (
-    tab: "watch" | "shadow" | "review" | "speed-run",
+    tab: "watch" | "shadow" | "review" | "speed-run" | "translate",
     reviewDetails?: AutoReviewDetails | null,
   ) => void;
-  autoReviewDetails?: AutoReviewDetails | null;
 }
 
 if (
@@ -61,7 +61,6 @@ if (
 const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   selectedNavTab,
   onSelectNavTab,
-  autoReviewDetails,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const videoRefreshKey = useSelector(
@@ -422,17 +421,6 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     [onSelectNavTab],
   );
 
-  const handleBackToShadow = useCallback(
-    (isVoiceMode) => {
-      const segmentId = autoReviewDetails?.backToSegmentId ?? null;
-      setAutoShadowDetails(
-        segmentId != null ? { backToSegmentId: segmentId, isVoiceMode } : null,
-      );
-      onSelectNavTab("shadow", null);
-    },
-    [onSelectNavTab, autoReviewDetails],
-  );
-
   const playSentence = useCallback(() => {
     handleTransition();
     setAutoplay(true);
@@ -644,8 +632,18 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             onPlayClip={playClipSnippet}
             isKeyboardVisible={isKeyboardVisible}
             setShowVideo={setShowVideo}
-            autoReviewDetails={autoReviewDetails}
-            onBackToShadow={handleBackToShadow}
+          />
+        </View>
+      )}
+
+      {selectedNavTab === "translate" && (
+        <View style={getTabStyle(selectedNavTab === "translate")}>
+          <TranslateTab
+            onPlayClip={(segment) =>
+              playClipSnippet(segment.start, segment.end)
+            }
+            onPlayClipStart={handlePlayClip}
+            isKeyboardVisible={isKeyboardVisible}
             playerIsPlaying={playerIsPlaying}
           />
         </View>

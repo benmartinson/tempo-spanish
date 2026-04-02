@@ -23,7 +23,6 @@ import {
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import {
-  AutoReviewDetails,
   VideoView,
   Vocabulary,
   RootState,
@@ -167,10 +166,8 @@ const AuthenticatedApp: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const [selectedNavTab, setSelectedNavTab] = useState<
-    "watch" | "shadow" | "review" | "speed-run"
+    "watch" | "shadow" | "review" | "speed-run" | "translate"
   >("watch");
-  const [autoReviewDetails, setAutoReviewDetails] =
-    useState<AutoReviewDetails | null>(null);
   const [isRestoringState, setIsRestoringState] = useState(true);
 
   // Sync currentSentence changes to the database
@@ -262,17 +259,26 @@ const AuthenticatedApp: React.FC = () => {
   }, [currentVideo?.videoId, isRestoringState]);
 
   const handleNavTabSelect = async (
-    tab: "watch" | "shadow" | "review" | "speed-run",
-    reviewDetails?: AutoReviewDetails | null,
+    tab: "watch" | "shadow" | "review" | "speed-run" | "translate",
   ) => {
-    setAutoReviewDetails(reviewDetails ?? null);
     setSelectedNavTab(tab);
     // Also update redux current tab for consistency
-    const reduxTab = tab === "review" ? "discuss" : tab;
-    dispatch(setCurrentTab(reduxTab));
+    const reduxTab =
+      tab === "review" || tab === "translate" ? "discuss" : tab;
+    dispatch(
+      setCurrentTab(
+        reduxTab as "watch" | "shadow" | "discuss" | "home" | "videos",
+      ),
+    );
 
     // Persist tab to database (only for watch/discuss/shadow)
-    await persistUserUITab({ supabase, userId, currentTab: reduxTab });
+    if (
+      reduxTab === "watch" ||
+      reduxTab === "discuss" ||
+      reduxTab === "shadow"
+    ) {
+      await persistUserUITab({ supabase, userId, currentTab: reduxTab });
+    }
   };
 
   const renderTabContent = () => {
@@ -280,7 +286,6 @@ const AuthenticatedApp: React.FC = () => {
       <SelectedVideoTabs
         selectedNavTab={selectedNavTab}
         onSelectNavTab={handleNavTabSelect}
-        autoReviewDetails={autoReviewDetails}
       />
     );
   };

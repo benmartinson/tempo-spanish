@@ -5,7 +5,6 @@ import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useSelector } from "react-redux";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import SlideModal from "./common/SlideModal";
 import LanguageModal from "./settings/LanguageModal";
 import { RootState } from "../types";
@@ -36,27 +35,24 @@ const TopNavBar: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.leftFlagContainer}
-          onPress={() => setLanguageVisible(true)}
-        >
-          <Text style={styles.countryFlag}>
-            {getFlagForLanguage(userSettings.targetLanguage)}
-          </Text>
-        </TouchableOpacity>
-        <View style={styles.titleContainer}>
-          <Text style={styles.appName}>Tempo</Text>
-          <MaterialCommunityIcons name="waves" size={26} color="#1a1a2e" />
-          {/* <FontAwesome5 name="wave-square" size={24} color="#1a1a2e" /> */}
-        </View>
-        <TouchableOpacity
-          style={styles.avatarButton}
-          onPress={() => setProfileVisible(true)}
-        >
-          <Ionicons name="person" size={18} color="#5a5680" />
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.leftFlagContainer}
+        onPress={() => setLanguageVisible(true)}
+      >
+        <Text style={styles.countryFlag}>
+          {getFlagForLanguage(userSettings.targetLanguage)}
+        </Text>
+      </TouchableOpacity>
+      <View style={styles.titleContainer}>
+        <Text style={styles.appName}>Tempo</Text>
+        <MaterialCommunityIcons name="waves" size={24} color="#3d3a52" />
       </View>
+      <TouchableOpacity
+        style={styles.avatarButton}
+        onPress={() => setProfileVisible(true)}
+      >
+        <Ionicons name="person" size={16} color="#5a5680" />
+      </TouchableOpacity>
 
       <LanguageModal
         visible={languageVisible}
@@ -96,45 +92,43 @@ const TopNavBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
+    marginTop: 60,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#d0d8f0",
-    overflow: "hidden",
-  },
-  content: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-    height: 95,
   },
   leftFlagContainer: {
-    borderWidth: 1,
-    borderColor: "#d0d8f0",
-    paddingHorizontal: 10,
-    borderRadius: 100,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f2f2f2",
+    justifyContent: "center",
+    alignItems: "center",
   },
   titleContainer: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 5,
   },
   appName: {
     fontSize: 20,
-    fontFamily: "Helvetica",
-    fontWeight: "500",
-    color: "#1a1a2e",
+    fontWeight: "600",
+    color: "#3d3a52",
   },
   countryFlag: {
     textAlign: "center",
-    fontSize: 24,
+    fontSize: 18,
   },
   avatarButton: {
     width: 36,
     height: 36,
-    borderRadius: 20,
+    borderRadius: 18,
     backgroundColor: "#d0d8f0",
     justifyContent: "center",
     alignItems: "center",

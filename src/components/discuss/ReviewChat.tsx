@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -14,65 +8,36 @@ import {
   Platform,
   Keyboard,
   ActivityIndicator,
-  TouchableOpacity,
 } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import Foundation from "@expo/vector-icons/Foundation";
 import {
-  AccuracyResult,
-  AutoReviewDetails,
   ContextSegment,
   QuizType,
   RootState,
   SegmentWord,
-  VoiceCommand,
   VocabQuestion,
   VocabEvaluation,
 } from "../../types";
 import NavSwitcher from "../common/NavSwitcher";
 import ReviewTypeSelector from "./ReviewTypeSelector";
-import { useSelector, useDispatch } from "react-redux";
-import { setCurrentSentence as setCurrentSentenceAction } from "../../store/actions/dataActions";
+import { useSelector } from "react-redux";
 import {
   normalizeWord,
   buildVocabItemsWithContext,
   getUncommonVocabFromSentences,
   getFocusVocabWords,
-  computeSubSegments,
   stripPunctuation,
   isInterestingVocab,
-  removeSpecialPunctuation,
-  addEllipsis,
 } from "../../helpers/helpers";
-import Phrases from "../shadow/Phrases";
 import WordHints from "../common/WordHints";
-import { evaluateVocabAnswer, loadSentenceInsights } from "../../requests";
+import { evaluateVocabAnswer } from "../../requests";
 import QuestionBubble from "./QuestionBubble";
 import ContextClipsSection from "./ContextClipsSection";
 import UserAnswerBubble from "./UserAnswerBubble";
 import { EvaluatingBubble, VocabEvaluationBubble } from "./EvaluationBubble";
 import AnswerInput from "./AnswerInput";
 import AnswerActions from "./AnswerActions";
-import ContentTabBar from "../common/ContentTabBar";
-import ShadowResults from "../shadow/ShadowResults";
-import VoiceCommands from "../shadow/VoiceCommands";
-import { useRecording } from "../useRecording";
-import { useVoiceCommand } from "../useVoiceCommand";
-import {
-  sendAudioForTranscription,
-  playAiSpeech,
-  playAudio,
-} from "../../helpers/streaming_helpers";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { useCachedAudio } from "../shadow/useCachedAudio";
 import { useAuth } from "@clerk/clerk-expo";
-import { calculateAccuracy } from "../../helpers/calculate_accuracy";
-
-const LANGUAGE_NAMES: Record<string, string> = {
-  es: "Spanish",
-  en: "English",
-  pt: "Portuguese",
-};
 
 interface ReviewChatProps {
   videoId: string;
@@ -80,10 +45,6 @@ interface ReviewChatProps {
   isKeyboardVisible: boolean;
   selectedQuizType: QuizType;
   onSelectQuizType: (type: QuizType) => void;
-  setShowVideo: (show: boolean) => void;
-  autoReviewDetails?: AutoReviewDetails | null;
-  onBackToShadow?: (isVoiceMode) => void;
-  playerIsPlaying: boolean;
 }
 
 const ReviewChat: React.FC<ReviewChatProps> = ({
@@ -92,23 +53,16 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   isKeyboardVisible,
   selectedQuizType,
   onSelectQuizType,
-  autoReviewDetails,
-  setShowVideo,
-  onBackToShadow,
-  playerIsPlaying,
 }) => {
-  const dispatch = useDispatch();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const sentences = currentVideo?.sentences ?? [];
   const focusVocab = currentVideo?.focusVocab;
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
-  const userSettings = useSelector((state: RootState) => state.userSettings);
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
 
   const isVocabMode = selectedQuizType === "Vocab";
   const isPhraseMode = selectedQuizType === "Phrases";
-  const isTranslateMode = selectedQuizType === "Translate";
 
   const [contextSegments, setContextSegments] = useState<ContextSegment[]>([]);
   const [userAnswer, setUserAnswer] = useState("");
@@ -116,23 +70,10 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     useState<VocabEvaluation | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [answered, setAnswered] = useState(false);
-  const [questionIndex, setQuestionIndex] = useState<number>(
-    autoReviewDetails?.reviewSegmentId ?? currentVideo?.currentSentence ?? 0,
-  );
-  useEffect(() => {
-    if (autoReviewDetails) {
-      dispatch(setCurrentSentenceAction(autoReviewDetails.reviewSegmentId));
-      setQuestionIndex(autoReviewDetails.reviewSegmentId);
-    }
-  }, [autoReviewDetails]);
+  const [questionIndex, setQuestionIndex] = useState<number>(0);
 
   const [userMessages, setUserMessages] = useState<string[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
-  const [contentTab, setContentTab] = useState<"insights" | "voice">(
-    autoReviewDetails?.isVoiceMode ? "voice" : "insights",
-  );
-  const contentTabRef = useRef(contentTab);
-  contentTabRef.current = contentTab;
 
   // Shadow result sentence indices for prioritization
   const [shadowResultIndices, setShadowResultIndices] = useState<number[]>([]);
@@ -152,24 +93,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       });
   }, [supabase, userId, currentVideo?.recordId]);
 
-  // Translate mode state
-  const [translationText, setTranslationText] = useState<string | null>(null);
-  const [translationLoading, setTranslationLoading] = useState(false);
-  const [properNouns, setProperNouns] = useState<string[]>([]);
-  const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
-    null,
-  );
-  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
-  const [isSpeakingTranslation, setIsSpeakingTranslation] = useState(false);
-  const [previousResults, setPreviousResults] = useState<AccuracyResult | null>(
-    null,
-  );
-
-  const { getOrCreatePhraseRecording } = useCachedAudio(
-    supabase,
-    setIsSpeakingTranslation,
-  );
-
   const vocabLoading =
     !allVocabulary || !Object.keys(allVocabulary).length || !sentences?.length;
 
@@ -179,15 +102,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setVocabEvaluation(null);
     setAnswered(false);
     setUserMessages([]);
-    setQuestionIndex(
-      selectedQuizType === "Translate"
-        ? (autoReviewDetails?.reviewSegmentId ??
-            currentVideo?.currentSentence ??
-            0)
-        : 0,
-    );
-    setAccuracyResult(null);
-    setTranslationText(null);
+    setQuestionIndex(0);
   }, [selectedQuizType]);
 
   // Reset on question change
@@ -196,7 +111,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setVocabEvaluation(null);
     setAnswered(false);
     setContextSegments([]);
-    setAccuracyResult(null);
   }, [selectedQuizType]);
 
   const vocabItems = useMemo(() => {
@@ -235,25 +149,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const phraseItems = useMemo(() => {
     if (!sentences?.length) return [];
 
-    if (isTranslateMode) {
-      // Translate mode: sequential order, no shuffle
-      return sentences.map((sentence, index) => ({
-        id: index,
-        word: sentence.text,
-        translation: "",
-        contextSegments: [
-          {
-            segment_id: index,
-            start: sentence.start,
-            end: sentence.end,
-            text: sentence.text,
-            score: 1,
-          },
-        ],
-      }));
-    }
-
-    // Phrases mode: shuffle with shadow results prioritized
     const shadowSet = new Set(shadowResultIndices);
     const all = sentences.map((s, i) => ({ sentence: s, index: i }));
 
@@ -284,7 +179,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         },
       ],
     }));
-  }, [sentences, shadowResultIndices, isTranslateMode]);
+  }, [sentences, shadowResultIndices]);
 
   const activeVocabItems =
     selectedQuizType === "Vocab" ? vocabItems : phraseItems;
@@ -294,61 +189,11 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       ? activeVocabItems[questionIndex]
       : null;
 
-  // Fetch translation for Translate mode
-  useEffect(() => {
-    if (!isTranslateMode || !currentVocabItem || !supabase || !currentVideo) {
-      setTranslationText(null);
-      return;
-    }
-
-    let cancelled = false;
-    setTranslationLoading(true);
-    setTranslationText(null);
-
-    loadSentenceInsights({
-      supabase,
-      sentenceText: currentVocabItem.word,
-      videoRecordId: currentVideo.recordId,
-      sentenceIndex: isTranslateMode ? questionIndex : currentVocabItem.id,
-      translationLanguage: userSettings.translationLanguage,
-    })
-      .then(async (result) => {
-        if (!cancelled) {
-          setTranslationText(result.translation);
-          setProperNouns(result.properNouns);
-          setTranslationLoading(false);
-          if (result.translation && contentTabRef.current === "voice") {
-            setIsSpeakingTranslation(true);
-            const recording = await getOrCreatePhraseRecording(
-              result.translation,
-            );
-            if (recording && !cancelled) {
-              await playAudio(recording);
-            }
-            if (!cancelled) setIsSpeakingTranslation(false);
-          }
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setTranslationLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isTranslateMode, currentVocabItem, questionIndex, supabase]);
-
   const currentSentenceWords = useMemo(() => {
     if (!currentVocabItem) return [];
     const sentence = sentences.find((_, i) => i === currentVocabItem.id);
     return sentence?.words ?? [];
   }, [currentVocabItem, sentences]);
-
-  const currentSubSegments = useMemo(() => {
-    return currentSentenceWords.length > 0
-      ? computeSubSegments(currentSentenceWords)
-      : [];
-  }, [currentSentenceWords]);
 
   const hintWords = useMemo(() => {
     if (currentSentenceWords.length === 0 || !allVocabulary) return [];
@@ -391,8 +236,6 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       question = `What does "${currentVocabItem.word}" mean?`;
     } else if (isPhraseMode) {
       question = `What does this phrase mean?\n\n"${wordOrPhrase}"`;
-    } else if (isTranslateMode) {
-      question = translationText;
     }
 
     return {
@@ -401,14 +244,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       question,
       contextSegments: currentVocabItem.contextSegments,
     };
-  }, [
-    currentVocabItem,
-    selectedQuizType,
-    isVocabMode,
-    isPhraseMode,
-    isTranslateMode,
-    translationText,
-  ]);
+  }, [currentVocabItem, selectedQuizType, isVocabMode, isPhraseMode]);
 
   const totalItems = activeVocabItems.length;
 
@@ -417,249 +253,31 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
       setUserAnswer("");
       setVocabEvaluation(null);
       setAnswered(false);
-      setAccuracyResult(null);
       setContextSegments(currentVocabItem.contextSegments);
     }
   }, [questionIndex, currentVocabItem]);
 
-  // Voice recording
-  const handleRecordingComplete = useCallback(
-    async (audioUri: string) => {
-      if (!currentVocabItem) return;
-
-      setIsProcessingAudio(true);
-      setAnswered(true);
-
-      try {
-        const transcriptionResult = await sendAudioForTranscription(
-          audioUri,
-          userSettings.targetLanguage,
-        );
-        const spokenWords = transcriptionResult.transcript
-          .split(/\s+/)
-          .filter(Boolean);
-        const targetWords = currentVocabItem.word.split(/\s+/).filter(Boolean);
-        const accuracy = calculateAccuracy(
-          spokenWords,
-          targetWords,
-          properNouns,
-        );
-        if (contentTab !== "voice") {
-          setAccuracyResult({
-            ...accuracy,
-          });
-        }
-        setPreviousResults(accuracy);
-      } catch (err) {
-        console.error("Transcription error:", err);
-      } finally {
-        setIsProcessingAudio(false);
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
-    },
-    [currentVocabItem, userSettings.targetLanguage, properNouns],
-  );
-
-  const { isRecording, startRecording, stopRecording } = useRecording({
-    onRecordingComplete: handleRecordingComplete,
-  });
-
   const handleResetAnswer = () => {
-    if (isRecording) {
-      stopRecording(true);
-    }
-    if (accuracyResult) setPreviousResults(accuracyResult);
     setUserAnswer("");
     setVocabEvaluation(null);
     setAnswered(false);
-    setAccuracyResult(null);
     Keyboard.dismiss();
   };
 
   const handleNext = () => {
     handleResetAnswer();
-    setPreviousResults(null);
-    setQuestionIndex((prev) => {
-      const next = prev + 1;
-      if (isTranslateMode) dispatch(setCurrentSentenceAction(next));
-      return next;
-    });
+    setQuestionIndex((prev) => prev + 1);
   };
 
   const handlePrev = () => {
-    setQuestionIndex((prev) => {
-      const next = prev - 1;
-      if (isTranslateMode) dispatch(setCurrentSentenceAction(next));
-      return next;
-    });
+    setQuestionIndex((prev) => prev - 1);
   };
-
-  // Voice commands
-  const [activeCommand, setActiveCommand] = useState<VoiceCommand>(null);
-  const voiceHintIndexRef = useRef(0);
-
-  const playTranslation = useCallback(async () => {
-    if (!translationText || isSpeakingTranslation) return;
-    setIsSpeakingTranslation(true);
-    try {
-      const recording = await getOrCreatePhraseRecording(translationText);
-      if (recording) {
-        await playAudio(recording);
-      }
-    } finally {
-      setIsSpeakingTranslation(false);
-    }
-  }, [translationText, isSpeakingTranslation, getOrCreatePhraseRecording]);
-
-  const {
-    isListening,
-    hasError: voiceCommandError,
-    timedOut: voiceCommandTimedOut,
-    permissionDenied: voicePermissionDenied,
-    startListening,
-    stopListening,
-    closeConnection,
-  } = useVoiceCommand({
-    onRepeat: async () => {
-      setActiveCommand("repeat");
-      await stopListening();
-      await playTranslation();
-      startListening();
-    },
-    onPlay: async () => {
-      setActiveCommand("play");
-      if (contextSegments.length > 0) {
-        await stopListening();
-        onPlayClip(contextSegments[0]);
-      }
-    },
-    onNext: async () => {
-      setActiveCommand("next");
-      if (autoReviewDetails && onBackToShadow) {
-        await closeConnection();
-        onBackToShadow(contentTab === "voice");
-      } else {
-        handleNext();
-      }
-    },
-    onRecord: async () => {
-      setActiveCommand("record");
-      await closeConnection();
-      startRecording();
-    },
-    onHint: async () => {
-      setActiveCommand("hint");
-      if (hintWords.length > 0) {
-        const word = hintWords[voiceHintIndexRef.current];
-        await stopListening();
-        await playAiSpeech({ segmentText: word.word });
-        voiceHintIndexRef.current =
-          (voiceHintIndexRef.current + 1) % hintWords.length;
-        startListening();
-      }
-    },
-  });
-
-  const commandHandlersRef = useRef<Record<string, () => void>>({});
-  commandHandlersRef.current = {
-    repeat: async () => {
-      setActiveCommand("repeat");
-      await stopListening();
-      await playTranslation();
-      startListening();
-    },
-    play: async () => {
-      setActiveCommand("play");
-      if (contextSegments.length > 0) {
-        await stopListening();
-        onPlayClip(contextSegments[0]);
-      }
-    },
-    next: () => {
-      setActiveCommand("next");
-      if (autoReviewDetails && onBackToShadow) {
-        onBackToShadow(contentTab === "voice");
-      } else {
-        handleNext();
-      }
-    },
-    record: async () => {
-      setActiveCommand("record");
-      await closeConnection();
-      startRecording();
-    },
-    hint: async () => {
-      setActiveCommand("hint");
-      if (hintWords.length > 0) {
-        const word = hintWords[voiceHintIndexRef.current];
-        await stopListening();
-        await playAiSpeech({ segmentText: word.word });
-        voiceHintIndexRef.current =
-          (voiceHintIndexRef.current + 1) % hintWords.length;
-        startListening();
-      }
-    },
-  };
-
-  const handleCommandPress = useCallback((command: VoiceCommand) => {
-    if (!command) return;
-    commandHandlersRef.current[command]?.();
-  }, []);
-
-  // Start listening when on voice tab and nothing is playing
-  useEffect(() => {
-    if (
-      contentTab === "voice" &&
-      isTranslateMode &&
-      !playerIsPlaying &&
-      !isSpeakingTranslation &&
-      !translationLoading &&
-      !isRecording &&
-      !isProcessingAudio &&
-      !accuracyResult
-    ) {
-      startListening();
-    }
-  }, [
-    contentTab,
-    isTranslateMode,
-    playerIsPlaying,
-    isSpeakingTranslation,
-    translationLoading,
-    isRecording,
-    isProcessingAudio,
-    accuracyResult,
-  ]);
-
-  // Stop listening when question or tab changes
-  useEffect(() => {
-    stopListening();
-  }, [questionIndex, contentTab]);
 
   const handleSubmitAnswer = async () => {
     if (!userAnswer.trim()) return;
     if (!currentVocabQuestion) return;
 
     Keyboard.dismiss();
-
-    // Translate mode: compare typed text against target sentence directly
-    if (isTranslateMode && currentVocabItem) {
-      setAnswered(true);
-      const spokenWords = userAnswer.trim().split(/\s+/).filter(Boolean);
-      const targetWords = currentVocabItem.word.split(/\s+/).filter(Boolean);
-      const accuracy = calculateAccuracy(spokenWords, targetWords, properNouns);
-      setAccuracyResult({
-        ...accuracy,
-        targetSentence: currentVocabItem.word,
-      });
-      setUserAnswer("");
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-      return;
-    }
 
     setEvaluating(true);
     setAnswered(true);
@@ -696,16 +314,10 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   };
 
   const handleRetry = () => {
-    if (accuracyResult) setPreviousResults(accuracyResult);
     setUserAnswer("");
     setVocabEvaluation(null);
     setAnswered(false);
     setUserMessages([]);
-    setAccuracyResult(null);
-  };
-
-  const handlePreviousResults = () => {
-    setAccuracyResult(previousResults);
   };
 
   if (vocabLoading && isVocabMode) {
@@ -746,193 +358,50 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
             </Text>
           </View>
         )}
-        {isTranslateMode && currentVideo && (
-          <View style={styles.vocabBadge}>
-            <Text style={styles.vocabBadgeText}>
-              {currentVideo.currentSentence + 1}
-            </Text>
-          </View>
-        )}
       </NavSwitcher>
 
-      {isProcessingAudio ? (
-        <View style={styles.processingContainer}>
-          <ActivityIndicator size="large" color="#4ade80" />
-          <Text style={styles.processingText}>Analyzing...</Text>
-        </View>
-      ) : accuracyResult ? (
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.chatArea}
-          contentContainerStyle={styles.chatContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <ShadowResults
-            accuracyResult={accuracyResult}
-            handleNextSentence={handleNext}
-            handleRetry={handleRetry}
-            properNouns={properNouns}
-            onBackToShadow={
-              autoReviewDetails
-                ? () => onBackToShadow(contentTab === "voice")
-                : undefined
-            }
-          />
-        </ScrollView>
-      ) : isTranslateMode && translationLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#4a69bd" />
-          <Text style={styles.loadingText}>Loading translation...</Text>
-        </View>
-      ) : (
-        <>
-          {displayQuestion ? (
-            <View style={styles.questionAboveBar}>
-              <View style={styles.questionRow}>
-                <View style={styles.questionBubbleWrap}>
-                  <QuestionBubble
-                    question={addEllipsis(
-                      removeSpecialPunctuation(displayQuestion),
-                    )}
-                    label={
-                      isTranslateMode
-                        ? `Translate into ${LANGUAGE_NAMES[userSettings.targetLanguage] || userSettings.targetLanguage}`
-                        : undefined
-                    }
-                  />
-                </View>
-                {isTranslateMode && translationText && (
-                  <View style={styles.questionActions}>
-                    <TouchableOpacity
-                      style={styles.aiVoiceButton}
-                      onPress={playTranslation}
-                      disabled={isSpeakingTranslation}
-                    >
-                      {isSpeakingTranslation ? (
-                        <ActivityIndicator size="small" color="#7C3AED" />
-                      ) : (
-                        <MaterialIcons
-                          name="record-voice-over"
-                          size={22}
-                          color="#7C3AED"
-                        />
-                      )}
-                    </TouchableOpacity>
-                    {previousResults && (
-                      <TouchableOpacity
-                        style={styles.previousResultsButton}
-                        onPress={handlePreviousResults}
-                      >
-                        <Foundation
-                          name="clipboard-notes"
-                          size={24}
-                          color="#4a69bd"
-                        />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </View>
+      {displayQuestion ? (
+        <View style={styles.questionAboveBar}>
+          <View style={styles.questionRow}>
+            <View style={styles.questionBubbleWrap}>
+              <QuestionBubble question={displayQuestion} />
             </View>
-          ) : null}
-          <ContentTabBar
-            tabs={[
-              { key: "insights", label: "Insights" },
-              { key: "voice", label: "Voice Commands" },
-            ]}
-            selectedTab={contentTab}
-            onSelectTab={(key) => setContentTab(key as "insights" | "voice")}
-            hidden={!isTranslateMode}
-          >
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.chatArea}
-              contentContainerStyle={styles.chatContent}
-              keyboardShouldPersistTaps="handled"
-            >
-              {contentTab === "insights" || !isTranslateMode ? (
-                <>
-                  <ContextClipsSection
-                    loading={false}
-                    segments={contextSegments}
-                    onPlayClip={onPlayClip}
-                    isVocabMode={isVocabMode}
-                  />
-                  {currentVocabItem && isTranslateMode && (
-                    <Phrases
-                      subSegments={currentSubSegments}
-                      sentenceText={currentVocabItem.word}
-                      showPhrases={false}
-                      isRecordingMode={true}
-                    />
-                  )}
-                  {hintWords.length > 0 && (
-                    <WordHints
-                      hintWords={hintWords}
-                      handlePlayWordSnippet={() => {}}
-                      isPlayingWordSnippet={false}
-                      showWordHints={false}
-                      showSlowPlay={false}
-                    />
-                  )}
+          </View>
+        </View>
+      ) : null}
 
-                  {answered && userMessages.length > 0 && (
-                    <UserAnswerBubble
-                      answer={userMessages[userMessages.length - 1]}
-                    />
-                  )}
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.chatArea}
+        contentContainerStyle={styles.chatContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ContextClipsSection
+          loading={false}
+          segments={contextSegments}
+          onPlayClip={onPlayClip}
+          isVocabMode={isVocabMode}
+        />
+        {hintWords.length > 0 && (
+          <WordHints
+            hintWords={hintWords}
+            handlePlayWordSnippet={() => {}}
+            isPlayingWordSnippet={false}
+            showWordHints={false}
+            showSlowPlay={false}
+          />
+        )}
 
-                  <EvaluatingBubble isEvaluating={evaluating} />
+        {answered && userMessages.length > 0 && (
+          <UserAnswerBubble answer={userMessages[userMessages.length - 1]} />
+        )}
 
-                  {vocabEvaluation && (
-                    <VocabEvaluationBubble evaluation={vocabEvaluation} />
-                  )}
-                </>
-              ) : (
-                <VoiceCommands
-                  isListening={isListening}
-                  isClipPlaying={isSpeakingTranslation || playerIsPlaying}
-                  activeCommand={activeCommand}
-                  hasError={voiceCommandError}
-                  timedOut={voiceCommandTimedOut}
-                  permissionDenied={voicePermissionDenied}
-                  onActivate={startListening}
-                  onCommandPress={handleCommandPress}
-                  commands={[
-                    {
-                      command: "repeat",
-                      label: "Repeat",
-                      description: "Hear the translation again",
-                    },
-                    {
-                      command: "play",
-                      label: "Play Clip",
-                      description: "Play the context clip",
-                    },
-                    {
-                      command: "record",
-                      label: "Record",
-                      description: "Start recording",
-                    },
-                    {
-                      command: "hint",
-                      label: "Word Hint",
-                      description: "Hear a hint word",
-                    },
-                    {
-                      command: "next",
-                      label: "Next",
-                      description: autoReviewDetails
-                        ? "Go back to shadowing"
-                        : "Go to next question",
-                    },
-                  ]}
-                />
-              )}
-            </ScrollView>
-          </ContentTabBar>
-        </>
-      )}
+        <EvaluatingBubble isEvaluating={evaluating} />
+
+        {vocabEvaluation && (
+          <VocabEvaluationBubble evaluation={vocabEvaluation} />
+        )}
+      </ScrollView>
 
       {!answered ? (
         <AnswerInput
@@ -941,22 +410,13 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
           onSubmit={handleSubmitAnswer}
           onClear={handleResetAnswer}
           isKeyboardVisible={isKeyboardVisible}
-          showRecordButton={isTranslateMode}
-          isRecording={isRecording}
-          onRecordStart={() => {
-            setShowVideo(false);
-            startRecording();
-          }}
-          onRecordStop={() => stopRecording()}
         />
       ) : (
-        !isTranslateMode && (
-          <AnswerActions
-            onRetry={handleRetry}
-            onNext={handleNext}
-            isLastQuestion={questionIndex >= totalItems - 1}
-          />
-        )
+        <AnswerActions
+          onRetry={handleRetry}
+          onNext={handleNext}
+          isLastQuestion={questionIndex >= totalItems - 1}
+        />
       )}
     </KeyboardAvoidingView>
   );
@@ -971,20 +431,6 @@ const styles = StyleSheet.create({
     justifyContent: "center" as const,
     alignItems: "center" as const,
     gap: 8,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  processingContainer: {
-    alignItems: "center" as const,
-    marginTop: 24,
-    gap: 12,
-    flex: 1,
-  },
-  processingText: {
-    color: "#666",
-    fontSize: 14,
   },
   vocabBadge: {
     backgroundColor: "#2d8a4e",
@@ -1015,27 +461,6 @@ const styles = StyleSheet.create({
   questionBubbleWrap: {
     flex: 1,
     marginBottom: 12,
-  },
-  aiVoiceButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f3f0ff",
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    marginTop: 4,
-  },
-  questionActions: {
-    alignItems: "center" as const,
-    gap: 6,
-  },
-  previousResultsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#eef2ff",
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
   },
 });
 

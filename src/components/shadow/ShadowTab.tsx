@@ -958,7 +958,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       currentSentenceIndex > 3 ? currentSentenceIndex - 2 : 0;
     onReviewSegment({
       reviewSegmentId,
-      quizType: "Translate",
+      quizType: "Vocab",
       backToSegmentId: currentSentenceIndex + 1,
       isVoiceMode: selectedTab === "voice",
     });

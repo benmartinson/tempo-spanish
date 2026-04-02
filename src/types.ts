@@ -197,7 +197,7 @@ export interface Sentence {
   words: SegmentWord[];
 }
 
-export type QuizType = "Vocab" | "Phrases" | "Translate";
+export type QuizType = "Vocab" | "Phrases";
 
 export interface AutoReviewDetails {
   reviewSegmentId: number;
