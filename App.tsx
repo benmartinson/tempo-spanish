@@ -47,7 +47,7 @@ import { Ionicons } from "@expo/vector-icons";
 import TabIcon from "./src/components/tabs/TabIcon";
 import WatchTab from "./src/components/speed-run/SpeedRunTab";
 import TopNavBar from "./src/components/TopNavBar";
-import DiscussTab from "./src/components/discuss/DiscussTab";
+import ReviewTab from "./src/components/discuss/ReviewTab";
 import VideoList from "./src/components/video-list/VideoList";
 import SelectedVideoBanner from "./src/components/common/SelectedVideoBanner";
 import NavTabBanner from "./src/components/common/NavTabBanner";
@@ -142,7 +142,7 @@ const MainTabs: React.FC = () => {
       />
       <Tab.Screen
         name="Discuss"
-        component={DiscussTab}
+        component={ReviewTab}
         listeners={{
           tabPress: () => {
             dispatch(setCurrentTab("discuss"));

@@ -14,6 +14,7 @@ import {
   UIManager,
   TouchableOpacity,
   Text,
+  AppState,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
@@ -32,7 +33,7 @@ import {
 import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import SpeedRunTab from "../speed-run/SpeedRunTab";
 import ShadowTab from "../shadow/ShadowTab";
-import DiscussTab from "../discuss/DiscussTab";
+import ReviewTab from "../discuss/ReviewTab";
 import TranslateTab from "../translate/TranslateTab";
 import {
   capitalize,
@@ -93,6 +94,16 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       hideSubscription.remove();
     };
   }, []);
+
+  // Refresh player when app returns from background
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        dispatch(refreshVideoPlayerAction());
+      }
+    });
+    return () => subscription.remove();
+  }, [dispatch]);
 
   const [time, setTime] = useState<number>(0);
   const [isConfirmingStartOver, setIsConfirmingStartOver] =
@@ -628,7 +639,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
       {selectedNavTab === "review" && (
         <View style={getTabStyle(selectedNavTab === "review")}>
-          <DiscussTab
+          <ReviewTab
             onPlayClip={playClipSnippet}
             isKeyboardVisible={isKeyboardVisible}
             setShowVideo={setShowVideo}

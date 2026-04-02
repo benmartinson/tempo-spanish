@@ -688,9 +688,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   segmentNavText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
+    opacity: 0.6,
   },
   chatArea: {
     flex: 1,

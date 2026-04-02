@@ -42,7 +42,11 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
   const [profileVisible, setProfileVisible] = useState(false);
   const { signOut } = useClerk();
   const { user } = useUser();
-  const [dropdownPosition, setDropdownPosition] = useState({ x: 0, y: 0, width: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+  });
   const selectorRef = useRef<View>(null);
 
   if (!currentVideo) {
@@ -125,15 +129,28 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
             <View
               style={[
                 styles.dropdown,
-                { top: dropdownPosition.y, left: dropdownPosition.x + dropdownPosition.width / 2 - 90 },
+                {
+                  top: dropdownPosition.y,
+                  left: dropdownPosition.x + dropdownPosition.width / 2 - 90,
+                },
               ]}
             >
-              {tabs.map((tab) => (
+              {tabs.map((tab, index) => (
                 <TouchableOpacity
                   key={tab.key}
                   style={[
                     styles.dropdownItem,
                     selectedTab === tab.key && styles.dropdownItemSelected,
+                    selectedTab === tab.key &&
+                      index === 0 && {
+                        borderTopLeftRadius: 4,
+                        borderTopRightRadius: 4,
+                      },
+                    selectedTab === tab.key &&
+                      index === tabs.length - 1 && {
+                        borderBottomLeftRadius: 4,
+                        borderBottomRightRadius: 4,
+                      },
                   ]}
                   onPress={() => {
                     onTabSelect(tab.key);

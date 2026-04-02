@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -36,23 +36,20 @@ import UserAnswerBubble from "./UserAnswerBubble";
 import { EvaluatingBubble, VocabEvaluationBubble } from "./EvaluationBubble";
 import AnswerInput from "./AnswerInput";
 import AnswerActions from "./AnswerActions";
+import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 
-interface ReviewChatProps {
-  videoId: string;
-  onPlayClip: (start: ContextSegment) => void;
+interface ReviewTabProps {
+  onPlayClip: (start: number, end: number) => void;
   isKeyboardVisible: boolean;
-  selectedQuizType: QuizType;
-  onSelectQuizType: (type: QuizType) => void;
+  setShowVideo: (show: boolean) => void;
 }
 
-const ReviewChat: React.FC<ReviewChatProps> = ({
-  videoId,
+const ReviewTab: React.FC<ReviewTabProps> = ({
   onPlayClip,
   isKeyboardVisible,
-  selectedQuizType,
-  onSelectQuizType,
+  setShowVideo,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const sentences = currentVideo?.sentences ?? [];
@@ -60,6 +57,8 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
+
+  const [selectedQuizType, setSelectedQuizType] = useState<QuizType>("Vocab");
 
   const isVocabMode = selectedQuizType === "Vocab";
   const isPhraseMode = selectedQuizType === "Phrases";
@@ -257,6 +256,14 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     }
   }, [questionIndex, currentVocabItem]);
 
+  const handlePlayClip = useCallback(
+    (segment: ContextSegment) => {
+      setShowVideo(true);
+      onPlayClip(segment.start, segment.end);
+    },
+    [onPlayClip],
+  );
+
   const handleResetAnswer = () => {
     setUserAnswer("");
     setVocabEvaluation(null);
@@ -320,6 +327,17 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
     setUserMessages([]);
   };
 
+  if (!currentVideo) {
+    return (
+      <View style={styles.noVideoContainer}>
+        <SelectVideoPrompt
+          title="No Video Selected"
+          subtitle="Select a video first to start reviewing"
+        />
+      </View>
+    );
+  }
+
   if (vocabLoading && isVocabMode) {
     return (
       <View style={styles.loadingContainer}>
@@ -344,12 +362,12 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         currentIndex={questionIndex}
         totalItems={totalItems}
         sentences={sentences}
-        videoId={videoId}
+        videoId={currentVideo.videoId}
         hasSearch={false}
       >
         <ReviewTypeSelector
           selectedQuizType={selectedQuizType}
-          onSelectQuizType={onSelectQuizType}
+          onSelectQuizType={setSelectedQuizType}
         />
         {isVocabMode && currentVocabItem?.word && (
           <View style={styles.vocabBadge}>
@@ -379,7 +397,7 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
         <ContextClipsSection
           loading={false}
           segments={contextSegments}
-          onPlayClip={onPlayClip}
+          onPlayClip={handlePlayClip}
           isVocabMode={isVocabMode}
         />
         {hintWords.length > 0 && (
@@ -425,6 +443,11 @@ const ReviewChat: React.FC<ReviewChatProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "white",
+  },
+  noVideoContainer: {
+    flex: 1,
+    backgroundColor: "#1a1a2e",
   },
   loadingContainer: {
     flex: 1,
@@ -464,4 +487,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ReviewChat;
+export default ReviewTab;
