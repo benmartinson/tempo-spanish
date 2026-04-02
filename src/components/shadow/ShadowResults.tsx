@@ -4,6 +4,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import TooltipModal from "../common/TooltipModal";
 import { useState } from "react";
 import { normalizeWord, removeSpecialPunctuation } from "../../helpers/helpers";
+import AccuracyCircle from "../common/AccuracyCircle";
 
 interface ShadowResultsProps {
   accuracyResult: AccuracyResult;
@@ -105,12 +106,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
 
   return (
     <View style={styles.resultsContainer}>
-      <View style={styles.accuracyCircle}>
-        <Text style={styles.accuracyPercentage}>
-          {accuracyResult.percentage}%
-        </Text>
-        <Text style={styles.accuracyLabel}>Accuracy</Text>
-      </View>
+      <AccuracyCircle percentage={accuracyResult.percentage} />
       <View style={styles.spokenSentenceContainer}>
         <Text style={styles.spokenSentenceText}>
           <Text style={styles.labelBold}>Spoken: </Text>
@@ -253,27 +249,8 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#3d3a52",
   },
-  accuracyCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 60,
-    backgroundColor: "#2d2a40",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
   infoIcon: {
     alignSelf: "center",
-  },
-  accuracyPercentage: {
-    color: "#4ade80",
-    fontSize: 24,
-    fontWeight: "700",
-  },
-  accuracyLabel: {
-    color: "#fff",
-    fontSize: 14,
-    opacity: 0.8,
   },
   accuracyDetails: {
     color: "#666",

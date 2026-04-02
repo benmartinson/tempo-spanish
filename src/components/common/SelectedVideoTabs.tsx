@@ -506,6 +506,16 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     playerRef.current?.unMute();
   }, []);
 
+  const setClipEnd = useCallback(
+    (end: number | undefined) => {
+      playerRef.current?.setClip(
+        currentSentenceObject?.start ?? 0,
+        end,
+      );
+    },
+    [currentSentenceObject?.start],
+  );
+
   const currentVideoText = useMemo(() => {
     if (selectedNavTab !== "watch") return "";
     const topHintWord = hintWords?.length ? hintWords[0] : null;
@@ -624,6 +634,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           mutePlayer={mutePlayer}
           unMutePlayer={unMutePlayer}
           onTimeUpdate={handleSetTime}
+          setClipEnd={setClipEnd}
         />
       </View>
 

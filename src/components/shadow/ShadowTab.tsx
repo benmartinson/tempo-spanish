@@ -21,7 +21,6 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSelector } from "react-redux";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -74,6 +73,7 @@ import { useVoiceCommand } from "../useVoiceCommand";
 import { computeSubSegments } from "../../helpers/helpers";
 import { setCurrentSentence } from "../../store/actions/dataActions";
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
+import RecordingControls from "../common/RecordingControls";
 
 interface ShadowTabProps {
   time: number;
@@ -1302,93 +1302,39 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
         {/* Input Area - always visible when not in recording mode or showing results */}
         {!accuracyResult && !isProcessing && (
-          <View style={styles.inputArea}>
-            <TouchableOpacity
-              style={[
-                styles.trashButton,
-                {
-                  backgroundColor:
-                    isRecordingMode || voiceRecordingCount > 0
-                      ? "white"
-                      : "#f0f0f0",
-                },
-              ]}
-              onPress={() => {
-                if (isRecordingMode) {
-                  handleStopRecording(true);
-                }
+          <RecordingControls
+            isRecording={isRecordingMode}
+            hasRecordings={voiceRecordingCount > 0}
+            onTrash={() => {
+              if (isRecordingMode) {
+                handleStopRecording(true);
+              }
+              resetVoiceRecordings();
+              handleResetAnswer();
+            }}
+            onMic={() => {
+              if (isRecordingMode) {
+                handlePauseRecording();
+              } else if (voiceRecordingCount > 0) {
+                pauseRecordingRef.current = true;
+                handleEnterRecordingMode();
+              } else {
                 resetVoiceRecordings();
-                handleResetAnswer();
-              }}
-              disabled={!isRecordingMode && voiceRecordingCount === 0}
-            >
-              <FontAwesome
-                name="trash-o"
-                size={22}
-                color={
-                  isRecordingMode || voiceRecordingCount > 0 ? "red" : "#aaa"
-                }
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.micButton}
-              onPress={() => {
-                if (isRecordingMode) {
-                  handlePauseRecording();
-                } else if (voiceRecordingCount > 0) {
-                  pauseRecordingRef.current = true;
-                  handleEnterRecordingMode();
-                } else {
-                  resetVoiceRecordings();
-                  pauseRecordingRef.current = true;
-                  handleEnterRecordingMode();
-                }
-              }}
-              disabled={!hasPermission || isProcessing}
-            >
-              <MaterialIcons
-                name={
-                  isRecordingMode
-                    ? "pause"
-                    : voiceRecordingCount > 0
-                      ? "add"
-                      : "mic"
-                }
-                size={22}
-                color={
-                  isRecordingMode
-                    ? "#555"
-                    : voiceRecordingCount > 0
-                      ? "#4a69bd"
-                      : "red"
-                }
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                voiceRecordingCount === 0 &&
-                  !isRecording &&
-                  styles.sendButtonDisabled,
-              ]}
-              onPress={() => {
-                if (isRecording) {
-                  handleSubmitRecording();
-                  return;
-                }
-                if (voiceRecordingCount > 0) {
-                  handleVoiceSubmit();
-                }
-              }}
-              disabled={voiceRecordingCount === 0 && !isRecording}
-            >
-              <MaterialIcons
-                name="send"
-                size={22}
-                color={voiceRecordingCount > 0 || isRecording ? "#fff" : "#aaa"}
-              />
-            </TouchableOpacity>
-          </View>
+                pauseRecordingRef.current = true;
+                handleEnterRecordingMode();
+              }
+            }}
+            onSubmit={() => {
+              if (isRecording) {
+                handleSubmitRecording();
+                return;
+              }
+              if (voiceRecordingCount > 0) {
+                handleVoiceSubmit();
+              }
+            }}
+            disabled={!hasPermission || isProcessing}
+          />
         )}
       </View>
       {isSettingsVisible && (
@@ -1643,18 +1589,6 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
   // Input Area styles
-  inputArea: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 40,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-    backgroundColor: "#fafafa",
-    gap: 24,
-  },
   textInput: {
     flex: 1,
     backgroundColor: "#fff",
@@ -1666,35 +1600,6 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
     maxHeight: 100,
-  },
-  sendButton: {
-    backgroundColor: "#4a69bd",
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sendButtonDisabled: {
-    backgroundColor: "#e0e0e0",
-  },
-  trashButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f0f0f0",
-  },
-  micButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ddd",
   },
   playRecordingContainer: {
     alignItems: "center",

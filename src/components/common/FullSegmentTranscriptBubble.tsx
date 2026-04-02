@@ -21,6 +21,7 @@ interface FullSegmentTranscriptBubbleProps {
   currentTargetIndex?: number; // for shadow mode - the word user is attempting
   showFullText?: boolean;
   playerIsPlaying?: boolean;
+  onWordPress?: (index: number) => void;
 }
 
 const LINE_HEIGHT = 28;
@@ -37,6 +38,7 @@ const FullSegmentTranscriptBubble: React.FC<
   currentTargetIndex = 0,
   showFullText = false,
   playerIsPlaying = false,
+  onWordPress,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
@@ -186,7 +188,8 @@ const FullSegmentTranscriptBubble: React.FC<
             <Pressable
               key={`${word.start}-${index}`}
               onLayout={(e) => handleWordLayout(index, e)}
-              onLongPress={() => handleLongPress(word)}
+              onPress={() => onWordPress ? onWordPress(index) : undefined}
+              onLongPress={() => onWordPress ? onWordPress(index) : handleLongPress(word)}
               delayLongPress={300}
             >
               <Text style={[styles.word, getWordStyle()]}>

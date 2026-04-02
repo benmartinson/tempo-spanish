@@ -57,7 +57,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
 
   const tabs: { key: NavTab; label: string }[] = [
     { key: "shadow", label: "Shadow" },
-    { key: "speed-run", label: "Speed Run" },
+    { key: "speed-run", label: "Memorize" },
     { key: "review", label: "Review" },
   ];
 

@@ -21,6 +21,8 @@ interface SettingsModalProps {
     showCharacters: boolean;
     showPhrases: boolean;
   }) => void;
+  speedOptions?: number[];
+  hideToggles?: boolean;
 }
 const SettingsModal: React.FC<SettingsModalProps> = ({
   visible,
@@ -32,11 +34,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   initMute,
   setMuteWhenRecording,
   onSave,
+  speedOptions: customSpeedOptions,
+  hideToggles = false,
 }) => {
   const dispatch = useDispatch();
   const userSettings = useSelector((state: RootState) => state.userSettings);
 
-  const speedOptions = [0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
+  const speedOptions = customSpeedOptions || [0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
   const [editedPlaybackSpeed, setEditedPlaybackSpeed] = useState(playbackSpeed);
   const [editedRecordSpeed, setEditedRecordSpeed] = useState(recordSpeed);
   const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
@@ -113,31 +117,33 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </View>
         </View> */}
       </View>
-      <View style={styles.togglesContainer}>
-        <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>Show Word Hints by Default?</Text>
-          <Switch
-            value={editedShowWordsHints}
-            onValueChange={setEditedShowWordsHints}
-          />
+      {!hideToggles && (
+        <View style={styles.togglesContainer}>
+          <View style={styles.questionContainer}>
+            <Text style={styles.questionText}>Show Word Hints by Default?</Text>
+            <Switch
+              value={editedShowWordsHints}
+              onValueChange={setEditedShowWordsHints}
+            />
+          </View>
+          <View style={styles.questionContainer}>
+            <Text style={styles.questionText}>
+              Show Characters List by Default?
+            </Text>
+            <Switch
+              value={editedShowCharacters}
+              onValueChange={setEditedShowCharacters}
+            />
+          </View>
+          <View style={styles.questionContainer}>
+            <Text style={styles.questionText}>Show Phrases by Default?</Text>
+            <Switch
+              value={editedShowPhrases}
+              onValueChange={setEditedShowPhrases}
+            />
+          </View>
         </View>
-        <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>
-            Show Characters List by Default?
-          </Text>
-          <Switch
-            value={editedShowCharacters}
-            onValueChange={setEditedShowCharacters}
-          />
-        </View>
-        <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>Show Phrases by Default?</Text>
-          <Switch
-            value={editedShowPhrases}
-            onValueChange={setEditedShowPhrases}
-          />
-        </View>
-      </View>
+      )}
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
           <Text style={styles.buttonText}>Save</Text>

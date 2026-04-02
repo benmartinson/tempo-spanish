@@ -105,14 +105,16 @@ export const useSpeedRunSession = ({
     [targetLanguage, properNouns],
   );
 
+  const SEGMENT_BUFFER = 1; // extra second of audio after segment end
+
   const onSegmentComplete = useCallback(
     (completedSentence: Sentence, recorderUri: string) => {
       const now = (Date.now() - recordingStartTimeRef.current) / 1000;
       const startSeconds = segmentStartTimeRef.current;
-      const endSeconds = now;
+      const endSeconds = now + SEGMENT_BUFFER;
       segmentStartTimeRef.current = now;
 
-      if (endSeconds - startSeconds < 0.3) return;
+      if (now - startSeconds < 0.3) return;
 
       processSegment(recorderUri, completedSentence, startSeconds, endSeconds);
     },
@@ -131,10 +133,15 @@ export const useSpeedRunSession = ({
     [processSegment],
   );
 
+  const clearResults = useCallback(() => {
+    setResults([]);
+  }, []);
+
   return {
     results,
     startSession,
     onSegmentComplete,
     endSession,
+    clearResults,
   };
 };
