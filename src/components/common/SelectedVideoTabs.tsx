@@ -201,7 +201,13 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   };
 
   const loadTranslationInsights = useCallback(async () => {
-    if (!currentSentenceObject?.text || !supabase || !currentVideo) {
+    if (
+      !currentSentenceObject?.text ||
+      !supabase ||
+      !currentVideo ||
+      selectedNavTab === "speed-run" ||
+      selectedNavTab === "review"
+    ) {
       setOrderedCharacters([]);
       return;
     }
@@ -370,6 +376,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     // Pause at sentence end (enforces sentence clipping without URL reload)
 
     if (newTime >= currentSentenceObject?.end) {
+      if (clipEndTime !== undefined && newTime >= clipEndTime) {
+        pausePlayer();
+        return;
+      }
       if (selectedNavTab === "shadow" || selectedNavTab === "review") {
         // playerRef.current?.pause();
       } else {
@@ -497,20 +507,24 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     playerRef.current?.play();
   }, [playerRef]);
 
+  const [playerMuted, setPlayerMuted] = useState(false);
+
   const mutePlayer = useCallback(() => {
+    setPlayerMuted(true);
     playerRef.current?.mute();
   }, []);
 
   const unMutePlayer = useCallback(() => {
+    setPlayerMuted(false);
     playerRef.current?.unMute();
   }, []);
 
+  const [clipEndTime, setClipEndTime] = useState<number | undefined>(undefined);
+
   const setClipEnd = useCallback(
     (end: number | undefined) => {
-      playerRef.current?.setClip(
-        currentSentenceObject?.start ?? 0,
-        end,
-      );
+      setClipEndTime(end);
+      playerRef.current?.setClip(currentSentenceObject?.start ?? 0, end);
     },
     [currentSentenceObject?.start],
   );
@@ -563,10 +577,12 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             start: currentSentenceObject?.start,
             end: endTime,
           }}
-          autoplay={selectedNavTab === "shadow"}
+          autoplay={
+            selectedNavTab === "shadow" || selectedNavTab === "speed-run"
+          }
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
-          muted={selectedNavTab === "speed-run"}
+          muted={playerMuted}
           playbackSpeed={playerSpeed}
           startTime={startTimeForPlayer}
           onPlayingStateChange={handlePlayingStateChange}

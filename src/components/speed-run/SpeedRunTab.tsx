@@ -79,7 +79,6 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
   setClipEnd,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const CHUNK_SIZE = 3;
   const prevSentenceRef = useRef<Sentence | null>(null);
   const segmentsInChunkRef = useRef(0);
   const chunkStartIndexRef = useRef(0);
@@ -94,6 +93,15 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
   const [simulatedTime, setSimulatedTime] = useState<number | null>(null);
 
+  // Chunk selection state
+  const [chunkSize, setChunkSize] = useState(3);
+  const [chunkSelected, setChunkSelected] = useState(false);
+  const [hasListened, setHasListened] = useState(false);
+  const [chunkRange, setChunkRange] = useState<{ start: number; end: number }>({
+    start: 0,
+    end: 0,
+  });
+
   const handleRecordingComplete = useCallback(() => {}, []);
 
   const { isRecording, startRecording, stopRecording, getRecorderUri } =
@@ -106,6 +114,56 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
       targetLanguage,
       properNouns: orderedCharacters,
     });
+
+  const handleSelectChunk = useCallback(() => {
+    if (!currentVideo) return;
+    const startIdx = currentVideo.currentSentence;
+    const endIdx = Math.min(
+      startIdx + chunkSize - 1,
+      currentVideo.sentences.length - 1,
+    );
+    setChunkRange({ start: startIdx, end: endIdx });
+    setChunkSelected(true);
+    setHasListened(false);
+    playbackStartedRef.current = false;
+    setClipEnd(currentVideo.sentences[endIdx]?.end);
+    // Autoplay the chunk
+    onPlayClip(currentVideo.sentences[startIdx]?.start);
+    clearResults();
+    setRevealedWords(new Set());
+    setDifficulty(0);
+    setShowChunkResults(false);
+    setSelectedResult(null);
+  }, [currentVideo, chunkSize, clearResults, setClipEnd]);
+
+  const handleDeselectChunk = useCallback(() => {
+    setChunkSelected(false);
+    setShowChunkResults(false);
+    setSelectedResult(null);
+    setIsAnalyzing(false);
+    setClipEnd(undefined);
+    clearResults();
+    setRevealedWords(new Set());
+    setDifficulty(0);
+  }, [clearResults, setClipEnd]);
+
+  const handleChunkPrev = useCallback(() => {
+    if (!currentVideo) return;
+    const prevIdx = currentVideo.currentSentence - 1;
+    if (prevIdx >= chunkRange.start) {
+      const sentence = currentVideo.sentences[prevIdx];
+      if (sentence) onPlayClip(sentence.start);
+    }
+  }, [currentVideo, chunkRange.start, onPlayClip]);
+
+  const handleChunkNext = useCallback(() => {
+    if (!currentVideo) return;
+    const nextIdx = currentVideo.currentSentence + 1;
+    if (nextIdx <= chunkRange.end) {
+      const sentence = currentVideo.sentences[nextIdx];
+      if (sentence) onPlayClip(sentence.start);
+    }
+  }, [currentVideo, chunkRange.end, onPlayClip]);
 
   const maskedIndices = useMemo(() => {
     const masked = new Set<number>();
@@ -153,7 +211,7 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
   useEffect(() => {
     if (!isRecording || !currentVideo || chunkStoppingRef.current) return;
     const chunkEndIdx = Math.min(
-      chunkStartIndexRef.current + CHUNK_SIZE - 1,
+      chunkStartIndexRef.current + chunkSize - 1,
       currentVideo.sentences.length - 1,
     );
     const lastSegment = currentVideo.sentences[chunkEndIdx];
@@ -176,6 +234,9 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
         }
         setIsAnalyzing(true);
         await stopRecording();
+        pausePlayer();
+        setPlayerSpeed(1);
+        unMutePlayer();
         setShowChunkResults(true);
       }, 2000);
     }
@@ -192,45 +253,70 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
     }
   }, [results, isAnalyzing]);
 
-  // Clear results and revealed words when segment changes outside the current chunk
+  // Reset revealed words on segment change (each segment has different words)
+  // Only reset difficulty when navigating outside the chunk
   useEffect(() => {
-    if (!isRecording) {
-      const chunkStart = chunkStartIndexRef.current;
-      const chunkEnd = chunkStart + CHUNK_SIZE - 1;
-      if (
-        currentSentence.index < chunkStart ||
-        currentSentence.index > chunkEnd
-      ) {
-        clearResults();
-        setRevealedWords(new Set());
-        setDifficulty(0);
-      }
+    if (isRecording) return;
+    setRevealedWords(new Set());
+    if (
+      chunkSelected &&
+      currentSentence.index >= chunkRange.start &&
+      currentSentence.index <= chunkRange.end
+    ) {
+      return;
     }
+    clearResults();
+    setDifficulty(0);
   }, [currentSentence.index]);
 
+  // Mark as listened when playback starts then stops after chunk selection
+  const playbackStartedRef = useRef(false);
+  useEffect(() => {
+    if (!chunkSelected || hasListened) return;
+    if (playerIsPlaying) {
+      playbackStartedRef.current = true;
+    } else if (playbackStartedRef.current && !isRecording) {
+      setHasListened(true);
+      playbackStartedRef.current = false;
+    }
+  }, [playerIsPlaying, chunkSelected, hasListened, isRecording]);
+
   const getChunkEndTime = useCallback(() => {
-    if (!currentVideo) return undefined;
-    const currentIdx = currentVideo.currentSentence;
-    const endIdx = Math.min(
-      currentIdx + CHUNK_SIZE - 1,
-      currentVideo.sentences.length - 1,
-    );
-    return currentVideo.sentences[endIdx]?.end;
-  }, [currentVideo]);
+    if (!currentVideo || !chunkSelected) return undefined;
+    return currentVideo.sentences[chunkRange.end]?.end;
+  }, [currentVideo, chunkSelected, chunkRange.end]);
 
-  const handleReplay = useCallback(() => {
-    unMutePlayer();
-    setPlayerSpeed(1);
-    setClipEnd(getChunkEndTime());
-    playSentence();
-  }, [playSentence, setPlayerSpeed, unMutePlayer, setClipEnd, getChunkEndTime]);
+  const getChunkStartTime = useCallback(() => {
+    if (!currentVideo || !chunkSelected) return undefined;
+    return currentVideo.sentences[chunkRange.start]?.start;
+  }, [currentVideo, chunkSelected, chunkRange.start]);
 
-  const handleReplaySlow = useCallback(() => {
-    unMutePlayer();
-    setPlayerSpeed(0.8);
-    setClipEnd(getChunkEndTime());
-    playSentence();
-  }, [playSentence, setPlayerSpeed, unMutePlayer, setClipEnd, getChunkEndTime]);
+  const replayChunk = useCallback(
+    (speed: number) => {
+      unMutePlayer();
+      setPlayerSpeed(speed);
+      setClipEnd(getChunkEndTime());
+      const startTime = getChunkStartTime();
+      if (startTime !== undefined) {
+        onPlayClip(startTime);
+      } else {
+        playSentence();
+      }
+    },
+    [
+      playSentence,
+      setPlayerSpeed,
+      unMutePlayer,
+      setClipEnd,
+      getChunkEndTime,
+      getChunkStartTime,
+      onPlayClip,
+      resumePlayer,
+    ],
+  );
+
+  const handleReplay = useCallback(() => replayChunk(1), [replayChunk]);
+  const handleReplaySlow = useCallback(() => replayChunk(0.8), [replayChunk]);
 
   const handlePlayPause = useCallback(() => {
     if (playerIsPlaying) {
@@ -249,27 +335,35 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
   ]);
 
   const handleRecord = useCallback(async () => {
-    mutePlayer();
     setPlayerSpeed(playbackSpeed);
     segmentsInChunkRef.current = 0;
-    chunkStartIndexRef.current = currentVideo?.currentSentence ?? 0;
+    chunkStartIndexRef.current = chunkRange.start;
     chunkStoppingRef.current = false;
     setShowChunkResults(false);
     setIsAnalyzing(false);
+
+    mutePlayer();
+
+    // Seek to chunk start before recording
+    const startSentence = currentVideo?.sentences[chunkRange.start];
+    if (startSentence) {
+      onPlayClip(startSentence.start);
+    }
 
     startSession();
     await startRecording();
     prevSentenceRef.current = currentSentence;
     setClipEnd(getChunkEndTime());
-    playSentence();
   }, [
     startRecording,
     startSession,
     currentSentence,
+    currentVideo,
     mutePlayer,
     setPlayerSpeed,
     playbackSpeed,
-    playSentence,
+    onPlayClip,
+    chunkRange.start,
     setClipEnd,
     getChunkEndTime,
   ]);
@@ -281,8 +375,18 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
     }
     await stopRecording();
     pausePlayer();
+    setPlayerSpeed(1);
+    unMutePlayer();
     setShowChunkResults(true);
-  }, [stopRecording, pausePlayer, endSession, currentSentence, getRecorderUri]);
+  }, [
+    stopRecording,
+    pausePlayer,
+    endSession,
+    currentSentence,
+    getRecorderUri,
+    setPlayerSpeed,
+    unMutePlayer,
+  ]);
 
   const handleRetry = useCallback(() => {
     setShowChunkResults(false);
@@ -306,229 +410,307 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
 
   return (
     <View style={styles.container}>
-      <NavSwitcher
-        onPrev={handlePreviousSentence}
-        onNext={handleNextSentence}
-        currentIndex={currentSentenceIndex}
-        totalItems={currentVideo.sentences.length}
-        sentences={currentVideo.sentences}
-        onPlayClip={onPlayClip}
-        videoId={currentVideo.videoId}
-      >
-        <Text style={styles.segmentNavText}>
-          Segment {currentSentenceIndex + 1} of{" "}
-          {currentVideo.sentences.length + 1}
-        </Text>
-      </NavSwitcher>
-      {!isAnalyzing && !showChunkResults && !selectedResult && (
-        <View style={styles.controlsContainer}>
-          <PlayerControls
-            onReplay={handleReplay}
-            onReplaySlow={handleReplaySlow}
-            onPlayPause={handlePlayPause}
-            isPlaying={playerIsPlaying}
-          />
-          <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
-            <Feather name="settings" size={30} color="#222222" />
+      {chunkSelected ? (
+        <NavSwitcher
+          onPrev={handleChunkPrev}
+          onNext={handleChunkNext}
+          currentIndex={currentSentenceIndex - chunkRange.start}
+          totalItems={chunkRange.end - chunkRange.start + 1}
+          sentences={currentVideo.sentences}
+          onPlayClip={onPlayClip}
+          videoId={currentVideo.videoId}
+          hasSearch={false}
+        >
+          <Text style={styles.segmentNavText}>
+            Selected Segments {chunkRange.start + 1}-{chunkRange.end + 1}
+          </Text>
+          <TouchableOpacity
+            onPress={handleDeselectChunk}
+            style={styles.deselectButton}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <MaterialIcons name="close" size={18} color="#888" />
+          </TouchableOpacity>
+        </NavSwitcher>
+      ) : (
+        <NavSwitcher
+          onPrev={handlePreviousSentence}
+          onNext={handleNextSentence}
+          currentIndex={currentSentenceIndex}
+          totalItems={currentVideo.sentences.length}
+          sentences={currentVideo.sentences}
+          onPlayClip={onPlayClip}
+          videoId={currentVideo.videoId}
+        >
+          <Text style={styles.segmentNavText}>
+            Segment {currentSentenceIndex + 1} of{" "}
+            {currentVideo.sentences.length}
+          </Text>
+        </NavSwitcher>
+      )}
+
+      {!chunkSelected ? (
+        <View style={styles.selectChunkContainer}>
+          <View style={styles.chunkSizeRow}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <TouchableOpacity
+                key={n}
+                style={[
+                  styles.chunkSizeOption,
+                  chunkSize === n && styles.chunkSizeOptionActive,
+                ]}
+                onPress={() => setChunkSize(n)}
+              >
+                <Text
+                  style={[
+                    styles.chunkSizeText,
+                    chunkSize === n && styles.chunkSizeTextActive,
+                  ]}
+                >
+                  {n}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity
+            style={styles.selectChunkButton}
+            onPress={handleSelectChunk}
+          >
+            <Text style={styles.selectChunkButtonText}>
+              Select the next {chunkSize} segment{chunkSize > 1 ? "s" : ""} to
+              memorize
+            </Text>
           </TouchableOpacity>
         </View>
-      )}
-      {selectedResult?.accuracyResult ? (
-        <ScrollView style={styles.transcriptContainer}>
-          <ShadowResults
-            accuracyResult={selectedResult.accuracyResult}
-            handleNextSentence={() => {}}
-            handleRetry={() => setSelectedResult(null)}
-            properNouns={orderedCharacters}
-          />
-        </ScrollView>
-      ) : isAnalyzing || showChunkResults ? (
-        <ScrollView
-          style={styles.transcriptContainer}
-          contentContainerStyle={styles.chunkResultsContent}
-        >
-          {isAnalyzing ? (
-            <View style={styles.analyzingContainer}>
-              <ActivityIndicator size="large" color="#3d3a52" />
-              <Text style={styles.analyzingText}>Analyzing...</Text>
-            </View>
-          ) : (
-            <>
-              {(() => {
-                const completedResults = results.filter(
-                  (r) => r.status === "complete",
-                );
-                const totalPercentage =
-                  completedResults.length > 0
-                    ? Math.round(
-                        completedResults.reduce(
-                          (sum, r) => sum + r.percentage,
-                          0,
-                        ) / completedResults.length,
-                      )
-                    : 0;
-                return <AccuracyCircle percentage={totalPercentage} />;
-              })()}
-
-              <View
-                style={[
-                  styles.resultsList,
-                  { alignSelf: "stretch", marginHorizontal: 0 },
-                ]}
-              >
-                {results.map((result) => (
-                  <TouchableOpacity
-                    key={result.segmentIndex}
-                    style={styles.resultRow}
-                    onPress={() =>
-                      result.status === "complete"
-                        ? setSelectedResult(result)
-                        : null
-                    }
-                    disabled={result.status !== "complete"}
-                  >
-                    <Text style={styles.resultSegmentLabel}>
-                      Seg {result.segmentIndex + 1}
-                    </Text>
-                    {result.status === "error" ? (
-                      <Text style={styles.resultError}>Error</Text>
-                    ) : (
-                      <Text
-                        style={[
-                          styles.resultPercentage,
-                          { color: getScoreColor(result.percentage) },
-                        ]}
-                      >
-                        {result.percentage}%
-                      </Text>
-                    )}
-                    <Text style={styles.resultText} numberOfLines={1}>
-                      {result.segmentText}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.chunkActionButtons}>
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={handleRetry}
-                >
-                  <MaterialIcons name="replay" size={20} color="#3d3a52" />
-                  <Text style={styles.retryButtonText}>Re-Try</Text>
-                </TouchableOpacity>
-                {difficulty < 4 && (
-                  <TouchableOpacity
-                    style={styles.lessHintsButton}
-                    onPress={() => {
-                      setDifficulty((d) => Math.min(d + 1, 4));
-                      setRevealedWords(new Set());
-                      handleRetry();
-                    }}
-                  >
-                    <MaterialIcons
-                      name="visibility-off"
-                      size={20}
-                      color="#fff"
-                    />
-                    <Text style={styles.lessHintsButtonText}>Less hints</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </>
-          )}
-        </ScrollView>
       ) : (
         <>
-          <ScrollView style={styles.transcriptContainer}>
-            <FullSegmentTranscriptBubble
-              words={currentSentence.words || []}
-              blurredIndices={maskedIndices}
-              time={simulatedTime ?? time}
-              playerIsPlaying={playerIsPlaying || simulatedTime !== null}
-              showFullText
-              onWordPress={(index) => {
-                setRevealedWords((prev) => {
-                  const next = new Set(prev);
-                  next.add(index);
-                  return next;
-                });
-              }}
-            />
-
-            <DifficultySlider
-              difficulty={difficulty}
-              onDifficultyChange={(d) => {
-                setDifficulty(d);
-                setRevealedWords(new Set());
-              }}
-            />
-
-            {results.length > 0 && (
-              <View style={styles.resultsList}>
-                {[...results].reverse().map((result) => (
-                  <TouchableOpacity
-                    key={result.segmentIndex}
-                    style={styles.resultRow}
-                    onPress={() =>
-                      result.status === "complete"
-                        ? setSelectedResult(result)
-                        : null
-                    }
-                    disabled={result.status !== "complete"}
-                  >
-                    <Text style={styles.resultSegmentLabel}>
-                      Seg {result.segmentIndex + 1}
-                    </Text>
-                    {result.status === "processing" ? (
-                      <ActivityIndicator size="small" color="#888" />
-                    ) : result.status === "error" ? (
-                      <Text style={styles.resultError}>Error</Text>
-                    ) : (
-                      <Text
-                        style={[
-                          styles.resultPercentage,
-                          { color: getScoreColor(result.percentage) },
-                        ]}
-                      >
-                        {result.percentage}%
-                      </Text>
-                    )}
-                    <Text style={styles.resultText} numberOfLines={1}>
-                      {result.segmentText}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+          {!isAnalyzing &&
+            !showChunkResults &&
+            !selectedResult &&
+            !isRecording && (
+              <View style={styles.controlsContainer}>
+                <PlayerControls
+                  onReplay={handleReplay}
+                  onReplaySlow={handleReplaySlow}
+                  onPlayPause={handlePlayPause}
+                  isPlaying={playerIsPlaying}
+                />
+                <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
+                  <Feather name="settings" size={30} color="#222222" />
+                </TouchableOpacity>
               </View>
             )}
-          </ScrollView>
+          {selectedResult?.accuracyResult ? (
+            <ScrollView style={styles.transcriptContainer}>
+              <ShadowResults
+                accuracyResult={selectedResult.accuracyResult}
+                handleNextSentence={() => {}}
+                handleRetry={() => setSelectedResult(null)}
+                properNouns={orderedCharacters}
+              />
+            </ScrollView>
+          ) : isAnalyzing || showChunkResults ? (
+            <ScrollView
+              style={styles.transcriptContainer}
+              contentContainerStyle={styles.chunkResultsContent}
+            >
+              {isAnalyzing ? (
+                <View style={styles.analyzingContainer}>
+                  <ActivityIndicator size="large" color="#3d3a52" />
+                  <Text style={styles.analyzingText}>Analyzing...</Text>
+                </View>
+              ) : (
+                <>
+                  {(() => {
+                    const completedResults = results.filter(
+                      (r) => r.status === "complete",
+                    );
+                    const totalPercentage =
+                      completedResults.length > 0
+                        ? Math.round(
+                            completedResults.reduce(
+                              (sum, r) => sum + r.percentage,
+                              0,
+                            ) / completedResults.length,
+                          )
+                        : 0;
+                    return <AccuracyCircle percentage={totalPercentage} />;
+                  })()}
 
-          <RecordingControls
-            isRecording={isRecording}
-            hasRecordings={isRecording}
-            onTrash={() => {
-              if (isRecording) {
-                stopRecording();
-                pausePlayer();
-              }
-              clearResults();
-              setRevealedWords(new Set());
-              setShowChunkResults(false);
-              handleRetry();
-            }}
-            onMic={() => {
-              if (isRecording) {
-                // pause - broken for now
-              } else {
-                handleRecord();
-              }
-            }}
-            onSubmit={() => {
-              if (isRecording) {
-                handleStop();
-              }
-            }}
-          />
+                  <View
+                    style={[
+                      styles.resultsList,
+                      { alignSelf: "stretch", marginHorizontal: 0 },
+                    ]}
+                  >
+                    {results.map((result) => (
+                      <TouchableOpacity
+                        key={result.segmentIndex}
+                        style={styles.resultRow}
+                        onPress={() =>
+                          result.status === "complete"
+                            ? setSelectedResult(result)
+                            : null
+                        }
+                        disabled={result.status !== "complete"}
+                      >
+                        <Text style={styles.resultSegmentLabel}>
+                          Seg {result.segmentIndex + 1}
+                        </Text>
+                        {result.status === "error" ? (
+                          <Text style={styles.resultError}>Error</Text>
+                        ) : (
+                          <Text
+                            style={[
+                              styles.resultPercentage,
+                              { color: getScoreColor(result.percentage) },
+                            ]}
+                          >
+                            {result.percentage}%
+                          </Text>
+                        )}
+                        <Text style={styles.resultText} numberOfLines={1}>
+                          {result.segmentText}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <View style={styles.chunkActionButtons}>
+                    <TouchableOpacity
+                      style={styles.retryButton}
+                      onPress={handleRetry}
+                    >
+                      <MaterialIcons name="replay" size={20} color="#3d3a52" />
+                      <Text style={styles.retryButtonText}>Re-Try</Text>
+                    </TouchableOpacity>
+                    {difficulty < 4 && (
+                      <TouchableOpacity
+                        style={styles.lessHintsButton}
+                        onPress={() => {
+                          setDifficulty((d) => Math.min(d + 1, 4));
+                          setRevealedWords(new Set());
+                          handleRetry();
+                        }}
+                      >
+                        <MaterialIcons
+                          name="visibility-off"
+                          size={20}
+                          color="#fff"
+                        />
+                        <Text style={styles.lessHintsButtonText}>
+                          Less hints
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          ) : (
+            <>
+              <ScrollView style={styles.transcriptContainer}>
+                <FullSegmentTranscriptBubble
+                  words={currentSentence.words || []}
+                  blurredIndices={maskedIndices}
+                  time={simulatedTime ?? time}
+                  playerIsPlaying={playerIsPlaying || simulatedTime !== null}
+                  showFullText
+                  onWordPress={(index) => {
+                    setRevealedWords((prev) => {
+                      const next = new Set(prev);
+                      next.add(index);
+                      return next;
+                    });
+                  }}
+                />
+
+                <DifficultySlider
+                  difficulty={difficulty}
+                  onDifficultyChange={(d) => {
+                    setDifficulty(d);
+                    setRevealedWords(new Set());
+                  }}
+                />
+
+                {results.length > 0 && (
+                  <View style={styles.resultsList}>
+                    {[...results].reverse().map((result) => (
+                      <TouchableOpacity
+                        key={result.segmentIndex}
+                        style={styles.resultRow}
+                        onPress={() =>
+                          result.status === "complete"
+                            ? setSelectedResult(result)
+                            : null
+                        }
+                        disabled={result.status !== "complete"}
+                      >
+                        <Text style={styles.resultSegmentLabel}>
+                          Seg {result.segmentIndex + 1}
+                        </Text>
+                        {result.status === "processing" ? (
+                          <ActivityIndicator size="small" color="#888" />
+                        ) : result.status === "error" ? (
+                          <Text style={styles.resultError}>Error</Text>
+                        ) : (
+                          <Text
+                            style={[
+                              styles.resultPercentage,
+                              { color: getScoreColor(result.percentage) },
+                            ]}
+                          >
+                            {result.percentage}%
+                          </Text>
+                        )}
+                        <Text style={styles.resultText} numberOfLines={1}>
+                          {result.segmentText}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
+
+              {playerIsPlaying && !isRecording && (
+                <Text style={styles.listenFirstText}>
+                  {!hasListened
+                    ? "Listen First..."
+                    : "Pause Video When Ready to Record..."}
+                </Text>
+              )}
+              <RecordingControls
+                isRecording={isRecording}
+                hasRecordings={isRecording}
+                disabled={playerIsPlaying}
+                onTrash={() => {
+                  if (isRecording) {
+                    stopRecording();
+                    pausePlayer();
+                    setPlayerSpeed(1);
+                    unMutePlayer();
+                  }
+                  clearResults();
+                  setRevealedWords(new Set());
+                  setShowChunkResults(false);
+                  setIsAnalyzing(false);
+                  chunkStoppingRef.current = false;
+                }}
+                onMic={() => {
+                  if (isRecording) {
+                    // pause - broken for now
+                  } else {
+                    handleRecord();
+                  }
+                }}
+                onSubmit={() => {
+                  if (isRecording) {
+                    handleStop();
+                  }
+                }}
+              />
+            </>
+          )}
         </>
       )}
       {isSettingsVisible && (
@@ -659,6 +841,59 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600" as const,
+  },
+  listenFirstText: {
+    textAlign: "center" as const,
+    fontSize: 15,
+    fontWeight: "500" as const,
+    color: "#888",
+    marginBottom: 8,
+  },
+  deselectButton: {
+    marginLeft: 8,
+    padding: 2,
+  },
+  selectChunkContainer: {
+    flex: 1,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    paddingHorizontal: 32,
+    gap: 24,
+  },
+  chunkSizeRow: {
+    flexDirection: "row" as const,
+    gap: 12,
+  },
+  chunkSizeOption: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+  },
+  chunkSizeOptionActive: {
+    backgroundColor: "#3d3a52",
+  },
+  chunkSizeText: {
+    fontSize: 18,
+    fontWeight: "600" as const,
+    color: "#666",
+  },
+  chunkSizeTextActive: {
+    color: "#fff",
+  },
+  selectChunkButton: {
+    backgroundColor: "#3d3a52",
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 28,
+  },
+  selectChunkButtonText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "600" as const,
+    textAlign: "center" as const,
   },
 });
 

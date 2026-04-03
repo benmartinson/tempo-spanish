@@ -189,6 +189,8 @@ const FullSegmentTranscriptBubble: React.FC<
           };
 
           const isBlurred = blurredIndices?.has(index);
+          const wordStyle = getWordStyle();
+          const isActive = wordStyle === styles.activeWord;
           const displayWord = wordEndsWithSpecialCase(word.word)
             ? word.word.slice(0, -1)
             : word.word;
@@ -204,16 +206,17 @@ const FullSegmentTranscriptBubble: React.FC<
               delayLongPress={300}
               style={isBlurred ? styles.maskedWordWrapper : undefined}
             >
-              <Text style={[styles.word, getWordStyle()]}>
+              <Text style={[styles.word, wordStyle]}>
                 {word.word.startsWith(" ") ? "" : " "}
                 {displayWord}
               </Text>
               {isBlurred && (
-                <View style={styles.maskedWordOverlay}>
-                  {/* <Text style={styles.maskedWordXText}>
-                    {"x".repeat(displayWord.replace(/[\s\p{P}]/gu, "").length)}
-                  </Text> */}
-                </View>
+                <View
+                  style={[
+                    styles.maskedWordOverlay,
+                    isActive && { backgroundColor: "#b9e6bf" },
+                  ]}
+                />
               )}
             </Pressable>
           );

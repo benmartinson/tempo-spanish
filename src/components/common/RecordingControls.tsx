@@ -38,14 +38,14 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         />
       </TouchableOpacity>
       <TouchableOpacity
-        style={styles.micButton}
+        style={[styles.micButton, disabled && styles.micButtonDisabled]}
         onPress={onMic}
         disabled={disabled}
       >
         <MaterialIcons
           name={isRecording ? "pause" : hasRecordings ? "add" : "mic"}
           size={22}
-          color={isRecording ? "#555" : hasRecordings ? "#4a69bd" : "red"}
+          color={disabled ? "#ccc" : isRecording ? "#555" : hasRecordings ? "#4a69bd" : "red"}
         />
       </TouchableOpacity>
       <TouchableOpacity
@@ -107,6 +107,10 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: "#e0e0e0",
+  },
+  micButtonDisabled: {
+    borderColor: "#eee",
+    backgroundColor: "#f8f8f8",
   },
 });
 
