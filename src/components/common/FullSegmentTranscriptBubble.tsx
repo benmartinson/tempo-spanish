@@ -22,6 +22,7 @@ interface FullSegmentTranscriptBubbleProps {
   showFullText?: boolean;
   playerIsPlaying?: boolean;
   onWordPress?: (index: number) => void;
+  blurredIndices?: Set<number>;
 }
 
 const LINE_HEIGHT = 28;
@@ -39,13 +40,13 @@ const FullSegmentTranscriptBubble: React.FC<
   showFullText = false,
   playerIsPlaying = false,
   onWordPress,
+  blurredIndices,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
     {},
   );
   const [isActive, setIsActive] = useState(false);
-  const prevWordsRef = useRef<SegmentWord[]>([]);
   const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
@@ -73,14 +74,18 @@ const FullSegmentTranscriptBubble: React.FC<
     setTooltipWord(null);
   }, []);
 
-  // Reset when words array changes
-  useEffect(() => {
-    if (words !== prevWordsRef.current && words.length > 0) {
-      setIsActive(false);
-      setWordPositions({});
-      prevWordsRef.current = words;
-    }
+  // Build a stable identity for the segment (based on timing, not text content)
+  // so masking/revealing words doesn't trigger a full reset
+  const segmentIdentity = useMemo(() => {
+    if (!words?.length) return "";
+    return `${words.length}-${words[0]?.start}-${words[words.length - 1]?.end}`;
   }, [words]);
+
+  // Reset only when the actual segment changes, not when word text changes
+  useEffect(() => {
+    setIsActive(false);
+    setWordPositions({});
+  }, [segmentIdentity]);
 
   // Find the current word index based on time (video mode) or currentTargetIndex (shadow mode)
   const currentWordIndex = useMemo(() => {
@@ -147,21 +152,20 @@ const FullSegmentTranscriptBubble: React.FC<
   // Show blank when not active (before first word or after words change)
   if (!isActive) {
     return (
-      <View style={styles.card}>
+      <View style={styles.bubble}>
         <View style={styles.scrollView} />
       </View>
     );
   }
 
   return (
-    <View style={styles.card}>
+    <View style={styles.bubble}>
       <ScrollView
         ref={scrollViewRef}
         style={showFullText ? styles.fullTextScrollView : styles.scrollView}
         contentContainerStyle={[
           styles.wordsRow,
           !showFullText && styles.wordsRowPadding,
-          styles.tooltipContent,
         ]}
         showsVerticalScrollIndicator={false}
         scrollEnabled={false}
@@ -184,61 +188,49 @@ const FullSegmentTranscriptBubble: React.FC<
               : styles.normalWord;
           };
 
+          const isBlurred = blurredIndices?.has(index);
+          const displayWord = wordEndsWithSpecialCase(word.word)
+            ? word.word.slice(0, -1)
+            : word.word;
+
           return (
             <Pressable
               key={`${word.start}-${index}`}
               onLayout={(e) => handleWordLayout(index, e)}
-              onPress={() => onWordPress ? onWordPress(index) : undefined}
-              onLongPress={() => onWordPress ? onWordPress(index) : handleLongPress(word)}
+              onPress={() => (onWordPress ? onWordPress(index) : undefined)}
+              onLongPress={() =>
+                onWordPress ? onWordPress(index) : handleLongPress(word)
+              }
               delayLongPress={300}
+              style={isBlurred ? styles.maskedWordWrapper : undefined}
             >
               <Text style={[styles.word, getWordStyle()]}>
                 {word.word.startsWith(" ") ? "" : " "}
-                {wordEndsWithSpecialCase(word.word)
-                  ? word.word.slice(0, -1)
-                  : word.word}
+                {displayWord}
               </Text>
+              {isBlurred && (
+                <View style={styles.maskedWordOverlay}>
+                  {/* <Text style={styles.maskedWordXText}>
+                    {"x".repeat(displayWord.replace(/[\s\p{P}]/gu, "").length)}
+                  </Text> */}
+                </View>
+              )}
             </Pressable>
           );
         })}
       </ScrollView>
-      {/* <TooltipModal
-        isVisible={tooltipWord !== null}
-        onRequestClose={hideTooltip}
-      >
-        <Text style={styles.tooltipWord}>{tooltipWord?.word}</Text>
-        <Text style={styles.tooltipTranslation}>
-          {tooltipWord?.word
-            ? wordsInContext.find(
-                (w) =>
-                  stripPunctuation(w.word.toLowerCase()).trim() ===
-                  stripPunctuation(tooltipWord.word.toLowerCase()).trim(),
-              )?.translation ||
-              allVocabulary[
-                stripPunctuation(tooltipWord.word.toLowerCase()).trim()
-              ]?.translation ||
-              ""
-            : ""}
-        </Text>
-      </TooltipModal> */}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    margin: 16,
-    marginBottom: 0,
-    backgroundColor: "white",
+  bubble: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: "#f0f4ff",
     borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    borderBottomLeftRadius: 4,
+    padding: 16,
   },
   scrollView: {
     height: VISIBLE_HEIGHT, // Exactly 3 lines
@@ -247,7 +239,7 @@ const styles = StyleSheet.create({
   wordsRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 2,
+    columnGap: 5,
     flexWrap: "wrap",
   },
   fullTextScrollView: {
@@ -258,22 +250,42 @@ const styles = StyleSheet.create({
     paddingBottom: LINE_HEIGHT * 2, // Extra space at bottom for scrolling
   },
   word: {
-    fontSize: 18,
+    fontSize: 17,
     marginHorizontal: -2,
     paddingHorizontal: 0,
-    fontWeight: "600",
+    fontWeight: "500",
     textAlign: "center",
-    fontFamily: "Helvetica",
     lineHeight: LINE_HEIGHT,
   },
   currentWord: {
-    color: "black",
+    color: "#222",
   },
   activeWord: {
     color: "#4CAF50",
   },
   normalWord: {
-    color: "black", // White for other words
+    color: "#222",
+  },
+  maskedWordWrapper: {
+    position: "relative",
+  },
+  maskedWordOverlay: {
+    position: "absolute",
+    top: 4,
+    bottom: 4,
+    left: 1,
+    right: -4,
+    backgroundColor: "#c0c6d6",
+    borderRadius: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  maskedWordXText: {
+    fontSize: 13,
+    lineHeight: 13,
+    color: "#8a90a0",
+    letterSpacing: 1,
+    fontWeight: "600",
   },
   tooltipWord: {
     fontSize: 20,

@@ -274,12 +274,13 @@ const AuthenticatedApp: React.FC = () => {
 
     // Persist tab to database
     const persistTab =
-      tab === "review" ? "discuss" : tab === "translate" ? "translate" : tab;
+      tab === "review" ? "discuss" : tab;
     if (
       persistTab === "watch" ||
       persistTab === "discuss" ||
       persistTab === "shadow" ||
-      persistTab === "translate"
+      persistTab === "translate" ||
+      persistTab === "speed-run"
     ) {
       await persistUserUITab({ supabase, userId, currentTab: persistTab });
     }

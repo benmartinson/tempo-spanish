@@ -62,7 +62,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
       >
         <MaterialIcons name="slow-motion-video" size={24} color="black" />
       </TouchableOpacity>
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={[styles.button, styles.buttonRight]}
         onPress={handleAiSpeak}
         disabled={!segmentText || aiLoading}
@@ -76,7 +76,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             color={segmentText ? "black" : "#ccc"}
           />
         )}
-      </TouchableOpacity>
+      </TouchableOpacity> */}
       <TouchableOpacity
         style={[
           styles.button,

@@ -92,7 +92,7 @@ const TopNavBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 60,
+    marginTop: 40,
     paddingHorizontal: 12,
     paddingVertical: 8,
     flexDirection: "row",
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "400",
     color: "#3d3a52",
   },
   countryFlag: {

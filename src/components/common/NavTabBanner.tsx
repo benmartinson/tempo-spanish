@@ -214,7 +214,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 60,
+    marginTop: 40,
     paddingHorizontal: 12,
     paddingVertical: 8,
     flexDirection: "row",

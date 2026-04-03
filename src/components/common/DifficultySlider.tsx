@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 
-const MAX_DIFFICULTY = 5;
+const MAX_DIFFICULTY = 4;
 
 interface DifficultySliderProps {
   difficulty: number;
@@ -18,6 +18,7 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
       <TouchableOpacity
         onPress={() => onDifficultyChange(Math.max(0, difficulty - 1))}
         disabled={difficulty === 0}
+        hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
       >
         <Text
           style={[styles.label, difficulty === 0 && styles.labelDisabled]}
@@ -46,6 +47,7 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
           onDifficultyChange(Math.min(MAX_DIFFICULTY, difficulty + 1))
         }
         disabled={difficulty === MAX_DIFFICULTY}
+        hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
       >
         <Text
           style={[

@@ -94,8 +94,6 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
   const [simulatedTime, setSimulatedTime] = useState<number | null>(null);
 
-  const maskWord = (word: string) => word.replace(/[^\s\p{P}]/gu, "x");
-
   const handleRecordingComplete = useCallback(() => {}, []);
 
   const { isRecording, startRecording, stopRecording, getRecorderUri } =
@@ -109,47 +107,27 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
       properNouns: orderedCharacters,
     });
 
-  const maskedWords = useMemo(() => {
-    if (difficulty === 0 || !currentSentence.words)
-      return currentSentence.words;
-    return currentSentence.words.map((w, i) => {
-      if (revealedWords.has(i)) return w;
-      let shouldMask = false;
+  const maskedIndices = useMemo(() => {
+    const masked = new Set<number>();
+    if (difficulty === 0 || !currentSentence.words) return masked;
+    currentSentence.words.forEach((_, i) => {
+      if (revealedWords.has(i)) return;
       switch (difficulty) {
         case 1:
-          shouldMask = (i + 1) % 3 === 0;
+          if ((i + 1) % 3 === 0) masked.add(i);
           break;
         case 2:
-          shouldMask = i % 2 === 1;
+          if (i % 2 === 1) masked.add(i);
           break;
         case 3:
-          shouldMask = i % 3 !== 0;
+          if (i % 3 !== 0) masked.add(i);
           break;
         case 4:
-          if (i % 3 !== 0) {
-            shouldMask = true;
-          } else {
-            const letters = w.word.split("");
-            let firstLetterSeen = false;
-            const masked = letters
-              .map((ch) => {
-                if (/[\s\p{P}]/u.test(ch)) return ch;
-                if (!firstLetterSeen) {
-                  firstLetterSeen = true;
-                  return ch;
-                }
-                return "x";
-              })
-              .join("");
-            return { ...w, word: masked };
-          }
-          break;
-        case 5:
-          shouldMask = true;
+          masked.add(i);
           break;
       }
-      return shouldMask ? { ...w, word: maskWord(w.word) } : w;
     });
+    return masked;
   }, [currentSentence.words, difficulty, revealedWords]);
 
   // Detect segment boundary while recording
@@ -439,11 +417,11 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
                   <MaterialIcons name="replay" size={20} color="#3d3a52" />
                   <Text style={styles.retryButtonText}>Re-Try</Text>
                 </TouchableOpacity>
-                {difficulty < 5 && (
+                {difficulty < 4 && (
                   <TouchableOpacity
                     style={styles.lessHintsButton}
                     onPress={() => {
-                      setDifficulty((d) => Math.min(d + 1, 5));
+                      setDifficulty((d) => Math.min(d + 1, 4));
                       setRevealedWords(new Set());
                       handleRetry();
                     }}
@@ -464,7 +442,8 @@ const SpeedRunTab: React.FC<SpeedRunTabProps> = ({
         <>
           <ScrollView style={styles.transcriptContainer}>
             <FullSegmentTranscriptBubble
-              words={maskedWords || []}
+              words={currentSentence.words || []}
+              blurredIndices={maskedIndices}
               time={simulatedTime ?? time}
               playerIsPlaying={playerIsPlaying || simulatedTime !== null}
               showFullText
