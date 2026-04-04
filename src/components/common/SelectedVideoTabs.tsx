@@ -106,6 +106,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, [dispatch]);
 
   const [time, setTime] = useState<number>(0);
+  const [playKey, setPlayKey] = useState(0);
   const [isConfirmingStartOver, setIsConfirmingStartOver] =
     useState<boolean>(false);
   // const currentSentence = currentVideo
@@ -439,6 +440,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     handleTransition();
     setAutoplay(true);
     setTime(currentSentenceObject?.start);
+    setPlayKey((k) => k + 1);
     prevTimeRef.current = -1;
     setPlayerIsPlaying(true);
     currentClipSnippetRef.current = null;
@@ -593,6 +595,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       <View style={getTabStyle(selectedNavTab === "shadow")}>
         <ShadowTab
           time={time}
+          playKey={playKey}
           handleNextSentence={handleNextSentence}
           handlePreviousSentence={handlePreviousSentence}
           playSentence={playSentence}
@@ -608,6 +611,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           onPlayClip={handlePlayClip}
           playClipSnippet={playClipSnippet}
           playerIsPlaying={playerIsPlaying}
+          playerSpeed={playerSpeed}
           isLoadingInsights={isLoadingInsights}
           orderedCharacters={orderedCharacters}
           sentenceTranslation={sentenceTranslation}

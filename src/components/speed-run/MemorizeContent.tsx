@@ -11,12 +11,16 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 
 interface MemorizeContentProps {
   time: number;
+  playKey?: number;
+  playerSpeed?: number;
   currentSentence: Sentence;
   playerIsPlaying: boolean;
 }
 
 const MemorizeContent: React.FC<MemorizeContentProps> = ({
   time,
+  playKey,
+  playerSpeed,
   currentSentence,
   playerIsPlaying,
 }) => {
@@ -68,6 +72,8 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
         words={currentSentence.words || []}
         blurredIndices={maskedIndices}
         time={time}
+        playKey={playKey}
+        playerSpeed={playerSpeed}
         playerIsPlaying={playerIsPlaying}
         showFullText
         onWordPress={(index) => {

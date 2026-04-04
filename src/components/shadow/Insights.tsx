@@ -145,24 +145,6 @@ const Insights: React.FC<InsightsProps> = ({
           </View>
         )}
       </>
-      {sentenceText.trimEnd().endsWith(",.") && (
-        <>
-          <View style={styles.headerContainer}>
-            <ToggleHeader
-              title="Notes"
-              isVisible={isShowingNotes}
-              onToggle={() => setIsShowingNotes(!isShowingNotes)}
-            />
-          </View>
-          {isShowingNotes && (
-            <View style={styles.notesList}>
-              <Text style={styles.notesText}>
-                This segment is part of a longer sentence.
-              </Text>
-            </View>
-          )}
-        </>
-      )}
     </View>
   );
 };

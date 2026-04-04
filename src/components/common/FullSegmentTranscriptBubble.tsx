@@ -23,6 +23,8 @@ interface FullSegmentTranscriptBubbleProps {
   playerIsPlaying?: boolean;
   onWordPress?: (index: number) => void;
   blurredIndices?: Set<number>;
+  playKey?: number;
+  playerSpeed?: number;
 }
 
 const LINE_HEIGHT = 28;
@@ -41,6 +43,8 @@ const FullSegmentTranscriptBubble: React.FC<
   playerIsPlaying = false,
   onWordPress,
   blurredIndices,
+  playKey,
+  playerSpeed = 1,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
@@ -49,6 +53,96 @@ const FullSegmentTranscriptBubble: React.FC<
   const [isActive, setIsActive] = useState(false);
   const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
+
+  // Fill the initial time gap when playback starts.
+  // The player provides an initial time, then ~1.5s of silence before
+  // updates resume at ~150ms. We interpolate during that gap.
+  const [localTime, setLocalTime] = useState(time);
+  const localTimeRef = useRef(time);
+  const timeUpdateCountRef = useRef(0);
+  const interpolatingRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevPlayerIsPlayingRef = useRef(playerIsPlaying);
+
+  const startInterpolation = (startTime: number) => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    timeUpdateCountRef.current = 0;
+    interpolatingRef.current = true;
+    let counter = 0;
+    const speed = playerSpeed || 1;
+    const intervalMs = 150 / speed;
+    intervalRef.current = setInterval(() => {
+      counter++;
+      const t = startTime + counter * 0.15;
+      localTimeRef.current = t;
+      setLocalTime(t);
+    }, intervalMs);
+  };
+
+  // Detect replay via playKey change
+  const prevPlayKeyRef = useRef(playKey);
+  useEffect(() => {
+    if (playKey !== undefined && playKey !== prevPlayKeyRef.current) {
+      prevPlayKeyRef.current = playKey;
+      setLocalTime(time);
+      localTimeRef.current = time;
+      if (playerIsPlaying) {
+        startInterpolation(time);
+      }
+    }
+  }, [playKey]);
+
+  // Track incoming time prop updates
+  useEffect(() => {
+    // Detect replay: time jumped backward while still playing
+    if (playerIsPlaying && time < localTimeRef.current) {
+      setLocalTime(time);
+      localTimeRef.current = time;
+      startInterpolation(time);
+      return;
+    }
+
+    if (interpolatingRef.current) {
+      timeUpdateCountRef.current += 1;
+      // Second real update means the player is feeding us reliably — stop interpolating
+      if (timeUpdateCountRef.current >= 2) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        interpolatingRef.current = false;
+      }
+    }
+    localTimeRef.current = time;
+    setLocalTime(time);
+  }, [time]);
+
+  // Start/stop interpolation when playerIsPlaying changes
+  useEffect(() => {
+    const wasPlaying = prevPlayerIsPlayingRef.current;
+    prevPlayerIsPlayingRef.current = playerIsPlaying;
+
+    if (playerIsPlaying && !wasPlaying) {
+      // Player just started — begin interpolating
+      startInterpolation(time);
+    } else if (!playerIsPlaying && wasPlaying) {
+      // Player stopped
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      interpolatingRef.current = false;
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [playerIsPlaying]);
 
   const handleLongPress = useCallback(
     (word: SegmentWord) => {
@@ -92,22 +186,20 @@ const FullSegmentTranscriptBubble: React.FC<
     if (mode === "shadow") {
       return currentTargetIndex;
     }
-    // Video mode: find word based on playback time
+    // Video mode: find word based on playback time (using localTime to cover the initial gap)
     for (let i = 0; i < words.length; i++) {
-      if (time >= words[i].start && time <= words[i].end) {
+      if (localTime >= words[i].start && localTime <= words[i].end) {
         return i;
       }
-      // If we're past the end time of a word but before the start of the next,
-      // consider it the current word if it's the last word
       if (
-        time > words[i].end &&
-        (i === words.length - 1 || time < words[i + 1].start)
+        localTime > words[i].end &&
+        (i === words.length - 1 || localTime < words[i + 1].start)
       ) {
         return i;
       }
     }
     return 0;
-  }, [words, time, mode, currentTargetIndex]);
+  }, [words, localTime, mode, currentTargetIndex]);
 
   // Activate when we first hit a valid word (video mode) or immediately (shadow mode)
   useEffect(() => {
@@ -149,6 +241,20 @@ const FullSegmentTranscriptBubble: React.FC<
     );
   };
 
+  // Precompute highlight chunks: 5 words each, but if 6 remain split into 4+2
+  const chunks = useMemo(() => {
+    if (!words?.length) return [];
+    const result: [number, number][] = [];
+    let i = 0;
+    while (i < words.length) {
+      const remaining = words.length - i;
+      const size = remaining === 6 ? 4 : Math.min(5, remaining);
+      result.push([i, i + size - 1]);
+      i += size;
+    }
+    return result;
+  }, [words]);
+
   // Show blank when not active (before first word or after words change)
   if (!isActive) {
     return (
@@ -179,21 +285,27 @@ const FullSegmentTranscriptBubble: React.FC<
                 ? styles.currentWord
                 : styles.normalWord;
             }
-            // Video mode: highlight chunk of 5 words around current position
+            // Video mode: highlight the chunk containing the current word
             if (!playerIsPlaying) return styles.normalWord;
-            const chunkStart = Math.floor(currentWordIndex / 5) * 5;
-            const chunkEnd = chunkStart + 4;
-            return index >= chunkStart && index <= chunkEnd
-              ? styles.activeWord
-              : styles.normalWord;
+            const chunk = chunks.find(
+              ([start, end]) =>
+                currentWordIndex >= start && currentWordIndex <= end,
+            );
+            if (chunk && index >= chunk[0] && index <= chunk[1]) {
+              return styles.activeWord;
+            }
+            return styles.normalWord;
           };
 
           const isBlurred = blurredIndices?.has(index);
           const wordStyle = getWordStyle();
           const isActive = wordStyle === styles.activeWord;
-          const displayWord = wordEndsWithSpecialCase(word.word)
+          let displayWord = wordEndsWithSpecialCase(word.word)
             ? word.word.slice(0, -1)
             : word.word;
+          if (index === words.length - 1 && displayWord.endsWith(",")) {
+            displayWord = displayWord.slice(0, -1) + "...";
+          }
 
           return (
             <Pressable

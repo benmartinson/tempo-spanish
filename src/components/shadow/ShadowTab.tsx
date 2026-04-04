@@ -79,6 +79,8 @@ import TranslateContent from "../translate/TranslateContent";
 
 interface ShadowTabProps {
   time: number;
+  playKey?: number;
+  playerSpeed?: number;
   handleNextSentence: () => void;
   handlePreviousSentence: () => void;
   isActive?: boolean;
@@ -104,6 +106,8 @@ interface ShadowTabProps {
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
   time,
+  playKey,
+  playerSpeed,
   handleNextSentence: parentHandleNextSentence,
   handlePreviousSentence: parentHandlePreviousSentence,
   isActive = true,
@@ -1215,6 +1219,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               {selectedTab === "memorize" ? (
                 <MemorizeContent
                   time={time}
+                  playKey={playKey}
+                  playerSpeed={playerSpeed}
                   currentSentence={currentSentenceObject!}
                   playerIsPlaying={playerIsPlaying}
                 />
