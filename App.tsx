@@ -168,7 +168,7 @@ const AuthenticatedApp: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const [selectedNavTab, setSelectedNavTab] = useState<
-    "watch" | "shadow" | "review" | "speed-run" | "translate"
+    "watch" | "shadow" | "review" | "speed-run" | "translate" | "recordings"
   >("watch");
   const [isRestoringState, setIsRestoringState] = useState(true);
 
@@ -234,14 +234,18 @@ const AuthenticatedApp: React.FC = () => {
         dispatch(setMemorizeDifficulty(settings.defaultMemorizeDifficulty));
       }
 
-      if (currentTab && ["watch", "discuss", "shadow", "speed-run", "translate"].includes(currentTab)) {
-        // speed-run and translate are now subtabs of shadow
-        const resolvedTab = (currentTab === "translate" || currentTab === "speed-run") ? "shadow" : currentTab;
-        dispatch(setCurrentTab(resolvedTab === "discuss" ? "discuss" : resolvedTab));
-        if (resolvedTab === "discuss") {
-          setSelectedNavTab("review");
-        } else if (resolvedTab === "watch" || resolvedTab === "shadow") {
-          setSelectedNavTab(resolvedTab);
+      if (currentTab && ["watch", "discuss", "shadow", "speed-run", "translate", "recordings"].includes(currentTab)) {
+        if ((currentTab as string) === "recordings") {
+          setSelectedNavTab("recordings");
+        } else {
+          // speed-run and translate are now subtabs of shadow
+          const resolvedTab = (currentTab === "translate" || currentTab === "speed-run") ? "shadow" : currentTab;
+          dispatch(setCurrentTab(resolvedTab === "discuss" ? "discuss" : resolvedTab));
+          if (resolvedTab === "discuss") {
+            setSelectedNavTab("review");
+          } else if (resolvedTab === "watch" || resolvedTab === "shadow") {
+            setSelectedNavTab(resolvedTab);
+          }
         }
       }
 
@@ -272,7 +276,7 @@ const AuthenticatedApp: React.FC = () => {
   }, [currentVideo?.videoId, isRestoringState]);
 
   const handleNavTabSelect = async (
-    tab: "watch" | "shadow" | "review" | "speed-run" | "translate",
+    tab: "watch" | "shadow" | "review" | "speed-run" | "translate" | "recordings",
   ) => {
     setSelectedNavTab(tab);
     // Also update redux current tab for consistency
@@ -286,15 +290,7 @@ const AuthenticatedApp: React.FC = () => {
     // Persist tab to database
     const persistTab =
       tab === "review" ? "discuss" : tab;
-    if (
-      persistTab === "watch" ||
-      persistTab === "discuss" ||
-      persistTab === "shadow" ||
-      persistTab === "translate" ||
-      persistTab === "speed-run"
-    ) {
-      await persistUserUITab({ supabase, userId, currentTab: persistTab });
-    }
+    await persistUserUITab({ supabase, userId, currentTab: persistTab });
   };
 
   const renderTabContent = () => {

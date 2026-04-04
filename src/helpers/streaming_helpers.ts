@@ -748,34 +748,15 @@ export const uploadAudioToStorage = async (
   sentenceIndex: number,
 ): Promise<string> => {
   try {
-    // Read the audio file as base64
     const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
       encoding: "base64",
     });
 
-    // Trim silence/low-volume sections from the audio before uploading
-    // Set to false to disable trimming for debugging
-    const enableTrimming = true;
-    let audioToUpload = base64Audio;
-    if (enableTrimming) {
-      try {
-        audioToUpload = trimSilenceFromAudio(base64Audio);
-        console.log(
-          `Audio trimmed: ${base64Audio.length} -> ${audioToUpload.length} chars`,
-        );
-      } catch (trimError) {
-        console.warn("Failed to trim audio, using original:", trimError);
-        // Fall back to original audio if trimming fails
-      }
-    }
-
-    // Use a consistent filename based on user/video/sentence for upsert to work
     const filename = `${userId}/${videoId}_${sentenceIndex}.wav`;
 
-    // Upload to Supabase storage with upsert to replace existing recording
     const { data, error } = await supabase.storage
       .from("shadow_recordings")
-      .upload(filename, decode(audioToUpload), {
+      .upload(filename, decode(base64Audio), {
         contentType: "audio/wav",
         upsert: true,
       });

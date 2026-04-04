@@ -35,6 +35,7 @@ import SpeedRunTab from "../speed-run/SpeedRunTab";
 import ShadowTab from "../shadow/ShadowTab";
 import ReviewTab from "../discuss/ReviewTab";
 import TranslateTab from "../translate/TranslateTab";
+import RecordingsTab from "../recordings/RecordingsTab";
 import {
   capitalize,
   isInterestingVocab,
@@ -45,9 +46,21 @@ import {
 import SlideModal from "./SlideModal";
 
 interface SelectedVideoTabsProps {
-  selectedNavTab: "watch" | "shadow" | "review" | "speed-run" | "translate";
+  selectedNavTab:
+    | "watch"
+    | "shadow"
+    | "review"
+    | "speed-run"
+    | "translate"
+    | "recordings";
   onSelectNavTab: (
-    tab: "watch" | "shadow" | "review" | "speed-run" | "translate",
+    tab:
+      | "watch"
+      | "shadow"
+      | "review"
+      | "speed-run"
+      | "translate"
+      | "recordings",
     reviewDetails?: AutoReviewDetails | null,
   ) => void;
 }
@@ -330,16 +343,15 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const handleSetTime = (newTime: number, force = false) => {
     if (isTransitioningRef.current && !force) return;
 
+    // During recordings playback, just update time without sentence transitions
+    if (selectedNavTab === "recordings") {
+      prevTimeRef.current = newTime;
+      setTime(newTime);
+      return;
+    }
+
     const prevTime = prevTimeRef.current;
     prevTimeRef.current = newTime;
-    // console.log(
-    //   "newTime",
-    //   newTime,
-    //   prevTime,
-    //   Math.abs(newTime - prevTime),
-    //   currentSentenceObject?.start,
-    //   currentSentenceObject?.end,
-    // );
     if (
       force ||
       (prevTime !== -1 &&
@@ -514,6 +526,17 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     playerRef.current?.unMute();
   }, []);
 
+  // Mute and hide video when on Recordings tab, unmute and show when switching away
+  useEffect(() => {
+    if (selectedNavTab === "recordings") {
+      mutePlayer();
+      setShowVideo(false);
+    } else {
+      unMutePlayer();
+      setShowVideo(true);
+    }
+  }, [selectedNavTab]);
+
   const [clipEndTime, setClipEndTime] = useState<number | undefined>(undefined);
 
   const setClipEnd = useCallback(
@@ -551,7 +574,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     }) as const;
 
   const endTime =
-    selectedNavTab !== "watch" && selectedNavTab !== "speed-run"
+    selectedNavTab !== "watch" &&
+    selectedNavTab !== "speed-run" &&
+    selectedNavTab !== "recordings"
       ? currentSentenceObject?.end
       : undefined;
   return (
@@ -572,9 +597,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             start: currentSentenceObject?.start,
             end: endTime,
           }}
-          autoplay={
-            selectedNavTab === "shadow" || selectedNavTab === "speed-run"
-          }
+          autoplay={true}
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
           muted={playerMuted}
@@ -651,6 +674,25 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setClipEnd={setClipEnd}
         />
       </View>
+
+      {selectedNavTab === "recordings" && (
+        <View style={getTabStyle(selectedNavTab === "recordings")}>
+          <RecordingsTab
+            time={time}
+            isActive={selectedNavTab === "recordings"}
+            playerRef={playerRef}
+            pausePlayer={pausePlayer}
+            resumePlayer={playPlayer}
+            setPlayerSpeed={setPlayerSpeed}
+            onShowVideo={(show) => setShowVideo(show)}
+            playerIsPlaying={playerIsPlaying}
+            onNavigateToShadow={(sentenceIndex) => {
+              setCurrentSentence(sentenceIndex);
+              onSelectNavTab("shadow");
+            }}
+          />
+        </View>
+      )}
 
       {selectedNavTab === "review" && (
         <View style={getTabStyle(selectedNavTab === "review")}>

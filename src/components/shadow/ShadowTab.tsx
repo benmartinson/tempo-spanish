@@ -26,6 +26,7 @@ import Feather from "@expo/vector-icons/Feather";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import { useAuth } from "@clerk/clerk-expo";
+import * as FileSystem from "expo-file-system/legacy";
 import {
   AutoReviewDetails,
   AutoShadowDetails,
@@ -39,7 +40,6 @@ import {
   sendAudioForTranscription,
   uploadAudioToStorage,
   playAudioFromStorage,
-  trimSilenceFromAudio,
   playAiSpeech,
   playDing,
   playDingStop,
@@ -368,11 +368,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     };
   }, [currentSentenceIndex]);
 
-  const handleTrimAndSaveRecording = async (audioUri: string) => {
+  const handleSaveRecording = async (audioUri: string) => {
     setIsTrimmingAudio(true);
-    const trimmedAudioUri = trimSilenceFromAudio(audioUri);
     const recordingPath = await uploadAudioToStorage(
-      trimmedAudioUri,
+      audioUri,
       userId,
       currentVideo.recordId,
       currentSentenceIndex,
@@ -385,6 +384,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         video_id: parseInt(currentVideo.recordId),
         sentence: currentSentenceIndex,
         recording_id: recordingPath,
+        recording_speed: recordSpeed,
       },
       { onConflict: "user_id,video_id,sentence" },
     );
@@ -404,9 +404,20 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setIsProcessing(true);
       setError(null);
 
+      // Copy recording to a stable path so it survives temp file cleanup
+      const stableUri = `${FileSystem.cacheDirectory}shadow_recording_${currentSentenceIndex}_${Date.now()}.wav`;
+      try {
+        await FileSystem.copyAsync({ from: uri, to: stableUri });
+      } catch {
+        console.warn("Could not copy recording, using original URI");
+      }
+      const safeUri = (await FileSystem.getInfoAsync(stableUri)).exists
+        ? stableUri
+        : uri;
+
       try {
         const transcriptionResult = await sendAudioForTranscription(
-          uri,
+          safeUri,
           userSettings.targetLanguage,
         );
         const spokenWords = transcriptionResult.transcript
@@ -431,7 +442,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             await playCachedResponse(accuracy);
           }
         }
-        setAudioUri(uri);
+        setAudioUri(safeUri);
         saveShadowResult(spokenWords);
       } catch (err) {
         console.error("Transcription error:", err);
@@ -1187,7 +1198,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 <View style={styles.playRecordingContainer}>
                   <TouchableOpacity
                     style={styles.playRecordingButton}
-                    onPress={() => handleTrimAndSaveRecording(audioUri)}
+                    onPress={() => handleSaveRecording(audioUri)}
                     disabled={isTrimmingAudio}
                   >
                     <Text style={styles.playRecordingButtonText}>
