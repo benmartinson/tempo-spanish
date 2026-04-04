@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 20,
-    fontWeight: "400",
+    fontWeight: "600",
     color: "#3d3a52",
   },
   countryFlag: {

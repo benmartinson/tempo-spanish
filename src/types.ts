@@ -1,5 +1,6 @@
 export interface UserSettings {
   playbackSpeed: number;
+  playbackSpeedDuringRecording: number;
   showWordsHints: boolean;
   showCharacters: boolean;
   showStartsOffAs: boolean;
@@ -37,6 +38,7 @@ export type VoiceCommand =
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   playbackSpeed: 1,
+  playbackSpeedDuringRecording: 0.25,
   showWordsHints: true,
   showCharacters: true,
   showStartsOffAs: true,
@@ -324,6 +326,7 @@ export interface UserUIState {
   current_sentence: number;
   current_tab: "watch" | "discuss" | "shadow";
   playback_speed: number | null;
+  playback_speed_during_recording: number | null;
   show_word_hints: boolean | null;
   show_characters: boolean | null;
   show_starts_off_as: boolean | null;

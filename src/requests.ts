@@ -454,6 +454,9 @@ export const restoreUserUIState = async ({
     const settings: UserSettings = {
       playbackSpeed:
         uiState.playback_speed ?? DEFAULT_USER_SETTINGS.playbackSpeed,
+      playbackSpeedDuringRecording:
+        uiState.playback_speed_during_recording ??
+        DEFAULT_USER_SETTINGS.playbackSpeedDuringRecording,
       showWordsHints:
         uiState.show_word_hints ?? DEFAULT_USER_SETTINGS.showWordsHints,
       showCharacters:
@@ -588,6 +591,8 @@ export const persistUserSettings = async ({
   };
   if (settings.playbackSpeed !== undefined)
     updateData.playback_speed = settings.playbackSpeed;
+  if (settings.playbackSpeedDuringRecording !== undefined)
+    updateData.playback_speed_during_recording = settings.playbackSpeedDuringRecording;
   if (settings.showWordsHints !== undefined)
     updateData.show_word_hints = settings.showWordsHints;
   if (settings.showCharacters !== undefined)

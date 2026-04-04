@@ -91,7 +91,7 @@ const Insights: React.FC<InsightsProps> = ({
         showPhrases={showPhrases}
         isRecordingMode={isRecordingMode}
       />
-      <View style={styles.headerContainer}>
+      {/* <View style={styles.headerContainer}>
         <ToggleHeader
           title="Transcript"
           isVisible={isShowingTranscript}
@@ -104,7 +104,7 @@ const Insights: React.FC<InsightsProps> = ({
             {addEllipsis(removeSpecialPunctuation(sentenceText))}
           </Text>
         </View>
-      )}
+      )} */}
       <WordHints
         hintWords={hintWords}
         handlePlayWordSnippet={handlePlayWordSnippet}

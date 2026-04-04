@@ -223,14 +223,13 @@ const AuthenticatedApp: React.FC = () => {
       dispatch(setUserSettings(settings));
 
       if (currentTab && ["watch", "discuss", "shadow", "speed-run", "translate"].includes(currentTab)) {
-        dispatch(setCurrentTab(currentTab === "translate" ? "discuss" : currentTab));
-        // Also update the local nav tab state
-        if (currentTab === "discuss") {
+        // speed-run and translate are now subtabs of shadow
+        const resolvedTab = (currentTab === "translate" || currentTab === "speed-run") ? "shadow" : currentTab;
+        dispatch(setCurrentTab(resolvedTab === "discuss" ? "discuss" : resolvedTab));
+        if (resolvedTab === "discuss") {
           setSelectedNavTab("review");
-        } else if (currentTab === "translate") {
-          setSelectedNavTab("translate");
-        } else if (currentTab === "watch" || currentTab === "shadow" || currentTab === "speed-run") {
-          setSelectedNavTab(currentTab);
+        } else if (resolvedTab === "watch" || resolvedTab === "shadow") {
+          setSelectedNavTab(resolvedTab);
         }
       }
 

@@ -155,12 +155,12 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
                 ]}
               />
               <Text style={styles.recordingText}>Recording</Text>
+              {showTimeWarning && remainingSeconds > 0 && (
+                <Text style={styles.timeWarningText}>
+                  {remainingSeconds}s
+                </Text>
+              )}
             </View>
-            {showTimeWarning && remainingSeconds > 0 && (
-              <Text style={styles.timeWarningText}>
-                Stopping in {remainingSeconds}s
-              </Text>
-            )}
             <View style={styles.buttonRow}>
               {onPauseRecording && (
                 <TouchableOpacity
@@ -168,14 +168,13 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
                   style={styles.pauseButton}
                 >
                   <MaterialIcons name="pause" size={20} color="#fff" />
-                  <Text style={styles.stopButtonText}>Pause</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 onPress={onStopRecording}
-                style={styles.stopButton}
+                style={styles.submitButton}
               >
-                <Text style={styles.stopButtonText}>Submit</Text>
+                <Text style={styles.submitButtonText}>Submit</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -223,10 +222,12 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 8,
-    margin: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
     backgroundColor: "#2d2a40",
     borderRadius: 16,
   },
@@ -245,22 +246,24 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   recordingPhase: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
   },
   recordingIndicatorRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingTop: 8,
+    gap: 8,
   },
   recordingDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: "#ff4757",
   },
   recordingText: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: "600",
     color: "#fff",
   },
@@ -299,36 +302,32 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: 12,
   },
   pauseButton: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 6,
+    padding: 8,
   },
-  stopButton: {
-    flexDirection: "row",
+  submitButton: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
   },
-  stopButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "white",
-  },
-  timeWarningText: {
+  submitButtonText: {
     fontSize: 14,
     fontWeight: "600",
+    color: "#fff",
+  },
+  timeWarningText: {
+    fontSize: 12,
+    fontWeight: "600",
     color: "#ff4757",
-    marginTop: 12,
+    marginLeft: 4,
   },
 });
 

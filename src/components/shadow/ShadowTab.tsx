@@ -24,7 +24,6 @@ import {
 import { useSelector } from "react-redux";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import AntDesign from "@expo/vector-icons/AntDesign";
 
 import { useAuth } from "@clerk/clerk-expo";
 import {
@@ -74,6 +73,8 @@ import { computeSubSegments } from "../../helpers/helpers";
 import { setCurrentSentence } from "../../store/actions/dataActions";
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import RecordingControls from "../common/RecordingControls";
+import MemorizeContent from "../speed-run/MemorizeContent";
+import TranslateContent from "../translate/TranslateContent";
 
 interface ShadowTabProps {
   time: number;
@@ -96,6 +97,8 @@ interface ShadowTabProps {
   onReviewSegment?: (details: AutoReviewDetails) => void;
   autoShadowDetails?: AutoShadowDetails | null;
   onAutoShadowHandled?: () => void;
+  mutePlayer: () => void;
+  unMutePlayer: () => void;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -119,6 +122,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   onReviewSegment,
   autoShadowDetails,
   onAutoShadowHandled,
+  mutePlayer,
+  unMutePlayer,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
@@ -160,7 +165,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(
     userSettings.playbackSpeed,
   );
-  const [recordSpeed, setRecordSpeed] = useState<number>(0.75);
+  const [recordSpeed, setRecordSpeed] = useState<number>(
+    userSettings.playbackSpeedDuringRecording,
+  );
   const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
     useState<boolean>(true);
 
@@ -201,9 +208,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
-  const [selectedTab, setSelectedTab] = useState<"insights" | "voice">(
-    "insights",
-  );
+  const [selectedTab, setSelectedTab] = useState<
+    "insights" | "memorize" | "translate" | "voice"
+  >("insights");
   const [isSpeakingResponse, setIsSpeakingResponse] = useState(false);
   const [activeCommand, setActiveCommandState] = useState<VoiceCommand>(null);
   const setActiveCommand = useCallback((command: VoiceCommand) => {
@@ -788,8 +795,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     // setPreviousResults(null);
     await stopListening();
     pausePlayer();
+    mutePlayer();
 
-    setPlayerSpeed(recordSpeed);
+    if (recordSpeed > 0) {
+      setPlayerSpeed(recordSpeed);
+    }
     setIsRecordingMode(true);
     handleResetState();
     isTransitioningRef.current = true;
@@ -799,7 +809,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handleActualStartRecording = async () => {
     if (voiceInitiatedRecordRef.current && selectedTab === "voice") playDing();
     await startRecording();
-    // playSentence();
+    if (recordSpeed > 0) {
+      playSentence();
+    }
     setTimeout(() => {
       isTransitioningRef.current = false;
     }, 1000);
@@ -807,6 +819,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handlePauseRecording = async () => {
     pausePlayer();
+    unMutePlayer();
     pauseRecordingRef.current = true;
     await stopRecording(false);
     setIsRecordingMode(false);
@@ -814,6 +827,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleSubmitRecording = async () => {
     pausePlayer();
+    unMutePlayer();
     pauseRecordingRef.current = true;
     isWaitingForSubmitRef.current = true;
     await stopRecording(false);
@@ -826,6 +840,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     const wasVoiceInitiated = voiceInitiatedRecordRef.current;
     voiceInitiatedRecordRef.current = false;
     pausePlayer();
+    unMutePlayer();
     if (
       wasVoiceInitiated &&
       selectedTab === "voice" &&
@@ -1077,8 +1092,18 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 isLoadingTranslation={isLoadingInsights}
                 playerIsPlaying={playerIsPlaying}
               /> */}
-              <TouchableOpacity onPress={() => setShowTranslation(true)}>
+              {/* <TouchableOpacity onPress={() => setShowTranslation(true)}>
                 <MaterialIcons name="translate" size={30} color="#222222" />
+              </TouchableOpacity> */}
+              <TouchableOpacity
+                style={styles.recordSpeedBubble}
+                onPress={() => setIsSettingsVisible(true)}
+              >
+                <Text style={styles.recordSpeedBubbleText}>
+                  {recordSpeed === 0
+                    ? "Off"
+                    : `${String(recordSpeed).replace(/^0/, "")}x`}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
                 <Feather name="settings" size={30} color="#222222" />
@@ -1090,7 +1115,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           </View>
         )}
         {isRecordingMode && (
-          <>
+          <View style={styles.countdownTimer}>
             <CountdownTimer
               onStartRecording={handleActualStartRecording}
               onStopRecording={handleSubmitRecording}
@@ -1098,7 +1123,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               sentenceEnded={sentenceEnded}
               bufferDuration={0}
             />
-          </>
+          </View>
         )}
         <View style={styles.transcriptContainer}>
           {/* Recording button or processing indicator */}
@@ -1171,131 +1196,150 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             <ContentTabBar
               tabs={[
                 { key: "insights", label: "Insights" },
-                { key: "voice", label: "Voice Commands" },
+                { key: "memorize", label: "Memorize" },
+                { key: "translate", label: "Translate" },
+                { key: "voice", label: "Voice" },
               ]}
               selectedTab={selectedTab}
-              onSelectTab={(key) => setSelectedTab(key as "insights" | "voice")}
-              hidden={isRecordingMode}
+              onSelectTab={(key) =>
+                setSelectedTab(
+                  key as "insights" | "memorize" | "translate" | "voice",
+                )
+              }
+              hidden={false}
             >
-              <ScrollView
-                style={styles.transcriptContainer}
-                keyboardShouldPersistTaps="handled"
-              >
-                {selectedTab === "insights" ? (
-                  <Insights
-                    isLoading={isLoadingInsights}
-                    characters={orderedCharacters}
-                    sentenceText={currentSentenceObject?.text ?? ""}
-                    subSegments={subSegments}
-                    hintWords={hintWords}
-                    handlePlayWordSnippet={handlePlaySnippetAgain}
-                    isPlayingWordSnippet={isPlayingWordSnippet}
-                    showWordsHints={showWordsHints}
-                    showCharacters={showCharacters}
-                    showPhrases={showPhrases}
-                    onReplaySentence={() => handlePlaySnippetAgain()}
-                    onPlayClip={handlePlayPhrase}
-                    playerIsPlaying={playerIsPlaying && !isReplayingPhrase}
-                    replayingPhraseIndex={replayingPhraseIndex}
-                    playbackTime={time}
-                    phraseRecordings={phraseRecordings}
-                    recordingPhraseIndex={recordingPhraseIndex}
-                    allPhrasesRecorded={allPhrasesRecorded}
-                    onStartPhraseRecording={startPhraseRecording}
-                    onStopPhraseRecording={stopPhraseRecording}
-                    onSubmitPhrases={handlePhraseSubmit}
-                    isRecordingMode={isRecordingMode}
-                  />
-                ) : (
-                  !isRecordingMode && (
-                    <VoiceCommands
-                      isListening={isListening}
-                      isClipPlaying={playerIsPlaying || isSpeakingResponse}
-                      activeCommand={activeCommand}
-                      hasError={voiceCommandError}
-                      timedOut={voiceCommandTimedOut}
-                      permissionDenied={voicePermissionDenied}
-                      onActivate={startListening}
-                      onCommandPress={handleCommandPress}
-                      priorityCommands={
-                        previousResults
-                          ? ["results", "next", "review_previous"]
-                          : voiceRecordingCount > 0
-                            ? ["submit", "add_to", "record"]
-                            : undefined
-                      }
-                      commands={[
-                        ...(voiceRecordingCount > 0
-                          ? [
-                              {
-                                command: "add_to" as const,
-                                label: "Add To",
-                                description: "Add to your recording",
-                              },
-                              {
-                                command: "submit" as const,
-                                label: "Submit",
-                                description: "Submit your recording",
-                              },
-                            ]
-                          : []),
-                        {
-                          command: "record",
-                          label: "Record",
-                          description: "Start recording",
-                        },
-                        {
-                          command: "repeat",
-                          label: "Repeat",
-                          description: "Replay the clip",
-                        },
-                        {
-                          command: "slow",
-                          label: "Slowdown",
-                          description: "Replay the clip in slow mode",
-                        },
-                        {
-                          command: "next",
-                          label: "Next",
-                          description: "Go to next segment",
-                        },
-                        {
-                          command: "previous",
-                          label: "Previous",
-                          description: "Go to previous segment",
-                        },
-                        ...(previousResults
-                          ? [
-                              {
-                                command: "results" as const,
-                                label: "Results",
-                                description: "Hear review of missed words",
-                              },
-                              {
-                                command: "review_previous" as const,
-                                label: "Review Previous",
-                                description: "Review a previous segment",
-                              },
-                            ]
-                          : []),
-                        ...["First Phrase", "Second Phrase", "Third Phrase"]
-                          .slice(0, subSegments.length)
-                          .map((label, i) => ({
-                            command: (
-                              [
-                                "first_phrase",
-                                "second_phrase",
-                                "third_phrase",
-                              ] as const
-                            )[i],
-                            label,
-                            description: `Replay phrase ${i + 1}`,
-                          })),
-                      ]}
+              {selectedTab === "memorize" ? (
+                <MemorizeContent
+                  time={time}
+                  currentSentence={currentSentenceObject!}
+                  playerIsPlaying={playerIsPlaying}
+                />
+              ) : selectedTab === "translate" ? (
+                <TranslateContent
+                  translationText={sentenceTranslation}
+                  isLoading={isLoadingInsights}
+                />
+              ) : (
+                <ScrollView
+                  style={styles.transcriptContainer}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {selectedTab === "insights" ? (
+                    <Insights
+                      isLoading={isLoadingInsights}
+                      characters={orderedCharacters}
+                      sentenceText={currentSentenceObject?.text ?? ""}
+                      subSegments={subSegments}
+                      hintWords={hintWords}
+                      handlePlayWordSnippet={handlePlaySnippetAgain}
+                      isPlayingWordSnippet={isPlayingWordSnippet}
+                      showWordsHints={showWordsHints}
+                      showCharacters={showCharacters}
+                      showPhrases={showPhrases}
+                      onReplaySentence={() => handlePlaySnippetAgain()}
+                      onPlayClip={handlePlayPhrase}
+                      playerIsPlaying={playerIsPlaying && !isReplayingPhrase}
+                      replayingPhraseIndex={replayingPhraseIndex}
+                      playbackTime={time}
+                      phraseRecordings={phraseRecordings}
+                      recordingPhraseIndex={recordingPhraseIndex}
+                      allPhrasesRecorded={allPhrasesRecorded}
+                      onStartPhraseRecording={startPhraseRecording}
+                      onStopPhraseRecording={stopPhraseRecording}
+                      onSubmitPhrases={handlePhraseSubmit}
+                      isRecordingMode={isRecordingMode}
                     />
-                  )
-                )}
-              </ScrollView>
+                  ) : (
+                    !isRecordingMode && (
+                      <VoiceCommands
+                        isListening={isListening}
+                        isClipPlaying={playerIsPlaying || isSpeakingResponse}
+                        activeCommand={activeCommand}
+                        hasError={voiceCommandError}
+                        timedOut={voiceCommandTimedOut}
+                        permissionDenied={voicePermissionDenied}
+                        onActivate={startListening}
+                        onCommandPress={handleCommandPress}
+                        priorityCommands={
+                          previousResults
+                            ? ["results", "next", "review_previous"]
+                            : voiceRecordingCount > 0
+                              ? ["submit", "add_to", "record"]
+                              : undefined
+                        }
+                        commands={[
+                          ...(voiceRecordingCount > 0
+                            ? [
+                                {
+                                  command: "add_to" as const,
+                                  label: "Add To",
+                                  description: "Add to your recording",
+                                },
+                                {
+                                  command: "submit" as const,
+                                  label: "Submit",
+                                  description: "Submit your recording",
+                                },
+                              ]
+                            : []),
+                          {
+                            command: "record",
+                            label: "Record",
+                            description: "Start recording",
+                          },
+                          {
+                            command: "repeat",
+                            label: "Repeat",
+                            description: "Replay the clip",
+                          },
+                          {
+                            command: "slow",
+                            label: "Slowdown",
+                            description: "Replay the clip in slow mode",
+                          },
+                          {
+                            command: "next",
+                            label: "Next",
+                            description: "Go to next segment",
+                          },
+                          {
+                            command: "previous",
+                            label: "Previous",
+                            description: "Go to previous segment",
+                          },
+                          ...(previousResults
+                            ? [
+                                {
+                                  command: "results" as const,
+                                  label: "Results",
+                                  description: "Hear review of missed words",
+                                },
+                                {
+                                  command: "review_previous" as const,
+                                  label: "Review Previous",
+                                  description: "Review a previous segment",
+                                },
+                              ]
+                            : []),
+                          ...["First Phrase", "Second Phrase", "Third Phrase"]
+                            .slice(0, subSegments.length)
+                            .map((label, i) => ({
+                              command: (
+                                [
+                                  "first_phrase",
+                                  "second_phrase",
+                                  "third_phrase",
+                                ] as const
+                              )[i],
+                              label,
+                              description: `Replay phrase ${i + 1}`,
+                            })),
+                        ]}
+                      />
+                    )
+                  )}
+                </ScrollView>
+              )}
             </ContentTabBar>
           )}
         </View>
@@ -1380,7 +1424,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           </Text>
         </TooltipModal>
       )}
-      <Modal
+      {/* <Modal
         visible={showTranslation}
         transparent
         animationType="fade"
@@ -1402,7 +1446,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
-      </Modal>
+      </Modal> */}
     </>
   );
 };
@@ -1414,6 +1458,9 @@ export const styles = StyleSheet.create({
   },
   transcriptContainer: {
     flex: 1,
+  },
+  countdownTimer: {
+    marginVertical: 11,
   },
   instructionContainer: {
     alignItems: "center",
@@ -1437,6 +1484,17 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+  },
+  recordSpeedBubble: {
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: 100,
+    backgroundColor: "#2d2a40",
+  },
+  recordSpeedBubbleText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "yellow",
   },
   errorContainer: {
     flexDirection: "row",

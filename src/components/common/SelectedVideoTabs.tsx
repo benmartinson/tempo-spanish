@@ -621,6 +621,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           onReviewSegment={handleReviewSegment}
           autoShadowDetails={autoShadowDetails}
           onAutoShadowHandled={() => setAutoShadowDetails(null)}
+          mutePlayer={mutePlayer}
+          unMutePlayer={unMutePlayer}
         />
       </View>
       <View style={getTabStyle(selectedNavTab === "speed-run")}>

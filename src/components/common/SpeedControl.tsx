@@ -32,7 +32,7 @@ const SpeedControl: React.FC<SpeedControlProps> = ({
                 speed === opt && styles.optionTextActive,
               ]}
             >
-              {opt}x
+              {opt === 0 ? "Off" : `${opt}x`}
             </Text>
           </TouchableOpacity>
         ))}

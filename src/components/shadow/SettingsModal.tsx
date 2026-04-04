@@ -41,8 +41,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const userSettings = useSelector((state: RootState) => state.userSettings);
 
   const speedOptions = customSpeedOptions || [0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
+  const recordSpeedOptions = [0, 0.25, 0.4, 0.6, 0.75, 1];
   const [editedPlaybackSpeed, setEditedPlaybackSpeed] = useState(playbackSpeed);
-  const [editedRecordSpeed, setEditedRecordSpeed] = useState(recordSpeed);
+  const [editedRecordSpeed, setEditedRecordSpeed] = useState(
+    userSettings.playbackSpeedDuringRecording,
+  );
   const [muteVideoWhenRecording, setMuteVideoWhenRecording] =
     useState(initMute);
   const [editedShowWordsHints, setEditedShowWordsHints] = useState(
@@ -70,6 +73,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const newSettings = {
       ...userSettings,
       playbackSpeed: editedPlaybackSpeed,
+      playbackSpeedDuringRecording: editedRecordSpeed,
       showWordsHints: editedShowWordsHints,
       showCharacters: editedShowCharacters,
       showPhrases: editedShowPhrases,
@@ -92,30 +96,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           options={speedOptions}
         />
 
-        {/* <View style={styles.speedControlRow}>
-          <Text style={styles.speedLabel}>Record Speed:</Text>
-          <View style={styles.speedOptions}>
-            {speedOptions.map((speed) => (
-              <TouchableOpacity
-                key={`record-${speed}`}
-                style={[
-                  styles.speedOption,
-                  editedRecordSpeed === speed && styles.speedOptionActive,
-                ]}
-                onPress={() => handleRecordSpeedChange(speed)}
-              >
-                <Text
-                  style={[
-                    styles.speedOptionText,
-                    editedRecordSpeed === speed && styles.speedOptionTextActive,
-                  ]}
-                >
-                  {speed}x
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View> */}
+        <SpeedControl
+          speed={editedRecordSpeed}
+          onSpeedChange={handleRecordSpeedChange}
+          options={recordSpeedOptions}
+          label="Recording Speed"
+        />
       </View>
       {!hideToggles && (
         <View style={styles.togglesContainer}>

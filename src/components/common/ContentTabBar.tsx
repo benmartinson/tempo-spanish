@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
 
 export interface TabDefinition {
   key: string;
@@ -24,7 +30,12 @@ const ContentTabBar: React.FC<ContentTabBarProps> = ({
   return (
     <View style={styles.container}>
       {!hidden && (
-        <View style={styles.tabBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabBar}
+          contentContainerStyle={styles.tabBarContent}
+        >
           {tabs.map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -41,7 +52,7 @@ const ContentTabBar: React.FC<ContentTabBarProps> = ({
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       )}
       {children}
     </View>
@@ -51,11 +62,14 @@ const ContentTabBar: React.FC<ContentTabBarProps> = ({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   tabBar: {
-    flexDirection: "row",
     paddingTop: 0,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
+    flexGrow: 0,
+  },
+  tabBarContent: {
+    flexDirection: "row",
   },
   tab: {
     paddingVertical: 8,
@@ -65,7 +79,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: "transparent",
+    borderColor: "#e0e0e0",
+    marginLeft: -1,
   },
   tabActive: {
     backgroundColor: "#fff",
