@@ -53,10 +53,11 @@ const styles = StyleSheet.create({
   },
   options: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
   },
   option: {
-    paddingHorizontal: 12,
+    flex: 1,
+    alignItems: "center",
     paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 1,

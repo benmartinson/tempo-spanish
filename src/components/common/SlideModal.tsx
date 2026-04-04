@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Text,
 } from "react-native";
-import Entypo from "@expo/vector-icons/Entypo";
+import Feather from "@expo/vector-icons/Feather";
 
 const SlideModal: React.FC<{
   visible: boolean;
@@ -24,11 +24,10 @@ const SlideModal: React.FC<{
     >
       <SafeAreaView style={styles.modalContainer}>
         <View style={styles.modalHeader}>
-          <TouchableOpacity style={styles.closeButton} onPress={onRequestClose}>
-            <Entypo name="cross" size={28} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>{title}</Text>
-          <View style={styles.closeButton} />
+          <View style={styles.dragIndicator} />
+          <View style={styles.headerRow}>
+            <Text style={styles.modalTitle}>{title}</Text>
+          </View>
         </View>
         {children}
       </SafeAreaView>
@@ -39,27 +38,41 @@ const SlideModal: React.FC<{
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#fff",
   },
   modalHeader: {
+    alignItems: "center",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e0e0e4",
+  },
+  dragIndicator: {
+    width: 36,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#d0d0d4",
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    width: "100%",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#2a2a4a",
+    paddingBottom: 12,
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f0f0f2",
     justifyContent: "center",
     alignItems: "center",
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "black",
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#1a1a2e",
   },
 });
 

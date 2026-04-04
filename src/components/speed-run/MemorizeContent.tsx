@@ -1,8 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, ScrollView } from "react-native";
-import { Sentence } from "../../types";
+import { useSelector, useDispatch } from "react-redux";
+import { useAuth } from "@clerk/clerk-expo";
+import { RootState, Sentence } from "../../types";
 import FullSegmentTranscriptBubble from "../common/FullSegmentTranscriptBubble";
 import DifficultySlider from "../common/DifficultySlider";
+import { setMemorizeDifficulty } from "../../store/actions/dataActions";
+import { persistMemorizeDifficulty } from "../../requests";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
 
 interface MemorizeContentProps {
   time: number;
@@ -15,7 +20,15 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   currentSentence,
   playerIsPlaying,
 }) => {
-  const [difficulty, setDifficulty] = useState(0);
+  const dispatch = useDispatch();
+  const supabase = useSupabaseWithClerk();
+  const { userId } = useAuth();
+  const difficulty = useSelector((state: RootState) => state.memorizeDifficulty);
+  const userSettings = useSelector((state: RootState) => state.userSettings);
+  const setDifficulty = useCallback((d: number) => {
+    dispatch(setMemorizeDifficulty(d));
+    persistMemorizeDifficulty({ supabase, userId: userId ?? null, memorizeDifficulty: d });
+  }, [dispatch, supabase, userId]);
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
 
   const maskedIndices = useMemo(() => {
@@ -41,9 +54,12 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     return masked;
   }, [currentSentence.words, difficulty, revealedWords]);
 
-  // Reset revealed words on segment change
+  // Reset revealed words (and difficulty if not saved) on segment change
   useEffect(() => {
     setRevealedWords(new Set());
+    if (!userSettings.saveMemorizeDifficulty) {
+      setDifficulty(userSettings.defaultMemorizeDifficulty);
+    }
   }, [currentSentence.index]);
 
   return (

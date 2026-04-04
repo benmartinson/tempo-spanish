@@ -419,6 +419,8 @@ export interface RestoreUserUIStateParams {
 export interface RestoreUserUIStateResult {
   videoContext: VideoContext | null;
   currentTab: "watch" | "discuss" | "shadow" | "translate" | "speed-run" | null;
+  currentShadowTab: "insights" | "memorize" | "translate" | "voice" | null;
+  memorizeDifficulty: number | null;
   settings: UserSettings;
 }
 
@@ -429,6 +431,8 @@ export const restoreUserUIState = async ({
   const defaultResult = {
     videoContext: null,
     currentTab: null,
+    currentShadowTab: null,
+    memorizeDifficulty: null,
     settings: DEFAULT_USER_SETTINGS,
   };
 
@@ -475,6 +479,10 @@ export const restoreUserUIState = async ({
         uiState.auto_submit ?? DEFAULT_USER_SETTINGS.autoSubmit,
       autoResults:
         uiState.auto_results ?? DEFAULT_USER_SETTINGS.autoResults,
+      saveMemorizeDifficulty:
+        uiState.save_memorize_difficulty ?? DEFAULT_USER_SETTINGS.saveMemorizeDifficulty,
+      defaultMemorizeDifficulty:
+        uiState.default_memorize_difficulty ?? DEFAULT_USER_SETTINGS.defaultMemorizeDifficulty,
     };
 
     if (uiState?.current_video) {
@@ -487,7 +495,7 @@ export const restoreUserUIState = async ({
 
       if (videoError || !videoRecord) {
         console.error("Error fetching video record:", videoError);
-        return { ...defaultResult, settings };
+        return { ...defaultResult, settings, currentShadowTab: uiState?.current_shadow_tab ?? null, memorizeDifficulty: uiState?.memorize_difficulty ?? null };
       }
 
       const { videoContext } = await fetchVideoContext({
@@ -500,11 +508,13 @@ export const restoreUserUIState = async ({
       return {
         videoContext,
         currentTab: uiState.current_tab ?? null,
+        currentShadowTab: uiState.current_shadow_tab ?? null,
+        memorizeDifficulty: uiState.memorize_difficulty ?? null,
         settings,
       };
     }
 
-    return { videoContext: null, currentTab: uiState?.current_tab, settings };
+    return { videoContext: null, currentTab: uiState?.current_tab, currentShadowTab: uiState?.current_shadow_tab ?? null, memorizeDifficulty: uiState?.memorize_difficulty ?? null, settings };
   } catch (err) {
     console.error("Error restoring user UI state:", err);
     return defaultResult;
@@ -574,6 +584,48 @@ export const persistUserUITab = async ({
   if (error) console.error("Error persisting tab:", error);
 };
 
+export const persistMemorizeDifficulty = async ({
+  supabase,
+  userId,
+  memorizeDifficulty,
+}: {
+  supabase: any;
+  userId: string | null;
+  memorizeDifficulty: number;
+}): Promise<void> => {
+  if (!supabase || !userId) return;
+
+  const { error } = await supabase
+    .from("user_ui_state")
+    .upsert(
+      { user_id: userId, memorize_difficulty: memorizeDifficulty, updated_at: new Date() },
+      { onConflict: "user_id" },
+    );
+
+  if (error) console.error("Error persisting memorize difficulty:", error);
+};
+
+export const persistCurrentShadowTab = async ({
+  supabase,
+  userId,
+  currentShadowTab,
+}: {
+  supabase: any;
+  userId: string | null;
+  currentShadowTab: "insights" | "memorize" | "translate" | "voice";
+}): Promise<void> => {
+  if (!supabase || !userId) return;
+
+  const { error } = await supabase
+    .from("user_ui_state")
+    .upsert(
+      { user_id: userId, current_shadow_tab: currentShadowTab, updated_at: new Date() },
+      { onConflict: "user_id" },
+    );
+
+  if (error) console.error("Error persisting shadow tab:", error);
+};
+
 export const persistUserSettings = async ({
   supabase,
   userId,
@@ -607,6 +659,10 @@ export const persistUserSettings = async ({
     updateData.translation_language = settings.translationLanguage;
   if (settings.estimatedHours !== undefined)
     updateData.estimated_hours = settings.estimatedHours;
+  if (settings.saveMemorizeDifficulty !== undefined)
+    updateData.save_memorize_difficulty = settings.saveMemorizeDifficulty;
+  if (settings.defaultMemorizeDifficulty !== undefined)
+    updateData.default_memorize_difficulty = settings.defaultMemorizeDifficulty;
 
   const { error } = await supabase
     .from("user_ui_state")

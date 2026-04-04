@@ -348,14 +348,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         (newTime < currentSentenceObject.start - 0.5 ||
           newTime > currentSentenceObject.end + 0.5))
     ) {
-      if (
-        selectedNavTab !== "watch" &&
-        newTime === 0 &&
-        !isConfirmingStartOver &&
-        currentSentenceObject?.index > 0
-      ) {
-        pausePlayer();
-        setIsConfirmingStartOver(true);
+      if (newTime === 0 && currentSentenceObject?.index > 0) {
         return;
       }
       setIsConfirmingStartOver(false);

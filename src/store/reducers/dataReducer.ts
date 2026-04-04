@@ -21,6 +21,8 @@ const initialState: RootState = {
   currentSearchResults: [],
   isSearching: false,
   hasSearched: false,
+  currentShadowTab: "insights",
+  memorizeDifficulty: 0,
   userSettings: DEFAULT_USER_SETTINGS,
   cachedResponses: [],
 };
@@ -241,6 +243,16 @@ const dataReducer = (
       return {
         ...state,
         cachedResponses: action.payload,
+      };
+    case "SET_CURRENT_SHADOW_TAB":
+      return {
+        ...state,
+        currentShadowTab: action.payload,
+      };
+    case "SET_MEMORIZE_DIFFICULTY":
+      return {
+        ...state,
+        memorizeDifficulty: action.payload,
       };
     default:
       return state;

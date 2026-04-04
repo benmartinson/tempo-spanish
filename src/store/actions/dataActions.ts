@@ -163,3 +163,15 @@ export const setCachedResponses = (
   type: "SET_CACHED_RESPONSES",
   payload: responses,
 });
+
+export const setCurrentShadowTab = (
+  tab: "insights" | "memorize" | "translate" | "voice",
+): DataAction => ({
+  type: "SET_CURRENT_SHADOW_TAB",
+  payload: tab,
+});
+
+export const setMemorizeDifficulty = (difficulty: number): DataAction => ({
+  type: "SET_MEMORIZE_DIFFICULTY",
+  payload: difficulty,
+});

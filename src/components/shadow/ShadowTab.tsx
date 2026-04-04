@@ -21,7 +21,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
@@ -62,7 +62,8 @@ import NavSwitcher from "../common/NavSwitcher";
 import ContentTabBar from "../common/ContentTabBar";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import Foundation from "@expo/vector-icons/Foundation";
-import { persistUserSettings } from "../../requests";
+import { persistUserSettings, persistCurrentShadowTab } from "../../requests";
+import { setCurrentShadowTab } from "../../store/actions/dataActions";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 import VoiceCommands from "./VoiceCommands";
@@ -125,8 +126,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   mutePlayer,
   unMutePlayer,
 }) => {
+  const dispatch = useDispatch();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
+  const selectedTab = useSelector((state: RootState) => state.currentShadowTab);
 
   // Track when a clip was just started so voice mode doesn't connect prematurely
   const clipJustStartedRef = useRef(false);
@@ -208,9 +211,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
-  const [selectedTab, setSelectedTab] = useState<
-    "insights" | "memorize" | "translate" | "voice"
-  >("insights");
+  const setSelectedTab = useCallback((tab: "insights" | "memorize" | "translate" | "voice") => {
+    dispatch(setCurrentShadowTab(tab));
+    persistCurrentShadowTab({ supabase, userId: userId ?? null, currentShadowTab: tab });
+  }, [dispatch, supabase, userId]);
   const [isSpeakingResponse, setIsSpeakingResponse] = useState(false);
   const [activeCommand, setActiveCommandState] = useState<VoiceCommand>(null);
   const setActiveCommand = useCallback((command: VoiceCommand) => {
@@ -1489,12 +1493,15 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 7,
     borderRadius: 100,
-    backgroundColor: "#2d2a40",
+    borderWidth: 1,
+    borderColor: "#eee",
+    backgroundColor: "#fafafa",
   },
   recordSpeedBubbleText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "yellow",
+    fontWeight: "500",
+    opacity: 0.5,
+    color: "black",
   },
   errorContainer: {
     flexDirection: "row",

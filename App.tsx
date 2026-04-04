@@ -20,6 +20,8 @@ import {
   setAllTopics,
   setChannelTopics,
   setUserSettings,
+  setCurrentShadowTab,
+  setMemorizeDifficulty,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import {
@@ -215,12 +217,22 @@ const AuthenticatedApp: React.FC = () => {
 
     // Fetch and restore user UI state
     const restoreState = async () => {
-      const { videoContext, currentTab, settings } = await restoreUserUIState({
+      const { videoContext, currentTab, currentShadowTab, memorizeDifficulty, settings } = await restoreUserUIState({
         supabase,
         userId,
       });
 
       dispatch(setUserSettings(settings));
+
+      if (currentShadowTab) {
+        dispatch(setCurrentShadowTab(currentShadowTab));
+      }
+
+      if (settings.saveMemorizeDifficulty && memorizeDifficulty !== null) {
+        dispatch(setMemorizeDifficulty(memorizeDifficulty));
+      } else {
+        dispatch(setMemorizeDifficulty(settings.defaultMemorizeDifficulty));
+      }
 
       if (currentTab && ["watch", "discuss", "shadow", "speed-run", "translate"].includes(currentTab)) {
         // speed-run and translate are now subtabs of shadow

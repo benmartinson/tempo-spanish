@@ -10,6 +10,8 @@ export interface UserSettings {
   estimatedHours: number | null;
   autoSubmit: boolean;
   autoResults: boolean;
+  saveMemorizeDifficulty: boolean;
+  defaultMemorizeDifficulty: number;
 }
 
 export type VoiceCommand =
@@ -48,6 +50,8 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   estimatedHours: null,
   autoSubmit: true,
   autoResults: true,
+  saveMemorizeDifficulty: false,
+  defaultMemorizeDifficulty: 0,
 };
 
 export interface CachedResponse {
@@ -72,6 +76,8 @@ export interface RootState {
   currentSearchResults: Segment[];
   isSearching: boolean;
   hasSearched: boolean;
+  currentShadowTab: "insights" | "memorize" | "translate" | "voice";
+  memorizeDifficulty: number;
   userSettings: UserSettings;
   cachedResponses: CachedResponse[];
 }
@@ -106,7 +112,9 @@ export type DataActionTypes =
   | "SET_HAS_SEARCHED"
   | "REMOVE_USER_KNOWN_VOCAB"
   | "REMOVE_USER_SELECTED_VOCAB"
-  | "SET_CACHED_RESPONSES";
+  | "SET_CACHED_RESPONSES"
+  | "SET_CURRENT_SHADOW_TAB"
+  | "SET_MEMORIZE_DIFFICULTY";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -336,4 +344,8 @@ export interface UserUIState {
   estimated_hours: number | null;
   auto_submit: boolean | null;
   auto_results: boolean | null;
+  current_shadow_tab: "insights" | "memorize" | "translate" | "voice" | null;
+  memorize_difficulty: number | null;
+  save_memorize_difficulty: boolean | null;
+  default_memorize_difficulty: number | null;
 }
