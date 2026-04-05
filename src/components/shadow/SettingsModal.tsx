@@ -88,7 +88,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
 
   const speedOptions = customSpeedOptions || [0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
-  const recordSpeedOptions = [0, 0.25, 0.4, 0.6, 0.75, 1];
+  const recordSpeedOptions = [0.25, 0.35, 0.45, 0.6, 0.75, 1];
   const [editedPlaybackSpeed, setEditedPlaybackSpeed] = useState(playbackSpeed);
   const [editedRecordSpeed, setEditedRecordSpeed] = useState(
     userSettings.playbackSpeedDuringRecording,
@@ -104,6 +104,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editedShowPhrases, setEditedShowPhrases] = useState(
     userSettings.showPhrases,
   );
+  const [editedPlayVideoWhileRecording, setEditedPlayVideoWhileRecording] =
+    useState(userSettings.playVideoWhileRecording);
   const [editedSaveMemorizeDifficulty, setEditedSaveMemorizeDifficulty] =
     useState(userSettings.saveMemorizeDifficulty);
   const [editedDefaultMemorizeDifficulty, setEditedDefaultMemorizeDifficulty] =
@@ -131,18 +133,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const newSettings = {
       ...userSettingsRef.current,
       playbackSpeed: editedPlaybackSpeed,
-      playbackSpeedDuringRecording: editedRecordSpeed,
+      playbackSpeedDuringRecording: editedPlayVideoWhileRecording
+        ? editedRecordSpeed
+        : 0,
       showWordsHints: editedShowWordsHints,
       showCharacters: editedShowCharacters,
       showPhrases: editedShowPhrases,
       saveMemorizeDifficulty: editedSaveMemorizeDifficulty,
       defaultMemorizeDifficulty: editedDefaultMemorizeDifficulty,
+      playVideoWhileRecording: editedPlayVideoWhileRecording,
     };
     dispatch(setUserSettings(newSettings));
     onSaveRef.current(newSettings);
   }, [
     editedPlaybackSpeed,
     editedRecordSpeed,
+    editedPlayVideoWhileRecording,
     muteVideoWhenRecording,
     editedShowWordsHints,
     editedShowCharacters,
@@ -205,14 +211,33 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </View>
               <View style={styles.cardDivider} />
-              <View style={styles.cardInner}>
-                <SpeedControl
-                  speed={editedRecordSpeed}
-                  onSpeedChange={setEditedRecordSpeed}
-                  options={recordSpeedOptions}
-                  label="Recording Speed"
-                />
-              </View>
+              <SettingRow
+                label="Play Video While Recording"
+                value={editedPlayVideoWhileRecording}
+                onToggle={(val) => {
+                  setEditedPlayVideoWhileRecording(val);
+                  if (val) setEditedRecordSpeed(0.25);
+                }}
+                isLast={!editedPlayVideoWhileRecording}
+              />
+              {!editedPlayVideoWhileRecording && (
+                <Text style={styles.warningText}>
+                  Saving recordings is disabled when this setting is turned off
+                </Text>
+              )}
+              {editedPlayVideoWhileRecording && (
+                <>
+                  <View style={styles.cardDivider} />
+                  <View style={styles.cardInner}>
+                    <SpeedControl
+                      speed={editedRecordSpeed}
+                      onSpeedChange={setEditedRecordSpeed}
+                      options={recordSpeedOptions}
+                      label="Recording Speed"
+                    />
+                  </View>
+                </>
+              )}
             </View>
           </>
         )}
@@ -400,6 +425,12 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: "#3d3a52",
+  },
+  warningText: {
+    fontSize: 12,
+    color: "#e53935",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
 });
 

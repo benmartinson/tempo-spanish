@@ -46,6 +46,7 @@ import {
 } from "../../helpers/streaming_helpers";
 import { AccuracyResult, CachedResponse } from "../../types";
 import SettingsModal from "./SettingsModal";
+import SpeedDial from "./SpeedDial";
 import CountdownTimer from "./CountdownTimer";
 import {
   capitalize,
@@ -63,7 +64,7 @@ import ContentTabBar from "../common/ContentTabBar";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import Foundation from "@expo/vector-icons/Foundation";
 import { persistUserSettings, persistCurrentShadowTab } from "../../requests";
-import { setCurrentShadowTab } from "../../store/actions/dataActions";
+import { setCurrentShadowTab, setUserSettings } from "../../store/actions/dataActions";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 import VoiceCommands from "./VoiceCommands";
@@ -215,10 +216,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
-  const setSelectedTab = useCallback((tab: "insights" | "memorize" | "translate" | "voice") => {
-    dispatch(setCurrentShadowTab(tab));
-    persistCurrentShadowTab({ supabase, userId: userId ?? null, currentShadowTab: tab });
-  }, [dispatch, supabase, userId]);
+  const setSelectedTab = useCallback(
+    (tab: "insights" | "memorize" | "translate" | "voice") => {
+      dispatch(setCurrentShadowTab(tab));
+      persistCurrentShadowTab({
+        supabase,
+        userId: userId ?? null,
+        currentShadowTab: tab,
+      });
+    },
+    [dispatch, supabase, userId],
+  );
   const [isSpeakingResponse, setIsSpeakingResponse] = useState(false);
   const [activeCommand, setActiveCommandState] = useState<VoiceCommand>(null);
   const setActiveCommand = useCallback((command: VoiceCommand) => {
@@ -839,6 +847,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handlePauseRecording = async () => {
     pausePlayer();
     unMutePlayer();
+    setPlayerSpeed(1);
     pauseRecordingRef.current = true;
     await stopRecording(false);
     setIsRecordingMode(false);
@@ -847,6 +856,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handleSubmitRecording = async () => {
     pausePlayer();
     unMutePlayer();
+    setPlayerSpeed(1);
     pauseRecordingRef.current = true;
     isWaitingForSubmitRef.current = true;
     await stopRecording(false);
@@ -860,6 +870,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     voiceInitiatedRecordRef.current = false;
     pausePlayer();
     unMutePlayer();
+    setPlayerSpeed(1);
     if (
       wasVoiceInitiated &&
       selectedTab === "voice" &&
@@ -1114,16 +1125,18 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               {/* <TouchableOpacity onPress={() => setShowTranslation(true)}>
                 <MaterialIcons name="translate" size={30} color="#222222" />
               </TouchableOpacity> */}
-              <TouchableOpacity
-                style={styles.recordSpeedBubble}
-                onPress={() => setIsSettingsVisible(true)}
-              >
-                <Text style={styles.recordSpeedBubbleText}>
-                  {recordSpeed === 0
-                    ? "Off"
-                    : `${String(recordSpeed).replace(/^0/, "")}x`}
-                </Text>
-              </TouchableOpacity>
+              <SpeedDial
+                speed={recordSpeed}
+                onSpeedChange={(s) => {
+                  setRecordSpeed(s);
+                  dispatch(
+                    setUserSettings({
+                      ...userSettings,
+                      playbackSpeedDuringRecording: s,
+                    }),
+                  );
+                }}
+              />
               <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
                 <Feather name="settings" size={30} color="#222222" />
               </TouchableOpacity>
@@ -1194,7 +1207,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   </TouchableOpacity>
                 </View>
               )}
-              {accuracyResult && !currentRecordingId && audioUri && (
+              {accuracyResult && !currentRecordingId && audioUri && userSettings.playVideoWhileRecording && (
                 <View style={styles.playRecordingContainer}>
                   <TouchableOpacity
                     style={styles.playRecordingButton}
@@ -1214,8 +1227,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           {!accuracyResult && !isProcessing && (
             <ContentTabBar
               tabs={[
+                { key: "memorize", label: "Transcript" },
                 { key: "insights", label: "Insights" },
-                { key: "memorize", label: "Memorize" },
                 { key: "translate", label: "Translate" },
                 { key: "voice", label: "Voice" },
               ]}

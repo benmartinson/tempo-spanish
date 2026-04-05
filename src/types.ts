@@ -12,6 +12,7 @@ export interface UserSettings {
   autoResults: boolean;
   saveMemorizeDifficulty: boolean;
   defaultMemorizeDifficulty: number;
+  playVideoWhileRecording: boolean;
 }
 
 export type VoiceCommand =
@@ -52,6 +53,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   autoResults: true,
   saveMemorizeDifficulty: false,
   defaultMemorizeDifficulty: 0,
+  playVideoWhileRecording: true,
 };
 
 export interface CachedResponse {
@@ -348,4 +350,5 @@ export interface UserUIState {
   memorize_difficulty: number | null;
   save_memorize_difficulty: boolean | null;
   default_memorize_difficulty: number | null;
+  play_video_while_recording: boolean | null;
 }

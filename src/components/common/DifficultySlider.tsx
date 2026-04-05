@@ -34,6 +34,7 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
               key={i}
               style={styles.tickHitArea}
               onPress={() => onDifficultyChange(i)}
+              hitSlop={{ top: 16, bottom: 16, left: 10, right: 10 }}
             >
               <View
                 style={[styles.tick, i === difficulty && styles.tickActive]}

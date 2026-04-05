@@ -483,6 +483,8 @@ export const restoreUserUIState = async ({
         uiState.save_memorize_difficulty ?? DEFAULT_USER_SETTINGS.saveMemorizeDifficulty,
       defaultMemorizeDifficulty:
         uiState.default_memorize_difficulty ?? DEFAULT_USER_SETTINGS.defaultMemorizeDifficulty,
+      playVideoWhileRecording:
+        uiState.play_video_while_recording ?? DEFAULT_USER_SETTINGS.playVideoWhileRecording,
     };
 
     if (uiState?.current_video) {
@@ -663,6 +665,8 @@ export const persistUserSettings = async ({
     updateData.save_memorize_difficulty = settings.saveMemorizeDifficulty;
   if (settings.defaultMemorizeDifficulty !== undefined)
     updateData.default_memorize_difficulty = settings.defaultMemorizeDifficulty;
+  if (settings.playVideoWhileRecording !== undefined)
+    updateData.play_video_while_recording = settings.playVideoWhileRecording;
 
   const { error } = await supabase
     .from("user_ui_state")
