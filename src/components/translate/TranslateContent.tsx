@@ -13,11 +13,13 @@ const LANGUAGE_NAMES: Record<string, string> = {
 
 interface TranslateContentProps {
   translationText: string | null;
+  sentenceText?: string;
   isLoading: boolean;
 }
 
 const TranslateContent: React.FC<TranslateContentProps> = ({
   translationText,
+  sentenceText,
   isLoading,
 }) => {
   const userSettings = useSelector((state: RootState) => state.userSettings);
@@ -32,11 +34,13 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   }
 
   if (!translationText) return null;
-
   return (
     <View style={styles.container}>
       <QuestionBubble
-        question={addEllipsis(removeSpecialPunctuation(translationText))}
+        question={addEllipsis(
+          removeSpecialPunctuation(translationText),
+          sentenceText,
+        )}
         label={`Translate into ${LANGUAGE_NAMES[userSettings.targetLanguage] || userSettings.targetLanguage}`}
       />
     </View>

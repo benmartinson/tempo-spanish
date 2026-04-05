@@ -2,9 +2,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { AccuracyResult } from "../../types";
 import { MaterialIcons } from "@expo/vector-icons";
 import TooltipModal from "../common/TooltipModal";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { normalizeWord, removeSpecialPunctuation } from "../../helpers/helpers";
 import AccuracyCircle from "../common/AccuracyCircle";
+import SlideModal from "../common/SlideModal";
 
 interface ShadowResultsProps {
   accuracyResult: AccuracyResult;
@@ -13,6 +14,11 @@ interface ShadowResultsProps {
   properNouns?: string[];
   onReviewSegment?: () => void;
   onBackToShadow?: () => void;
+  hasUnsavedRecording?: boolean;
+  onSaveRecording?: () => Promise<void>;
+  showSaveRecordingsModal?: boolean;
+  onSetAlwaysSave?: () => void;
+  onSetDontAskAgain?: () => void;
 }
 
 const ShadowResults: React.FC<ShadowResultsProps> = ({
@@ -22,8 +28,41 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   properNouns = [],
   onReviewSegment,
   onBackToShadow,
+  hasUnsavedRecording = false,
+  onSaveRecording,
+  showSaveRecordingsModal = true,
+  onSetAlwaysSave,
+  onSetDontAskAgain,
 }) => {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const onSaveRecordingRef = useRef(onSaveRecording);
+  onSaveRecordingRef.current = onSaveRecording;
+
+  const handleNextPress = () => {
+    if (hasUnsavedRecording && onSaveRecording && showSaveRecordingsModal) {
+      setShowSaveModal(true);
+    } else {
+      handleNextSentence();
+    }
+  };
+
+  const handleSaveAndContinue = async () => {
+    console.log({ onSaveRecording });
+    const saveFn = onSaveRecordingRef.current;
+    if (!saveFn) return;
+    setIsSaving(true);
+    await saveFn();
+    setIsSaving(false);
+    setShowSaveModal(false);
+    handleNextSentence();
+  };
+
+  const handleSkipSave = () => {
+    setShowSaveModal(false);
+    handleNextSentence();
+  };
   const missedWords = accuracyResult.details
     .filter((detail) => !detail.matched)
     .map((detail) => normalizeWord(detail.targetWord));
@@ -59,6 +98,9 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           ? removeSpecialPunctuation(detail.spokenWord)
           : "_";
     }
+    if (index === 0 && spokenText[0] && spokenText[0] !== spokenText[0].toUpperCase()) {
+      spokenText = "..." + spokenText;
+    }
     if (isLast && spokenText.endsWith(",")) {
       spokenText = spokenText.slice(0, -1) + "...";
     }
@@ -76,6 +118,9 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   ) => {
     const isLast = index === accuracyResult.details.length - 1;
     let targetText = removeSpecialPunctuation(detail.targetWord);
+    if (index === 0 && targetText[0] && targetText[0] !== targetText[0].toUpperCase()) {
+      targetText = "..." + targetText;
+    }
     if (isLast && targetText.endsWith(",")) {
       targetText = targetText.slice(0, -1) + "...";
     }
@@ -132,14 +177,75 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
         {isAccuracyGood && (
           <TouchableOpacity
             style={[styles.actionButton, styles.nextButton]}
-            onPress={handleNextSentence}
+            onPress={handleNextPress}
           >
             <Text style={styles.actionButtonText}>Next Segment</Text>
             <MaterialIcons name="arrow-forward" size={20} color="#fff" />
           </TouchableOpacity>
         )}
       </View>
-      {onReviewSegment && (
+      <SlideModal
+        visible={showSaveModal && hasUnsavedRecording && !!onSaveRecording}
+        onRequestClose={() => !isSaving && setShowSaveModal(false)}
+        title="Save Recording?"
+      >
+        <View style={styles.saveModalContent}>
+          <Text style={styles.saveModalMessage}>
+            You have an unsaved recording for this segment.
+          </Text>
+          <Text style={styles.saveModalSubmessage}>
+            Saved recordings show up in the 'Recordings' section, and can be
+            played as one long stream alongside the video.
+          </Text>
+
+          <Text style={styles.saveModalSubmessage}>
+            Hearing yourself speak and make mistakes can help you improve, but
+            also it is a great way to keep track of your progress over time!
+          </Text>
+          <View style={styles.saveModalButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.skipButton]}
+              onPress={handleSkipSave}
+              disabled={isSaving}
+            >
+              <Text style={styles.skipButtonText}>Skip</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.saveButton]}
+              onPress={handleSaveAndContinue}
+              disabled={isSaving}
+            >
+              <Text style={styles.actionButtonText}>
+                {isSaving ? "Saving..." : "Yes, Save"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.saveModalButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.alwaysSaveButton]}
+              onPress={() => {
+                onSetAlwaysSave?.();
+                handleSaveAndContinue();
+              }}
+              disabled={isSaving}
+            >
+              <Text style={styles.alwaysSaveButtonText}>Always Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.dontAskButton]}
+              onPress={() => {
+                onSetDontAskAgain?.();
+                handleSkipSave();
+              }}
+              disabled={isSaving}
+            >
+              <Text style={styles.dontAskButtonText}>Don't Ask Again</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SlideModal>
+
+      {/* {onReviewSegment && (
         <TouchableOpacity
           style={[styles.actionButton, styles.reviewButton]}
           onPress={onReviewSegment}
@@ -147,16 +253,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           <MaterialIcons name="rate-review" size={20} color="#fff" />
           <Text style={styles.actionButtonText}>Review Previous Segment</Text>
         </TouchableOpacity>
-      )}
-      {onBackToShadow && (
-        <TouchableOpacity
-          style={[styles.actionButton, styles.backToShadowButton]}
-          onPress={onBackToShadow}
-        >
-          <MaterialIcons name="arrow-back" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Back to Shadowing</Text>
-        </TouchableOpacity>
-      )}
+      )} */}
     </View>
   );
 };
@@ -279,6 +376,66 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#4ade80",
     marginBottom: 8,
+  },
+  saveModalContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    alignItems: "center",
+    gap: 12,
+  },
+  saveModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  saveModalMessage: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#1a1a2e",
+    textAlign: "center",
+  },
+  saveModalSubmessage: {
+    fontSize: 13,
+    color: "#888",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  saveButton: {
+    backgroundColor: "#4ade80",
+    flex: 1,
+    justifyContent: "center",
+  },
+  skipButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    flex: 1,
+    justifyContent: "center",
+  },
+  skipButtonText: {
+    color: "#888",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  alwaysSaveButton: {
+    backgroundColor: "transparent",
+    flex: 1,
+    justifyContent: "center",
+  },
+  alwaysSaveButtonText: {
+    color: "#4ade80",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  dontAskButton: {
+    backgroundColor: "transparent",
+    flex: 1,
+    justifyContent: "center",
+  },
+  dontAskButtonText: {
+    color: "#888",
+    fontSize: 12,
+    fontWeight: "600",
   },
 });
 

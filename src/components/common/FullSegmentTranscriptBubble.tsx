@@ -10,7 +10,11 @@ import {
 import { RootState, SegmentWord } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import TooltipModal from "../common/TooltipModal";
-import { useSelector } from "react-redux";
+import GuessWordModal from "../common/GuessWordModal";
+import { useSelector, useDispatch } from "react-redux";
+import { addUserSelectedVocab } from "../../store/actions/dataActions";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
+import { useAuth } from "@clerk/clerk-expo";
 import { vocabFormatWord } from "../../helpers/helpers";
 
 interface FullSegmentTranscriptBubbleProps {
@@ -46,13 +50,45 @@ const FullSegmentTranscriptBubble: React.FC<
   playKey,
   playerSpeed = 1,
 }) => {
+  const dispatch = useDispatch();
+  const supabase = useSupabaseWithClerk();
+  const { userId } = useAuth();
+  const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
+
+  const [guessWord, setGuessWord] = useState<string | null>(null);
+
+  const handleSelectForReview = useCallback(
+    async (word: SegmentWord) => {
+      if (!currentVideo) return;
+      const vocabEntry = allVocabulary[vocabFormatWord(word.word)];
+      if (!vocabEntry) return;
+      const vocabId = vocabEntry.id;
+      dispatch(addUserSelectedVocab([vocabId]));
+      if (supabase && userId && currentVideo.videoViewId) {
+        await supabase
+          .from("video_view_focus_vocab")
+          .upsert(
+            { video_view_id: currentVideo.videoViewId, vocabulary_id: vocabId },
+            { onConflict: "video_view_id,vocabulary_id" },
+          );
+      }
+      setGuessWord(word.word);
+    },
+    [currentVideo, allVocabulary, supabase, userId, dispatch],
+  );
+
+  const currentSentenceText = useMemo(
+    () => words?.map((w) => w.word).join(" ") ?? "",
+    [words],
+  );
+
   const scrollViewRef = useRef<ScrollView>(null);
   const [wordPositions, setWordPositions] = useState<{ [key: number]: number }>(
     {},
   );
   const [isActive, setIsActive] = useState(false);
   const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
-  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
   // Fill the initial time gap when playback starts.
   // The player provides an initial time, then ~1.5s of silence before
@@ -303,6 +339,9 @@ const FullSegmentTranscriptBubble: React.FC<
           let displayWord = wordEndsWithSpecialCase(word.word)
             ? word.word.slice(0, -1)
             : word.word;
+          if (index === 0 && displayWord[0] && displayWord[0] !== displayWord[0].toUpperCase()) {
+            displayWord = "..." + displayWord;
+          }
           if (index === words.length - 1 && displayWord.endsWith(",")) {
             displayWord = displayWord.slice(0, -1) + "...";
           }
@@ -311,7 +350,13 @@ const FullSegmentTranscriptBubble: React.FC<
             <Pressable
               key={`${word.start}-${index}`}
               onLayout={(e) => handleWordLayout(index, e)}
-              onPress={() => (onWordPress ? onWordPress(index) : undefined)}
+              onPress={() => {
+                if (isBlurred && onWordPress) {
+                  onWordPress(index);
+                } else if (!isBlurred) {
+                  handleSelectForReview(word);
+                }
+              }}
               onLongPress={() =>
                 onWordPress ? onWordPress(index) : handleLongPress(word)
               }
@@ -334,6 +379,12 @@ const FullSegmentTranscriptBubble: React.FC<
           );
         })}
       </ScrollView>
+      <GuessWordModal
+        visible={!!guessWord}
+        onClose={() => setGuessWord(null)}
+        word={guessWord ?? ""}
+        sentenceText={currentSentenceText}
+      />
     </View>
   );
 };

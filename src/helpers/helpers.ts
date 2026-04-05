@@ -104,8 +104,20 @@ export const ignoreVocab = [
   "todos",
 ];
 
-export const addEllipsis = (text: string) => {
-  return text.endsWith(",") ? text.slice(0, -1) + "..." : text;
+export const addEllipsis = (text: string, sentenceText?: string) => {
+  const ref = sentenceText ?? text;
+  const firstChar = ref.trimStart()[0];
+  const needsLeading = firstChar ? firstChar !== firstChar.toUpperCase() : false;
+  const lastWord = ref.trimEnd().split(" ").pop() ?? "";
+  const needsTrailing = lastWord.includes(",");
+  let result = text;
+  if (needsTrailing) {
+    result = result.replace(/[.,!?]+$/, "") + "...";
+  }
+  if (needsLeading) {
+    result = "..." + result;
+  }
+  return result;
 };
 
 export const capitalize = (word: string) => {

@@ -106,6 +106,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   );
   const [editedPlayVideoWhileRecording, setEditedPlayVideoWhileRecording] =
     useState(userSettings.playVideoWhileRecording);
+  const [editedAutoSaveRecordings, setEditedAutoSaveRecordings] = useState(
+    userSettings.autoSaveRecordings,
+  );
   const [editedSaveMemorizeDifficulty, setEditedSaveMemorizeDifficulty] =
     useState(userSettings.saveMemorizeDifficulty);
   const [editedDefaultMemorizeDifficulty, setEditedDefaultMemorizeDifficulty] =
@@ -142,6 +145,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       saveMemorizeDifficulty: editedSaveMemorizeDifficulty,
       defaultMemorizeDifficulty: editedDefaultMemorizeDifficulty,
       playVideoWhileRecording: editedPlayVideoWhileRecording,
+      autoSaveRecordings: editedAutoSaveRecordings,
     };
     dispatch(setUserSettings(newSettings));
     onSaveRef.current(newSettings);
@@ -149,6 +153,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     editedPlaybackSpeed,
     editedRecordSpeed,
     editedPlayVideoWhileRecording,
+    editedAutoSaveRecordings,
     muteVideoWhenRecording,
     editedShowWordsHints,
     editedShowCharacters,
@@ -166,8 +171,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     ...(hideToggles
       ? []
       : [
+          { key: "memorize" as const, label: "Transcript" },
           { key: "insights" as const, label: "Insights" },
-          { key: "memorize" as const, label: "Memorize" },
         ]),
   ];
 
@@ -236,6 +241,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       label="Recording Speed"
                     />
                   </View>
+                  <View style={styles.cardDivider} />
+                  <SettingRow
+                    label="Automatically Save Recordings"
+                    value={editedAutoSaveRecordings}
+                    onToggle={setEditedAutoSaveRecordings}
+                    isLast
+                  />
                 </>
               )}
             </View>

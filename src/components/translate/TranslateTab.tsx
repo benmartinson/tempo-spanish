@@ -566,6 +566,7 @@ const TranslateTab: React.FC<TranslateTabProps> = ({
               <QuestionBubble
                 question={addEllipsis(
                   removeSpecialPunctuation(displayQuestion),
+                  sentences[questionIndex]?.text,
                 )}
                 label={`Translate into ${LANGUAGE_NAMES[userSettings.targetLanguage] || userSettings.targetLanguage}`}
               />

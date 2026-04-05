@@ -377,6 +377,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [currentSentenceIndex]);
 
   const handleSaveRecording = async (audioUri: string) => {
+    if (isTrimmingAudio || currentRecordingId) return;
     setIsTrimmingAudio(true);
     const recordingPath = await uploadAudioToStorage(
       audioUri,
@@ -452,6 +453,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         }
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
+
+        // Auto-save recording if enabled
+        if (userSettings.autoSaveRecordings && userSettings.playVideoWhileRecording) {
+          await handleSaveRecording(safeUri);
+        }
       } catch (err) {
         console.error("Transcription error:", err);
         setError(
@@ -1175,6 +1181,27 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   onReviewSegment={
                     onReviewSegment ? handleReviewPreviousSegment : undefined
                   }
+                  hasUnsavedRecording={
+                    !currentRecordingId &&
+                    !!audioUri &&
+                    userSettings.playVideoWhileRecording
+                  }
+                  onSaveRecording={
+                    audioUri
+                      ? () => handleSaveRecording(audioUri)
+                      : undefined
+                  }
+                  showSaveRecordingsModal={userSettings.showSaveRecordingsModal}
+                  onSetAlwaysSave={() => {
+                    const newSettings = { ...userSettings, autoSaveRecordings: true };
+                    dispatch(setUserSettings(newSettings));
+                    persistUserSettings({ supabase, userId, settings: { autoSaveRecordings: true } });
+                  }}
+                  onSetDontAskAgain={() => {
+                    const newSettings = { ...userSettings, showSaveRecordingsModal: false };
+                    dispatch(setUserSettings(newSettings));
+                    persistUserSettings({ supabase, userId, settings: { showSaveRecordingsModal: false } });
+                  }}
                 />
                 {nextSentenceCountdown > 0 && (
                   <View style={styles.nextSentenceCountdownRefContainer}>
@@ -1209,17 +1236,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               )}
               {accuracyResult && !currentRecordingId && audioUri && userSettings.playVideoWhileRecording && (
                 <View style={styles.playRecordingContainer}>
-                  <TouchableOpacity
-                    style={styles.playRecordingButton}
-                    onPress={() => handleSaveRecording(audioUri)}
-                    disabled={isTrimmingAudio}
-                  >
+                  {isTrimmingAudio ? (
                     <Text style={styles.playRecordingButtonText}>
-                      {isTrimmingAudio
-                        ? "Saving..."
-                        : "Save Recording for Playback"}
+                      Saving...
                     </Text>
-                  </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.playRecordingButton}
+                      onPress={() => handleSaveRecording(audioUri)}
+                      disabled={isTrimmingAudio}
+                    >
+                      <Text style={styles.playRecordingButtonText}>
+                        Save Recording for Playback
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </>
@@ -1251,6 +1282,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               ) : selectedTab === "translate" ? (
                 <TranslateContent
                   translationText={sentenceTranslation}
+                  sentenceText={currentSentenceObject?.text}
                   isLoading={isLoadingInsights}
                 />
               ) : (
