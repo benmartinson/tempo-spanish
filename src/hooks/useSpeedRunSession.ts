@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback } from "react";
 import * as FileSystem from "expo-file-system/legacy";
-import { extractWavSegment } from "../../helpers/wav_segment_extractor";
-import { sendAudioForTranscription } from "../../helpers/streaming_helpers";
-import { calculateAccuracy } from "../../helpers/calculate_accuracy";
-import { AccuracyResult, Sentence } from "../../types";
+import { extractWavSegment } from "../helpers/wav_segment_extractor";
+import { sendAudioForTranscription } from "../helpers/streaming_helpers";
+import { calculateAccuracy } from "../helpers/calculate_accuracy";
+import { AccuracyResult, Sentence } from "../types";
 
 export interface SegmentResult {
   segmentIndex: number;

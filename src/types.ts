@@ -8,8 +8,6 @@ export interface UserSettings {
   targetLanguage: "en" | "es" | "pt";
   translationLanguage: "en" | "es" | "pt";
   estimatedHours: number | null;
-  autoSubmit: boolean;
-  autoResults: boolean;
   saveMemorizeDifficulty: boolean;
   defaultMemorizeDifficulty: number;
   playVideoWhileRecording: boolean;
@@ -51,8 +49,6 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   targetLanguage: "es",
   translationLanguage: "en",
   estimatedHours: null,
-  autoSubmit: true,
-  autoResults: true,
   saveMemorizeDifficulty: false,
   defaultMemorizeDifficulty: 0,
   playVideoWhileRecording: true,
@@ -348,8 +344,6 @@ export interface UserUIState {
   target_language: "en" | "es" | "pt" | null;
   translation_language: "en" | "es" | "pt" | null;
   estimated_hours: number | null;
-  auto_submit: boolean | null;
-  auto_results: boolean | null;
   current_shadow_tab: "insights" | "memorize" | "translate" | "voice" | null;
   memorize_difficulty: number | null;
   save_memorize_difficulty: boolean | null;

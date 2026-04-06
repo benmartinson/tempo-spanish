@@ -475,10 +475,6 @@ export const restoreUserUIState = async ({
         DEFAULT_USER_SETTINGS.translationLanguage,
       estimatedHours:
         uiState.estimated_hours ?? DEFAULT_USER_SETTINGS.estimatedHours,
-      autoSubmit:
-        uiState.auto_submit ?? DEFAULT_USER_SETTINGS.autoSubmit,
-      autoResults:
-        uiState.auto_results ?? DEFAULT_USER_SETTINGS.autoResults,
       saveMemorizeDifficulty:
         uiState.save_memorize_difficulty ?? DEFAULT_USER_SETTINGS.saveMemorizeDifficulty,
       defaultMemorizeDifficulty:

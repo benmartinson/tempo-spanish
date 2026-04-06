@@ -35,7 +35,7 @@ import {
   VoiceCommand,
 } from "../../types";
 import SelectVideoPrompt from "../common/SelectVideoPrompt";
-import { useRecording } from "../useRecording";
+import { useRecording } from "../../hooks/useRecording";
 import {
   sendAudioForTranscription,
   uploadAudioToStorage,
@@ -43,6 +43,7 @@ import {
   playAiSpeech,
   playDing,
   playDingStop,
+  playDingWarning,
 } from "../../helpers/streaming_helpers";
 import { AccuracyResult, CachedResponse } from "../../types";
 import SettingsModal from "./SettingsModal";
@@ -64,13 +65,15 @@ import ContentTabBar from "../common/ContentTabBar";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import Foundation from "@expo/vector-icons/Foundation";
 import { persistUserSettings, persistCurrentShadowTab } from "../../requests";
-import { setCurrentShadowTab, setUserSettings } from "../../store/actions/dataActions";
+import {
+  setCurrentShadowTab,
+  setUserSettings,
+} from "../../store/actions/dataActions";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
 import VoiceCommands from "./VoiceCommands";
-import { useCachedAudio } from "./useCachedAudio";
-import { useMultiRecording } from "../useMultiRecording";
-import { useVoiceCommand } from "../useVoiceCommand";
+import { useCachedAudio } from "../../hooks/useCachedAudio";
+import { useVoiceCommand } from "../../hooks/useVoiceCommand";
 import { computeSubSegments } from "../../helpers/helpers";
 import { setCurrentSentence } from "../../store/actions/dataActions";
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
@@ -249,28 +252,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   }, [playerIsPlaying]);
 
-  // Phrase recording
   const subSegments = useMemo(
     () => computeSubSegments(currentSentenceObject?.words ?? []),
     [currentSentenceObject?.words],
   );
-  const {
-    recordings: phraseRecordings,
-    recordingIndex: recordingPhraseIndex,
-    allRecorded: allPhrasesRecorded,
-    startRecording: startPhraseRecording,
-    stopRecording: stopPhraseRecording,
-    concatenateRecordings: submitPhraseRecordings,
-    resetRecordings: resetPhraseRecordings,
-  } = useMultiRecording(subSegments.length);
-
-  const {
-    recordings: voiceRecordings,
-    recordingCount: voiceRecordingCount,
-    addRecording: addVoiceRecording,
-    concatenateRecordings: concatenateVoiceRecordings,
-    resetRecordings: resetVoiceRecordings,
-  } = useMultiRecording();
 
   const calculateAccuracyFromWords = useCallback(
     (spokenWords: string[]) => {
@@ -443,19 +428,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           });
         }
         if (selectedTab === "voice") {
-          if (userSettings.autoResults) {
-            await playCachedResponse(accuracy, { resumeListening: false });
-            await playResultsReviewRef.current?.(accuracy);
-            startListeningRef.current();
-          } else {
-            await playCachedResponse(accuracy);
-          }
+          await playCachedResponse(accuracy, { resumeListening: false });
+          startListeningRef.current();
         }
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
 
         // Auto-save recording if enabled
-        if (userSettings.autoSaveRecordings && userSettings.playVideoWhileRecording) {
+        if (
+          userSettings.autoSaveRecordings &&
+          userSettings.playVideoWhileRecording
+        ) {
           await handleSaveRecording(safeUri);
         }
       } catch (err) {
@@ -474,40 +457,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       currentVideo,
       currentSentenceIndex,
       selectedTab,
-      userSettings.autoResults,
     ],
   );
 
   const handleRecordingComplete = useCallback(
     async (audioUri: string) => {
-      if (selectedTab === "voice" || pauseRecordingRef.current) {
-        pauseRecordingRef.current = false;
-        await addVoiceRecording(audioUri);
-        return;
-      }
       submitRecording(audioUri);
     },
-    [selectedTab, submitRecording, addVoiceRecording],
+    [submitRecording],
   );
-
-  const handleVoiceSubmit = useCallback(async () => {
-    if (voiceRecordingCount === 0) return;
-    try {
-      const uri: string =
-        voiceRecordingCount === 1
-          ? Object.values(voiceRecordings)[0]
-          : await concatenateVoiceRecordings();
-      await submitRecording(uri);
-      resetVoiceRecordings();
-    } catch (err) {
-      console.error("Voice submit error:", err);
-    }
-  }, [
-    voiceRecordingCount,
-    concatenateVoiceRecordings,
-    resetVoiceRecordings,
-    submitRecording,
-  ]);
 
   const handleResetAnswer = useCallback(() => {
     setUserAnswer("");
@@ -540,14 +498,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     },
     onRecord: async () => {
       setActiveCommand("record");
-      resetVoiceRecordings();
-      voiceInitiatedRecordRef.current = true;
-      await closeConnection();
-      handleEnterRecordingMode();
-    },
-    onAddTo: async () => {
-      if (voiceRecordingCount === 0) return;
-      setActiveCommand("add_to");
       voiceInitiatedRecordRef.current = true;
       await closeConnection();
       handleEnterRecordingMode();
@@ -588,35 +538,28 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         handlePlayPhrase(subSegments[2].start, subSegments[2].end, 2);
       }
     },
-    onSubmit: async () => {
-      if (voiceRecordingCount === 0) return;
-      setActiveCommand("submit");
-      await closeConnection();
-      handleVoiceSubmit();
-    },
-    onResults: async () => {
-      if (!previousResults) return;
-      setActiveCommand("results");
-      await stopListening();
-      await playResultsReview(previousResults);
-      startListeningRef.current();
-    },
-    onReviewPrevious: async () => {
-      setActiveCommand("review_previous");
-      await closeConnection();
-      handleReviewPreviousSegment();
-    },
+    // onResults: async () => {
+    //   if (!previousResults) return;
+    //   setActiveCommand("results");
+    //   await stopListening();
+    //   await playResultsReview(previousResults);
+    //   startListeningRef.current();
+    // },
+    // onReviewPrevious: async () => {
+    //   setActiveCommand("review_previous");
+    //   await closeConnection();
+    //   handleReviewPreviousSegment();
+    // },
   });
 
   startListeningRef.current = startListening;
   stopListeningRef.current = stopListening;
 
-  const { playCachedResponse, playResultsReview } = useCachedAudio(
+  const { playCachedResponse } = useCachedAudio(
     supabase,
     setIsSpeakingResponse,
     startListeningRef,
   );
-  playResultsReviewRef.current = playResultsReview;
 
   const commandHandlersRef = useRef<Record<string, (() => void) | undefined>>(
     {},
@@ -628,12 +571,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     },
     record: () => {
       setActiveCommand("record");
-      resetVoiceRecordings();
-      handleEnterRecordingMode();
-    },
-    add_to: () => {
-      if (voiceRecordingCount === 0) return;
-      setActiveCommand("add_to");
       handleEnterRecordingMode();
     },
     slow: () => {
@@ -647,20 +584,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     previous: () => {
       setActiveCommand("previous");
       handlePreviousRef.current();
-    },
-    submit: () => {
-      if (voiceRecordingCount === 0) return;
-      setActiveCommand("submit");
-      handleVoiceSubmit();
-    },
-    results: () => {
-      if (!previousResults) return;
-      setActiveCommand("results");
-      playResultsReview(previousResults);
-    },
-    review_previous: () => {
-      setActiveCommand("review_previous");
-      handleReviewPreviousSegment();
     },
   };
 
@@ -703,13 +626,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Stop listening when sentence or tab changes
   useEffect(() => {
     stopListening();
-  }, [currentSentenceIndex, isActive, selectedTab]);
+  }, [isActive]);
 
   const justRecordedRef = useRef(false);
   const voiceInitiatedRecordRef = useRef(false);
-  const pauseRecordingRef = useRef(false);
 
-  const isWaitingForSubmitRef = useRef(false);
   const isFakingSubmissionRef = useRef(false);
 
   useEffect(() => {
@@ -739,6 +660,33 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setIsSettingsVisible(false);
     };
   }, []);
+
+  // Play warning sound 2 seconds before recording auto-stops (voice mode)
+  const playedEndWarningRef = useRef(false);
+  useEffect(() => {
+    if (
+      isRecording &&
+      selectedTab === "voice" &&
+      !playedEndWarningRef.current &&
+      currentSentenceObject?.end &&
+      time >= currentSentenceObject.end - 2.5 &&
+      !sentenceEnded
+    ) {
+      playedEndWarningRef.current = true;
+      playDingWarning();
+    }
+  }, [
+    time,
+    isRecording,
+    selectedTab,
+    currentSentenceObject?.end,
+    sentenceEnded,
+  ]);
+
+  // Reset warning flag when sentence changes
+  useEffect(() => {
+    playedEndWarningRef.current = false;
+  }, [currentSentenceIndex]);
 
   useEffect(() => {
     if (
@@ -777,7 +725,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
     setIsRecordingMode(false);
     handleResetState();
-    resetVoiceRecordings();
     setJustRecorded();
     parentHandleNextSentence();
   };
@@ -814,7 +761,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setSentenceEnded(false);
     setIsProcessing(false);
     clearRecordingTimer();
-    resetPhraseRecordings();
   };
 
   const clearRecordingTimer = () => {
@@ -840,7 +786,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleActualStartRecording = async () => {
-    if (voiceInitiatedRecordRef.current && selectedTab === "voice") playDing();
+    if (selectedTab === "voice") playDing();
     await startRecording();
     if (recordSpeed > 0) {
       playSentence();
@@ -850,62 +796,23 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }, 1000);
   };
 
-  const handlePauseRecording = async () => {
-    pausePlayer();
-    unMutePlayer();
-    setPlayerSpeed(1);
-    pauseRecordingRef.current = true;
-    await stopRecording(false);
-    setIsRecordingMode(false);
-  };
-
   const handleSubmitRecording = async () => {
+    if (selectedTab === "voice") playDingStop();
     pausePlayer();
     unMutePlayer();
     setPlayerSpeed(1);
-    pauseRecordingRef.current = true;
-    isWaitingForSubmitRef.current = true;
     await stopRecording(false);
     setIsRecordingMode(false);
   };
 
   const handleStopRecording = async (trashed: boolean = false) => {
-    if (voiceInitiatedRecordRef.current && selectedTab === "voice")
-      playDingStop();
-    const wasVoiceInitiated = voiceInitiatedRecordRef.current;
     voiceInitiatedRecordRef.current = false;
     pausePlayer();
     unMutePlayer();
     setPlayerSpeed(1);
-    if (
-      wasVoiceInitiated &&
-      selectedTab === "voice" &&
-      userSettings.autoSubmit
-    ) {
-      isWaitingForSubmitRef.current = true;
-    }
     await stopRecording(trashed);
     setIsRecordingMode(false);
   };
-
-  // Submit all recordings once the last chunk has been added
-  useEffect(() => {
-    if (isWaitingForSubmitRef.current && voiceRecordingCount > 0) {
-      isWaitingForSubmitRef.current = false;
-      handleVoiceSubmit();
-    }
-  }, [voiceRecordingCount]);
-
-  // Auto-stop recording after silence on voice tab
-  useEffect(() => {
-    if (
-      passedSilenceThreshold &&
-      selectedTab === "voice" &&
-      voiceInitiatedRecordRef.current
-    ) {
-      handleStopRecording();
-    }
-  }, [passedSilenceThreshold]);
 
   const handleShadowPreviousSentence = () => {
     setPreviousResults(null);
@@ -914,7 +821,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setPlayerSpeed(playbackSpeed);
 
     handleResetState();
-    resetVoiceRecordings();
     parentHandlePreviousSentence();
   };
 
@@ -948,22 +854,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
     playSentence();
   };
-
-  const handlePhraseSubmit = useCallback(async () => {
-    try {
-      pausePlayer();
-      const concatenatedUri = await submitPhraseRecordings();
-      handleRecordingComplete(concatenatedUri);
-      resetPhraseRecordings();
-    } catch (err) {
-      console.error("Phrase submission error:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to submit phrase recordings",
-      );
-    }
-  }, [submitPhraseRecordings, handleRecordingComplete, pausePlayer]);
 
   const handlePlayPause = async () => {
     await stopListening();
@@ -1157,7 +1047,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             <CountdownTimer
               onStartRecording={handleActualStartRecording}
               onStopRecording={handleSubmitRecording}
-              onPauseRecording={handlePauseRecording}
               sentenceEnded={sentenceEnded}
               bufferDuration={0}
             />
@@ -1187,20 +1076,32 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                     userSettings.playVideoWhileRecording
                   }
                   onSaveRecording={
-                    audioUri
-                      ? () => handleSaveRecording(audioUri)
-                      : undefined
+                    audioUri ? () => handleSaveRecording(audioUri) : undefined
                   }
                   showSaveRecordingsModal={userSettings.showSaveRecordingsModal}
                   onSetAlwaysSave={() => {
-                    const newSettings = { ...userSettings, autoSaveRecordings: true };
+                    const newSettings = {
+                      ...userSettings,
+                      autoSaveRecordings: true,
+                    };
                     dispatch(setUserSettings(newSettings));
-                    persistUserSettings({ supabase, userId, settings: { autoSaveRecordings: true } });
+                    persistUserSettings({
+                      supabase,
+                      userId,
+                      settings: { autoSaveRecordings: true },
+                    });
                   }}
                   onSetDontAskAgain={() => {
-                    const newSettings = { ...userSettings, showSaveRecordingsModal: false };
+                    const newSettings = {
+                      ...userSettings,
+                      showSaveRecordingsModal: false,
+                    };
                     dispatch(setUserSettings(newSettings));
-                    persistUserSettings({ supabase, userId, settings: { showSaveRecordingsModal: false } });
+                    persistUserSettings({
+                      supabase,
+                      userId,
+                      settings: { showSaveRecordingsModal: false },
+                    });
                   }}
                 />
                 {nextSentenceCountdown > 0 && (
@@ -1234,25 +1135,28 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   </TouchableOpacity>
                 </View>
               )}
-              {accuracyResult && !currentRecordingId && audioUri && userSettings.playVideoWhileRecording && (
-                <View style={styles.playRecordingContainer}>
-                  {isTrimmingAudio ? (
-                    <Text style={styles.playRecordingButtonText}>
-                      Saving...
-                    </Text>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.playRecordingButton}
-                      onPress={() => handleSaveRecording(audioUri)}
-                      disabled={isTrimmingAudio}
-                    >
+              {accuracyResult &&
+                !currentRecordingId &&
+                audioUri &&
+                userSettings.playVideoWhileRecording && (
+                  <View style={styles.playRecordingContainer}>
+                    {isTrimmingAudio ? (
                       <Text style={styles.playRecordingButtonText}>
-                        Save Recording for Playback
+                        Saving...
                       </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.playRecordingButton}
+                        onPress={() => handleSaveRecording(audioUri)}
+                        disabled={isTrimmingAudio}
+                      >
+                        <Text style={styles.playRecordingButtonText}>
+                          Save Recording for Playback
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
             </>
           )}
           {!accuracyResult && !isProcessing && (
@@ -1284,6 +1188,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   translationText={sentenceTranslation}
                   sentenceText={currentSentenceObject?.text}
                   isLoading={isLoadingInsights}
+                  time={time}
+                  playerIsPlaying={playerIsPlaying}
+                  segmentStart={currentSentenceObject?.start}
+                  segmentEnd={currentSentenceObject?.end}
+                  playKey={playKey}
+                  isRecording={isRecording}
+                  playerSpeed={playerSpeed}
                 />
               ) : (
                 <ScrollView
@@ -1307,102 +1218,74 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       playerIsPlaying={playerIsPlaying && !isReplayingPhrase}
                       replayingPhraseIndex={replayingPhraseIndex}
                       playbackTime={time}
-                      phraseRecordings={phraseRecordings}
-                      recordingPhraseIndex={recordingPhraseIndex}
-                      allPhrasesRecorded={allPhrasesRecorded}
-                      onStartPhraseRecording={startPhraseRecording}
-                      onStopPhraseRecording={stopPhraseRecording}
-                      onSubmitPhrases={handlePhraseSubmit}
                       isRecordingMode={isRecordingMode}
                     />
                   ) : (
-                    !isRecordingMode && (
-                      <VoiceCommands
-                        isListening={isListening}
-                        isClipPlaying={playerIsPlaying || isSpeakingResponse}
-                        activeCommand={activeCommand}
-                        hasError={voiceCommandError}
-                        timedOut={voiceCommandTimedOut}
-                        permissionDenied={voicePermissionDenied}
-                        onActivate={startListening}
-                        onCommandPress={handleCommandPress}
-                        priorityCommands={
-                          previousResults
-                            ? ["results", "next", "review_previous"]
-                            : voiceRecordingCount > 0
-                              ? ["submit", "add_to", "record"]
-                              : undefined
-                        }
-                        commands={[
-                          ...(voiceRecordingCount > 0
-                            ? [
-                                {
-                                  command: "add_to" as const,
-                                  label: "Add To",
-                                  description: "Add to your recording",
-                                },
-                                {
-                                  command: "submit" as const,
-                                  label: "Submit",
-                                  description: "Submit your recording",
-                                },
-                              ]
-                            : []),
-                          {
-                            command: "record",
-                            label: "Record",
-                            description: "Start recording",
-                          },
-                          {
-                            command: "repeat",
-                            label: "Repeat",
-                            description: "Replay the clip",
-                          },
-                          {
-                            command: "slow",
-                            label: "Slowdown",
-                            description: "Replay the clip in slow mode",
-                          },
-                          {
-                            command: "next",
-                            label: "Next",
-                            description: "Go to next segment",
-                          },
-                          {
-                            command: "previous",
-                            label: "Previous",
-                            description: "Go to previous segment",
-                          },
-                          ...(previousResults
-                            ? [
-                                {
-                                  command: "results" as const,
-                                  label: "Results",
-                                  description: "Hear review of missed words",
-                                },
-                                {
-                                  command: "review_previous" as const,
-                                  label: "Review Previous",
-                                  description: "Review a previous segment",
-                                },
-                              ]
-                            : []),
-                          ...["First Phrase", "Second Phrase", "Third Phrase"]
-                            .slice(0, subSegments.length)
-                            .map((label, i) => ({
-                              command: (
-                                [
-                                  "first_phrase",
-                                  "second_phrase",
-                                  "third_phrase",
-                                ] as const
-                              )[i],
-                              label,
-                              description: `Replay phrase ${i + 1}`,
-                            })),
-                        ]}
-                      />
-                    )
+                    <VoiceCommands
+                      isListening={isListening}
+                      isClipPlaying={playerIsPlaying || isSpeakingResponse}
+                      isRecording={isRecordingMode}
+                      activeCommand={activeCommand}
+                      hasError={voiceCommandError}
+                      timedOut={voiceCommandTimedOut}
+                      permissionDenied={voicePermissionDenied}
+                      onActivate={startListening}
+                      onCommandPress={handleCommandPress}
+                      commands={[
+                        {
+                          command: "record",
+                          label: "Record",
+                          description: "Start recording",
+                        },
+                        {
+                          command: "repeat",
+                          label: "Repeat",
+                          description: "Replay the clip",
+                        },
+                        {
+                          command: "slow",
+                          label: "Slowdown",
+                          description: "Replay the clip in slow mode",
+                        },
+                        {
+                          command: "next",
+                          label: "Next",
+                          description: "Go to next segment",
+                        },
+                        {
+                          command: "previous",
+                          label: "Previous",
+                          description: "Go to previous segment",
+                        },
+                        // ...(previousResults
+                        //   ? [
+                        //       {
+                        //         command: "results" as const,
+                        //         label: "Results",
+                        //         description: "Hear review of missed words",
+                        //       },
+                        //       {
+                        //         command: "review_previous" as const,
+                        //         label: "Review Previous",
+                        //         description: "Review a previous segment",
+                        //       },
+                        //     ]
+                        //   : []),
+                        ...["First Phrase", "Second Phrase", "Third Phrase"]
+                          .slice(0, subSegments.length)
+                          .map((label, i) => ({
+                            command: (
+                              [
+                                "first_phrase",
+                                "second_phrase",
+                                "third_phrase",
+                              ] as const
+                            )[i],
+                            label,
+                            description: `Replay phrase ${i + 1}`,
+                          })),
+                      ]}
+                    />
                   )}
                 </ScrollView>
               )}
@@ -1414,33 +1297,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         {!accuracyResult && !isProcessing && (
           <RecordingControls
             isRecording={isRecordingMode}
-            hasRecordings={voiceRecordingCount > 0}
             onTrash={() => {
-              if (isRecordingMode) {
-                handleStopRecording(true);
-              }
-              resetVoiceRecordings();
+              handleStopRecording(true);
               handleResetAnswer();
             }}
             onMic={() => {
               if (isRecordingMode) {
-                handlePauseRecording();
-              } else if (voiceRecordingCount > 0) {
-                pauseRecordingRef.current = true;
-                handleEnterRecordingMode();
-              } else {
-                resetVoiceRecordings();
-                pauseRecordingRef.current = true;
-                handleEnterRecordingMode();
-              }
-            }}
-            onSubmit={() => {
-              if (isRecording) {
                 handleSubmitRecording();
-                return;
-              }
-              if (voiceRecordingCount > 0) {
-                handleVoiceSubmit();
+              } else {
+                handleEnterRecordingMode();
               }
             }}
             disabled={!hasPermission || isProcessing}

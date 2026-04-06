@@ -5,17 +5,16 @@ import {
   ScrollView,
   LayoutChangeEvent,
   Pressable,
-  Modal,
 } from "react-native";
 import { RootState, SegmentWord } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
-import TooltipModal from "../common/TooltipModal";
 import GuessWordModal from "../common/GuessWordModal";
 import { useSelector, useDispatch } from "react-redux";
 import { addUserSelectedVocab } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import { vocabFormatWord } from "../../helpers/helpers";
+import { useInterpolatedTime } from "../../hooks/useInterpolatedTime";
 
 interface FullSegmentTranscriptBubbleProps {
   words?: SegmentWord[];
@@ -90,95 +89,7 @@ const FullSegmentTranscriptBubble: React.FC<
   const [isActive, setIsActive] = useState(false);
   const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
 
-  // Fill the initial time gap when playback starts.
-  // The player provides an initial time, then ~1.5s of silence before
-  // updates resume at ~150ms. We interpolate during that gap.
-  const [localTime, setLocalTime] = useState(time);
-  const localTimeRef = useRef(time);
-  const timeUpdateCountRef = useRef(0);
-  const interpolatingRef = useRef(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevPlayerIsPlayingRef = useRef(playerIsPlaying);
-
-  const startInterpolation = (startTime: number) => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    timeUpdateCountRef.current = 0;
-    interpolatingRef.current = true;
-    let counter = 0;
-    const speed = playerSpeed || 1;
-    const intervalMs = 150 / speed;
-    intervalRef.current = setInterval(() => {
-      counter++;
-      const t = startTime + counter * 0.15;
-      localTimeRef.current = t;
-      setLocalTime(t);
-    }, intervalMs);
-  };
-
-  // Detect replay via playKey change
-  const prevPlayKeyRef = useRef(playKey);
-  useEffect(() => {
-    if (playKey !== undefined && playKey !== prevPlayKeyRef.current) {
-      prevPlayKeyRef.current = playKey;
-      setLocalTime(time);
-      localTimeRef.current = time;
-      if (playerIsPlaying) {
-        startInterpolation(time);
-      }
-    }
-  }, [playKey]);
-
-  // Track incoming time prop updates
-  useEffect(() => {
-    // Detect replay: time jumped backward while still playing
-    if (playerIsPlaying && time < localTimeRef.current) {
-      setLocalTime(time);
-      localTimeRef.current = time;
-      startInterpolation(time);
-      return;
-    }
-
-    if (interpolatingRef.current) {
-      timeUpdateCountRef.current += 1;
-      // Second real update means the player is feeding us reliably — stop interpolating
-      if (timeUpdateCountRef.current >= 2) {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-        interpolatingRef.current = false;
-      }
-    }
-    localTimeRef.current = time;
-    setLocalTime(time);
-  }, [time]);
-
-  // Start/stop interpolation when playerIsPlaying changes
-  useEffect(() => {
-    const wasPlaying = prevPlayerIsPlayingRef.current;
-    prevPlayerIsPlayingRef.current = playerIsPlaying;
-
-    if (playerIsPlaying && !wasPlaying) {
-      // Player just started — begin interpolating
-      startInterpolation(time);
-    } else if (!playerIsPlaying && wasPlaying) {
-      // Player stopped
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      interpolatingRef.current = false;
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [playerIsPlaying]);
+  const localTime = useInterpolatedTime(time, playerIsPlaying, playKey, playerSpeed);
 
   const handleLongPress = useCallback(
     (word: SegmentWord) => {

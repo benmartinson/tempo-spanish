@@ -18,6 +18,7 @@ export interface CommandEntry {
 interface VoiceCommandsProps {
   isListening: boolean;
   isClipPlaying: boolean;
+  isRecording?: boolean;
   activeCommand: VoiceCommand;
   hasError: boolean;
   timedOut: boolean;
@@ -32,6 +33,7 @@ interface VoiceCommandsProps {
 const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   isListening,
   isClipPlaying,
+  isRecording = false,
   activeCommand,
   hasError,
   timedOut,
@@ -71,6 +73,14 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>Error occurred.</Text>
+      </View>
+    );
+  }
+
+  if (isRecording) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.statusText}>Recording...</Text>
       </View>
     );
   }

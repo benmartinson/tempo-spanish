@@ -59,9 +59,15 @@ export const generateTTS = async (text: string): Promise<string> => {
 const dingSource = require("../../assets/ding.wav");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const dingStopSource = require("../../assets/ding-stop.wav");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const warningBeepSource = require("../../assets/warning-beep.wav");
 
-const playSoundEffect = (source: number) => {
+const playSoundEffect = (
+  source: number,
+  options?: { volume?: number },
+) => {
   const player = createAudioPlayer(source, { keepAudioSessionActive: true });
+  if (options?.volume !== undefined) player.volume = options.volume;
   player.play();
   player.addListener("playbackStatusUpdate", (status) => {
     if (status.didJustFinish) {
@@ -72,6 +78,7 @@ const playSoundEffect = (source: number) => {
 
 export const playDing = () => playSoundEffect(dingSource);
 export const playDingStop = () => playSoundEffect(dingStopSource);
+export const playDingWarning = () => playSoundEffect(warningBeepSource);
 
 // Global reference to currently playing sound to prevent overlapping audio
 let currentPlayingSound: AudioPlayer | null = null;

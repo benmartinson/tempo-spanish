@@ -45,15 +45,15 @@ import ContextClipsSection from "../discuss/ContextClipsSection";
 import ContentTabBar from "../common/ContentTabBar";
 import ShadowResults from "../shadow/ShadowResults";
 import VoiceCommands from "../shadow/VoiceCommands";
-import { useRecording } from "../useRecording";
-import { useVoiceCommand } from "../useVoiceCommand";
+import { useRecording } from "../../hooks/useRecording";
+import { useVoiceCommand } from "../../hooks/useVoiceCommand";
 import {
   sendAudioForTranscription,
   playAiSpeech,
   playAudio,
 } from "../../helpers/streaming_helpers";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { useCachedAudio } from "../shadow/useCachedAudio";
+import { useCachedAudio } from "../../hooks/useCachedAudio";
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import AnswerInput from "../discuss/AnswerInput";
 

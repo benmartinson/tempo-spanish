@@ -41,7 +41,7 @@ import {
   persistUserUITab,
   loadAndCacheTTSResponses,
 } from "./src/requests";
-import { useUIStateSync } from "./src/components/useUIStateSync";
+import { useUIStateSync } from "./src/hooks/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { ActivityIndicator, View, Text, StyleSheet } from "react-native";

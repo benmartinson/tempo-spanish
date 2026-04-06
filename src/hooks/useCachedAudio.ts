@@ -1,13 +1,13 @@
 import { useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState, AccuracyResult } from "../../types";
+import { RootState, AccuracyResult } from "../types";
 import {
   generateTTS,
   playAudioSequence,
   playAudio,
-} from "../../helpers/streaming_helpers";
-import { getResponseForPercentage } from "../../helpers/helpers";
-import { setCachedResponses } from "../../store/actions/dataActions";
+} from "../helpers/streaming_helpers";
+import { getResponseForPercentage } from "../helpers/helpers";
+import { setCachedResponses } from "../store/actions/dataActions";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 export function useCachedAudio(

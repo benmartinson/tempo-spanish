@@ -49,7 +49,6 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   };
 
   const handleSaveAndContinue = async () => {
-    console.log({ onSaveRecording });
     const saveFn = onSaveRecordingRef.current;
     if (!saveFn) return;
     setIsSaving(true);
@@ -98,7 +97,11 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           ? removeSpecialPunctuation(detail.spokenWord)
           : "_";
     }
-    if (index === 0 && spokenText[0] && spokenText[0] !== spokenText[0].toUpperCase()) {
+    if (
+      index === 0 &&
+      spokenText[0] &&
+      spokenText[0] !== spokenText[0].toUpperCase()
+    ) {
       spokenText = "..." + spokenText;
     }
     if (isLast && spokenText.endsWith(",")) {
@@ -118,7 +121,11 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   ) => {
     const isLast = index === accuracyResult.details.length - 1;
     let targetText = removeSpecialPunctuation(detail.targetWord);
-    if (index === 0 && targetText[0] && targetText[0] !== targetText[0].toUpperCase()) {
+    if (
+      index === 0 &&
+      targetText[0] &&
+      targetText[0] !== targetText[0].toUpperCase()
+    ) {
       targetText = "..." + targetText;
     }
     if (isLast && targetText.endsWith(",")) {

@@ -4,62 +4,46 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 interface RecordingControlsProps {
   isRecording: boolean;
-  hasRecordings: boolean;
   onTrash: () => void;
   onMic: () => void;
-  onSubmit: () => void;
   disabled?: boolean;
 }
 
 const RecordingControls: React.FC<RecordingControlsProps> = ({
   isRecording,
-  hasRecordings,
   onTrash,
   onMic,
-  onSubmit,
   disabled = false,
 }) => {
-  const isActive = isRecording || hasRecordings;
-
   return (
     <View style={styles.inputArea}>
       <TouchableOpacity
         style={[
           styles.trashButton,
-          { backgroundColor: isActive ? "white" : "#f0f0f0" },
+          { backgroundColor: isRecording ? "white" : "#f0f0f0" },
         ]}
         onPress={onTrash}
-        disabled={!isActive}
+        disabled={!isRecording}
       >
         <FontAwesome
           name="trash-o"
           size={22}
-          color={isActive ? "red" : "#aaa"}
-        />
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.micButton, disabled && styles.micButtonDisabled]}
-        onPress={onMic}
-        disabled={disabled}
-      >
-        <MaterialIcons
-          name={isRecording ? "pause" : hasRecordings ? "add" : "mic"}
-          size={22}
-          color={disabled ? "#ccc" : isRecording ? "#555" : hasRecordings ? "#4a69bd" : "red"}
+          color={isRecording ? "red" : "#aaa"}
         />
       </TouchableOpacity>
       <TouchableOpacity
         style={[
-          styles.sendButton,
-          !hasRecordings && !isRecording && styles.sendButtonDisabled,
+          styles.micButton,
+          disabled && styles.micButtonDisabled,
+          isRecording && styles.sendButton,
         ]}
-        onPress={onSubmit}
-        disabled={!hasRecordings && !isRecording}
+        onPress={onMic}
+        disabled={disabled}
       >
         <MaterialIcons
-          name="send"
+          name={isRecording ? "send" : "mic"}
           size={22}
-          color={hasRecordings || isRecording ? "#fff" : "#aaa"}
+          color={disabled ? "#ccc" : isRecording ? "#fff" : "red"}
         />
       </TouchableOpacity>
     </View>
@@ -99,14 +83,7 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     backgroundColor: "#4a69bd",
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sendButtonDisabled: {
-    backgroundColor: "#e0e0e0",
+    borderColor: "#4a69bd",
   },
   micButtonDisabled: {
     borderColor: "#eee",

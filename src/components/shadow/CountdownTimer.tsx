@@ -13,7 +13,6 @@ type RecordingPhase = "countdown" | "recording" | "buffer" | "complete";
 interface CountdownTimerProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
-  onPauseRecording?: () => void;
   sentenceEnded: boolean;
   bufferDuration?: number;
   countdownDuration?: number;
@@ -23,7 +22,6 @@ interface CountdownTimerProps {
 const CountdownTimer: React.FC<CountdownTimerProps> = ({
   onStartRecording,
   onStopRecording,
-  onPauseRecording,
   sentenceEnded,
   bufferDuration = 5,
   countdownDuration = 0,
@@ -162,14 +160,6 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
               )}
             </View>
             <View style={styles.buttonRow}>
-              {onPauseRecording && (
-                <TouchableOpacity
-                  onPress={onPauseRecording}
-                  style={styles.pauseButton}
-                >
-                  <MaterialIcons name="pause" size={20} color="#fff" />
-                </TouchableOpacity>
-              )}
               <TouchableOpacity
                 onPress={onStopRecording}
                 style={styles.submitButton}
