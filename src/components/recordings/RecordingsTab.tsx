@@ -18,6 +18,7 @@ import {
   setAudioModeAsync,
   type AudioPlayer,
 } from "expo-audio";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { YouTubePlayerHandle } from "../common/YouTubePlayer";
 
@@ -73,6 +74,9 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
   const currentAudioPlayer = useRef<AudioPlayer | null>(null);
   const currentSubscription = useRef<{ remove: () => void } | null>(null);
   const playbackSpeedRef = useRef(1);
+  const timeRef = useRef(time);
+  timeRef.current = time;
+  const flatListRef = useRef<FlatList>(null);
 
   const sentences = currentVideo?.sentences ?? [];
 
@@ -160,11 +164,42 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
     return items;
   }, [recordings, sentences]);
 
-  // Stop playback if the video player stops
+  const listItemsRef = useRef(listItems);
+  listItemsRef.current = listItems;
+
+  const scrollToRecording = useCallback((sentenceIndex: number) => {
+    const idx = listItemsRef.current.findIndex(
+      (item) =>
+        item.type === "recording" && item.data.sentence === sentenceIndex,
+    );
+    if (idx >= 0 && flatListRef.current) {
+      flatListRef.current.scrollToIndex({
+        index: idx,
+        animated: true,
+        viewPosition: 0,
+      });
+    }
+  }, []);
+
+  // Stop playback if the video player stops (debounced to ignore brief blips
+  // from speed changes which momentarily report playerIsPlaying=false)
+  const stopDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!playerIsPlaying && isPlayingRef.current) {
-      stopPlaybackAll();
+      stopDebounceRef.current = setTimeout(() => {
+        if (!playerIsPlaying && isPlayingRef.current) {
+          stopPlaybackAll();
+        }
+      }, 500);
+    } else if (stopDebounceRef.current) {
+      clearTimeout(stopDebounceRef.current);
+      stopDebounceRef.current = null;
     }
+    return () => {
+      if (stopDebounceRef.current) {
+        clearTimeout(stopDebounceRef.current);
+      }
+    };
   }, [playerIsPlaying]);
 
   // Clean up audio players on unmount
@@ -189,12 +224,13 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
     const recs = playbackRecordings.current;
     const idx = currentPlaybackIndex.current;
     if (idx >= recs.length) return;
-    // Don't re-trigger the same index
-    if (idx === startedPlaybackIndex.current) return;
 
     const rec = recs[idx];
     const sentence = sentences[rec.sentence];
     if (!sentence) return;
+
+    // Don't re-trigger the same index
+    if (idx === startedPlaybackIndex.current) return;
 
     // When video time reaches (or passes) this segment's start, play the recording
     if (time >= sentence.start - 0.15) {
@@ -219,7 +255,8 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
       return;
     }
 
-    // Set video speed to match the recording speed
+    scrollToRecording(rec.sentence);
+
     const speed = rec.recording_speed ?? 1;
     if (speed !== playbackSpeedRef.current) {
       playbackSpeedRef.current = speed;
@@ -238,6 +275,7 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
 
     player.seekTo(0);
     player.play();
+    playerRef.current?.play();
 
     const subscription = player.addListener(
       "playbackStatusUpdate",
@@ -267,13 +305,26 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
       return;
     }
 
+    // Set video speed for the next recording
+    const speed = nextRec.recording_speed ?? 1;
+    if (speed !== playbackSpeedRef.current) {
+      playbackSpeedRef.current = speed;
+      setPlayerSpeed(speed);
+    }
+
     // Check if the next segment is non-contiguous — need to seek
     const prevRec = recs[nextIdx - 1];
     if (prevRec && nextRec.sentence !== prevRec.sentence + 1) {
       playerRef.current?.seekTo(nextSentence.start);
     }
-    // For contiguous segments, the video is already playing into it —
-    // the time effect will trigger playRecordingAtIndex when time >= start
+
+    // If video time is already at or past the next segment's start,
+    // play immediately instead of waiting for the time effect
+    if (timeRef.current >= nextSentence.start - 0.15) {
+      startedPlaybackIndex.current = nextIdx;
+      playRecordingAtIndex(nextIdx);
+    }
+    // Otherwise the time effect will trigger playRecordingAtIndex when time >= start
   };
 
   const handlePlaybackAll = async () => {
@@ -318,21 +369,24 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
       isPlayingRef.current = true;
       setIsPlayingAll(true);
       setIsLoadingPlayback(false);
+      activateKeepAwakeAsync("recordings-playback");
 
       // Show video and disable clip enforcement so video plays freely across segments
       onShowVideo(true);
       playerRef.current?.disableClipEnforcement();
 
-      // Set speed for first recording
       const firstSpeed = recordings[0].recording_speed ?? 1;
       playbackSpeedRef.current = firstSpeed;
       setPlayerSpeed(firstSpeed);
 
-      // Seek to the first recorded segment and play
+      // Seek to the first recorded segment but don't play yet —
+      // playRecordingAtIndex will start both video and audio together
       const firstSentence = sentences[recordings[0].sentence];
       if (firstSentence) {
         playerRef.current?.seekTo(firstSentence.start);
-        playerRef.current?.play();
+        // Start the first recording immediately (and video with it)
+        startedPlaybackIndex.current = 0;
+        playRecordingAtIndex(0);
       }
     } catch (err) {
       console.error("Error loading recordings for playback:", err);
@@ -344,6 +398,7 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
     isPlayingRef.current = false;
     startedPlaybackIndex.current = -1;
     setIsPlayingAll(false);
+    deactivateKeepAwake("recordings-playback");
 
     if (currentSubscription.current) {
       currentSubscription.current.remove();
@@ -362,9 +417,13 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
     cleanupPlayers();
   };
 
-  const playSingleRecording = async (rec: ShadowResult) => {
+  const playFromRecording = async (rec: ShadowResult) => {
     if (isPlayingAll) stopPlaybackAll();
     cleanupPlayers();
+
+    const startIndex = recordings.findIndex((r) => r.sentence === rec.sentence);
+    if (startIndex === -1) return;
+    const remainingRecordings = recordings.slice(startIndex);
 
     const sentence = sentences[rec.sentence];
     if (!sentence) return;
@@ -376,25 +435,35 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
         playsInSilentMode: true,
       });
 
-      const { data, error } = await globalSupabase.storage
-        .from("shadow_recordings")
-        .createSignedUrl(rec.recording_id, 300);
+      // Preload all remaining recordings
+      const loadPromises = remainingRecordings.map(async (r) => {
+        const { data, error } = await globalSupabase.storage
+          .from("shadow_recordings")
+          .createSignedUrl(r.recording_id, 300);
 
-      if (error || !data?.signedUrl) {
+        if (error || !data?.signedUrl) {
+          console.warn(`Failed to get URL for segment ${r.sentence}`);
+          return;
+        }
+
+        const player = createAudioPlayer({ uri: data.signedUrl });
+        preloadedPlayers.current.set(r.sentence, player);
+      });
+
+      await Promise.all(loadPromises);
+
+      if (preloadedPlayers.current.size === 0) {
         setIsLoadingPlayback(false);
         return;
       }
 
-      const player = createAudioPlayer({ uri: data.signedUrl });
-      preloadedPlayers.current.set(rec.sentence, player);
-
-      // Set up single-recording playback using the same refs
-      playbackRecordings.current = [rec];
+      playbackRecordings.current = remainingRecordings;
       currentPlaybackIndex.current = 0;
       startedPlaybackIndex.current = -1;
       isPlayingRef.current = true;
       setIsPlayingAll(true);
       setIsLoadingPlayback(false);
+      activateKeepAwakeAsync("recordings-playback");
 
       onShowVideo(true);
       playerRef.current?.disableClipEnforcement();
@@ -404,9 +473,11 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
       setPlayerSpeed(speed);
 
       playerRef.current?.seekTo(sentence.start);
-      playerRef.current?.play();
+      // Don't play video yet — playRecordingAtIndex will start both together
+      startedPlaybackIndex.current = 0;
+      playRecordingAtIndex(0);
     } catch (err) {
-      console.error("Error playing single recording:", err);
+      console.error("Error playing from recording:", err);
       setIsLoadingPlayback(false);
     }
   };
@@ -446,7 +517,7 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
     return (
       <TouchableOpacity
         style={[styles.recordingCard, isActive && styles.recordingCardActive]}
-        onPress={() => playSingleRecording(data)}
+        onPress={() => playFromRecording(data)}
         activeOpacity={0.7}
       >
         <View style={styles.segmentBadge}>
@@ -484,34 +555,19 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Playback All Button */}
-      <TouchableOpacity
-        style={[
-          styles.playbackButton,
-          (recordings.length === 0 || isLoadingPlayback) &&
-            styles.playbackButtonDisabled,
-        ]}
-        onPress={isPlayingAll ? stopPlaybackAll : handlePlaybackAll}
-        disabled={recordings.length === 0 || isLoadingPlayback}
-      >
-        {isLoadingPlayback ? (
-          <>
-            <ActivityIndicator size="small" color="white" />
-            <Text style={styles.playbackButtonText}>Merging Recordings...</Text>
-          </>
-        ) : (
-          <>
-            <MaterialIcons
-              name={isPlayingAll ? "stop" : "play-arrow"}
-              size={22}
-              color="white"
-            />
-            <Text style={styles.playbackButtonText}>
-              {isPlayingAll ? "Stop Playback" : "Playback All"}
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
+      {isPlayingAll ? (
+        <TouchableOpacity
+          style={styles.playbackButton}
+          onPress={stopPlaybackAll}
+        >
+          <MaterialIcons name="stop" size={22} color="white" />
+          <Text style={styles.playbackButtonText}>Stop Playback</Text>
+        </TouchableOpacity>
+      ) : (
+        <Text style={styles.instructionText}>
+          Tap on a segment to hear a recording stream from that point
+        </Text>
+      )}
 
       {recordings.length === 0 ? (
         <View style={styles.centered}>
@@ -523,6 +579,7 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={listItems}
           renderItem={renderItem}
           keyExtractor={(item, index) =>
@@ -532,6 +589,15 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({
+                index: info.index,
+                animated: true,
+                viewPosition: 0,
+              });
+            }, 100);
+          }}
         />
       )}
     </View>
@@ -561,8 +627,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
   },
-  playbackButtonDisabled: {
-    opacity: 0.5,
+  instructionText: {
+    fontSize: 13,
+    color: "#999",
+    textAlign: "center",
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
   },
   playbackButtonText: {
     color: "white",

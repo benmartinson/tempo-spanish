@@ -526,12 +526,17 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     playerRef.current?.unMute();
   }, []);
 
-  // Mute and hide video when on Recordings tab, unmute and show when switching away
+  // Mute when on Recordings tab, unmute when switching away
+  // Hide video initially on recordings tab, but once shown (by playback), keep it visible
+  const recordingsVideoShownRef = useRef(false);
   useEffect(() => {
     if (selectedNavTab === "recordings") {
       mutePlayer();
-      setShowVideo(false);
+      if (!recordingsVideoShownRef.current) {
+        setShowVideo(false);
+      }
     } else {
+      recordingsVideoShownRef.current = false;
       unMutePlayer();
       setShowVideo(true);
     }
@@ -684,7 +689,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             pausePlayer={pausePlayer}
             resumePlayer={playPlayer}
             setPlayerSpeed={setPlayerSpeed}
-            onShowVideo={(show) => setShowVideo(show)}
+            onShowVideo={(show) => {
+              if (show) recordingsVideoShownRef.current = true;
+              setShowVideo(show);
+            }}
             playerIsPlaying={playerIsPlaying}
             onNavigateToShadow={(sentenceIndex) => {
               setCurrentSentence(sentenceIndex);
