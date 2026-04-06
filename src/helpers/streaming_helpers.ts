@@ -78,7 +78,7 @@ const playSoundEffect = (
 
 export const playDing = () => playSoundEffect(dingSource);
 export const playDingStop = () => playSoundEffect(dingStopSource);
-export const playDingWarning = () => playSoundEffect(warningBeepSource);
+export const playDingWarning = () => playSoundEffect(warningBeepSource, { volume: 0.75 });
 
 // Global reference to currently playing sound to prevent overlapping audio
 let currentPlayingSound: AudioPlayer | null = null;

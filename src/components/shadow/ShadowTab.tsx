@@ -426,10 +426,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             ...accuracy,
             recordingId: null,
           });
-        }
-        if (selectedTab === "voice") {
-          await playCachedResponse(accuracy, { resumeListening: false });
-          startListeningRef.current();
+          await playCachedResponse(accuracy);
         }
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
@@ -612,6 +609,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       !accuracyResult
     ) {
       startListening();
+    } else {
+      if (isListening) {
+        stopListening();
+      }
     }
   }, [
     selectedTab,

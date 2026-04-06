@@ -47,7 +47,7 @@ export function useCachedAudio(
   );
 
   const playCachedResponse = useCallback(
-    async (accuracy: AccuracyResult, { resumeListening = true } = {}) => {
+    async (accuracy: AccuracyResult) => {
       const responseText = getResponseForPercentage(accuracy.percentage);
       const cached = cachedResponses.find(
         (r) => r.response_text === responseText,
@@ -59,7 +59,6 @@ export function useCachedAudio(
       setIsSpeakingResponse(true);
       await playAudioSequence(clips);
       setIsSpeakingResponse(false);
-      if (resumeListening) startListeningRef?.current();
     },
     [cachedResponses, setIsSpeakingResponse, startListeningRef],
   );
