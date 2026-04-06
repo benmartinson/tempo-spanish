@@ -71,6 +71,7 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
   const currentPlaybackIndex = useRef(0);
   const startedPlaybackIndex = useRef(-1); // guard: which index we've already triggered
   const isPlayingRef = useRef(false);
+  const waitingForVideoStart = useRef(false);
   const currentAudioPlayer = useRef<AudioPlayer | null>(null);
   const currentSubscription = useRef<{ remove: () => void } | null>(null);
   const playbackSpeedRef = useRef(1);
@@ -180,6 +181,15 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
       });
     }
   }, []);
+
+  // Wait for video to actually start playing before triggering the first recording
+  useEffect(() => {
+    if (waitingForVideoStart.current && playerIsPlaying) {
+      waitingForVideoStart.current = false;
+      startedPlaybackIndex.current = 0;
+      playRecordingAtIndex(0);
+    }
+  }, [playerIsPlaying]);
 
   // Stop playback if the video player stops (debounced to ignore brief blips
   // from speed changes which momentarily report playerIsPlaying=false)
@@ -384,9 +394,9 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
       const firstSentence = sentences[recordings[0].sentence];
       if (firstSentence) {
         playerRef.current?.seekTo(firstSentence.start);
-        // Start the first recording immediately (and video with it)
-        startedPlaybackIndex.current = 0;
-        playRecordingAtIndex(0);
+        // Wait for video to start playing before triggering the first recording
+        waitingForVideoStart.current = true;
+        playerRef.current?.play();
       }
     } catch (err) {
       console.error("Error loading recordings for playback:", err);
@@ -397,6 +407,7 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
   const stopPlaybackAll = () => {
     isPlayingRef.current = false;
     startedPlaybackIndex.current = -1;
+    waitingForVideoStart.current = false;
     setIsPlayingAll(false);
     deactivateKeepAwake("recordings-playback");
 
@@ -473,9 +484,9 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
       setPlayerSpeed(speed);
 
       playerRef.current?.seekTo(sentence.start);
-      // Don't play video yet — playRecordingAtIndex will start both together
-      startedPlaybackIndex.current = 0;
-      playRecordingAtIndex(0);
+      // Wait for video to start playing before triggering the first recording
+      waitingForVideoStart.current = true;
+      playerRef.current?.play();
     } catch (err) {
       console.error("Error playing from recording:", err);
       setIsLoadingPlayback(false);

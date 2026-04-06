@@ -362,7 +362,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [currentSentenceIndex]);
 
   const handleSaveRecording = async (audioUri: string) => {
-    if (isTrimmingAudio || currentRecordingId) return;
+    if (isTrimmingAudio) return;
     setIsTrimmingAudio(true);
     const recordingPath = await uploadAudioToStorage(
       audioUri,

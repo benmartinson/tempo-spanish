@@ -602,7 +602,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             start: currentSentenceObject?.start,
             end: endTime,
           }}
-          autoplay={true}
+          autoplay={selectedNavTab !== "recordings"}
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
           muted={playerMuted}
