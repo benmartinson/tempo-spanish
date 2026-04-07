@@ -17,6 +17,8 @@ const SILENCE_DURATION = 5000; // ms of silence before auto-stop
 export interface UseRecordingOptions {
   onRecordingComplete: (audioUri: string) => void;
   onError?: (message: string) => void;
+  /** Skip setAudioModeForRecording calls — caller manages audio session */
+  skipAudioModeChange?: boolean;
 }
 
 export interface UseRecordingReturn {
@@ -127,7 +129,9 @@ export const useRecording = (
 
     try {
       // Configure audio mode for recording
-      await setAudioModeForRecording(true);
+      if (!options.skipAudioModeChange) {
+        await setAudioModeForRecording(true);
+      }
 
       // Create recording with PCM format
       await recorder.prepareToRecordAsync(getRecordingConfig());
@@ -164,7 +168,9 @@ export const useRecording = (
 
       // Reset audio mode — this deactivates/reactivates the iOS audio
       // session to fully clear the PlayAndRecord pipeline.
-      await setAudioModeForRecording(false);
+      if (!options.skipAudioModeChange) {
+        await setAudioModeForRecording(false);
+      }
 
       // Notify completion with the audio URI
       if (audioUri && !userTrashed) {

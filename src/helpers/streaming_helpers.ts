@@ -227,15 +227,21 @@ export const playAudioFromStorage = async (
     currentPlayingSound = sound;
 
     sound.play();
-    // Unload sound when finished to free memory
-    const subscription = sound.addListener("playbackStatusUpdate", (status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        sound.remove();
-        subscription.remove();
-        if (currentPlayingSound === sound) {
-          currentPlayingSound = null;
-        }
-      }
+    // Wait for playback to finish, then clean up
+    return new Promise<void>((resolve) => {
+      const subscription = sound.addListener(
+        "playbackStatusUpdate",
+        (status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            sound.remove();
+            subscription.remove();
+            if (currentPlayingSound === sound) {
+              currentPlayingSound = null;
+            }
+            resolve();
+          }
+        },
+      );
     });
   } catch (err) {
     console.error("Error playing audio from storage:", err);

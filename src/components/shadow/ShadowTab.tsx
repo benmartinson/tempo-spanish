@@ -39,6 +39,7 @@ import { useRecording } from "../../hooks/useRecording";
 import {
   sendAudioForTranscription,
   uploadAudioToStorage,
+  deleteAudioFromStorage,
   playAudioFromStorage,
   playAiSpeech,
   playDing,
@@ -364,6 +365,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handleSaveRecording = async (audioUri: string) => {
     if (isTrimmingAudio) return;
     setIsTrimmingAudio(true);
+
+    // Delete the old recording from storage if one exists
+    if (currentRecordingId) {
+      deleteAudioFromStorage(currentRecordingId).catch((err) =>
+        console.error("Failed to delete old recording:", err),
+      );
+    }
+
     const recordingPath = await uploadAudioToStorage(
       audioUri,
       userId,
@@ -868,6 +877,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handlePlayUserRecording = useCallback(async () => {
     if (!currentRecordingId || isPlayingRecording) return;
 
+    const wasPlaying = playerIsPlaying;
+    if (wasPlaying) pausePlayer();
+
     setIsPlayingRecording(true);
     try {
       await playAudioFromStorage(currentRecordingId);
@@ -875,11 +887,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       console.error("Failed to play recording:", err);
       setError(err instanceof Error ? err.message : "Failed to play recording");
     } finally {
-      // Note: This will be set immediately, but the audio continues playing
-      // The playAudioFromStorage function handles cleanup when audio finishes
-      setTimeout(() => setIsPlayingRecording(false), 500);
+      setIsPlayingRecording(false);
+      if (wasPlaying) playSentence();
     }
-  }, [currentRecordingId, isPlayingRecording]);
+  }, [currentRecordingId, isPlayingRecording, playerIsPlaying, pausePlayer, playSentence]);
 
   const handleRetry = () => {
     const prevResult = accuracyResult;
@@ -907,8 +918,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [onReviewSegment, currentSentenceIndex, selectedTab]);
 
   const handlePreviousResults = () => {
-    console.log("handlePreviousResults");
     setAccuracyResult(previousResults);
+    if (previousResults?.recordingId) {
+      setCurrentRecordingId(previousResults.recordingId);
+    } else {
+      setAudioUri(null);
+    }
   };
 
   const handlePlayPhrase = (start, end, phraseIndex?: number) => {
@@ -1125,11 +1140,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                     onPress={handlePlayUserRecording}
                     disabled={isPlayingRecording}
                   >
-                    <MaterialIcons
-                      name={isPlayingRecording ? "pause" : "headphones"}
-                      size={20}
-                      color="#4a69bd"
-                    />
+                    {!isPlayingRecording && (
+                      <MaterialIcons
+                        name="play-arrow"
+                        size={20}
+                        color="#4a69bd"
+                      />
+                    )}
                     <Text style={styles.playRecordingButtonText}>
                       {isPlayingRecording ? "Playing..." : "Play Recording"}
                     </Text>

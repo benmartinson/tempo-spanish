@@ -16,6 +16,7 @@ export interface YouTubePlayerHandle {
   pause: () => void;
   play: () => void;
   seekTo: (time: number) => void;
+  seekAndPlay: (time: number) => void;
   setClip: (start: number, end: number) => void;
   setSpeed: (speed: number) => void;
   mute: () => void;
@@ -69,6 +70,12 @@ const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       play: () => playerRef.current?.playVideo(),
       pause: () => playerRef.current?.pauseVideo(),
       seekTo: (time: number) => playerRef.current?.seekTo(time, true),
+      seekAndPlay: (time: number) => {
+        playerRef.current?.seekTo(time, true);
+        if (playerRef.current?.getPlayerState() !== 1) {
+          playerRef.current?.playVideo();
+        }
+      },
       disableClipEnforcement: () => {
         clipEnforcementEnabledRef.current = false;
       },
@@ -152,7 +159,7 @@ const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
           width: "100%",
           playerVars: {
             autoplay: autoplay ? 1 : 0,
-            controls: 1,
+            controls: 0,
             start: Math.floor(start),
             rel: 0,
             playsinline: 1,
@@ -251,6 +258,11 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       seekTo: (time: number) => {
         webViewRef.current?.injectJavaScript(
           `try { if(typeof player !== 'undefined') player.seekTo(${time}, true); } catch(e) {} true;`,
+        );
+      },
+      seekAndPlay: (time: number) => {
+        webViewRef.current?.injectJavaScript(
+          `window.postMessage("SEEK_AND_PLAY:${time}", "*"); true;`,
         );
       },
       disableClipEnforcement: () => {

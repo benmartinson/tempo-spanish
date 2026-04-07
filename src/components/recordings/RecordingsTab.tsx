@@ -393,10 +393,9 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
       // playRecordingAtIndex will start both video and audio together
       const firstSentence = sentences[recordings[0].sentence];
       if (firstSentence) {
-        playerRef.current?.seekTo(firstSentence.start);
         // Wait for video to start playing before triggering the first recording
         waitingForVideoStart.current = true;
-        playerRef.current?.play();
+        playerRef.current?.seekAndPlay(firstSentence.start);
       }
     } catch (err) {
       console.error("Error loading recordings for playback:", err);
@@ -483,10 +482,9 @@ const RecordingsTab: React.FC<RecordingsTabProps> = ({
       playbackSpeedRef.current = speed;
       setPlayerSpeed(speed);
 
-      playerRef.current?.seekTo(sentence.start);
       // Wait for video to start playing before triggering the first recording
       waitingForVideoStart.current = true;
-      playerRef.current?.play();
+      playerRef.current?.seekAndPlay(sentence.start);
     } catch (err) {
       console.error("Error playing from recording:", err);
       setIsLoadingPlayback(false);

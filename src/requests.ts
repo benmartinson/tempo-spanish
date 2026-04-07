@@ -566,7 +566,7 @@ export const persistVideoUnselection = async ({
 export interface PersistUserUITabParams {
   supabase: any;
   userId: string | null;
-  currentTab: "watch" | "discuss" | "shadow" | "translate" | "speed-run" | "recordings";
+  currentTab: "watch" | "discuss" | "shadow" | "translate" | "speed-run" | "recordings" | "turns";
 }
 
 export const persistUserUITab = async ({

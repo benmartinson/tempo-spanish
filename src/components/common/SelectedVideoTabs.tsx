@@ -36,6 +36,7 @@ import ShadowTab from "../shadow/ShadowTab";
 import ReviewTab from "../discuss/ReviewTab";
 import TranslateTab from "../translate/TranslateTab";
 import RecordingsTab from "../recordings/RecordingsTab";
+import TurnTakingTab from "../turn-taking/TurnTakingTab";
 import {
   capitalize,
   isInterestingVocab,
@@ -52,7 +53,8 @@ interface SelectedVideoTabsProps {
     | "review"
     | "speed-run"
     | "translate"
-    | "recordings";
+    | "recordings"
+    | "turn-taking";
   onSelectNavTab: (
     tab:
       | "watch"
@@ -328,7 +330,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    setPlayerSpeed(1);
+    if (selectedNavTab !== "turn-taking") {
+      setPlayerSpeed(1);
+    }
     if (selectedNavTab !== "review" && selectedNavTab !== "translate") {
       setShowVideo(true);
     }
@@ -388,6 +392,11 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       }
       if (selectedNavTab === "shadow" || selectedNavTab === "review") {
         // playerRef.current?.pause();
+      } else if (selectedNavTab === "turn-taking") {
+        // Just advance the sentence index — video keeps playing freely
+        setCurrentSentence((prev) => prev + 1);
+        setTime(newTime);
+        return;
       } else {
         setCurrentSentence((prev) => prev + 1);
         setTime(newTime);
@@ -421,8 +430,23 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     prevTimeRef.current = -1;
     setPlayerIsPlaying(true);
     playerRef.current?.setClip(next?.start ?? 0, next?.end ?? 0);
-    playerRef.current?.seekTo(next?.start ?? 0);
-    playerRef.current?.play();
+    playerRef.current?.seekAndPlay(next?.start ?? 0);
+  }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
+
+  // Turn-taking variant: advances without setting clip end so the player flows freely
+  const handleNextSentenceFree = useCallback(() => {
+    if (currentSentenceObject?.index === currentVideo?.sentences.length - 1) {
+      return;
+    }
+
+    handleTransition();
+    const next = currentVideo?.sentences[currentSentenceObject?.index + 1];
+    setCurrentSentence(next?.index);
+    setTime(next?.start);
+    prevTimeRef.current = -1;
+    setPlayerIsPlaying(true);
+    playerRef.current?.disableClipEnforcement();
+    playerRef.current?.seekAndPlay(next?.start ?? 0);
   }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
 
   const handlePreviousSentence = useCallback(() => {
@@ -437,8 +461,22 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     prevTimeRef.current = -1;
     setPlayerIsPlaying(true);
     playerRef.current?.setClip(previous?.start ?? 0, previous?.end ?? 0);
-    playerRef.current?.seekTo(previous?.start ?? 0);
-    playerRef.current?.play();
+    playerRef.current?.seekAndPlay(previous?.start ?? 0);
+  }, [currentSentenceObject?.index, currentVideo?.sentences]);
+
+  const handlePreviousSentenceFree = useCallback(() => {
+    if (currentSentenceObject?.index === 0) {
+      return;
+    }
+    handleTransition();
+
+    const previous = currentVideo?.sentences[currentSentenceObject?.index - 1];
+    setCurrentSentence(previous?.index);
+    setTime(previous?.start);
+    prevTimeRef.current = -1;
+    setPlayerIsPlaying(true);
+    playerRef.current?.disableClipEnforcement();
+    playerRef.current?.seekAndPlay(previous?.start ?? 0);
   }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
   const handleReviewSegment = useCallback(
@@ -458,12 +496,13 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     currentClipSnippetRef.current = null;
     playerRef.current?.setClip(
       currentSentenceObject?.start ?? 0,
-      selectedNavTab === "watch" || selectedNavTab === "speed-run"
+      selectedNavTab === "watch" ||
+        selectedNavTab === "speed-run" ||
+        selectedNavTab === "turn-taking"
         ? undefined
         : (currentSentenceObject?.end ?? undefined),
     );
-    playerRef.current?.seekTo(currentSentenceObject?.start ?? 0);
-    playerRef.current?.play();
+    playerRef.current?.seekAndPlay(currentSentenceObject?.start ?? 0);
   }, [currentSentenceObject?.start]);
 
   const playClipSnippet = useCallback(
@@ -474,8 +513,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       prevTimeRef.current = -1;
       setPlayerIsPlaying(true);
       playerRef.current?.setClip(start, end);
-      playerRef.current?.seekTo(start);
-      playerRef.current?.play();
+      playerRef.current?.seekAndPlay(start);
     },
     [currentSentenceObject?.start],
   );
@@ -535,9 +573,12 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       if (!recordingsVideoShownRef.current) {
         setShowVideo(false);
       }
-    } else {
+    } else if (selectedNavTab !== "turn-taking") {
       recordingsVideoShownRef.current = false;
       unMutePlayer();
+      setShowVideo(true);
+    } else {
+      recordingsVideoShownRef.current = false;
       setShowVideo(true);
     }
   }, [selectedNavTab]);
@@ -581,7 +622,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const endTime =
     selectedNavTab !== "watch" &&
     selectedNavTab !== "speed-run" &&
-    selectedNavTab !== "recordings"
+    selectedNavTab !== "recordings" &&
+    selectedNavTab !== "turn-taking"
       ? currentSentenceObject?.end
       : undefined;
   return (
@@ -602,7 +644,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             start: currentSentenceObject?.start,
             end: endTime,
           }}
-          autoplay={selectedNavTab !== "recordings"}
+          autoplay={selectedNavTab === "shadow"}
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
           muted={playerMuted}
@@ -711,6 +753,26 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           />
         </View>
       )}
+
+      <View style={getTabStyle(selectedNavTab === "turn-taking")}>
+        <TurnTakingTab
+          time={time}
+          playKey={playKey}
+          playerSpeed={playerSpeed}
+          handleNextSentence={handleNextSentenceFree}
+          handlePreviousSentence={handlePreviousSentenceFree}
+          isActive={selectedNavTab === "turn-taking"}
+          playSentence={playSentence}
+          setPlayerSpeed={setPlayerSpeed}
+          pausePlayer={pausePlayer}
+          resumePlayer={playPlayer}
+          playerIsPlaying={playerIsPlaying}
+          mutePlayer={mutePlayer}
+          unMutePlayer={unMutePlayer}
+          orderedCharacters={orderedCharacters}
+          targetLanguage={userSettings.targetLanguage}
+        />
+      </View>
 
       {selectedNavTab === "translate" && (
         <View style={getTabStyle(selectedNavTab === "translate")}>
