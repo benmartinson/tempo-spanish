@@ -57,6 +57,7 @@ const TurnTakingTab: React.FC<TurnTakingTabProps> = ({
   playKey,
   playerSpeed,
   isActive = true,
+  playSentence,
   setPlayerSpeed,
   pausePlayer,
   resumePlayer,
@@ -74,10 +75,18 @@ const TurnTakingTab: React.FC<TurnTakingTabProps> = ({
 
   const [started, setStarted] = useState(false);
   const startIndexRef = useRef(0);
-
   // Cycle: 2 listen segments, then 1 user segment (period of 3)
   const isUserTurn =
     started && (currentSentenceIndex - startIndexRef.current) % 3 === 2;
+
+  // Countdown: show during the last listen segment before a user turn
+  const isPreUserTurn =
+    started && (currentSentenceIndex - startIndexRef.current) % 3 === 1;
+  const timeUntilEnd = currentSentence ? currentSentence.end - time : Infinity;
+  const countdown =
+    isPreUserTurn && timeUntilEnd <= 3 && timeUntilEnd > 0
+      ? Math.ceil(timeUntilEnd)
+      : null;
 
   const wasActiveRef = useRef(isActive);
   const prevSentenceIndexRef = useRef(currentSentenceIndex);
@@ -159,7 +168,7 @@ const TurnTakingTab: React.FC<TurnTakingTabProps> = ({
     setStarted(true);
     unMutePlayer();
     setPlayerSpeed(1);
-    resumePlayer();
+    playSentence();
   };
 
   // When sentence changes:
@@ -278,7 +287,11 @@ const TurnTakingTab: React.FC<TurnTakingTabProps> = ({
             { color: isUserTurn ? "#e67e22" : "#4CAF50" },
           ]}
         >
-          {isUserTurn ? "Your Turn — Speak!" : "Listen"}
+          {countdown !== null
+            ? `Starting turn in ${countdown}...`
+            : isUserTurn
+              ? "Your Turn — Speak!"
+              : "Listen"}
         </Text>
         {isUserTurn && <Text style={styles.speedBadge}>0.4x</Text>}
         {isRecording && <View style={styles.recordingDot} />}
@@ -292,6 +305,25 @@ const TurnTakingTab: React.FC<TurnTakingTabProps> = ({
         playKey={playKey}
         playerSpeed={playerSpeed}
       />
+
+      <View style={styles.controls}>
+        <TouchableOpacity
+          style={styles.stopButton}
+          onPress={async () => {
+            if (isRecording) {
+              await stopRecording();
+            }
+            await setAudioModeForRecording(false);
+            pausePlayer();
+            unMutePlayer();
+            setPlayerSpeed(1);
+            setStarted(false);
+          }}
+        >
+          <MaterialIcons name="stop" size={22} color="white" />
+          <Text style={styles.stopButtonText}>Stop</Text>
+        </TouchableOpacity>
+      </View>
 
       {results.length > 0 && (
         <ScrollView style={styles.resultsList}>
@@ -330,25 +362,6 @@ const TurnTakingTab: React.FC<TurnTakingTabProps> = ({
           ))}
         </ScrollView>
       )}
-
-      <View style={styles.controls}>
-        <TouchableOpacity
-          style={styles.stopButton}
-          onPress={async () => {
-            if (isRecording) {
-              await stopRecording();
-            }
-            await setAudioModeForRecording(false);
-            pausePlayer();
-            unMutePlayer();
-            setPlayerSpeed(1);
-            setStarted(false);
-          }}
-        >
-          <MaterialIcons name="stop" size={22} color="white" />
-          <Text style={styles.stopButtonText}>Stop</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
