@@ -250,6 +250,50 @@ export const playAudioFromStorage = async (
 };
 
 /**
+ * Play audio from a local file URI
+ */
+export const playLocalAudio = async (localUri: string): Promise<void> => {
+  try {
+    if (currentPlayingSound) {
+      currentPlayingSound.pause();
+      currentPlayingSound.remove();
+      currentPlayingSound = null;
+    }
+
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+    });
+
+    const sound = createAudioPlayer({
+      uri: localUri,
+    });
+
+    currentPlayingSound = sound;
+    sound.play();
+
+    return new Promise<void>((resolve) => {
+      const subscription = sound.addListener(
+        "playbackStatusUpdate",
+        (status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            sound.remove();
+            subscription.remove();
+            if (currentPlayingSound === sound) {
+              currentPlayingSound = null;
+            }
+            resolve();
+          }
+        },
+      );
+    });
+  } catch (err) {
+    console.error("Error playing local audio:", err);
+    throw err;
+  }
+};
+
+/**
  * Delete audio file from Supabase storage bucket
  * @param storagePath - The path of the file in the shadow_recordings bucket
  */

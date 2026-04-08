@@ -35,16 +35,16 @@ const TopNavBar: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
+      <View
         style={styles.leftFlagContainer}
-        onPress={() => setLanguageVisible(true)}
+        // onPress={() => setLanguageVisible(true)}
       >
-        <Text style={styles.countryFlag}>
+        {/* <Text style={styles.countryFlag}>
           {getFlagForLanguage(userSettings.targetLanguage)}
-        </Text>
-      </TouchableOpacity>
+        </Text> */}
+      </View>
       <View style={styles.titleContainer}>
-        <Text style={styles.appName}>Tempo</Text>
+        <Text style={styles.appName}>Tempo Spanish</Text>
         <MaterialCommunityIcons name="waves" size={24} color="#3d3a52" />
       </View>
       <TouchableOpacity
@@ -105,7 +105,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#f2f2f2",
     justifyContent: "center",
     alignItems: "center",
   },

@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
 import { MaterialIcons } from "@expo/vector-icons";
-import { capitalize } from "../../helpers/helpers";
+import { capitalize, stripPunctuation } from "../../helpers/helpers";
 import { evaluateVocabAnswer } from "../../requests";
 import SlideModal from "./SlideModal";
 
@@ -36,6 +36,28 @@ interface WordState {
     acceptedAnswers: string[];
   } | null;
 }
+
+const ContextSnippet: React.FC<{ sentenceText: string; word: string }> = ({
+  sentenceText,
+  word,
+}) => {
+  const words = sentenceText.split(/\s+/);
+  const idx = words.findIndex(
+    (w) =>
+      stripPunctuation(w).toLowerCase() ===
+      stripPunctuation(word).toLowerCase(),
+  );
+  if (idx === -1) return null;
+  const before = idx > 0 ? words[idx - 1] : "";
+  const after = idx < words.length - 1 ? words[idx + 1] : "";
+  return (
+    <Text style={styles.contextText}>
+      In Context: {before ? `${before} ` : ""}
+      <Text style={styles.contextWord}>{words[idx]}</Text>
+      {after ? ` ${after}` : ""}
+    </Text>
+  );
+};
 
 const GuessWordModal: React.FC<GuessWordModalProps> = ({
   visible,
@@ -156,11 +178,15 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
             </Text>
           </View>
         )}
-        <Text style={styles.vocabWord}>{capitalize(currentWord)}</Text>
+        <Text style={styles.vocabWord}>{capitalize(stripPunctuation(currentWord))}</Text>
 
         <Text style={styles.questionText}>
           Before seeing the translation, what do you think this word means?
         </Text>
+
+        {sentenceText && currentWord ? (
+          <ContextSnippet sentenceText={sentenceText} word={currentWord} />
+        ) : null}
 
         {onReplaySentence && (
           <TouchableOpacity
@@ -461,6 +487,15 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  contextText: {
+    fontSize: 15,
+    color: "#888",
+    textAlign: "center" as const,
+  },
+  contextWord: {
+    fontWeight: "700" as const,
+    color: "#222",
   },
 });
 

@@ -38,9 +38,7 @@ import SelectVideoPrompt from "../common/SelectVideoPrompt";
 import { useRecording } from "../../hooks/useRecording";
 import {
   sendAudioForTranscription,
-  uploadAudioToStorage,
-  deleteAudioFromStorage,
-  playAudioFromStorage,
+  playLocalAudio,
   playAiSpeech,
   playDing,
   playDingStop,
@@ -211,12 +209,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const isTransitioningRef = useRef<boolean>(false);
   const [nextSentenceCountdown, setNextSentenceCountdown] = useState<number>(0);
   const [hasPlayedSentence, setHasPlayedSentence] = useState<boolean>(false);
-  const [currentRecordingId, setCurrentRecordingId] = useState<string | null>(
-    null,
-  );
   const [isPlayingRecording, setIsPlayingRecording] = useState<boolean>(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
-  const [isTrimmingAudio, setIsTrimmingAudio] = useState<boolean>(false);
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
@@ -331,8 +325,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           setAccuracyResult(null);
         }
 
-        setPreviousResults({ ...accuracy, recordingId: result.recordingId });
-        setCurrentRecordingId(result.recordingId || null);
+        setPreviousResults({ ...accuracy, recordingId: null });
       } else {
         setPreviousResults(null);
         setAccuracyResult(null);
@@ -352,7 +345,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (hasPlayedSentence) {
       setHasPlayedSentence(false);
     }
-    setCurrentRecordingId(null);
+    setAudioUri(null);
     setIsPlayingRecording(false);
 
     return () => {
@@ -362,37 +355,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     };
   }, [currentSentenceIndex]);
 
-  const handleSaveRecording = async (audioUri: string) => {
-    if (isTrimmingAudio) return;
-    setIsTrimmingAudio(true);
-
-    // Delete the old recording from storage if one exists
-    if (currentRecordingId) {
-      deleteAudioFromStorage(currentRecordingId).catch((err) =>
-        console.error("Failed to delete old recording:", err),
-      );
-    }
-
-    const recordingPath = await uploadAudioToStorage(
-      audioUri,
-      userId,
-      currentVideo.recordId,
-      currentSentenceIndex,
-    );
-    setCurrentRecordingId(recordingPath);
-
-    await supabase.from("user_shadow_result").upsert(
-      {
-        user_id: userId,
-        video_id: parseInt(currentVideo.recordId),
-        sentence: currentSentenceIndex,
-        recording_id: recordingPath,
-        recording_speed: recordSpeed,
-      },
-      { onConflict: "user_id,video_id,sentence" },
-    );
-    setIsTrimmingAudio(false);
-  };
+  // Recording is kept locally only — no remote upload
 
   const playResultsReviewRef = useRef<
     (accuracy: AccuracyResult) => Promise<void>
@@ -440,13 +403,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
 
-        // Auto-save recording if enabled
-        if (
-          userSettings.autoSaveRecordings &&
-          userSettings.playVideoWhileRecording
-        ) {
-          await handleSaveRecording(safeUri);
-        }
       } catch (err) {
         console.error("Transcription error:", err);
         setError(
@@ -875,14 +831,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handlePlayUserRecording = useCallback(async () => {
-    if (!currentRecordingId || isPlayingRecording) return;
+    if (!audioUri || isPlayingRecording) return;
 
     const wasPlaying = playerIsPlaying;
     if (wasPlaying) pausePlayer();
 
     setIsPlayingRecording(true);
     try {
-      await playAudioFromStorage(currentRecordingId);
+      await playLocalAudio(audioUri);
     } catch (err) {
       console.error("Failed to play recording:", err);
       setError(err instanceof Error ? err.message : "Failed to play recording");
@@ -890,19 +846,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setIsPlayingRecording(false);
       if (wasPlaying) playSentence();
     }
-  }, [currentRecordingId, isPlayingRecording, playerIsPlaying, pausePlayer, playSentence]);
+  }, [audioUri, isPlayingRecording, playerIsPlaying, pausePlayer, playSentence]);
 
   const handleRetry = () => {
     const prevResult = accuracyResult;
     if (prevResult) {
       setPreviousResults({
         ...prevResult,
-        recordingId: currentRecordingId || null,
+        recordingId: null,
       });
     }
     setAccuracyResult(null);
     setUserAnswer("");
-    setCurrentRecordingId(null);
+    setAudioUri(null);
   };
 
   const handleReviewPreviousSegment = useCallback(() => {
@@ -919,11 +875,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handlePreviousResults = () => {
     setAccuracyResult(previousResults);
-    if (previousResults?.recordingId) {
-      setCurrentRecordingId(previousResults.recordingId);
-    } else {
-      setAudioUri(null);
-    }
+    setAudioUri(null);
   };
 
   const handlePlayPhrase = (start, end, phraseIndex?: number) => {
@@ -1086,39 +1038,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   onReviewSegment={
                     onReviewSegment ? handleReviewPreviousSegment : undefined
                   }
-                  hasUnsavedRecording={
-                    !currentRecordingId &&
-                    !!audioUri &&
-                    userSettings.playVideoWhileRecording
-                  }
-                  onSaveRecording={
-                    audioUri ? () => handleSaveRecording(audioUri) : undefined
-                  }
-                  showSaveRecordingsModal={userSettings.showSaveRecordingsModal}
-                  onSetAlwaysSave={() => {
-                    const newSettings = {
-                      ...userSettings,
-                      autoSaveRecordings: true,
-                    };
-                    dispatch(setUserSettings(newSettings));
-                    persistUserSettings({
-                      supabase,
-                      userId,
-                      settings: { autoSaveRecordings: true },
-                    });
-                  }}
-                  onSetDontAskAgain={() => {
-                    const newSettings = {
-                      ...userSettings,
-                      showSaveRecordingsModal: false,
-                    };
-                    dispatch(setUserSettings(newSettings));
-                    persistUserSettings({
-                      supabase,
-                      userId,
-                      settings: { showSaveRecordingsModal: false },
-                    });
-                  }}
+                  hasUnsavedRecording={false}
+                  onSaveRecording={undefined}
+                  showSaveRecordingsModal={false}
+                  onSetAlwaysSave={() => {}}
+                  onSetDontAskAgain={() => {}}
                 />
                 {nextSentenceCountdown > 0 && (
                   <View style={styles.nextSentenceCountdownRefContainer}>
@@ -1130,52 +1054,26 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               </>
             )
           )}
-          {/* Play user recording button - shown when a recording exists */}
-          {!isRecordingMode && !isProcessing && (
-            <>
-              {accuracyResult && currentRecordingId && (
-                <View style={styles.playRecordingContainer}>
-                  <TouchableOpacity
-                    style={styles.playRecordingButton}
-                    onPress={handlePlayUserRecording}
-                    disabled={isPlayingRecording}
-                  >
-                    {!isPlayingRecording && (
-                      <MaterialIcons
-                        name="play-arrow"
-                        size={20}
-                        color="#4a69bd"
-                      />
-                    )}
-                    <Text style={styles.playRecordingButtonText}>
-                      {isPlayingRecording ? "Playing..." : "Play Recording"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              {accuracyResult &&
-                !currentRecordingId &&
-                audioUri &&
-                userSettings.playVideoWhileRecording && (
-                  <View style={styles.playRecordingContainer}>
-                    {isTrimmingAudio ? (
-                      <Text style={styles.playRecordingButtonText}>
-                        Saving...
-                      </Text>
-                    ) : (
-                      <TouchableOpacity
-                        style={styles.playRecordingButton}
-                        onPress={() => handleSaveRecording(audioUri)}
-                        disabled={isTrimmingAudio}
-                      >
-                        <Text style={styles.playRecordingButtonText}>
-                          Save Recording for Playback
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+          {/* Play user recording button - shown when a local recording exists */}
+          {!isRecordingMode && !isProcessing && accuracyResult && audioUri && (
+            <View style={styles.playRecordingContainer}>
+              <TouchableOpacity
+                style={styles.playRecordingButton}
+                onPress={handlePlayUserRecording}
+                disabled={isPlayingRecording}
+              >
+                {!isPlayingRecording && (
+                  <MaterialIcons
+                    name="play-arrow"
+                    size={20}
+                    color="#4a69bd"
+                  />
                 )}
-            </>
+                <Text style={styles.playRecordingButtonText}>
+                  {isPlayingRecording ? "Playing..." : "Play Recording"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
           {!accuracyResult && !isProcessing && (
             <ContentTabBar
@@ -1200,6 +1098,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   playerSpeed={playerSpeed}
                   currentSentence={currentSentenceObject!}
                   playerIsPlaying={playerIsPlaying}
+                  disableGuessModal={isRecording}
                 />
               ) : selectedTab === "translate" ? (
                 <TranslateContent

@@ -15,6 +15,7 @@ interface MemorizeContentProps {
   playerSpeed?: number;
   currentSentence: Sentence;
   playerIsPlaying: boolean;
+  disableGuessModal?: boolean;
 }
 
 const MemorizeContent: React.FC<MemorizeContentProps> = ({
@@ -23,6 +24,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   playerSpeed,
   currentSentence,
   playerIsPlaying,
+  disableGuessModal = false,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -76,6 +78,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
         playerSpeed={playerSpeed}
         playerIsPlaying={playerIsPlaying}
         showFullText
+        disableGuessModal={disableGuessModal}
         onWordPress={(index) => {
           setRevealedWords((prev) => {
             const next = new Set(prev);

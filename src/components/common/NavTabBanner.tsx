@@ -23,7 +23,14 @@ import {
 } from "../../requests";
 import SlideModal from "./SlideModal";
 
-type NavTab = "watch" | "shadow" | "review" | "speed-run" | "translate" | "recordings" | "turn-taking";
+type NavTab =
+  | "watch"
+  | "shadow"
+  | "review"
+  | "speed-run"
+  | "translate"
+  | "recordings"
+  | "turn-taking";
 
 interface NavTabBannerProps {
   selectedTab: NavTab;
@@ -70,8 +77,8 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
 
   const tabs: { key: NavTab; label: string; icon: string }[] = [
     { key: "shadow", label: "Shadow", icon: "record-voice-over" },
-    { key: "turn-taking", label: "Turn Taking", icon: "swap-horiz" },
-    { key: "recordings", label: "Recordings", icon: "library-music" },
+    { key: "turn-taking", label: "Stream", icon: "swap-horiz" },
+    // { key: "recordings", label: "Recordings", icon: "library-music" },
     { key: "review", label: "Review", icon: "rate-review" },
   ];
 

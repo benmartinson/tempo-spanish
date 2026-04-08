@@ -28,6 +28,7 @@ interface FullSegmentTranscriptBubbleProps {
   blurredIndices?: Set<number>;
   playKey?: number;
   playerSpeed?: number;
+  disableGuessModal?: boolean;
 }
 
 const LINE_HEIGHT = 28;
@@ -48,6 +49,7 @@ const FullSegmentTranscriptBubble: React.FC<
   blurredIndices,
   playKey,
   playerSpeed = 1,
+  disableGuessModal = false,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -264,7 +266,7 @@ const FullSegmentTranscriptBubble: React.FC<
               onPress={() => {
                 if (isBlurred && onWordPress) {
                   onWordPress(index);
-                } else if (!isBlurred) {
+                } else if (!isBlurred && !disableGuessModal) {
                   handleSelectForReview(word);
                 }
               }}
