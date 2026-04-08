@@ -393,8 +393,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       if (selectedNavTab === "shadow" || selectedNavTab === "review") {
         // playerRef.current?.pause();
       } else if (selectedNavTab === "turn-taking") {
-        // Just advance the sentence index — video keeps playing freely
-        setCurrentSentence((prev) => prev + 1);
+        // TurnTakingTab handles all segment transitions via time-based detection
         setTime(newTime);
         return;
       } else {
@@ -769,6 +768,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           playerIsPlaying={playerIsPlaying}
           mutePlayer={mutePlayer}
           unMutePlayer={unMutePlayer}
+          advanceSentence={() => setCurrentSentence((prev) => prev + 1)}
           orderedCharacters={orderedCharacters}
           targetLanguage={userSettings.targetLanguage}
         />
