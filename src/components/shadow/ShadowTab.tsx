@@ -81,7 +81,7 @@ import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import RecordingControls from "../common/RecordingControls";
 import MemorizeContent from "../speed-run/MemorizeContent";
 import TranslateContent from "../translate/TranslateContent";
-import StreamContent from "./StreamContent";
+import ModeSwitcher from "./ModeSwitcher";
 
 interface ShadowTabProps {
   time: number;
@@ -108,7 +108,8 @@ interface ShadowTabProps {
   onAutoShadowHandled?: () => void;
   mutePlayer: () => void;
   unMutePlayer: () => void;
-  playStream: () => void;
+  shadowMode: "shadow" | "stream";
+  setShadowMode: (mode: "shadow" | "stream") => void;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -136,7 +137,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   onAutoShadowHandled,
   mutePlayer,
   unMutePlayer,
-  playStream,
+  shadowMode,
+  setShadowMode,
 }) => {
   const dispatch = useDispatch();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -228,6 +230,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showShadowInstructions, setShowShadowInstructions] =
     useState<boolean>(false);
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
+  const [showStreamRecordingTooltip, setShowStreamRecordingTooltip] = useState(false);
   const setSelectedTab = useCallback(
     (tab: ContentTab) => {
       dispatch(setCurrentShadowTab(tab));
@@ -617,6 +620,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   useEffect(() => {
     stopListening();
   }, [isActive]);
+
+  // Stop listening when switching to stream mode
+  useEffect(() => {
+    if (isListening && shadowMode === "stream") {
+      stopListening();
+    }
+  }, [shadowMode]);
 
   const justRecordedRef = useRef(false);
   const voiceInitiatedRecordRef = useRef(false);
@@ -1019,6 +1029,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               {/* <TouchableOpacity onPress={() => setShowTranslation(true)}>
                 <MaterialIcons name="translate" size={30} color="#222222" />
               </TouchableOpacity> */}
+              <ModeSwitcher mode={shadowMode} onModeChange={setShadowMode} />
               <SpeedDial
                 speed={recordSpeed}
                 onSpeedChange={(s) => {
@@ -1108,7 +1119,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 { key: "insights", label: "Insights" },
                 { key: "translate", label: "Translate" },
                 { key: "voice", label: "Voice" },
-                { key: "stream", label: "Stream" },
               ]}
               selectedTab={selectedTab}
               onSelectTab={(key) => setSelectedTab(key as ContentTab)}
@@ -1138,14 +1148,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   isRecording={isRecording}
                   playerSpeed={playerSpeed}
                 />
-              ) : selectedTab === "stream" ? (
-                <StreamContent
-                  isActive={selectedTab === "stream"}
-                  playerIsPlaying={playerIsPlaying}
-                  playStream={playStream}
-                  pausePlayer={pausePlayer}
-                  playSentence={playSentence}
-                />
               ) : (
                 <ScrollView
                   style={styles.transcriptContainer}
@@ -1170,6 +1172,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       playbackTime={time}
                       isRecordingMode={isRecordingMode}
                     />
+                  ) : shadowMode === "stream" ? (
+                    <View style={styles.streamDisabledContainer}>
+                      <Text style={styles.streamDisabledText}>
+                        Voice mode is disabled while in stream mode, switch back
+                        to shadow mode to activate
+                      </Text>
+                    </View>
                   ) : (
                     <VoiceCommands
                       isListening={isListening}
@@ -1252,6 +1261,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               handleResetAnswer();
             }}
             onMic={() => {
+              if (shadowMode === "stream") {
+                setShowStreamRecordingTooltip(true);
+                return;
+              }
               if (isRecordingMode) {
                 handleSubmitRecording();
               } else {
@@ -1291,6 +1304,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         >
           <Text style={styles.noVocabFoundTooltipText}>
             Vocab is in this segment or a previous segment
+          </Text>
+        </TooltipModal>
+      )}
+      {showStreamRecordingTooltip && (
+        <TooltipModal
+          isVisible={showStreamRecordingTooltip}
+          onRequestClose={() => setShowStreamRecordingTooltip(false)}
+        >
+          <Text style={styles.shadowInstructionsText}>
+            Recording is disabled while in stream mode, switch back to shadow
+            mode to activate
           </Text>
         </TooltipModal>
       )}
@@ -1354,6 +1378,18 @@ export const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     fontSize: 14,
+  },
+  streamDisabledContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  streamDisabledText: {
+    color: "#888",
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 20,
   },
   instructionText: {
     color: "#666",
