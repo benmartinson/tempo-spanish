@@ -242,12 +242,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                   </View>
                   <View style={styles.cardDivider} />
-                  <SettingRow
-                    label="Automatically Save Recordings"
-                    value={editedAutoSaveRecordings}
-                    onToggle={setEditedAutoSaveRecordings}
-                    isLast
-                  />
                 </>
               )}
             </View>

@@ -476,15 +476,14 @@ export const restoreUserUIState = async ({
       estimatedHours:
         uiState.estimated_hours ?? DEFAULT_USER_SETTINGS.estimatedHours,
       saveMemorizeDifficulty:
-        uiState.save_memorize_difficulty ?? DEFAULT_USER_SETTINGS.saveMemorizeDifficulty,
+        uiState.save_memorize_difficulty ??
+        DEFAULT_USER_SETTINGS.saveMemorizeDifficulty,
       defaultMemorizeDifficulty:
-        uiState.default_memorize_difficulty ?? DEFAULT_USER_SETTINGS.defaultMemorizeDifficulty,
+        uiState.default_memorize_difficulty ??
+        DEFAULT_USER_SETTINGS.defaultMemorizeDifficulty,
       playVideoWhileRecording:
-        uiState.play_video_while_recording ?? DEFAULT_USER_SETTINGS.playVideoWhileRecording,
-      autoSaveRecordings:
-        uiState.auto_save_recordings ?? DEFAULT_USER_SETTINGS.autoSaveRecordings,
-      showSaveRecordingsModal:
-        uiState.show_save_recordings_modal ?? DEFAULT_USER_SETTINGS.showSaveRecordingsModal,
+        uiState.play_video_while_recording ??
+        DEFAULT_USER_SETTINGS.playVideoWhileRecording,
     };
 
     if (uiState?.current_video) {
@@ -497,7 +496,12 @@ export const restoreUserUIState = async ({
 
       if (videoError || !videoRecord) {
         console.error("Error fetching video record:", videoError);
-        return { ...defaultResult, settings, currentShadowTab: uiState?.current_shadow_tab ?? null, memorizeDifficulty: uiState?.memorize_difficulty ?? null };
+        return {
+          ...defaultResult,
+          settings,
+          currentShadowTab: uiState?.current_shadow_tab ?? null,
+          memorizeDifficulty: uiState?.memorize_difficulty ?? null,
+        };
       }
 
       const { videoContext } = await fetchVideoContext({
@@ -516,7 +520,13 @@ export const restoreUserUIState = async ({
       };
     }
 
-    return { videoContext: null, currentTab: uiState?.current_tab, currentShadowTab: uiState?.current_shadow_tab ?? null, memorizeDifficulty: uiState?.memorize_difficulty ?? null, settings };
+    return {
+      videoContext: null,
+      currentTab: uiState?.current_tab,
+      currentShadowTab: uiState?.current_shadow_tab ?? null,
+      memorizeDifficulty: uiState?.memorize_difficulty ?? null,
+      settings,
+    };
   } catch (err) {
     console.error("Error restoring user UI state:", err);
     return defaultResult;
@@ -566,7 +576,14 @@ export const persistVideoUnselection = async ({
 export interface PersistUserUITabParams {
   supabase: any;
   userId: string | null;
-  currentTab: "watch" | "discuss" | "shadow" | "translate" | "speed-run" | "recordings" | "turns";
+  currentTab:
+    | "watch"
+    | "discuss"
+    | "shadow"
+    | "translate"
+    | "speed-run"
+    | "recordings"
+    | "turns";
 }
 
 export const persistUserUITab = async ({
@@ -597,12 +614,14 @@ export const persistMemorizeDifficulty = async ({
 }): Promise<void> => {
   if (!supabase || !userId) return;
 
-  const { error } = await supabase
-    .from("user_ui_state")
-    .upsert(
-      { user_id: userId, memorize_difficulty: memorizeDifficulty, updated_at: new Date() },
-      { onConflict: "user_id" },
-    );
+  const { error } = await supabase.from("user_ui_state").upsert(
+    {
+      user_id: userId,
+      memorize_difficulty: memorizeDifficulty,
+      updated_at: new Date(),
+    },
+    { onConflict: "user_id" },
+  );
 
   if (error) console.error("Error persisting memorize difficulty:", error);
 };
@@ -618,12 +637,14 @@ export const persistCurrentShadowTab = async ({
 }): Promise<void> => {
   if (!supabase || !userId) return;
 
-  const { error } = await supabase
-    .from("user_ui_state")
-    .upsert(
-      { user_id: userId, current_shadow_tab: currentShadowTab, updated_at: new Date() },
-      { onConflict: "user_id" },
-    );
+  const { error } = await supabase.from("user_ui_state").upsert(
+    {
+      user_id: userId,
+      current_shadow_tab: currentShadowTab,
+      updated_at: new Date(),
+    },
+    { onConflict: "user_id" },
+  );
 
   if (error) console.error("Error persisting shadow tab:", error);
 };
@@ -646,7 +667,8 @@ export const persistUserSettings = async ({
   if (settings.playbackSpeed !== undefined)
     updateData.playback_speed = settings.playbackSpeed;
   if (settings.playbackSpeedDuringRecording !== undefined)
-    updateData.playback_speed_during_recording = settings.playbackSpeedDuringRecording;
+    updateData.playback_speed_during_recording =
+      settings.playbackSpeedDuringRecording;
   if (settings.showWordsHints !== undefined)
     updateData.show_word_hints = settings.showWordsHints;
   if (settings.showCharacters !== undefined)
@@ -667,10 +689,6 @@ export const persistUserSettings = async ({
     updateData.default_memorize_difficulty = settings.defaultMemorizeDifficulty;
   if (settings.playVideoWhileRecording !== undefined)
     updateData.play_video_while_recording = settings.playVideoWhileRecording;
-  if (settings.autoSaveRecordings !== undefined)
-    updateData.auto_save_recordings = settings.autoSaveRecordings;
-  if (settings.showSaveRecordingsModal !== undefined)
-    updateData.show_save_recordings_modal = settings.showSaveRecordingsModal;
 
   const { error } = await supabase
     .from("user_ui_state")
