@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "Tempo Spanish",
+    name: "Shadow Spanish",
     slug: "tempo-spanish",
     version: "1.0.0",
     orientation: "portrait",
