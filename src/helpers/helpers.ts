@@ -107,7 +107,9 @@ export const ignoreVocab = [
 export const addEllipsis = (text: string, sentenceText?: string) => {
   const ref = sentenceText ?? text;
   const firstChar = ref.trimStart()[0];
-  const needsLeading = firstChar ? firstChar !== firstChar.toUpperCase() : false;
+  const needsLeading = firstChar
+    ? firstChar !== firstChar.toUpperCase()
+    : false;
   const lastWord = ref.trimEnd().split(" ").pop() ?? "";
   const needsTrailing = lastWord.includes(",");
   let result = text;
@@ -953,3 +955,24 @@ function _tryStealBetterMatch(
     matchedScoreDelta,
   };
 }
+
+export const hasUnnaturalSpeechTiming = (words: SegmentWord[]) => {
+  console.log({ words });
+  let sameTimeCount = 0;
+  for (let x = 0; x < words.length; ++x) {
+    if (x === 0) continue;
+    if (words[x].start === words[x - 1].start) {
+      ++sameTimeCount;
+      if (sameTimeCount === 3) {
+        return true;
+      }
+    } else {
+      sameTimeCount === 0;
+    }
+
+    if (words[x].start - words[x - 1].start > 4) {
+      return true;
+    }
+  }
+  return false;
+};

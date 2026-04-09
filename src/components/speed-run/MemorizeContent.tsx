@@ -34,18 +34,33 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const userSettings = useSelector((state: RootState) => state.userSettings);
-  const savedDifficulty = useSelector((state: RootState) => state.memorizeDifficulty);
+  const savedDifficulty = useSelector(
+    (state: RootState) => state.memorizeDifficulty,
+  );
   const difficulty = userSettings.saveMemorizeDifficulty
     ? savedDifficulty
     : localDifficulty;
-  const setDifficulty = useCallback((d: number) => {
-    if (userSettings.saveMemorizeDifficulty) {
-      dispatch(setMemorizeDifficulty(d));
-      persistMemorizeDifficulty({ supabase, userId: userId ?? null, memorizeDifficulty: d });
-    } else {
-      onLocalDifficultyChange(d);
-    }
-  }, [dispatch, supabase, userId, userSettings.saveMemorizeDifficulty, onLocalDifficultyChange]);
+  const setDifficulty = useCallback(
+    (d: number) => {
+      if (userSettings.saveMemorizeDifficulty) {
+        dispatch(setMemorizeDifficulty(d));
+        persistMemorizeDifficulty({
+          supabase,
+          userId: userId ?? null,
+          memorizeDifficulty: d,
+        });
+      } else {
+        onLocalDifficultyChange(d);
+      }
+    },
+    [
+      dispatch,
+      supabase,
+      userId,
+      userSettings.saveMemorizeDifficulty,
+      onLocalDifficultyChange,
+    ],
+  );
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
 
   const maskedIndices = useMemo(() => {

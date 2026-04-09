@@ -56,6 +56,7 @@ import {
   splitIntoSentences,
   determineCefrLevel,
   CEFR_COLORS,
+  hasUnnaturalSpeechTiming,
 } from "../../helpers/helpers";
 import ShadowResults from "./ShadowResults";
 import TooltipModal from "../common/TooltipModal";
@@ -198,6 +199,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   );
   useEffect(() => {
     setLocalDifficulty(userSettings.defaultMemorizeDifficulty);
+    setError(null);
   }, [currentSentenceIndex]);
 
   // Recording and transcription state
@@ -254,6 +256,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setReplayingPhraseIndex(null);
     }
   }, [playerIsPlaying]);
+
+  useEffect(() => {
+    if (
+      currentSentenceObject?.words.length &&
+      hasUnnaturalSpeechTiming(currentSentenceObject.words)
+    ) {
+      setError(
+        "This segment has been flagged for having unnaturally long pauses in speech. Possibly due to the transcript data being incorrectly processed.",
+      );
+    }
+  }, [currentSentenceObject]);
 
   const subSegments = useMemo(
     () => computeSubSegments(currentSentenceObject?.words ?? []),
@@ -410,7 +423,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         }
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
-
       } catch (err) {
         console.error("Transcription error:", err);
         setError(
@@ -854,7 +866,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setIsPlayingRecording(false);
       if (wasPlaying) playSentence();
     }
-  }, [audioUri, isPlayingRecording, playerIsPlaying, pausePlayer, playSentence]);
+  }, [
+    audioUri,
+    isPlayingRecording,
+    playerIsPlaying,
+    pausePlayer,
+    playSentence,
+  ]);
 
   const handleRetry = () => {
     const prevResult = accuracyResult;
@@ -1071,11 +1089,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 disabled={isPlayingRecording}
               >
                 {!isPlayingRecording && (
-                  <MaterialIcons
-                    name="play-arrow"
-                    size={20}
-                    color="#4a69bd"
-                  />
+                  <MaterialIcons name="play-arrow" size={20} color="#4a69bd" />
                 )}
                 <Text style={styles.playRecordingButtonText}>
                   {isPlayingRecording ? "Playing..." : "Play Recording"}
