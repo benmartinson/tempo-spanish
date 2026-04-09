@@ -330,6 +330,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const stallTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startStallTimerRef = useRef<() => void>(() => {});
+  const streamModeRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (selectedNavTab !== "turn-taking") {
@@ -396,7 +397,11 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         pausePlayer();
         return;
       }
-      if (selectedNavTab === "shadow" || selectedNavTab === "review") {
+      if (selectedNavTab === "shadow" && streamModeRef.current) {
+        setCurrentSentence((prev) => prev + 1);
+        setTime(newTime);
+        return;
+      } else if (selectedNavTab === "shadow" || selectedNavTab === "review") {
         // playerRef.current?.pause();
       } else if (selectedNavTab === "turn-taking") {
         // TurnTakingTab handles all segment transitions via time-based detection
@@ -496,6 +501,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   );
 
   const playSentence = useCallback(() => {
+    streamModeRef.current = false;
     handleTransition();
     setAutoplay(true);
     setTime(currentSentenceObject?.start);
@@ -511,6 +517,20 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         ? undefined
         : (currentSentenceObject?.end ?? undefined),
     );
+    playerRef.current?.seekAndPlay(currentSentenceObject?.start ?? 0);
+    startStallTimerRef.current();
+  }, [currentSentenceObject?.start]);
+
+  const playStream = useCallback(() => {
+    streamModeRef.current = true;
+    handleTransition();
+    setAutoplay(true);
+    setTime(currentSentenceObject?.start);
+    setPlayKey((k) => k + 1);
+    prevTimeRef.current = -1;
+    setPlayerIsPlaying(true);
+    currentClipSnippetRef.current = null;
+    playerRef.current?.disableClipEnforcement();
     playerRef.current?.seekAndPlay(currentSentenceObject?.start ?? 0);
     startStallTimerRef.current();
   }, [currentSentenceObject?.start]);
@@ -711,6 +731,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           onAutoShadowHandled={() => setAutoShadowDetails(null)}
           mutePlayer={mutePlayer}
           unMutePlayer={unMutePlayer}
+          playStream={playStream}
         />
       </View>
       <View style={getTabStyle(selectedNavTab === "speed-run")}>

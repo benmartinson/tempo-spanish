@@ -78,7 +78,7 @@ export interface RootState {
   currentSearchResults: Segment[];
   isSearching: boolean;
   hasSearched: boolean;
-  currentShadowTab: "insights" | "memorize" | "translate" | "voice";
+  currentShadowTab: "insights" | "memorize" | "translate" | "voice" | "stream";
   memorizeDifficulty: number;
   userSettings: UserSettings;
   cachedResponses: CachedResponse[];
@@ -350,3 +350,10 @@ export interface UserUIState {
   default_memorize_difficulty: number | null;
   play_video_while_recording: boolean | null;
 }
+
+export type ContentTab =
+  | "insights"
+  | "memorize"
+  | "translate"
+  | "voice"
+  | "stream";

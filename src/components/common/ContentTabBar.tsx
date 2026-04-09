@@ -70,6 +70,7 @@ const styles = StyleSheet.create({
   },
   tabBarContent: {
     flexDirection: "row",
+    paddingRight: 16,
   },
   tab: {
     paddingVertical: 8,

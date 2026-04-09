@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { VoiceCommand } from "../../types";
+import ActivateModeButton from "../common/ActivateModeButton";
 
 export interface CommandEntry {
   command: VoiceCommand;
@@ -62,9 +63,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         <Text style={styles.statusText}>
           Speech recognition permission is required for voice commands.
         </Text>
-        <TouchableOpacity onPress={() => Linking.openSettings()}>
-          <Text style={styles.activateText}>Open Settings</Text>
-        </TouchableOpacity>
+        <ActivateModeButton label="Open Settings" onPress={() => Linking.openSettings()} />
       </View>
     );
   }
@@ -98,9 +97,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   if (timedOut || !isListening) {
     return (
       <View style={styles.container}>
-        <TouchableOpacity onPress={onActivate}>
-          <Text style={styles.activateText}>Activate Voice Mode</Text>
-        </TouchableOpacity>
+        <ActivateModeButton label="Activate Voice Mode" onPress={onActivate} />
       </View>
     );
   }
@@ -186,14 +183,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#ef4444",
     textAlign: "center",
-    paddingVertical: 20,
-  },
-  activateText: {
-    fontSize: 14,
-    color: "#4a69bd",
-    fontWeight: "600",
-    textAlign: "center",
-    textDecorationLine: "underline",
     paddingVertical: 20,
   },
   showMoreText: {

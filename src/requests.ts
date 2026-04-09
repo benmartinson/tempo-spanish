@@ -10,6 +10,7 @@ import {
   UserUIState,
   UserSettings,
   DEFAULT_USER_SETTINGS,
+  ContentTab,
 } from "./types";
 import { cachedResponses, splitSegmentsIntoSentences } from "./helpers/helpers";
 import { setCachedResponses } from "./store/actions/dataActions";
@@ -419,7 +420,7 @@ export interface RestoreUserUIStateParams {
 export interface RestoreUserUIStateResult {
   videoContext: VideoContext | null;
   currentTab: "watch" | "discuss" | "shadow" | "translate" | "speed-run" | null;
-  currentShadowTab: "insights" | "memorize" | "translate" | "voice" | null;
+  currentShadowTab: ContentTab;
   memorizeDifficulty: number | null;
   settings: UserSettings;
 }
@@ -633,7 +634,7 @@ export const persistCurrentShadowTab = async ({
 }: {
   supabase: any;
   userId: string | null;
-  currentShadowTab: "insights" | "memorize" | "translate" | "voice";
+  currentShadowTab: ContentTab;
 }): Promise<void> => {
   if (!supabase || !userId) return;
 

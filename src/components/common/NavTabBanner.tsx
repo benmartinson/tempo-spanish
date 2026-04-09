@@ -98,7 +98,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
       </TouchableOpacity>
 
       <View style={styles.centerArea}>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           ref={selectorRef}
           style={styles.tabSelector}
           onPress={handleOpenDropdown}
@@ -115,7 +115,7 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
             size={20}
             color="#888"
           />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       <TouchableOpacity

@@ -2,6 +2,7 @@ import {
   CachedResponse,
   Channel,
   ChannelTopic,
+  ContentTab,
   DataAction,
   FocusSentence,
   Segment,
@@ -65,7 +66,9 @@ export const setAllTopics = (topics: Topic[]): DataAction => ({
   payload: topics,
 });
 
-export const setChannelTopics = (channelTopics: ChannelTopic[]): DataAction => ({
+export const setChannelTopics = (
+  channelTopics: ChannelTopic[],
+): DataAction => ({
   type: "SET_CHANNEL_TOPICS",
   payload: channelTopics,
 });
@@ -164,9 +167,7 @@ export const setCachedResponses = (
   payload: responses,
 });
 
-export const setCurrentShadowTab = (
-  tab: "insights" | "memorize" | "translate" | "voice",
-): DataAction => ({
+export const setCurrentShadowTab = (tab: ContentTab): DataAction => ({
   type: "SET_CURRENT_SHADOW_TAB",
   payload: tab,
 });

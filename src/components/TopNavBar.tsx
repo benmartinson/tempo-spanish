@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useSelector } from "react-redux";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import AppIcon from "./common/AppIcon";
 import SlideModal from "./common/SlideModal";
 import LanguageModal from "./settings/LanguageModal";
 import { RootState } from "../types";
@@ -44,8 +44,8 @@ const TopNavBar: React.FC = () => {
         </Text> */}
       </View>
       <View style={styles.titleContainer}>
+        <AppIcon size={20} />
         <Text style={styles.appName}>Tempo Spanish</Text>
-        <MaterialCommunityIcons name="waves" size={24} color="#3d3a52" />
       </View>
       <TouchableOpacity
         style={styles.avatarButton}

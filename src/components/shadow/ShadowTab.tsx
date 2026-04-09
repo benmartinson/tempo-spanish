@@ -30,6 +30,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import {
   AutoReviewDetails,
   AutoShadowDetails,
+  ContentTab,
   RootState,
   SegmentWord,
   VoiceCommand,
@@ -80,6 +81,7 @@ import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import RecordingControls from "../common/RecordingControls";
 import MemorizeContent from "../speed-run/MemorizeContent";
 import TranslateContent from "../translate/TranslateContent";
+import StreamContent from "./StreamContent";
 
 interface ShadowTabProps {
   time: number;
@@ -106,6 +108,7 @@ interface ShadowTabProps {
   onAutoShadowHandled?: () => void;
   mutePlayer: () => void;
   unMutePlayer: () => void;
+  playStream: () => void;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -133,6 +136,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   onAutoShadowHandled,
   mutePlayer,
   unMutePlayer,
+  playStream,
 }) => {
   const dispatch = useDispatch();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -225,7 +229,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     useState<boolean>(false);
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
   const setSelectedTab = useCallback(
-    (tab: "insights" | "memorize" | "translate" | "voice") => {
+    (tab: ContentTab) => {
       dispatch(setCurrentShadowTab(tab));
       persistCurrentShadowTab({
         supabase,
@@ -1104,13 +1108,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 { key: "insights", label: "Insights" },
                 { key: "translate", label: "Translate" },
                 { key: "voice", label: "Voice" },
+                { key: "stream", label: "Stream" },
               ]}
               selectedTab={selectedTab}
-              onSelectTab={(key) =>
-                setSelectedTab(
-                  key as "insights" | "memorize" | "translate" | "voice",
-                )
-              }
+              onSelectTab={(key) => setSelectedTab(key as ContentTab)}
               hidden={false}
             >
               {selectedTab === "memorize" ? (
@@ -1136,6 +1137,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   playKey={playKey}
                   isRecording={isRecording}
                   playerSpeed={playerSpeed}
+                />
+              ) : selectedTab === "stream" ? (
+                <StreamContent
+                  isActive={selectedTab === "stream"}
+                  playerIsPlaying={playerIsPlaying}
+                  playStream={playStream}
+                  pausePlayer={pausePlayer}
+                  playSentence={playSentence}
                 />
               ) : (
                 <ScrollView
