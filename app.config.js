@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "Shadow Spanish",
+    name: "Tempo",
     slug: "rn-starter",
     version: "1.0.0",
     orientation: "portrait",
