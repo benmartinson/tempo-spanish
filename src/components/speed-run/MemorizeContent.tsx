@@ -16,6 +16,8 @@ interface MemorizeContentProps {
   currentSentence: Sentence;
   playerIsPlaying: boolean;
   disableGuessModal?: boolean;
+  localDifficulty: number;
+  onLocalDifficultyChange: (d: number) => void;
 }
 
 const MemorizeContent: React.FC<MemorizeContentProps> = ({
@@ -25,16 +27,25 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   currentSentence,
   playerIsPlaying,
   disableGuessModal = false,
+  localDifficulty,
+  onLocalDifficultyChange,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
-  const difficulty = useSelector((state: RootState) => state.memorizeDifficulty);
   const userSettings = useSelector((state: RootState) => state.userSettings);
+  const savedDifficulty = useSelector((state: RootState) => state.memorizeDifficulty);
+  const difficulty = userSettings.saveMemorizeDifficulty
+    ? savedDifficulty
+    : localDifficulty;
   const setDifficulty = useCallback((d: number) => {
-    dispatch(setMemorizeDifficulty(d));
-    persistMemorizeDifficulty({ supabase, userId: userId ?? null, memorizeDifficulty: d });
-  }, [dispatch, supabase, userId]);
+    if (userSettings.saveMemorizeDifficulty) {
+      dispatch(setMemorizeDifficulty(d));
+      persistMemorizeDifficulty({ supabase, userId: userId ?? null, memorizeDifficulty: d });
+    } else {
+      onLocalDifficultyChange(d);
+    }
+  }, [dispatch, supabase, userId, userSettings.saveMemorizeDifficulty, onLocalDifficultyChange]);
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
 
   const maskedIndices = useMemo(() => {
@@ -60,12 +71,9 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     return masked;
   }, [currentSentence.words, difficulty, revealedWords]);
 
-  // Reset revealed words (and difficulty if not saved) on segment change
+  // Reset revealed words on segment change
   useEffect(() => {
     setRevealedWords(new Set());
-    if (!userSettings.saveMemorizeDifficulty) {
-      setDifficulty(userSettings.defaultMemorizeDifficulty);
-    }
   }, [currentSentence.index]);
 
   return (

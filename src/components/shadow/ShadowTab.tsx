@@ -192,6 +192,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     userSettings.showPhrases,
   );
 
+  // Local difficulty state — survives tab switches, resets on segment change
+  const [localDifficulty, setLocalDifficulty] = useState<number>(
+    userSettings.defaultMemorizeDifficulty,
+  );
+  useEffect(() => {
+    setLocalDifficulty(userSettings.defaultMemorizeDifficulty);
+  }, [currentSentenceIndex]);
+
   // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -1099,6 +1107,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   currentSentence={currentSentenceObject!}
                   playerIsPlaying={playerIsPlaying}
                   disableGuessModal={isRecording}
+                  localDifficulty={localDifficulty}
+                  onLocalDifficultyChange={setLocalDifficulty}
                 />
               ) : selectedTab === "translate" ? (
                 <TranslateContent
