@@ -328,6 +328,8 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   const prevTimeRef = useRef<number>(-1);
   const isTransitioningRef = useRef<boolean>(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const stallTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const startStallTimerRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (selectedNavTab !== "turn-taking") {
@@ -345,6 +347,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, [isKeyboardVisible]);
 
   const handleSetTime = (newTime: number, force = false) => {
+    if (stallTimerRef.current) {
+      clearTimeout(stallTimerRef.current);
+      stallTimerRef.current = null;
+    }
     if (isTransitioningRef.current && !force) return;
 
     // During recordings playback, just update time without sentence transitions
@@ -430,6 +436,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     setPlayerIsPlaying(true);
     playerRef.current?.setClip(next?.start ?? 0, next?.end ?? 0);
     playerRef.current?.seekAndPlay(next?.start ?? 0);
+    startStallTimerRef.current();
   }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
 
   // Turn-taking variant: advances without setting clip end so the player flows freely
@@ -446,6 +453,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     setPlayerIsPlaying(true);
     playerRef.current?.disableClipEnforcement();
     playerRef.current?.seekAndPlay(next?.start ?? 0);
+    startStallTimerRef.current();
   }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
 
   const handlePreviousSentence = useCallback(() => {
@@ -461,6 +469,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     setPlayerIsPlaying(true);
     playerRef.current?.setClip(previous?.start ?? 0, previous?.end ?? 0);
     playerRef.current?.seekAndPlay(previous?.start ?? 0);
+    startStallTimerRef.current();
   }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
   const handlePreviousSentenceFree = useCallback(() => {
@@ -476,6 +485,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     setPlayerIsPlaying(true);
     playerRef.current?.disableClipEnforcement();
     playerRef.current?.seekAndPlay(previous?.start ?? 0);
+    startStallTimerRef.current();
   }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
   const handleReviewSegment = useCallback(
@@ -502,6 +512,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
         : (currentSentenceObject?.end ?? undefined),
     );
     playerRef.current?.seekAndPlay(currentSentenceObject?.start ?? 0);
+    startStallTimerRef.current();
   }, [currentSentenceObject?.start]);
 
   const playClipSnippet = useCallback(
@@ -513,6 +524,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
       setPlayerIsPlaying(true);
       playerRef.current?.setClip(start, end);
       playerRef.current?.seekAndPlay(start);
+      startStallTimerRef.current();
     },
     [currentSentenceObject?.start],
   );
@@ -528,6 +540,16 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     }
     dispatch(refreshVideoPlayerAction());
   }, [dispatch, currentSentenceObject?.start]);
+
+  const startStallTimer = useCallback(() => {
+    if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+    stallTimerRef.current = setTimeout(() => {
+      stallTimerRef.current = null;
+      console.log("Playback stall detected — refreshing player");
+      refreshPlayer();
+    }, 3000);
+  }, [refreshPlayer]);
+  startStallTimerRef.current = startStallTimer;
 
   const handlePlayClip = useCallback((start) => {
     console.log("playing clip", start);

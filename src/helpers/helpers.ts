@@ -957,7 +957,6 @@ function _tryStealBetterMatch(
 }
 
 export const hasUnnaturalSpeechTiming = (words: SegmentWord[]) => {
-  console.log({ words });
   let sameTimeCount = 0;
   for (let x = 0; x < words.length; ++x) {
     if (x === 0) continue;
