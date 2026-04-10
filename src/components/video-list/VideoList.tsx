@@ -15,6 +15,7 @@ import {
   addUserVideoView,
   setCurrentTab,
   setCurrentVideo,
+  setSelectedChannelId,
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
@@ -34,7 +35,9 @@ const VideoList: React.FC = () => {
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const [loadingVideo, setLoadingVideo] = useState(false);
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const selectedChannelId = useSelector(
+    (state: RootState) => state.selectedChannelId,
+  );
   const [activeTab, setActiveTab] = useState<"videos" | "guided">("videos");
   const currentSearchResults = useSelector(
     (state: RootState) => state.currentSearchResults,
@@ -42,6 +45,9 @@ const VideoList: React.FC = () => {
   const isSearching = useSelector((state: RootState) => state.isSearching);
   const hasSearched = useSelector((state: RootState) => state.hasSearched);
   const allChannels = useSelector((state: RootState) => state.allChannels);
+  const selectedChannel = allChannels.find(
+    (c) => c.channel_id === selectedChannelId,
+  ) ?? null;
   const allTopics = useSelector((state: RootState) => state.allTopics);
   const channelTopics = useSelector((state: RootState) => state.channelTopics);
   const allVideos = useSelector((state: RootState) => state.allVideos);
@@ -156,7 +162,7 @@ const VideoList: React.FC = () => {
         videos={channelVideos}
         handleWatchPress={handleWatchPress}
         loadingVideo={loadingVideo}
-        onBack={() => setSelectedChannel(null)}
+        onBack={() => dispatch(setSelectedChannelId(null))}
       />
     );
   }
@@ -284,7 +290,7 @@ const VideoList: React.FC = () => {
                       <View key={channel.id} style={styles.channelContainer}>
                         <TouchableOpacity
                           style={styles.channelHeader}
-                          onPress={() => setSelectedChannel(channel)}
+                          onPress={() => dispatch(setSelectedChannelId(channel.channel_id))}
                         >
                           <Image
                             source={{ uri: channel.thumbnail_url }}
@@ -317,7 +323,7 @@ const VideoList: React.FC = () => {
                           videos={channelVideos}
                           handleWatchPress={handleWatchPress}
                           loadingVideo={loadingVideo}
-                          onViewAll={() => setSelectedChannel(channel)}
+                          onViewAll={() => dispatch(setSelectedChannelId(channel.channel_id))}
                         />
                       </View>
                     );

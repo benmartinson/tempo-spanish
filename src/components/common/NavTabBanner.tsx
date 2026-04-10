@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setCurrentVideo,
   setCurrentTab,
+  setSelectedChannelId,
 } from "../../store/actions/dataActions";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -22,6 +23,7 @@ import {
   persistVideoUnselection,
 } from "../../requests";
 import SlideModal from "./SlideModal";
+import VideoInsights from "./VideoInsights";
 
 type NavTab =
   | "watch"
@@ -45,7 +47,10 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const allVideos = useSelector((state: RootState) => state.allVideos);
+  const video = allVideos.find((v) => v.video_id === currentVideo?.videoId);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const { signOut } = useClerk();
   const { user } = useUser();
@@ -91,131 +96,147 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
     });
   };
 
+  const handleSeeAllVideos = async () => {
+    setInsightsOpen(false);
+    if (video?.channel_id) {
+      dispatch(setSelectedChannelId(video.channel_id));
+    }
+    await handleBackPress();
+  };
+
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-        <MaterialIcons name="arrow-back" size={22} color="#666" />
-      </TouchableOpacity>
+    <>
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+          <MaterialIcons name="arrow-back" size={22} color="#666" />
+        </TouchableOpacity>
 
-      <View style={styles.centerArea}>
-        {/* <TouchableOpacity
-          ref={selectorRef}
-          style={styles.tabSelector}
-          onPress={handleOpenDropdown}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons
-            name={currentTab.icon as any}
-            size={18}
-            color="#3d3a52"
-          />
-          <Text style={styles.selectedTabText}>{currentTab.label}</Text>
-          <MaterialIcons
-            name={dropdownOpen ? "expand-less" : "expand-more"}
-            size={20}
-            color="#888"
-          />
-        </TouchableOpacity> */}
-      </View>
-
-      <TouchableOpacity
-        style={styles.profileButton}
-        onPress={() => setProfileVisible(true)}
-      >
-        <Ionicons name="person" size={16} color="#5a5680" />
-      </TouchableOpacity>
-
-      <Modal
-        visible={dropdownOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDropdownOpen(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setDropdownOpen(false)}>
-          <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.dropdown,
-                {
-                  top: dropdownPosition.y,
-                  left: dropdownPosition.x + dropdownPosition.width / 2 - 90,
-                },
-              ]}
-            >
-              {tabs.map((tab, index) => (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[
-                    styles.dropdownItem,
-                    selectedTab === tab.key && styles.dropdownItemSelected,
-                    selectedTab === tab.key &&
-                      index === 0 && {
-                        borderTopLeftRadius: 4,
-                        borderTopRightRadius: 4,
-                      },
-                    selectedTab === tab.key &&
-                      index === tabs.length - 1 && {
-                        borderBottomLeftRadius: 4,
-                        borderBottomRightRadius: 4,
-                      },
-                  ]}
-                  onPress={() => {
-                    onTabSelect(tab.key);
-                    setDropdownOpen(false);
-                  }}
-                >
-                  <MaterialIcons
-                    name={tab.icon as any}
-                    size={18}
-                    color={selectedTab === tab.key ? "#3d3a52" : "#888"}
-                  />
-                  <Text
-                    style={[
-                      styles.dropdownItemText,
-                      selectedTab === tab.key &&
-                        styles.dropdownItemTextSelected,
-                    ]}
-                  >
-                    {tab.label}
-                  </Text>
-                  {selectedTab === tab.key && (
-                    <MaterialIcons name="check" size={16} color="#3d3a52" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
-      <SlideModal
-        visible={profileVisible}
-        onRequestClose={() => setProfileVisible(false)}
-        title="Profile"
-      >
-        <View style={styles.profileContent}>
-          <View style={styles.profileSection}>
-            <View style={styles.avatar}>
-              <Text style={styles.profileAvatarText}>👤</Text>
-            </View>
-            {user?.primaryEmailAddress && (
-              <Text style={styles.email}>
-                {user.primaryEmailAddress.emailAddress}
-              </Text>
-            )}
-          </View>
+        <View style={styles.centerArea}>
           <TouchableOpacity
-            style={styles.signOutButton}
-            onPress={async () => {
-              setProfileVisible(false);
-              await signOut();
-            }}
+            style={styles.tabSelector}
+            onPress={() => setInsightsOpen(!insightsOpen)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.signOutText}>Sign Out</Text>
+            <Text style={styles.selectedTabText} numberOfLines={1}>
+              {video?.title ?? ""}
+            </Text>
+            <MaterialIcons
+              name={insightsOpen ? "expand-less" : "expand-more"}
+              size={20}
+              color="#888"
+            />
           </TouchableOpacity>
         </View>
-      </SlideModal>
-    </View>
+
+        <TouchableOpacity
+          style={styles.profileButton}
+          onPress={() => setProfileVisible(true)}
+        >
+          <Ionicons name="person" size={16} color="#5a5680" />
+        </TouchableOpacity>
+
+        <Modal
+          visible={dropdownOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDropdownOpen(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setDropdownOpen(false)}>
+            <View style={styles.modalOverlay}>
+              <View
+                style={[
+                  styles.dropdown,
+                  {
+                    top: dropdownPosition.y,
+                    left: dropdownPosition.x + dropdownPosition.width / 2 - 90,
+                  },
+                ]}
+              >
+                {tabs.map((tab, index) => (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={[
+                      styles.dropdownItem,
+                      selectedTab === tab.key && styles.dropdownItemSelected,
+                      selectedTab === tab.key &&
+                        index === 0 && {
+                          borderTopLeftRadius: 4,
+                          borderTopRightRadius: 4,
+                        },
+                      selectedTab === tab.key &&
+                        index === tabs.length - 1 && {
+                          borderBottomLeftRadius: 4,
+                          borderBottomRightRadius: 4,
+                        },
+                    ]}
+                    onPress={() => {
+                      onTabSelect(tab.key);
+                      setDropdownOpen(false);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={tab.icon as any}
+                      size={18}
+                      color={selectedTab === tab.key ? "#3d3a52" : "#888"}
+                    />
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        selectedTab === tab.key &&
+                          styles.dropdownItemTextSelected,
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                    {selectedTab === tab.key && (
+                      <MaterialIcons name="check" size={16} color="#3d3a52" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
+        <SlideModal
+          visible={profileVisible}
+          onRequestClose={() => setProfileVisible(false)}
+          title="Profile"
+        >
+          <View style={styles.profileContent}>
+            <View style={styles.profileSection}>
+              <View style={styles.avatar}>
+                <Text style={styles.profileAvatarText}>👤</Text>
+              </View>
+              {user?.primaryEmailAddress && (
+                <Text style={styles.email}>
+                  {user.primaryEmailAddress.emailAddress}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.signOutButton}
+              onPress={async () => {
+                setProfileVisible(false);
+                await signOut();
+              }}
+            >
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </SlideModal>
+      </View>
+      {insightsOpen && (
+        <>
+          <TouchableWithoutFeedback onPress={() => setInsightsOpen(false)}>
+            <View style={styles.insightsOverlay} />
+          </TouchableWithoutFeedback>
+          <View style={styles.insightsDropdown}>
+            <VideoInsights onSeeAllVideos={handleSeeAllVideos} />
+          </View>
+        </>
+      )}
+    </>
   );
 };
 
@@ -243,16 +264,18 @@ const styles = StyleSheet.create({
   tabSelector: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: "#f5f4f8",
-    gap: 6,
+    gap: 4,
+    maxWidth: "80%",
   },
   selectedTabText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
     color: "#3d3a52",
+    flexShrink: 1,
   },
   profileButton: {
     width: 36,
@@ -339,6 +362,30 @@ const styles = StyleSheet.create({
   dropdownItemTextSelected: {
     fontWeight: "600",
     color: "#3d3a52",
+  },
+  insightsOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 99,
+  },
+  insightsDropdown: {
+    position: "absolute",
+    top: 90,
+    left: 16,
+    right: 16,
+    zIndex: 100,
+    backgroundColor: "white",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
   },
 });
 

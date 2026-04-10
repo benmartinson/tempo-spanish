@@ -56,6 +56,13 @@ export const setCurrentTab = (
   payload: tab,
 });
 
+export const setSelectedChannelId = (
+  channelId: string | null,
+): DataAction => ({
+  type: "SET_SELECTED_CHANNEL_ID",
+  payload: channelId,
+});
+
 export const setAllChannels = (channels: Channel[]): DataAction => ({
   type: "SET_ALL_CHANNELS",
   payload: channels,

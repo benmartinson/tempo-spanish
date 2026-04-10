@@ -10,6 +10,7 @@ const initialState: RootState = {
   currentChatType: null,
   videoRefreshKey: Date.now(),
   currentTab: "discuss",
+  selectedChannelId: null,
   allChannels: [],
   allTopics: [],
   channelTopics: [],
@@ -198,6 +199,11 @@ const dataReducer = (
       return {
         ...state,
         currentTab: action.payload,
+      };
+    case "SET_SELECTED_CHANNEL_ID":
+      return {
+        ...state,
+        selectedChannelId: action.payload,
       };
     case "SET_USER_KNOWN_VOCAB":
       return {

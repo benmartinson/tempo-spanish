@@ -450,59 +450,71 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
     setTime(next?.start);
     prevTimeRef.current = -1;
     setPlayerIsPlaying(true);
-    playerRef.current?.setClip(next?.start ?? 0, next?.end ?? 0);
+    if (shadowMode === "stream") {
+      playerRef.current?.disableClipEnforcement();
+    } else {
+      playerRef.current?.setClip(next?.start ?? 0, next?.end ?? 0);
+    }
     playerRef.current?.seekAndPlay(next?.start ?? 0);
     startStallTimerRef.current();
   }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
 
   // Turn-taking variant: advances without setting clip end so the player flows freely
-  const handleNextSentenceFree = useCallback(() => {
-    if (currentSentenceObject?.index === currentVideo?.sentences.length - 1) {
-      return;
-    }
+  // const handleNextSentenceFree = useCallback(() => {
+  //   if (currentSentenceObject?.index === currentVideo?.sentences.length - 1) {
+  //     return;
+  //   }
 
-    handleTransition();
-    const next = currentVideo?.sentences[currentSentenceObject?.index + 1];
-    setCurrentSentence(next?.index);
-    setTime(next?.start);
-    prevTimeRef.current = -1;
-    setPlayerIsPlaying(true);
-    playerRef.current?.disableClipEnforcement();
-    playerRef.current?.seekAndPlay(next?.start ?? 0);
-    startStallTimerRef.current();
-  }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
+  //   handleTransition();
+  //   const next = currentVideo?.sentences[currentSentenceObject?.index + 1];
+  //   setCurrentSentence(next?.index);
+  //   setTime(next?.start);
+  //   prevTimeRef.current = -1;
+  //   setPlayerIsPlaying(true);
+  //   playerRef.current?.disableClipEnforcement();
+  //   playerRef.current?.seekAndPlay(next?.start ?? 0);
+  //   startStallTimerRef.current();
+  // }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
 
-  const handlePreviousSentence = useCallback(() => {
-    if (currentSentenceObject?.index === 0) {
-      return;
-    }
-    handleTransition();
+  const handlePreviousSentence = useCallback(
+    (n = 1) => {
+      if (currentSentenceObject?.index === 0) {
+        return;
+      }
+      handleTransition();
 
-    const previous = currentVideo?.sentences[currentSentenceObject?.index - 1];
-    setCurrentSentence(previous?.index);
-    setTime(previous?.start);
-    prevTimeRef.current = -1;
-    setPlayerIsPlaying(true);
-    playerRef.current?.setClip(previous?.start ?? 0, previous?.end ?? 0);
-    playerRef.current?.seekAndPlay(previous?.start ?? 0);
-    startStallTimerRef.current();
-  }, [currentSentenceObject?.index, currentVideo?.sentences]);
+      const targetIndex = Math.max(0, currentSentenceObject?.index - n);
+      const target = currentVideo?.sentences[targetIndex];
+      setCurrentSentence(target?.index);
+      setTime(target?.start);
+      prevTimeRef.current = -1;
+      setPlayerIsPlaying(true);
+      if (shadowMode === "stream") {
+        playerRef.current?.disableClipEnforcement();
+      } else {
+        playerRef.current?.setClip(target?.start ?? 0, target?.end ?? 0);
+      }
+      playerRef.current?.seekAndPlay(target?.start ?? 0);
+      startStallTimerRef.current();
+    },
+    [currentSentenceObject?.index, currentVideo?.sentences],
+  );
 
-  const handlePreviousSentenceFree = useCallback(() => {
-    if (currentSentenceObject?.index === 0) {
-      return;
-    }
-    handleTransition();
+  // const handlePreviousSentenceFree = useCallback(() => {
+  //   if (currentSentenceObject?.index === 0) {
+  //     return;
+  //   }
+  //   handleTransition();
 
-    const previous = currentVideo?.sentences[currentSentenceObject?.index - 1];
-    setCurrentSentence(previous?.index);
-    setTime(previous?.start);
-    prevTimeRef.current = -1;
-    setPlayerIsPlaying(true);
-    playerRef.current?.disableClipEnforcement();
-    playerRef.current?.seekAndPlay(previous?.start ?? 0);
-    startStallTimerRef.current();
-  }, [currentSentenceObject?.index, currentVideo?.sentences]);
+  //   const previous = currentVideo?.sentences[currentSentenceObject?.index - 1];
+  //   setCurrentSentence(previous?.index);
+  //   setTime(previous?.start);
+  //   prevTimeRef.current = -1;
+  //   setPlayerIsPlaying(true);
+  //   playerRef.current?.disableClipEnforcement();
+  //   playerRef.current?.seekAndPlay(previous?.start ?? 0);
+  //   startStallTimerRef.current();
+  // }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
   const handleReviewSegment = useCallback(
     (details: AutoReviewDetails) => {
@@ -576,7 +588,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   }, []);
 
   const effectiveRefreshKey = videoRefreshKey + clipRefreshKey;
-  const effectiveAutoplay = true;
+  // const effectiveAutoplay = true;
 
   const startTimeForPlayer = selectedNavTab === "watch" ? undefined : time;
 
@@ -623,31 +635,31 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
 
   const [clipEndTime, setClipEndTime] = useState<number | undefined>(undefined);
 
-  const setClipEnd = useCallback(
-    (end: number | undefined) => {
-      setClipEndTime(end);
-      playerRef.current?.setClip(currentSentenceObject?.start ?? 0, end);
-    },
-    [currentSentenceObject?.start],
-  );
+  // const setClipEnd = useCallback(
+  //   (end: number | undefined) => {
+  //     setClipEndTime(end);
+  //     playerRef.current?.setClip(currentSentenceObject?.start ?? 0, end);
+  //   },
+  //   [currentSentenceObject?.start],
+  // );
 
-  const currentVideoText = useMemo(() => {
-    if (selectedNavTab !== "watch") return "";
-    const topHintWord = hintWords?.length ? hintWords[0] : null;
-    if (!topHintWord) return "";
+  // const currentVideoText = useMemo(() => {
+  //   if (selectedNavTab !== "watch") return "";
+  //   const topHintWord = hintWords?.length ? hintWords[0] : null;
+  //   if (!topHintWord) return "";
 
-    const match =
-      time >= topHintWord.start - 1 && time <= topHintWord.start + 3;
-    let vocabulary = null;
-    if (match) {
-      vocabulary = allVocabulary[vocabFormatWord(topHintWord.word)];
-      const translation =
-        topHintWord.contextTranslation || vocabulary.translation;
-      return `${capitalize(topHintWord.word)} => ${capitalize(translation)}`;
-    }
+  //   const match =
+  //     time >= topHintWord.start - 1 && time <= topHintWord.start + 3;
+  //   let vocabulary = null;
+  //   if (match) {
+  //     vocabulary = allVocabulary[vocabFormatWord(topHintWord.word)];
+  //     const translation =
+  //       topHintWord.contextTranslation || vocabulary.translation;
+  //     return `${capitalize(topHintWord.word)} => ${capitalize(translation)}`;
+  //   }
 
-    return "";
-  }, [hintWords, time, selectedNavTab]);
+  //   return "";
+  // }, [hintWords, time, selectedNavTab]);
 
   if (!currentVideo) return null;
 
@@ -732,7 +744,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           setShadowMode={setShadowMode}
         />
       </View>
-      <View style={getTabStyle(selectedNavTab === "speed-run")}>
+      {/* <View style={getTabStyle(selectedNavTab === "speed-run")}>
         <SpeedRunTab
           time={time}
           currentSentence={currentSentenceObject}
@@ -760,9 +772,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           onTimeUpdate={handleSetTime}
           setClipEnd={setClipEnd}
         />
-      </View>
+      </View> */}
 
-      {selectedNavTab === "recordings" && (
+      {/* {selectedNavTab === "recordings" && (
         <View style={getTabStyle(selectedNavTab === "recordings")}>
           <RecordingsTab
             time={time}
@@ -782,9 +794,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             }}
           />
         </View>
-      )}
+      )} */}
 
-      {selectedNavTab === "review" && (
+      {/* {selectedNavTab === "review" && (
         <View style={getTabStyle(selectedNavTab === "review")}>
           <ReviewTab
             onPlayClip={playClipSnippet}
@@ -792,9 +804,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             setShowVideo={setShowVideo}
           />
         </View>
-      )}
+      )} */}
 
-      <View style={getTabStyle(selectedNavTab === "turn-taking")}>
+      {/* <View style={getTabStyle(selectedNavTab === "turn-taking")}>
         <TurnTakingTab
           time={time}
           playKey={playKey}
@@ -813,9 +825,9 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
           orderedCharacters={orderedCharacters}
           targetLanguage={userSettings.targetLanguage}
         />
-      </View>
+      </View> */}
 
-      {selectedNavTab === "translate" && (
+      {/* {selectedNavTab === "translate" && (
         <View style={getTabStyle(selectedNavTab === "translate")}>
           <TranslateTab
             onPlayClip={(segment) =>
@@ -828,7 +840,7 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
             playSentence={playSentence}
           />
         </View>
-      )}
+      )} */}
 
       {isConfirmingStartOver && (
         <SlideModal

@@ -37,6 +37,9 @@ export type VoiceCommand =
   | "submit"
   | "add_to"
   | "results"
+  | "two_back"
+  | "three_back"
+  | "five_back"
   | null;
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
@@ -67,6 +70,7 @@ export interface RootState {
   currentChatType: "general" | "video-based" | null;
   videoRefreshKey: number;
   currentTab: "home" | "videos" | "watch" | "discuss" | "shadow";
+  selectedChannelId: string | null;
   allChannels: Channel[];
   allTopics: Topic[];
   channelTopics: ChannelTopic[];
@@ -116,7 +120,8 @@ export type DataActionTypes =
   | "REMOVE_USER_SELECTED_VOCAB"
   | "SET_CACHED_RESPONSES"
   | "SET_CURRENT_SHADOW_TAB"
-  | "SET_MEMORIZE_DIFFICULTY";
+  | "SET_MEMORIZE_DIFFICULTY"
+  | "SET_SELECTED_CHANNEL_ID";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;

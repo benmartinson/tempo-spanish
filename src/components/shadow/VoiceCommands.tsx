@@ -63,7 +63,10 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         <Text style={styles.statusText}>
           Speech recognition permission is required for voice commands.
         </Text>
-        <ActivateModeButton label="Open Settings" onPress={() => Linking.openSettings()} />
+        <ActivateModeButton
+          label="Open Settings"
+          onPress={() => Linking.openSettings()}
+        />
       </View>
     );
   }
@@ -88,7 +91,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
     return (
       <View style={styles.container}>
         <Text style={styles.statusText}>
-          Clip playing... no commands available.
+          Clip playing... pause to reactivate commands.
         </Text>
       </View>
     );
