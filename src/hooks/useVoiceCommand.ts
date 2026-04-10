@@ -37,6 +37,9 @@ interface UseVoiceCommandOptions {
   onAddTo?: () => void;
   onResults?: () => void;
   onReviewPrevious?: () => void;
+  onTwoBack?: () => void;
+  onThreeBack?: () => void;
+  onFiveBack?: () => void;
 }
 
 export const useVoiceCommand = ({
@@ -61,6 +64,9 @@ export const useVoiceCommand = ({
   onAddTo,
   onResults,
   onReviewPrevious,
+  onTwoBack,
+  onThreeBack,
+  onFiveBack,
 }: UseVoiceCommandOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -92,6 +98,9 @@ export const useVoiceCommand = ({
   const onAddToRef = useRef(onAddTo);
   const onResultsRef = useRef(onResults);
   const onReviewPreviousRef = useRef(onReviewPrevious);
+  const onTwoBackRef = useRef(onTwoBack);
+  const onThreeBackRef = useRef(onThreeBack);
+  const onFiveBackRef = useRef(onFiveBack);
 
   useEffect(() => {
     onRepeatRef.current = onRepeat;
@@ -115,6 +124,9 @@ export const useVoiceCommand = ({
     onAddToRef.current = onAddTo;
     onResultsRef.current = onResults;
     onReviewPreviousRef.current = onReviewPrevious;
+    onTwoBackRef.current = onTwoBack;
+    onThreeBackRef.current = onThreeBack;
+    onFiveBackRef.current = onFiveBack;
   }, [
     onRepeat,
     onRecord,
@@ -250,6 +262,15 @@ export const useVoiceCommand = ({
     } else if (text.includes("next")) {
       transcriptBufferRef.current = "";
       onNextRef.current?.();
+    } else if (text.includes("five back") || text.includes("5 back")) {
+      transcriptBufferRef.current = "";
+      onFiveBackRef.current?.();
+    } else if (text.includes("three back") || text.includes("3 back")) {
+      transcriptBufferRef.current = "";
+      onThreeBackRef.current?.();
+    } else if (text.includes("two back") || text.includes("2 back")) {
+      transcriptBufferRef.current = "";
+      onTwoBackRef.current?.();
     } else if (text.includes("previous") || text.includes("back")) {
       transcriptBufferRef.current = "";
       onPreviousRef.current?.();

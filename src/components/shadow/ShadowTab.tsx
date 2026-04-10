@@ -528,6 +528,21 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         handlePlayPhrase(subSegments[2].start, subSegments[2].end, 2);
       }
     },
+    onTwoBack: async () => {
+      setActiveCommand("two_back");
+      await closeConnection();
+      handlePreviousRef.current(2);
+    },
+    onThreeBack: async () => {
+      setActiveCommand("three_back");
+      await closeConnection();
+      handlePreviousRef.current(3);
+    },
+    onFiveBack: async () => {
+      setActiveCommand("five_back");
+      await closeConnection();
+      handlePreviousRef.current(5);
+    },
     // onResults: async () => {
     //   if (!previousResults) return;
     //   setActiveCommand("results");
