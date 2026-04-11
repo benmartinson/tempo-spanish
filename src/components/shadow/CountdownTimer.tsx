@@ -60,15 +60,15 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     }
   }, [phase, pulseAnim]);
 
-  useEffect(() => {
-    if (remainingSeconds <= 0 && phase === "recording") {
-      if (!hasStoppedRecording.current) {
-        hasStoppedRecording.current = true;
-        setPhase("complete");
-        onStopRecording();
-      }
-    }
-  }, [remainingSeconds]);
+  // useEffect(() => {
+  //   if (remainingSeconds <= 0 && phase === "recording") {
+  //     if (!hasStoppedRecording.current) {
+  //       hasStoppedRecording.current = true;
+  //       setPhase("complete");
+  //       onStopRecording();
+  //     }
+  //   }
+  // }, [remainingSeconds]);
 
   // Track elapsed recording time
   useEffect(() => {
@@ -105,13 +105,18 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   // Transition to buffer phase when sentence ends
   useEffect(() => {
     if (phase === "recording" && sentenceEnded) {
+      console.log("set buffer");
       setPhase("buffer");
       setBufferCountdown(bufferDuration);
     }
   }, [sentenceEnded, phase, bufferDuration]);
 
-  // Buffer countdown (5, 4, 3, 2, 1)
   useEffect(() => {
+    console.log({
+      phase,
+      bufferCountdown,
+      current: hasStoppedRecording.current,
+    });
     if (phase !== "buffer") return;
 
     if (bufferCountdown <= 0) {
@@ -130,84 +135,31 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [bufferCountdown, phase, onStopRecording]);
+  }, [bufferCountdown, phase]);
 
-  const renderContent = () => {
-    switch (phase) {
-      // case "countdown":
-      //   return (
-      //     <View style={styles.countdownPhase}>
-      //       <Text style={styles.countdownNumber}>{countdown}</Text>
-      //       <Text style={styles.countdownLabel}>Get ready to record...</Text>
-      //     </View>
-      //   );
-
-      case "recording":
-        return (
-          <View style={styles.recordingPhase}>
-            <View style={styles.recordingIndicatorRow}>
-              <Animated.View
-                style={[
-                  styles.recordingDot,
-                  { transform: [{ scale: pulseAnim }] },
-                ]}
-              />
-              <Text style={styles.recordingText}>Recording</Text>
-              {showTimeWarning && remainingSeconds > 0 && (
-                <Text style={styles.timeWarningText}>
-                  {remainingSeconds}s
-                </Text>
-              )}
-            </View>
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                onPress={onStopRecording}
-                style={styles.submitButton}
-              >
-                <Text style={styles.submitButtonText}>Submit</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
-
-      // case "buffer":
-      //   return (
-      //     <View style={styles.bufferPhase}>
-      //       <View style={styles.recordingIndicatorRow}>
-      //         <Animated.View
-      //           style={[
-      //             styles.recordingDot,
-      //             styles.bufferDot,
-      //             { transform: [{ scale: pulseAnim }] },
-      //           ]}
-      //         />
-      //         <Text style={styles.bufferText}>
-      //           Recording stopping in {bufferCountdown}
-      //         </Text>
-      //       </View>
-      //       <TouchableOpacity
-      //         onPress={onStopRecording}
-      //         style={styles.stopButton}
-      //       >
-      //         <Text style={styles.stopButtonText}>Stop Recording</Text>
-      //       </TouchableOpacity>
-      //     </View>
-      //   );
-
-      // case "complete":
-      //   return (
-      //     <View style={styles.completePhase}>
-      //       <MaterialIcons name="check-circle" size={32} color="#4ade80" />
-      //       <Text style={styles.completeText}>Recording complete</Text>
-      //     </View>
-      //   );
-
-      default:
-        return null;
-    }
-  };
-
-  return <View style={styles.container}>{renderContent()}</View>;
+  return (
+    <View style={styles.container}>
+      <View style={styles.recordingPhase}>
+        <View style={styles.recordingIndicatorRow}>
+          <Animated.View
+            style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]}
+          />
+          <Text style={styles.recordingText}>Recording</Text>
+          {showTimeWarning && remainingSeconds > 0 && (
+            <Text style={styles.timeWarningText}>{remainingSeconds}s</Text>
+          )}
+        </View>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            onPress={onStopRecording}
+            style={styles.submitButton}
+          >
+            <Text style={styles.submitButtonText}>Submit</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({

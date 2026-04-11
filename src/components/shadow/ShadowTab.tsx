@@ -835,7 +835,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setIsRecordingMode(false);
   };
 
-  const handleStopRecording = async (trashed: boolean = false) => {
+  const handleTrashRecording = async (trashed: boolean = false) => {
     voiceInitiatedRecordRef.current = false;
     pausePlayer();
     unMutePlayer();
@@ -1097,7 +1097,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               onStartRecording={handleActualStartRecording}
               onStopRecording={handleSubmitRecording}
               sentenceEnded={sentenceEnded}
-              bufferDuration={0}
+              bufferDuration={1}
             />
           </View>
         )}
@@ -1321,7 +1321,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           <RecordingControls
             isRecording={isRecordingMode}
             onTrash={() => {
-              handleStopRecording(true);
+              handleTrashRecording(true);
               handleResetAnswer();
             }}
             onMic={() => {

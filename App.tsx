@@ -43,7 +43,7 @@ import {
 } from "./src/requests";
 import { useUIStateSync } from "./src/hooks/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
-import { tokenCache } from "@clerk/clerk-expo/token-cache";
+import { tokenCache as clerkTokenCache } from "@clerk/clerk-expo/token-cache";
 import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import TabIcon from "./src/components/tabs/TabIcon";
@@ -56,6 +56,22 @@ import NavTabBanner from "./src/components/common/NavTabBanner";
 import ShadowTab from "./src/components/shadow/ShadowTab";
 import SelectedVideoTabs from "./src/components/common/SelectedVideoTabs";
 import Constants from "expo-constants";
+const tokenCache = clerkTokenCache
+  ? {
+      getToken: async (key: string) => {
+        const result = await clerkTokenCache.getToken(key);
+        if (!result) {
+          console.warn("[Auth] tokenCache.getToken returned null for key:", key);
+        }
+        return result;
+      },
+      saveToken: async (key: string, token: string) => {
+        console.log("[Auth] tokenCache.saveToken for key:", key);
+        return clerkTokenCache.saveToken(key, token);
+      },
+    }
+  : undefined;
+
 const publishableKey =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 if (!publishableKey) {
@@ -349,6 +365,8 @@ const AuthenticatedApp: React.FC = () => {
 // Separate component that uses auth hooks (must be inside ClerkProvider)
 const AppNavigator: React.FC = () => {
   const { isSignedIn, isLoaded } = useAuth();
+
+  console.log("[Auth]", { isLoaded, isSignedIn });
 
   // Show loading spinner while Clerk initializes
   if (!isLoaded) {
