@@ -39,13 +39,21 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   isRecording = false,
 }) => {
   const userSettings = useSelector((state: RootState) => state.userSettings);
-  const localTime = useInterpolatedTime(time, playerIsPlaying, playKey, playerSpeed);
+  const localTime = useInterpolatedTime(
+    time,
+    playerIsPlaying,
+    playKey,
+    playerSpeed,
+  );
 
   const displayText = translationText
     ? addEllipsis(removeSpecialPunctuation(translationText), sentenceText)
     : "";
 
-  const words = useMemo(() => displayText.split(/\s+/).filter(Boolean), [displayText]);
+  const words = useMemo(
+    () => displayText.split(/\s+/).filter(Boolean),
+    [displayText],
+  );
 
   const chunks = useMemo(() => {
     if (!words.length) return [];
@@ -97,7 +105,7 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.questionBubble}>
-        <Text style={styles.questionLabel}>{label}</Text>
+        {/* <Text style={styles.questionLabel}>{label}</Text> */}
         <Text style={styles.questionText}>
           {words.map((word, index) => {
             const isActive =

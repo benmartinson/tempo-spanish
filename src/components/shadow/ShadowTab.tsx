@@ -40,6 +40,7 @@ import { useRecording } from "../../hooks/useRecording";
 import {
   sendAudioForTranscription,
   playLocalAudio,
+  stopAudio,
   playAiSpeech,
   playDing,
   playDingStop,
@@ -374,6 +375,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (hasPlayedSentence) {
       setHasPlayedSentence(false);
     }
+    stopAudio();
     setAudioUri(null);
     setIsPlayingRecording(false);
 
@@ -892,8 +894,18 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   };
 
+  const stopRecordingPlayback = useCallback(async () => {
+    await stopAudio();
+    setIsPlayingRecording(false);
+  }, []);
+
   const handlePlayUserRecording = useCallback(async () => {
-    if (!audioUri || isPlayingRecording) return;
+    if (!audioUri) return;
+
+    if (isPlayingRecording) {
+      await stopRecordingPlayback();
+      return;
+    }
 
     const wasPlaying = playerIsPlaying;
     if (wasPlaying) pausePlayer();
@@ -914,9 +926,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     playerIsPlaying,
     pausePlayer,
     playSentence,
+    stopRecordingPlayback,
   ]);
 
   const handleRetry = () => {
+    stopRecordingPlayback();
     const prevResult = accuracyResult;
     if (prevResult) {
       setPreviousResults({
@@ -926,7 +940,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
     setAccuracyResult(null);
     setUserAnswer("");
-    setAudioUri(null);
   };
 
   const handleReviewPreviousSegment = useCallback(() => {
@@ -943,7 +956,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handlePreviousResults = () => {
     setAccuracyResult(previousResults);
-    setAudioUri(null);
   };
 
   const handlePlayPhrase = (start, end, phraseIndex?: number) => {
@@ -1129,13 +1141,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               <TouchableOpacity
                 style={styles.playRecordingButton}
                 onPress={handlePlayUserRecording}
-                disabled={isPlayingRecording}
               >
-                {!isPlayingRecording && (
-                  <MaterialIcons name="play-arrow" size={20} color="#4a69bd" />
-                )}
+                <MaterialIcons
+                  name={isPlayingRecording ? "stop" : "play-arrow"}
+                  size={20}
+                  color="#4a69bd"
+                />
                 <Text style={styles.playRecordingButtonText}>
-                  {isPlayingRecording ? "Playing..." : "Play Recording"}
+                  {isPlayingRecording ? "Stop" : "Play Recording"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1145,7 +1158,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               tabs={[
                 { key: "memorize", label: "Transcript" },
                 { key: "insights", label: "Insights" },
-                { key: "translate", label: "Translate" },
+                { key: "translate", label: "Translated" },
                 { key: "voice", label: "Voice" },
               ]}
               selectedTab={selectedTab}

@@ -62,10 +62,7 @@ const dingStopSource = require("../../assets/ding-stop.wav");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const warningBeepSource = require("../../assets/warning-beep.wav");
 
-const playSoundEffect = (
-  source: number,
-  options?: { volume?: number },
-) => {
+const playSoundEffect = (source: number, options?: { volume?: number }) => {
   const player = createAudioPlayer(source, { keepAudioSessionActive: true });
   if (options?.volume !== undefined) player.volume = options.volume;
   player.play();
@@ -78,7 +75,8 @@ const playSoundEffect = (
 
 export const playDing = () => playSoundEffect(dingSource);
 export const playDingStop = () => playSoundEffect(dingStopSource);
-export const playDingWarning = () => playSoundEffect(warningBeepSource, { volume: 0.75 });
+export const playDingWarning = () =>
+  playSoundEffect(warningBeepSource, { volume: 0.75 });
 
 // Global reference to currently playing sound to prevent overlapping audio
 let currentPlayingSound: AudioPlayer | null = null;
@@ -798,38 +796,38 @@ export const concatenateWavFiles = async (uris: string[]): Promise<string> => {
  * @param sentenceIndex - Sentence index for the recording
  * @returns The storage path of the uploaded file
  */
-export const uploadAudioToStorage = async (
-  audioUri: string,
-  userId: string,
-  videoId: string,
-  sentenceIndex: number,
-): Promise<string> => {
-  try {
-    const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
-      encoding: "base64",
-    });
+// export const uploadAudioToStorage = async (
+//   audioUri: string,
+//   userId: string,
+//   videoId: string,
+//   sentenceIndex: number,
+// ): Promise<string> => {
+//   try {
+//     const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
+//       encoding: "base64",
+//     });
 
-    const filename = `${userId}/${videoId}_${sentenceIndex}.wav`;
+//     const filename = `${userId}/${videoId}_${sentenceIndex}.wav`;
 
-    const { data, error } = await supabase.storage
-      .from("shadow_recordings")
-      .upload(filename, decode(base64Audio), {
-        contentType: "audio/wav",
-        upsert: true,
-      });
+//     const { data, error } = await supabase.storage
+//       .from("shadow_recordings")
+//       .upload(filename, decode(base64Audio), {
+//         contentType: "audio/wav",
+//         upsert: true,
+//       });
 
-    if (error) {
-      console.error("Storage upload error:", error);
-      throw new Error(`Failed to upload audio: ${error.message}`);
-    }
+//     if (error) {
+//       console.error("Storage upload error:", error);
+//       throw new Error(`Failed to upload audio: ${error.message}`);
+//     }
 
-    console.log(`Audio uploaded successfully: ${data.path}`);
-    return data.path;
-  } catch (err) {
-    console.error("Error uploading audio to storage:", err);
-    throw err;
-  }
-};
+//     console.log(`Audio uploaded successfully: ${data.path}`);
+//     return data.path;
+//   } catch (err) {
+//     console.error("Error uploading audio to storage:", err);
+//     throw err;
+//   }
+// };
 
 /**
  * Send audio file to backend for batch transcription
