@@ -51,7 +51,7 @@ const autoMatchProperNouns = (
   matchedScore,
 ) => {
   const available = spoken
-    .map((w, i) => (!usedSpokenIndices.has(i) && w.length > 2 ? i : -1))
+    .map((w, i) => (!usedSpokenIndices.has(i) ? i : -1))
     .filter((i) => i !== -1);
 
   let idx = 0;
@@ -189,6 +189,7 @@ export const calculateAccuracy = (
   targetWords: string[],
   properNouns: string[] = [],
 ) => {
+  // console.log({ spokenWords, targetWords, properNouns });
   if (targetWords.length === 0) {
     return { percentage: 100, matchedWords: 0, totalWords: 0, details: [] };
   }

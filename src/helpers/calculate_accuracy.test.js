@@ -247,7 +247,7 @@ describe("calculateAccuracy - mostly unrelated spoken words with proper nouns", 
       details: [
         {
           _matchScore: 1,
-          _spokenIndex: 1,
+          _spokenIndex: 0,
           isProperNoun: true,
           matched: true,
           spokenWord: "Aragorn",
@@ -278,7 +278,7 @@ describe("calculateAccuracy - mostly unrelated spoken words with proper nouns", 
         },
         {
           _matchScore: 1,
-          _spokenIndex: 5,
+          _spokenIndex: 1,
           isProperNoun: true,
           matched: true,
           spokenWord: "Theoden",
@@ -342,7 +342,7 @@ describe("calculateAccuracy - mostly unrelated spoken words with proper nouns", 
         },
         {
           _matchScore: 1,
-          _spokenIndex: 6,
+          _spokenIndex: 5,
           isProperNoun: true,
           matched: true,
           spokenWord: "Gondor.",
@@ -442,5 +442,105 @@ describe("calculateAccuracy - proper nouns auto-match", () => {
 
     // Percentage should be > 0
     expect(result.percentage).toEqual(100);
+  });
+});
+
+describe("calculateAccuracy - skipped words with proper noun and near-matches", () => {
+  it("should return 100% when spoken words cover all target words allowing for proper noun skips and diaretics", () => {
+    const spokenWords = [
+      "Y",
+      "luego",
+      "se",
+      "despierta,",
+      "al",
+      "final,",
+      "da",
+      "el",
+      "acepto",
+      "la",
+      "realidad",
+      "de",
+      "que",
+      "debía",
+      "retirarse.",
+    ];
+    const targetWords = [
+      "Y",
+      "luego",
+      "se",
+      "despierta.,",
+      "Al",
+      "final",
+      "Bell",
+      "aceptó",
+      "la",
+      "realidad",
+      "de",
+      "que",
+      "debía",
+      "retirarse.",
+    ];
+    const properNouns = ["Bell"];
+
+    const result = calculateAccuracy(spokenWords, targetWords, properNouns);
+
+    // Every target word should be matched
+    result.details.forEach((detail) => {
+      expect(detail.matched).toBe(true);
+    });
+
+    // All matched, no spelling errors
+    expect(result.percentage).toEqual(100);
+    expect(result.matchedWords).toEqual(targetWords.length);
+  });
+});
+
+describe("calculateAccuracy - number word normalization", () => {
+  it("should match spoken number words to digit equivalents", () => {
+    const spokenWords = [
+      "Mientras",
+      "pide",
+      "una",
+      "camisa",
+      "a",
+      "uno,",
+      "ofreciéndole",
+      "100",
+      "dólares",
+      "y",
+      "cincuenta",
+      "se",
+      "hace",
+      "un",
+      "cabestrillo.",
+    ];
+    const targetWords = [
+      "Anton",
+      "pide",
+      "una",
+      "camisa",
+      "a",
+      "uno,",
+      "ofreciéndole",
+      "cien",
+      "dólares",
+      "y",
+      "50",
+      "se",
+      "hace",
+      "un",
+      "cabestrillo.",
+    ];
+    const properNouns = ["Anton"];
+
+    const result = calculateAccuracy(spokenWords, targetWords, properNouns);
+
+    // Every target word should be matched
+    result.details.forEach((detail) => {
+      expect(detail.matched).toBe(true);
+    });
+
+    expect(result.percentage).toEqual(100);
+    expect(result.matchedWords).toEqual(targetWords.length);
   });
 });
