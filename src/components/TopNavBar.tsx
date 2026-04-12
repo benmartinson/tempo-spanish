@@ -1,13 +1,10 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
-import { useClerk, useUser } from "@clerk/clerk-expo";
-import { useSelector } from "react-redux";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AppIcon from "./common/AppIcon";
-import SlideModal from "./common/SlideModal";
 import LanguageModal from "./settings/LanguageModal";
-import { RootState } from "../types";
+import ProfileModal from "./ProfileModal";
 
 export const getFlagForLanguage = (language: string): string => {
   switch (language) {
@@ -24,25 +21,10 @@ export const getFlagForLanguage = (language: string): string => {
 const TopNavBar: React.FC = () => {
   const [profileVisible, setProfileVisible] = useState(false);
   const [languageVisible, setLanguageVisible] = useState(false);
-  const { signOut } = useClerk();
-  const { user } = useUser();
-  const userSettings = useSelector((state: RootState) => state.userSettings);
-
-  const handleSignOut = async () => {
-    setProfileVisible(false);
-    await signOut();
-  };
 
   return (
     <View style={styles.container}>
-      <View
-        style={styles.leftFlagContainer}
-        // onPress={() => setLanguageVisible(true)}
-      >
-        {/* <Text style={styles.countryFlag}>
-          {getFlagForLanguage(userSettings.targetLanguage)}
-        </Text> */}
-      </View>
+      <View style={styles.leftFlagContainer} />
       <View style={styles.titleContainer}>
         <AppIcon size={20} />
         <Text style={styles.appName}>Tempo Spanish</Text>
@@ -59,33 +41,10 @@ const TopNavBar: React.FC = () => {
         onClose={() => setLanguageVisible(false)}
       />
 
-      <SlideModal
+      <ProfileModal
         visible={profileVisible}
-        onRequestClose={() => setProfileVisible(false)}
-        title="Profile"
-      >
-        <View style={styles.profileContent}>
-          <View style={styles.profileSection}>
-            <View style={styles.avatar}>
-              <Text style={styles.profileAvatarText}>👤</Text>
-            </View>
-            {user?.primaryEmailAddress && (
-              <Text style={styles.email}>
-                {user.primaryEmailAddress.emailAddress}
-              </Text>
-            )}
-          </View>
-
-          <View style={styles.menuSection}>
-            <TouchableOpacity
-              style={styles.signOutButton}
-              onPress={handleSignOut}
-            >
-              <Text style={styles.signOutText}>Sign Out</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </SlideModal>
+        onClose={() => setProfileVisible(false)}
+      />
     </View>
   );
 };
@@ -120,10 +79,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#3d3a52",
   },
-  countryFlag: {
-    textAlign: "center",
-    fontSize: 18,
-  },
   avatarButton: {
     width: 36,
     height: 36,
@@ -133,57 +88,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#5a5680",
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#dfe2ea",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#1a1a2e",
-  },
-  profileContent: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 40,
-  },
-  profileSection: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#3d3a52",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 3,
-    borderColor: "#5a5680",
-  },
-  profileAvatarText: {
-    fontSize: 36,
-  },
-  email: {
-    fontSize: 16,
-    color: "#888",
-  },
-  menuSection: {
-    marginTop: 20,
-  },
-  signOutButton: {
-    backgroundColor: "#3d3a52",
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    alignItems: "center",
-  },
-  signOutText: {
-    color: "#ff6b6b",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
 

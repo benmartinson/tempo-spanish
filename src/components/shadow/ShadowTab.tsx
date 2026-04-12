@@ -20,6 +20,7 @@ import {
   Linking,
   Modal,
   TouchableWithoutFeedback,
+  AppState,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import Feather from "@expo/vector-icons/Feather";
@@ -299,6 +300,20 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     latestShadowedSentenceRef.current = -1;
   }, [currentVideo?.videoId]);
 
+  // Close review modals when app returns from background
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active" && reviewType !== null) {
+        setReviewType(null);
+        setReviewVocabWord(null);
+        setReviewVocabSentenceText(null);
+        setReviewTranslationSentence(null);
+        reviewVocabIdRef.current = null;
+      }
+    });
+    return () => subscription.remove();
+  }, [reviewType]);
+
   const setSelectedTab = useCallback(
     (tab: ContentTab) => {
       dispatch(setCurrentShadowTab(tab));
@@ -438,14 +453,23 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Cache sentence data for translation review whenever we have both a result and translation
   useEffect(() => {
-    if (sentenceTranslation && currentSentenceObject && (accuracyResult || previousResults)) {
+    if (
+      sentenceTranslation &&
+      currentSentenceObject &&
+      (accuracyResult || previousResults)
+    ) {
       sentenceHistoryRef.current[currentSentenceIndex] = {
         text: currentSentenceObject.text,
         translation: sentenceTranslation,
         words: currentSentenceObject.words,
       };
     }
-  }, [sentenceTranslation, currentSentenceIndex, accuracyResult, previousResults]);
+  }, [
+    sentenceTranslation,
+    currentSentenceIndex,
+    accuracyResult,
+    previousResults,
+  ]);
 
   useEffect(() => {
     Keyboard.dismiss();
@@ -846,7 +870,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const proceedAfterReview = () => {
-    if (reviewType === "vocab" && reviewVocabIdRef.current && supabase && currentVideo?.videoViewId) {
+    if (
+      reviewType === "vocab" &&
+      reviewVocabIdRef.current &&
+      supabase &&
+      currentVideo?.videoViewId
+    ) {
       incrementFocusVocabReviewCount({
         supabase,
         videoViewId: currentVideo.videoViewId,
@@ -923,6 +952,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setReviewVocabWord(vocabEntry.word);
       setReviewVocabSentenceText(currentSentenceObject?.text ?? null);
       setReviewType("vocab");
+      pausePlayer();
       return true;
     }
 
@@ -933,6 +963,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         words: historySentence.words,
       });
       setReviewType("translation");
+      pausePlayer();
       return true;
     }
 
@@ -1088,6 +1119,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handlePlayUserRecording = useCallback(async () => {
     if (!audioUri) return;
 
+    if (playerIsPlaying) {
+      pausePlayer();
+    }
+
     if (isPlayingRecording) {
       await stopRecordingPlayback();
       return;
@@ -1142,6 +1177,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handlePreviousResults = () => {
     setAccuracyResult(previousResults);
+  };
+
+  const getBufferDuration = (recordSpeed: number) => {
+    if (recordSpeed <= 0.35) return 2;
+    if (recordSpeed <= 0.6) return 3;
+    if (recordSpeed <= 0.75) return 4;
+    return 5;
   };
 
   const handlePlayPhrase = (start, end, phraseIndex?: number) => {
@@ -1287,7 +1329,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               onStartRecording={handleActualStartRecording}
               onStopRecording={handleSubmitRecording}
               sentenceEnded={sentenceEnded}
-              bufferDuration={1}
+              bufferDuration={getBufferDuration(recordSpeed)}
             />
           </View>
         )}
@@ -1613,6 +1655,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         sentenceText={reviewVocabSentenceText ?? undefined}
         title="Remember the translation"
         onFinished={proceedAfterReview}
+        instructions={""}
       />
       <TranslationReviewModal
         visible={reviewType === "translation"}

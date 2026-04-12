@@ -27,6 +27,7 @@ interface GuessWordModalProps {
   onCorrect?: () => void;
   onFinished?: () => void;
   title?: string;
+  instructions?: string;
 }
 
 interface WordState {
@@ -70,6 +71,7 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
   onCorrect,
   onFinished,
   title = "Guess the Meaning",
+  instructions = "Before seeing the translation, what do you think this word means?",
 }) => {
   const wordList = words ?? (word ? [word] : []);
   const isMultiWord = (words?.length ?? 0) > 1;
@@ -178,11 +180,11 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
             </Text>
           </View>
         )}
-        <Text style={styles.vocabWord}>{capitalize(stripPunctuation(currentWord))}</Text>
-
-        <Text style={styles.questionText}>
-          Before seeing the translation, what do you think this word means?
+        <Text style={styles.vocabWord}>
+          {capitalize(stripPunctuation(currentWord))}
         </Text>
+
+        <Text style={styles.questionText}>{instructions}</Text>
 
         {sentenceText && currentWord ? (
           <ContextSnippet sentenceText={sentenceText} word={currentWord} />

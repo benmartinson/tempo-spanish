@@ -189,7 +189,7 @@ export const calculateAccuracy = (
   targetWords: string[],
   properNouns: string[] = [],
 ) => {
-  // console.log({ spokenWords, targetWords, properNouns });
+  console.log({ spokenWords, targetWords, properNouns });
   if (targetWords.length === 0) {
     return { percentage: 100, matchedWords: 0, totalWords: 0, details: [] };
   }

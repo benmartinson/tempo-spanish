@@ -24,6 +24,10 @@ export default {
         NSSpeechRecognitionUsageDescription:
           "This app uses speech recognition for voice commands.",
       },
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#1a1a2e",
+      },
     },
     android: {
       adaptiveIcon: {

@@ -24,12 +24,7 @@ import {
   setMemorizeDifficulty,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
-import {
-  VideoView,
-  Vocabulary,
-  RootState,
-  UserUIState,
-} from "./src/types";
+import { VideoView, Vocabulary, RootState, UserUIState } from "./src/types";
 import { createVocabHash } from "./src/helpers/helpers";
 import {
   fetchVideoContext,
@@ -45,7 +40,7 @@ import { useUIStateSync } from "./src/hooks/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache as clerkTokenCache } from "@clerk/clerk-expo/token-cache";
 import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import TabIcon from "./src/components/tabs/TabIcon";
 import WatchTab from "./src/components/speed-run/SpeedRunTab";
 import TopNavBar from "./src/components/TopNavBar";
@@ -56,12 +51,16 @@ import NavTabBanner from "./src/components/common/NavTabBanner";
 import ShadowTab from "./src/components/shadow/ShadowTab";
 import SelectedVideoTabs from "./src/components/common/SelectedVideoTabs";
 import Constants from "expo-constants";
+import AppIcon from "./src/components/common/AppIcon";
 const tokenCache = clerkTokenCache
   ? {
       getToken: async (key: string) => {
         const result = await clerkTokenCache.getToken(key);
         if (!result) {
-          console.warn("[Auth] tokenCache.getToken returned null for key:", key);
+          console.warn(
+            "[Auth] tokenCache.getToken returned null for key:",
+            key,
+          );
         }
         return result;
       },
@@ -184,7 +183,13 @@ const AuthenticatedApp: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const [selectedNavTab, setSelectedNavTab] = useState<
-    "watch" | "shadow" | "review" | "speed-run" | "translate" | "recordings" | "turn-taking"
+    | "watch"
+    | "shadow"
+    | "review"
+    | "speed-run"
+    | "translate"
+    | "recordings"
+    | "turn-taking"
   >("watch");
   const [isRestoringState, setIsRestoringState] = useState(true);
 
@@ -233,7 +238,13 @@ const AuthenticatedApp: React.FC = () => {
 
     // Fetch and restore user UI state
     const restoreState = async () => {
-      const { videoContext, currentTab, currentShadowTab, memorizeDifficulty, settings } = await restoreUserUIState({
+      const {
+        videoContext,
+        currentTab,
+        currentShadowTab,
+        memorizeDifficulty,
+        settings,
+      } = await restoreUserUIState({
         supabase,
         userId,
       });
@@ -250,15 +261,31 @@ const AuthenticatedApp: React.FC = () => {
         dispatch(setMemorizeDifficulty(settings.defaultMemorizeDifficulty));
       }
 
-      if (currentTab && ["watch", "discuss", "shadow", "speed-run", "translate", "recordings", "turns"].includes(currentTab)) {
+      if (
+        currentTab &&
+        [
+          "watch",
+          "discuss",
+          "shadow",
+          "speed-run",
+          "translate",
+          "recordings",
+          "turns",
+        ].includes(currentTab)
+      ) {
         if ((currentTab as string) === "recordings") {
           setSelectedNavTab("recordings");
         } else if ((currentTab as string) === "turns") {
           setSelectedNavTab("turn-taking");
         } else {
           // speed-run and translate are now subtabs of shadow
-          const resolvedTab = (currentTab === "translate" || currentTab === "speed-run") ? "shadow" : currentTab;
-          dispatch(setCurrentTab(resolvedTab === "discuss" ? "discuss" : resolvedTab));
+          const resolvedTab =
+            currentTab === "translate" || currentTab === "speed-run"
+              ? "shadow"
+              : currentTab;
+          dispatch(
+            setCurrentTab(resolvedTab === "discuss" ? "discuss" : resolvedTab),
+          );
           if (resolvedTab === "discuss") {
             setSelectedNavTab("review");
           } else if (resolvedTab === "watch" || resolvedTab === "shadow") {
@@ -294,7 +321,14 @@ const AuthenticatedApp: React.FC = () => {
   }, [currentVideo?.videoId, isRestoringState]);
 
   const handleNavTabSelect = async (
-    tab: "watch" | "shadow" | "review" | "speed-run" | "translate" | "recordings" | "turn-taking",
+    tab:
+      | "watch"
+      | "shadow"
+      | "review"
+      | "speed-run"
+      | "translate"
+      | "recordings"
+      | "turn-taking",
   ) => {
     setSelectedNavTab(tab);
     // Also update redux current tab for consistency
@@ -379,7 +413,17 @@ const AppNavigator: React.FC = () => {
           backgroundColor: "#1a1a2e",
         }}
       >
-        <ActivityIndicator size="large" color="#5a5680" />
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <MaterialCommunityIcons
+            name="waves"
+            size={24}
+            style={{ marginRight: 4 }}
+            color="white"
+          />
+          <Text style={{ color: "#fff", fontSize: 24, fontWeight: "600" }}>
+            Tempo Spanish
+          </Text>
+        </View>
       </View>
     );
   }
