@@ -109,6 +109,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editedAutoSaveRecordings, setEditedAutoSaveRecordings] = useState(
     userSettings.autoSaveRecordings,
   );
+  const [editedDisableReviewMode, setEditedDisableReviewMode] = useState(
+    userSettings.disableReviewMode,
+  );
+  const [editedReviewFrequency, setEditedReviewFrequency] = useState(
+    userSettings.reviewFrequency,
+  );
   const [editedSaveMemorizeDifficulty, setEditedSaveMemorizeDifficulty] =
     useState(userSettings.saveMemorizeDifficulty);
   const [editedDefaultMemorizeDifficulty, setEditedDefaultMemorizeDifficulty] =
@@ -146,6 +152,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       defaultMemorizeDifficulty: editedDefaultMemorizeDifficulty,
       playVideoWhileRecording: editedPlayVideoWhileRecording,
       autoSaveRecordings: editedAutoSaveRecordings,
+      disableReviewMode: editedDisableReviewMode,
+      reviewFrequency: editedReviewFrequency,
     };
     dispatch(setUserSettings(newSettings));
     onSaveRef.current(newSettings);
@@ -154,6 +162,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     editedRecordSpeed,
     editedPlayVideoWhileRecording,
     editedAutoSaveRecordings,
+    editedDisableReviewMode,
+    editedReviewFrequency,
     muteVideoWhenRecording,
     editedShowWordsHints,
     editedShowCharacters,
@@ -242,6 +252,53 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                   </View>
                   <View style={styles.cardDivider} />
+                </>
+              )}
+            </View>
+            <View style={styles.card}>
+              <SettingRow
+                label="Disable Review Popups"
+                value={editedDisableReviewMode}
+                onToggle={setEditedDisableReviewMode}
+                isLast={editedDisableReviewMode}
+              />
+              {!editedDisableReviewMode && (
+                <>
+                  <View style={styles.cardDivider} />
+                  <View style={styles.frequencyRow}>
+                    <Text style={rowStyles.label}>Review Popup Frequency</Text>
+                    <View style={styles.frequencyControls}>
+                      <TouchableOpacity
+                        style={styles.frequencyButton}
+                        onPress={() =>
+                          setEditedReviewFrequency(
+                            Math.max(1, editedReviewFrequency - 1),
+                          )
+                        }
+                        disabled={editedReviewFrequency <= 1}
+                      >
+                        <Text style={styles.frequencyButtonText}>-</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.frequencyValue}>
+                        {editedReviewFrequency}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.frequencyButton}
+                        onPress={() =>
+                          setEditedReviewFrequency(
+                            Math.min(10, editedReviewFrequency + 1),
+                          )
+                        }
+                        disabled={editedReviewFrequency >= 10}
+                      >
+                        <Text style={styles.frequencyButtonText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Text style={styles.frequencyHint}>
+                    Review every {editedReviewFrequency} segment
+                    {editedReviewFrequency > 1 ? "s" : ""}
+                  </Text>
                 </>
               )}
             </View>
@@ -369,6 +426,7 @@ const styles = StyleSheet.create({
   },
   card: {
     marginHorizontal: 16,
+    marginBottom: 16,
     backgroundColor: "#fff",
     borderRadius: 14,
   },
@@ -435,6 +493,44 @@ const styles = StyleSheet.create({
   warningText: {
     fontSize: 12,
     color: "#e53935",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  frequencyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  frequencyControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  frequencyButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#f0f0f2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  frequencyButtonText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#3d3a52",
+  },
+  frequencyValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1a1a2e",
+    minWidth: 24,
+    textAlign: "center",
+  },
+  frequencyHint: {
+    fontSize: 12,
+    color: "#8e8e93",
     paddingHorizontal: 16,
     paddingBottom: 12,
   },

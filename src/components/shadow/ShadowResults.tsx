@@ -19,6 +19,11 @@ interface ShadowResultsProps {
   showSaveRecordingsModal?: boolean;
   onSetAlwaysSave?: () => void;
   onSetDontAskAgain?: () => void;
+  spokenLabel?: string;
+  targetLabel?: string;
+  hideRetry?: boolean;
+  alwaysShowNext?: boolean;
+  nextButtonLabel?: string;
 }
 
 const ShadowResults: React.FC<ShadowResultsProps> = ({
@@ -33,6 +38,11 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   showSaveRecordingsModal = true,
   onSetAlwaysSave,
   onSetDontAskAgain,
+  spokenLabel = "Spoken: ",
+  targetLabel = "Target: ",
+  hideRetry = false,
+  alwaysShowNext = false,
+  nextButtonLabel = "Next Segment",
 }) => {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -161,35 +171,37 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       <AccuracyCircle percentage={accuracyResult.percentage} />
       <View style={styles.spokenSentenceContainer}>
         <Text style={styles.spokenSentenceText}>
-          <Text style={styles.labelBold}>Spoken: </Text>
+          <Text style={styles.labelBold}>{spokenLabel}</Text>
           {accuracyResult.details.map(renderSpokenWord)}
         </Text>
       </View>
       <View style={styles.targetSentenceContainer}>
         <Text style={styles.targetSentenceText}>
-          <Text style={styles.labelBold}>Target: </Text>
+          <Text style={styles.labelBold}>{targetLabel}</Text>
           {accuracyResult.details.map(renderTargetWord)}
         </Text>
       </View>
 
       <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.tryAgainButton]}
-          onPress={handleRetry}
-        >
-          <MaterialIcons name="replay" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Re-Try</Text>
-        </TouchableOpacity>
+        {!hideRetry && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.tryAgainButton]}
+            onPress={handleRetry}
+          >
+            <MaterialIcons name="replay" size={20} color="#fff" />
+            <Text style={styles.actionButtonText}>Re-Try</Text>
+          </TouchableOpacity>
+        )}
 
-        {isAccuracyGood && (
+        {
           <TouchableOpacity
             style={[styles.actionButton, styles.nextButton]}
             onPress={handleNextPress}
           >
-            <Text style={styles.actionButtonText}>Next Segment</Text>
+            <Text style={styles.actionButtonText}>{nextButtonLabel}</Text>
             <MaterialIcons name="arrow-forward" size={20} color="#fff" />
           </TouchableOpacity>
-        )}
+        }
       </View>
       <SlideModal
         visible={showSaveModal && hasUnsavedRecording && !!onSaveRecording}

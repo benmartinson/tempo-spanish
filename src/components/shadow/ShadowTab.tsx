@@ -66,7 +66,14 @@ import NavSwitcher from "../common/NavSwitcher";
 import ContentTabBar from "../common/ContentTabBar";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import Foundation from "@expo/vector-icons/Foundation";
-import { persistUserSettings, persistCurrentShadowTab } from "../../requests";
+import {
+  persistUserSettings,
+  persistCurrentShadowTab,
+  fetchFocusVocabWithReviewCount,
+  incrementFocusVocabReviewCount,
+} from "../../requests";
+import GuessWordModal from "../common/GuessWordModal";
+import TranslationReviewModal from "./TranslationReviewModal";
 import {
   setCurrentShadowTab,
   setUserSettings,
@@ -233,6 +240,65 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showTranslation, setShowTranslation] = useState<boolean>(false);
   const [showStreamRecordingTooltip, setShowStreamRecordingTooltip] =
     useState(false);
+
+  // Review modal state
+  const [reviewCount, setReviewCount] = useState(0);
+  const [reviewType, setReviewType] = useState<"vocab" | "translation" | null>(
+    null,
+  );
+  const [reviewVocabWord, setReviewVocabWord] = useState<string | null>(null);
+  const [reviewVocabSentenceText, setReviewVocabSentenceText] = useState<
+    string | null
+  >(null);
+  const [reviewTranslationSentence, setReviewTranslationSentence] = useState<{
+    text: string;
+    translation: string;
+    words: SegmentWord[];
+  } | null>(null);
+  const [focusVocabReviewData, setFocusVocabReviewData] = useState<
+    { vocabulary_id: number; times_reviewed: number }[]
+  >([]);
+  const reviewVocabIdRef = useRef<number | null>(null);
+  const sentenceHistoryRef = useRef<
+    Record<number, { text: string; translation: string; words: SegmentWord[] }>
+  >({});
+  const latestShadowedSentenceRef = useRef<number>(-1);
+
+  // Fetch latest shadowed sentence for this video
+  useEffect(() => {
+    if (!supabase || !userId || !currentVideo?.recordId) return;
+    supabase
+      .from("user_shadow_result")
+      .select("sentence")
+      .eq("user_id", userId)
+      .eq("video_id", parseInt(currentVideo.recordId))
+      .order("sentence", { ascending: false })
+      .limit(1)
+      .then(({ data, error }: { data: any; error: any }) => {
+        if (!error && data?.[0]) {
+          latestShadowedSentenceRef.current = data[0].sentence;
+        }
+      });
+  }, [supabase, userId, currentVideo?.recordId]);
+
+  // Fetch focus vocab review data when video view changes
+  useEffect(() => {
+    if (!supabase || !currentVideo?.videoViewId) return;
+    fetchFocusVocabWithReviewCount({
+      supabase,
+      videoViewId: currentVideo.videoViewId,
+    }).then(setFocusVocabReviewData);
+  }, [supabase, currentVideo?.videoViewId]);
+
+  // Reset review state when video changes
+  useEffect(() => {
+    setReviewCount(0);
+    setReviewType(null);
+    reviewVocabIdRef.current = null;
+    sentenceHistoryRef.current = {};
+    latestShadowedSentenceRef.current = -1;
+  }, [currentVideo?.videoId]);
+
   const setSelectedTab = useCallback(
     (tab: ContentTab) => {
       dispatch(setCurrentShadowTab(tab));
@@ -370,6 +436,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     loadExistingShadowResult();
   }, [currentSentenceIndex, isLoadingInsights]);
 
+  // Cache sentence data for translation review whenever we have both a result and translation
+  useEffect(() => {
+    if (sentenceTranslation && currentSentenceObject && (accuracyResult || previousResults)) {
+      sentenceHistoryRef.current[currentSentenceIndex] = {
+        text: currentSentenceObject.text,
+        translation: sentenceTranslation,
+        words: currentSentenceObject.words,
+      };
+    }
+  }, [sentenceTranslation, currentSentenceIndex, accuracyResult, previousResults]);
+
   useEffect(() => {
     Keyboard.dismiss();
     if (hasPlayedSentence) {
@@ -430,6 +507,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             recordingId: null,
           });
           await playCachedResponse(accuracy);
+        }
+        // Track latest shadowed sentence and save to history for translation review
+        latestShadowedSentenceRef.current = currentSentenceIndex;
+        if (currentSentenceObject && sentenceTranslation) {
+          sentenceHistoryRef.current[currentSentenceIndex] = {
+            text: currentSentenceObject.text,
+            translation: sentenceTranslation,
+            words: currentSentenceObject.words,
+          };
         }
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
@@ -747,7 +833,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }, 1000);
   };
 
-  const handleShadowNextSentence = () => {
+  const doAdvanceToNextSentence = () => {
     setPreviousResults(null);
     setAccuracyResult(null);
     setUserAnswer("");
@@ -757,6 +843,106 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     handleResetState();
     setJustRecorded();
     parentHandleNextSentence();
+  };
+
+  const proceedAfterReview = () => {
+    if (reviewType === "vocab" && reviewVocabIdRef.current && supabase && currentVideo?.videoViewId) {
+      incrementFocusVocabReviewCount({
+        supabase,
+        videoViewId: currentVideo.videoViewId,
+        vocabularyId: reviewVocabIdRef.current,
+      });
+      setFocusVocabReviewData((prev) =>
+        prev.map((v) =>
+          v.vocabulary_id === reviewVocabIdRef.current
+            ? { ...v, times_reviewed: v.times_reviewed + 1 }
+            : v,
+        ),
+      );
+    }
+    setReviewType(null);
+    setReviewVocabWord(null);
+    setReviewVocabSentenceText(null);
+    setReviewTranslationSentence(null);
+    reviewVocabIdRef.current = null;
+    doAdvanceToNextSentence();
+  };
+
+  const tryStartReview = (): boolean => {
+    if (isLooping) return false;
+    if (userSettings.disableReviewMode) return false;
+
+    // Only show review if the user just recorded this segment (not skipping around)
+    if (currentSentenceIndex !== latestShadowedSentenceRef.current) {
+      return false;
+    }
+
+    const newCount = reviewCount + 1;
+    setReviewCount(newCount);
+
+    // Only trigger based on review frequency setting
+    if (newCount % userSettings.reviewFrequency !== 0) return false;
+
+    // Alternate between vocab and translation (vocab first)
+    const reviewCycle = Math.floor(newCount / 2) % 2;
+    const preferVocab = reviewCycle === 1;
+
+    const canDoVocab = focusVocabReviewData.length > 0;
+    const reviewSentenceIndex = currentSentenceIndex - 2;
+    const historySentence = sentenceHistoryRef.current[reviewSentenceIndex];
+    const canDoTranslation = !!historySentence;
+
+    const chosenType = preferVocab
+      ? canDoVocab
+        ? "vocab"
+        : canDoTranslation
+          ? "translation"
+          : null
+      : canDoTranslation
+        ? "translation"
+        : canDoVocab
+          ? "vocab"
+          : null;
+
+    if (!chosenType) return false;
+
+    if (chosenType === "vocab") {
+      const minReviewed = Math.min(
+        ...focusVocabReviewData.map((v) => v.times_reviewed),
+      );
+      const candidates = focusVocabReviewData.filter(
+        (v) => v.times_reviewed === minReviewed,
+      );
+      const picked = candidates[Math.floor(Math.random() * candidates.length)];
+      const vocabEntry = Object.values(allVocabulary).find(
+        (v) => v.id === picked.vocabulary_id,
+      );
+      if (!vocabEntry) return false;
+
+      reviewVocabIdRef.current = picked.vocabulary_id;
+      setReviewVocabWord(vocabEntry.word);
+      setReviewVocabSentenceText(currentSentenceObject?.text ?? null);
+      setReviewType("vocab");
+      return true;
+    }
+
+    if (chosenType === "translation" && historySentence) {
+      setReviewTranslationSentence({
+        text: historySentence.text,
+        translation: historySentence.translation,
+        words: historySentence.words,
+      });
+      setReviewType("translation");
+      return true;
+    }
+
+    return false;
+  };
+
+  const handleShadowNextSentence = () => {
+    if (!tryStartReview()) {
+      doAdvanceToNextSentence();
+    }
   };
 
   const handleNextRef = useRef(handleShadowNextSentence);
@@ -1074,12 +1260,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 speed={recordSpeed}
                 onSpeedChange={(s) => {
                   setRecordSpeed(s);
-                  dispatch(
-                    setUserSettings({
-                      ...userSettings,
-                      playbackSpeedDuringRecording: s,
-                    }),
-                  );
+                  const updated = {
+                    ...userSettings,
+                    playbackSpeedDuringRecording: s,
+                  };
+                  dispatch(setUserSettings(updated));
+                  persistUserSettings({
+                    supabase,
+                    userId,
+                    settings: updated,
+                  });
                 }}
               />
               <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
@@ -1416,6 +1606,22 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           </View>
         </TouchableWithoutFeedback>
       </Modal> */}
+      <GuessWordModal
+        visible={reviewType === "vocab"}
+        onClose={proceedAfterReview}
+        word={reviewVocabWord ?? undefined}
+        sentenceText={reviewVocabSentenceText ?? undefined}
+        title="Remember the translation"
+        onFinished={proceedAfterReview}
+      />
+      <TranslationReviewModal
+        visible={reviewType === "translation"}
+        englishTranslation={reviewTranslationSentence?.translation ?? ""}
+        targetText={reviewTranslationSentence?.text ?? ""}
+        targetWords={reviewTranslationSentence?.words ?? []}
+        onComplete={proceedAfterReview}
+        onClose={proceedAfterReview}
+      />
     </>
   );
 };

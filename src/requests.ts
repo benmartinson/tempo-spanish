@@ -485,6 +485,12 @@ export const restoreUserUIState = async ({
       playVideoWhileRecording:
         uiState.play_video_while_recording ??
         DEFAULT_USER_SETTINGS.playVideoWhileRecording,
+      disableReviewMode:
+        uiState.disable_review_mode ??
+        DEFAULT_USER_SETTINGS.disableReviewMode,
+      reviewFrequency:
+        uiState.review_frequency ??
+        DEFAULT_USER_SETTINGS.reviewFrequency,
     };
 
     if (uiState?.current_video) {
@@ -690,6 +696,10 @@ export const persistUserSettings = async ({
     updateData.default_memorize_difficulty = settings.defaultMemorizeDifficulty;
   if (settings.playVideoWhileRecording !== undefined)
     updateData.play_video_while_recording = settings.playVideoWhileRecording;
+  if (settings.disableReviewMode !== undefined)
+    updateData.disable_review_mode = settings.disableReviewMode;
+  if (settings.reviewFrequency !== undefined)
+    updateData.review_frequency = settings.reviewFrequency;
 
   const { error } = await supabase
     .from("user_ui_state")
@@ -756,4 +766,59 @@ export const loadAndCacheTTSResponses = async ({
   }
 
   dispatch(setCachedResponses(results));
+};
+
+export const fetchFocusVocabWithReviewCount = async ({
+  supabase,
+  videoViewId,
+}: {
+  supabase: any;
+  videoViewId: number;
+}): Promise<{ vocabulary_id: number; times_reviewed: number }[]> => {
+  const { data, error } = await supabase
+    .from("video_view_focus_vocab")
+    .select("vocabulary_id, times_reviewed")
+    .eq("video_view_id", videoViewId);
+
+  if (error) {
+    console.error("Error fetching focus vocab review data:", error);
+    return [];
+  }
+
+  return (data ?? []).map((v: any) => ({
+    vocabulary_id: v.vocabulary_id,
+    times_reviewed: v.times_reviewed ?? 0,
+  }));
+};
+
+export const incrementFocusVocabReviewCount = async ({
+  supabase,
+  videoViewId,
+  vocabularyId,
+}: {
+  supabase: any;
+  videoViewId: number;
+  vocabularyId: number;
+}) => {
+  const { data: current, error: fetchError } = await supabase
+    .from("video_view_focus_vocab")
+    .select("times_reviewed")
+    .eq("video_view_id", videoViewId)
+    .eq("vocabulary_id", vocabularyId)
+    .single();
+
+  if (fetchError) {
+    console.error("Error fetching current review count:", fetchError);
+    return;
+  }
+
+  const { error } = await supabase
+    .from("video_view_focus_vocab")
+    .update({ times_reviewed: (current?.times_reviewed ?? 0) + 1 })
+    .eq("video_view_id", videoViewId)
+    .eq("vocabulary_id", vocabularyId);
+
+  if (error) {
+    console.error("Error incrementing focus vocab review count:", error);
+  }
 };

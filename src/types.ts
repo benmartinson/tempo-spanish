@@ -13,6 +13,8 @@ export interface UserSettings {
   playVideoWhileRecording: boolean;
   autoSaveRecordings: boolean;
   showSaveRecordingsModal: boolean;
+  disableReviewMode: boolean;
+  reviewFrequency: number;
 }
 
 export type VoiceCommand =
@@ -57,6 +59,8 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   playVideoWhileRecording: true,
   autoSaveRecordings: false,
   showSaveRecordingsModal: true,
+  disableReviewMode: false,
+  reviewFrequency: 2,
 };
 
 export interface CachedResponse {
@@ -354,6 +358,8 @@ export interface UserUIState {
   save_memorize_difficulty: boolean | null;
   default_memorize_difficulty: number | null;
   play_video_while_recording: boolean | null;
+  disable_review_mode: boolean | null;
+  review_frequency: number | null;
 }
 
 export type ContentTab =
