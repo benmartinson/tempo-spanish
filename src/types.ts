@@ -90,6 +90,7 @@ export interface RootState {
   memorizeDifficulty: number;
   userSettings: UserSettings;
   cachedResponses: CachedResponse[];
+  userCredits: number;
 }
 
 export type DataActionTypes =
@@ -125,7 +126,8 @@ export type DataActionTypes =
   | "SET_CACHED_RESPONSES"
   | "SET_CURRENT_SHADOW_TAB"
   | "SET_MEMORIZE_DIFFICULTY"
-  | "SET_SELECTED_CHANNEL_ID";
+  | "SET_SELECTED_CHANNEL_ID"
+  | "SET_USER_CREDITS";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;

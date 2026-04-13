@@ -183,3 +183,8 @@ export const setMemorizeDifficulty = (difficulty: number): DataAction => ({
   type: "SET_MEMORIZE_DIFFICULTY",
   payload: difficulty,
 });
+
+export const setUserCredits = (credits: number): DataAction => ({
+  type: "SET_USER_CREDITS",
+  payload: credits,
+});

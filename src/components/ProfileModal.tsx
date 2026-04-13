@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,10 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useClerk, useUser } from "@clerk/clerk-expo";
+import { useSelector } from "react-redux";
 import SlideModal from "./common/SlideModal";
+import CreditStore from "./CreditStore";
+import { RootState } from "../types";
 
 interface ProfileModalProps {
   visible: boolean;
@@ -52,6 +55,8 @@ const menuStyles = StyleSheet.create({
 const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   const { signOut } = useClerk();
   const { user } = useUser();
+  const userCredits = useSelector((state: RootState) => state.userCredits);
+  const [creditStoreVisible, setCreditStoreVisible] = useState(false);
 
   const handleSignOut = async () => {
     onClose();
@@ -83,6 +88,20 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
           )}
         </View>
 
+        <View style={styles.creditsRow}>
+          <View style={styles.creditsInfo}>
+            <MaterialIcons name="token" size={20} color="#5a5680" />
+            <Text style={styles.creditsLabel}>Credits</Text>
+            <Text style={styles.creditsValue}>{userCredits}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.buyButton}
+            onPress={() => setCreditStoreVisible(true)}
+          >
+            <Text style={styles.buyButtonText}>Buy More</Text>
+          </TouchableOpacity>
+        </View>
+
         <Text style={styles.sectionHeader}>Account Settings</Text>
         <View style={styles.card}>
           <MenuRow label="Subscription" onPress={() => {}} />
@@ -101,6 +120,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <CreditStore
+        visible={creditStoreVisible}
+        onClose={() => setCreditStoreVisible(false)}
+      />
     </SlideModal>
   );
 };
@@ -173,6 +197,43 @@ const styles = StyleSheet.create({
   signOutText: {
     color: "#ff4d4d",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  creditsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginHorizontal: 16,
+    marginTop: 20,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  creditsInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  creditsLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#1a1a2e",
+  },
+  creditsValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#5a5680",
+  },
+  buyButton: {
+    backgroundColor: "#4a69bd",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  buyButtonText: {
+    color: "#fff",
+    fontSize: 14,
     fontWeight: "600",
   },
 });

@@ -72,12 +72,14 @@ import {
   persistCurrentShadowTab,
   fetchFocusVocabWithReviewCount,
   incrementFocusVocabReviewCount,
+  deductUserCredit,
 } from "../../requests";
 import GuessWordModal from "../common/GuessWordModal";
 import TranslationReviewModal from "./TranslationReviewModal";
 import {
   setCurrentShadowTab,
   setUserSettings,
+  setUserCredits,
 } from "../../store/actions/dataActions";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
@@ -88,6 +90,7 @@ import { computeSubSegments } from "../../helpers/helpers";
 import { setCurrentSentence } from "../../store/actions/dataActions";
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import RecordingControls from "../common/RecordingControls";
+import NoCreditsModal from "../common/NoCreditsModal";
 import MemorizeContent from "../speed-run/MemorizeContent";
 import TranslateContent from "../translate/TranslateContent";
 import ModeSwitcher from "./ModeSwitcher";
@@ -188,6 +191,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [isLooping, setIsLooping] = useState<boolean>(false);
   // Speed control state (internal settings)
   const userSettings = useSelector((state: RootState) => state.userSettings);
+  const userCredits = useSelector((state: RootState) => state.userCredits);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(
     userSettings.playbackSpeed,
   );
@@ -219,6 +223,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
+  const [showNoCreditsModal, setShowNoCreditsModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
     null,
@@ -543,6 +548,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         }
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
+
+        // Deduct 1 credit after successful recording submission
+        const newCredits = await deductUserCredit({ supabase, userId });
+        if (newCredits !== null) {
+          dispatch(setUserCredits(newCredits));
+        }
       } catch (err) {
         console.error("Transcription error:", err);
         setError(
@@ -1018,7 +1029,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleEnterRecordingMode = async () => {
-    // setPreviousResults(null);
+    if (userCredits <= 0) {
+      setShowNoCreditsModal(true);
+      return;
+    }
     await stopListening();
     pausePlayer();
     mutePlayer();
@@ -1664,6 +1678,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         targetWords={reviewTranslationSentence?.words ?? []}
         onComplete={proceedAfterReview}
         onClose={proceedAfterReview}
+      />
+
+      {/* No Credits Modal */}
+      <NoCreditsModal
+        visible={showNoCreditsModal}
+        onClose={() => setShowNoCreditsModal(false)}
       />
     </>
   );

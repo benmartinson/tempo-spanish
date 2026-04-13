@@ -17,13 +17,13 @@ import {
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { useAuth, useClerk, useUser } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/clerk-expo";
 import {
   saveLastSentenceWatched,
   persistVideoUnselection,
 } from "../../requests";
-import SlideModal from "./SlideModal";
 import VideoInsights from "./VideoInsights";
+import ProfileModal from "../ProfileModal";
 
 type NavTab =
   | "watch"
@@ -52,8 +52,6 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
-  const { signOut } = useClerk();
-  const { user } = useUser();
   const [dropdownPosition, setDropdownPosition] = useState({
     x: 0,
     y: 0,
@@ -198,33 +196,10 @@ const NavTabBanner: React.FC<NavTabBannerProps> = ({
           </TouchableWithoutFeedback>
         </Modal>
 
-        <SlideModal
+        <ProfileModal
           visible={profileVisible}
-          onRequestClose={() => setProfileVisible(false)}
-          title="Profile"
-        >
-          <View style={styles.profileContent}>
-            <View style={styles.profileSection}>
-              <View style={styles.avatar}>
-                <Text style={styles.profileAvatarText}>👤</Text>
-              </View>
-              {user?.primaryEmailAddress && (
-                <Text style={styles.email}>
-                  {user.primaryEmailAddress.emailAddress}
-                </Text>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.signOutButton}
-              onPress={async () => {
-                setProfileVisible(false);
-                await signOut();
-              }}
-            >
-              <Text style={styles.signOutText}>Sign Out</Text>
-            </TouchableOpacity>
-          </View>
-        </SlideModal>
+          onClose={() => setProfileVisible(false)}
+        />
       </View>
       {insightsOpen && (
         <>
@@ -286,45 +261,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#5a5680",
-  },
-  profileContent: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 40,
-  },
-  profileSection: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#3d3a52",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 3,
-    borderColor: "#5a5680",
-  },
-  profileAvatarText: {
-    fontSize: 36,
-  },
-  email: {
-    fontSize: 16,
-    color: "#888",
-  },
-  signOutButton: {
-    backgroundColor: "#3d3a52",
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    alignItems: "center",
-  },
-  signOutText: {
-    color: "#ff6b6b",
-    fontSize: 16,
-    fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,

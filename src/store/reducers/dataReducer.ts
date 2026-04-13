@@ -26,6 +26,7 @@ const initialState: RootState = {
   memorizeDifficulty: 0,
   userSettings: DEFAULT_USER_SETTINGS,
   cachedResponses: [],
+  userCredits: 0,
 };
 
 const dataReducer = (
@@ -259,6 +260,11 @@ const dataReducer = (
       return {
         ...state,
         memorizeDifficulty: action.payload,
+      };
+    case "SET_USER_CREDITS":
+      return {
+        ...state,
+        userCredits: action.payload,
       };
     default:
       return state;

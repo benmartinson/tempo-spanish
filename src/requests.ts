@@ -822,3 +822,105 @@ export const incrementFocusVocabReviewCount = async ({
     console.error("Error incrementing focus vocab review count:", error);
   }
 };
+
+// ── Credits ──────────────────────────────────────────────────────────
+
+export const fetchUserCredits = async ({
+  supabase,
+  userId,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+}): Promise<number> => {
+  if (!userId) return 0;
+
+  const { data, error } = await supabase
+    .from("user_credits")
+    .select("credits")
+    .eq("user_id", userId)
+    .single();
+
+  if (error || !data) {
+    // No row yet — create one with default 100 credits
+    const { data: inserted, error: insertError } = await supabase
+      .from("user_credits")
+      .upsert({ user_id: userId, credits: 100 })
+      .select("credits")
+      .single();
+
+    if (insertError) {
+      console.error("Error initializing user credits:", insertError);
+      return 0;
+    }
+    return inserted?.credits ?? 100;
+  }
+
+  return data.credits;
+};
+
+export const deductUserCredit = async ({
+  supabase,
+  userId,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+}): Promise<number | null> => {
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from("user_credits")
+    .select("credits")
+    .eq("user_id", userId)
+    .single();
+
+  if (error || !data || data.credits <= 0) return null;
+
+  const newCredits = data.credits - 1;
+  const { error: updateError } = await supabase
+    .from("user_credits")
+    .update({ credits: newCredits, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.error("Error deducting credit:", updateError);
+    return null;
+  }
+
+  return newCredits;
+};
+
+export const addUserCredits = async ({
+  supabase,
+  userId,
+  amount,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+  amount: number;
+}): Promise<number> => {
+  if (!userId) return 0;
+
+  const { data, error } = await supabase
+    .from("user_credits")
+    .select("credits")
+    .eq("user_id", userId)
+    .single();
+
+  if (error || !data) {
+    console.error("Error fetching credits for add:", error);
+    return 0;
+  }
+
+  const newCredits = data.credits + amount;
+  const { error: updateError } = await supabase
+    .from("user_credits")
+    .update({ credits: newCredits, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.error("Error adding credits:", updateError);
+    return data.credits;
+  }
+
+  return newCredits;
+};

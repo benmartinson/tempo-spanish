@@ -22,6 +22,7 @@ import {
   setUserSettings,
   setCurrentShadowTab,
   setMemorizeDifficulty,
+  setUserCredits,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import { VideoView, Vocabulary, RootState, UserUIState } from "./src/types";
@@ -35,6 +36,7 @@ import {
   restoreUserUIState,
   persistUserUITab,
   loadAndCacheTTSResponses,
+  fetchUserCredits,
 } from "./src/requests";
 import { useUIStateSync } from "./src/hooks/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
@@ -297,6 +299,10 @@ const AuthenticatedApp: React.FC = () => {
       if (videoContext) {
         dispatch(setCurrentVideo(videoContext));
       }
+
+      // Fetch user credits
+      const credits = await fetchUserCredits({ supabase, userId });
+      dispatch(setUserCredits(credits));
 
       setIsRestoringState(false);
     };
