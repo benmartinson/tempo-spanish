@@ -26,7 +26,7 @@ const TopNavBar: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.leftFlagContainer} />
       <View style={styles.titleContainer}>
-        <AppIcon size={20} />
+        {/* <AppIcon size={20} /> */}
         <Text style={styles.appName}>Tempo Spanish</Text>
       </View>
       <TouchableOpacity

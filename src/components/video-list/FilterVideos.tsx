@@ -47,11 +47,18 @@ const FilterVideos: React.FC<{
 
   const filteredVideos = useMemo(() => {
     return videos.filter((video) => {
-      if (
-        searchText &&
-        !video.title.toLowerCase().includes(searchText.toLowerCase())
-      ) {
-        return false;
+      if (searchText) {
+        const term = searchText.toLowerCase();
+        const channelName =
+          channels
+            ?.find((ch) => ch.channel_id === video.channel_id)
+            ?.title?.toLowerCase() ?? "";
+        if (
+          !video.title.toLowerCase().includes(term) &&
+          !channelName.includes(term)
+        ) {
+          return false;
+        }
       }
       if (mode === "topics") {
         if (selectedTopicId == null) return true;
@@ -76,6 +83,7 @@ const FilterVideos: React.FC<{
     selectedTopicId,
     mode,
     channelTopics,
+    channels,
   ]);
 
   const hasActiveFilters =
@@ -162,7 +170,7 @@ const FilterVideos: React.FC<{
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.filterLabel}>Search by name</Text>
+            <Text style={styles.filterLabel}>Search by name or channel</Text>
             <TextInput
               style={styles.searchInput}
               placeholder="Search videos..."

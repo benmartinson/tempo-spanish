@@ -13,24 +13,18 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../types";
 import { setUserSettings } from "../../store/actions/dataActions";
 
-type SettingsTab = "general" | "insights" | "memorize";
-
 interface SettingsModalProps {
   visible: boolean;
   onClose: () => void;
-  playbackSpeed: number;
   recordSpeed: number;
-  setPlaybackSpeed: (speed: number) => void;
   setRecordSpeed: (speed: number) => void;
   initMute: boolean;
   setMuteWhenRecording: (mute: boolean) => void;
   onSave: (settings: {
-    playbackSpeed: number;
     showWordsHints: boolean;
     showCharacters: boolean;
     showPhrases: boolean;
   }) => void;
-  speedOptions?: number[];
   hideToggles?: boolean;
 }
 
@@ -73,23 +67,17 @@ const rowStyles = StyleSheet.create({
 const SettingsModal: React.FC<SettingsModalProps> = ({
   visible,
   onClose,
-  playbackSpeed,
   recordSpeed,
-  setPlaybackSpeed,
   setRecordSpeed,
   initMute,
   setMuteWhenRecording,
   onSave,
-  speedOptions: customSpeedOptions,
   hideToggles = false,
 }) => {
   const dispatch = useDispatch();
   const userSettings = useSelector((state: RootState) => state.userSettings);
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
 
-  const speedOptions = customSpeedOptions || [0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
   const recordSpeedOptions = [0.25, 0.35, 0.45, 0.6, 0.75, 1];
-  const [editedPlaybackSpeed, setEditedPlaybackSpeed] = useState(playbackSpeed);
   const [editedRecordSpeed, setEditedRecordSpeed] = useState(
     userSettings.playbackSpeedDuringRecording,
   );
@@ -104,8 +92,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editedShowPhrases, setEditedShowPhrases] = useState(
     userSettings.showPhrases,
   );
-  const [editedPlayVideoWhileRecording, setEditedPlayVideoWhileRecording] =
-    useState(userSettings.playVideoWhileRecording);
   const [editedAutoSaveRecordings, setEditedAutoSaveRecordings] = useState(
     userSettings.autoSaveRecordings,
   );
@@ -136,21 +122,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Auto-save whenever any edited setting changes
   useEffect(() => {
-    setPlaybackSpeed(editedPlaybackSpeed);
     setRecordSpeed(editedRecordSpeed);
     setMuteWhenRecording(muteVideoWhenRecording);
     const newSettings = {
       ...userSettingsRef.current,
-      playbackSpeed: editedPlaybackSpeed,
-      playbackSpeedDuringRecording: editedPlayVideoWhileRecording
-        ? editedRecordSpeed
-        : 0,
+      playbackSpeedDuringRecording: editedRecordSpeed,
       showWordsHints: editedShowWordsHints,
       showCharacters: editedShowCharacters,
       showPhrases: editedShowPhrases,
       saveMemorizeDifficulty: editedSaveMemorizeDifficulty,
       defaultMemorizeDifficulty: editedDefaultMemorizeDifficulty,
-      playVideoWhileRecording: editedPlayVideoWhileRecording,
       autoSaveRecordings: editedAutoSaveRecordings,
       disableReviewMode: editedDisableReviewMode,
       reviewFrequency: editedReviewFrequency,
@@ -158,9 +139,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     dispatch(setUserSettings(newSettings));
     onSaveRef.current(newSettings);
   }, [
-    editedPlaybackSpeed,
     editedRecordSpeed,
-    editedPlayVideoWhileRecording,
     editedAutoSaveRecordings,
     editedDisableReviewMode,
     editedReviewFrequency,
@@ -171,163 +150,105 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     editedSaveMemorizeDifficulty,
     editedDefaultMemorizeDifficulty,
     dispatch,
-    setPlaybackSpeed,
     setRecordSpeed,
     setMuteWhenRecording,
   ]);
 
-  const tabs: { key: SettingsTab; label: string }[] = [
-    { key: "general", label: "General" },
-    ...(hideToggles
-      ? []
-      : [
-          { key: "memorize" as const, label: "Transcript" },
-          { key: "insights" as const, label: "Insights" },
-        ]),
-  ];
-
   return (
     <SlideModal visible={visible} onRequestClose={onClose} title="Settings">
-      {/* Tabs */}
-      <View style={styles.tabBar}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-            onPress={() => setActiveTab(tab.key)}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === tab.key && styles.tabTextActive,
-              ]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Content */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {activeTab === "general" && (
-          <>
-            <View style={styles.card}>
-              <View style={styles.cardInner}>
-                <SpeedControl
-                  speed={editedPlaybackSpeed}
-                  onSpeedChange={setEditedPlaybackSpeed}
-                  options={speedOptions}
-                />
-              </View>
+        {/* General */}
+        <Text style={styles.sectionHeader}>GENERAL</Text>
+        <View style={styles.card}>
+          <View style={styles.cardInner}>
+            <SpeedControl
+              speed={editedRecordSpeed}
+              onSpeedChange={setEditedRecordSpeed}
+              options={recordSpeedOptions}
+              label="Recording Speed"
+            />
+          </View>
+          <View style={styles.cardDivider} />
+          <SettingRow
+            label="Disable Review Popups"
+            value={editedDisableReviewMode}
+            onToggle={setEditedDisableReviewMode}
+            isLast={editedDisableReviewMode}
+          />
+          {!editedDisableReviewMode && (
+            <>
               <View style={styles.cardDivider} />
-              <SettingRow
-                label="Play Video While Recording"
-                value={editedPlayVideoWhileRecording}
-                onToggle={(val) => {
-                  setEditedPlayVideoWhileRecording(val);
-                  if (val) setEditedRecordSpeed(0.25);
-                }}
-                isLast={!editedPlayVideoWhileRecording}
-              />
-              {!editedPlayVideoWhileRecording && (
-                <Text style={styles.warningText}>
-                  Saving recordings is disabled when this setting is turned off
-                </Text>
-              )}
-              {editedPlayVideoWhileRecording && (
-                <>
-                  <View style={styles.cardDivider} />
-                  <View style={styles.cardInner}>
-                    <SpeedControl
-                      speed={editedRecordSpeed}
-                      onSpeedChange={setEditedRecordSpeed}
-                      options={recordSpeedOptions}
-                      label="Recording Speed"
-                    />
-                  </View>
-                  <View style={styles.cardDivider} />
-                </>
-              )}
-            </View>
+              <View style={styles.frequencyRow}>
+                <Text style={rowStyles.label}>Review Popup Frequency</Text>
+                <View style={styles.frequencyControls}>
+                  <TouchableOpacity
+                    style={styles.frequencyButton}
+                    onPress={() =>
+                      setEditedReviewFrequency(
+                        Math.max(1, editedReviewFrequency - 1),
+                      )
+                    }
+                    disabled={editedReviewFrequency <= 1}
+                  >
+                    <Text style={styles.frequencyButtonText}>-</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.frequencyValue}>
+                    {editedReviewFrequency}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.frequencyButton}
+                    onPress={() =>
+                      setEditedReviewFrequency(
+                        Math.min(10, editedReviewFrequency + 1),
+                      )
+                    }
+                    disabled={editedReviewFrequency >= 10}
+                  >
+                    <Text style={styles.frequencyButtonText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text style={styles.frequencyHint}>
+                Review every {editedReviewFrequency} segment
+                {editedReviewFrequency > 1 ? "s" : ""}
+              </Text>
+            </>
+          )}
+        </View>
+
+        {/* Insights */}
+        {!hideToggles && (
+          <>
+            <Text style={styles.sectionHeader}>INSIGHTS</Text>
             <View style={styles.card}>
               <SettingRow
-                label="Disable Review Popups"
-                value={editedDisableReviewMode}
-                onToggle={setEditedDisableReviewMode}
-                isLast={editedDisableReviewMode}
+                label="Show Word Hints by Default?"
+                value={editedShowWordsHints}
+                onToggle={setEditedShowWordsHints}
               />
-              {!editedDisableReviewMode && (
-                <>
-                  <View style={styles.cardDivider} />
-                  <View style={styles.frequencyRow}>
-                    <Text style={rowStyles.label}>Review Popup Frequency</Text>
-                    <View style={styles.frequencyControls}>
-                      <TouchableOpacity
-                        style={styles.frequencyButton}
-                        onPress={() =>
-                          setEditedReviewFrequency(
-                            Math.max(1, editedReviewFrequency - 1),
-                          )
-                        }
-                        disabled={editedReviewFrequency <= 1}
-                      >
-                        <Text style={styles.frequencyButtonText}>-</Text>
-                      </TouchableOpacity>
-                      <Text style={styles.frequencyValue}>
-                        {editedReviewFrequency}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.frequencyButton}
-                        onPress={() =>
-                          setEditedReviewFrequency(
-                            Math.min(10, editedReviewFrequency + 1),
-                          )
-                        }
-                        disabled={editedReviewFrequency >= 10}
-                      >
-                        <Text style={styles.frequencyButtonText}>+</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  <Text style={styles.frequencyHint}>
-                    Review every {editedReviewFrequency} segment
-                    {editedReviewFrequency > 1 ? "s" : ""}
-                  </Text>
-                </>
-              )}
+              <SettingRow
+                label="Show Characters List by Default?"
+                value={editedShowCharacters}
+                onToggle={setEditedShowCharacters}
+              />
+              <SettingRow
+                label="Show Phrases by Default?"
+                value={editedShowPhrases}
+                onToggle={setEditedShowPhrases}
+                isLast
+              />
             </View>
           </>
         )}
 
-        {activeTab === "insights" && (
-          <View style={styles.card}>
-            <SettingRow
-              label="Show Word Hints by Default?"
-              value={editedShowWordsHints}
-              onToggle={setEditedShowWordsHints}
-            />
-            <SettingRow
-              label="Show Characters List by Default?"
-              value={editedShowCharacters}
-              onToggle={setEditedShowCharacters}
-            />
-            <SettingRow
-              label="Show Phrases by Default?"
-              value={editedShowPhrases}
-              onToggle={setEditedShowPhrases}
-              isLast
-            />
-          </View>
-        )}
-
-        {activeTab === "memorize" && (
+        {/* Transcript */}
+        {!hideToggles && (
           <>
+            <Text style={styles.sectionHeader}>TRANSCRIPT</Text>
             <View style={styles.card}>
               <SettingRow
                 label="Save Hint Difficulty?"
@@ -388,34 +309,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  tabBar: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 0,
-    gap: 4,
-    backgroundColor: "#fff",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e0e0e4",
-  },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  tabActive: {
-    borderBottomColor: "#3d3a52",
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#999",
-  },
-  tabTextActive: {
-    color: "#3d3a52",
-  },
   scrollView: {
     flex: 1,
     backgroundColor: "#f5f5f7",
@@ -423,6 +316,14 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 16,
     paddingBottom: 32,
+  },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#8e8e93",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    paddingHorizontal: 20,
   },
   card: {
     marginHorizontal: 16,
@@ -443,9 +344,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#8e8e93",
-    textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginTop: 20,
+    marginTop: 4,
     marginBottom: 8,
     paddingHorizontal: 20,
   },
@@ -489,12 +389,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: "#3d3a52",
-  },
-  warningText: {
-    fontSize: 12,
-    color: "#e53935",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
   },
   frequencyRow: {
     flexDirection: "row",

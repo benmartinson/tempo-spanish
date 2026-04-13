@@ -192,9 +192,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Speed control state (internal settings)
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const userCredits = useSelector((state: RootState) => state.userCredits);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(
-    userSettings.playbackSpeed,
-  );
+  const playbackSpeed = userSettings.playbackSpeed;
   const [recordSpeed, setRecordSpeed] = useState<number>(
     userSettings.playbackSpeedDuringRecording,
   );
@@ -1109,7 +1107,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handlePlaySnippetSlow = async () => {
     await stopListening();
     setJustRecorded();
-    setPlayerSpeed(0.8);
+    setPlayerSpeed(0.75);
     setIsRecordingMode(false);
     handleResetState();
 
@@ -1589,9 +1587,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         <SettingsModal
           visible={isSettingsVisible}
           onClose={() => setIsSettingsVisible(false)}
-          playbackSpeed={playbackSpeed}
           recordSpeed={recordSpeed}
-          setPlaybackSpeed={setPlaybackSpeed}
           setRecordSpeed={setRecordSpeed}
           initMute={muteVideoWhenRecording}
           setMuteWhenRecording={setMuteVideoWhenRecording}

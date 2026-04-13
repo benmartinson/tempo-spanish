@@ -17,14 +17,14 @@ const AppIcon: React.FC<AppIconProps> = ({ size = 24 }) => {
         { width: containerSize, height: containerSize, borderRadius },
       ]}
     >
-      <MaterialCommunityIcons name="waves" size={size} color="#3d3a52" />
+      <MaterialCommunityIcons name="waves" size={size} color="white" />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#d0d8f0",
+    backgroundColor: "#5a5680",
     alignItems: "center",
     justifyContent: "center",
   },
