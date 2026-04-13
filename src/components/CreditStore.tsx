@@ -50,7 +50,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
   const [iapProducts, setIapProducts] = useState<IAPProduct[]>([]);
   const [iapModule, setIapModule] = useState<any>(null);
 
-  // Dynamically load react-native-iap only in real builds when modal is visible
+  // Dynamically load expo-iap only in real builds when modal is visible
   useEffect(() => {
     if (isExpoGo || !visible) return;
 
@@ -59,11 +59,11 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
 
     const init = async () => {
       try {
-        const IAP = await import("react-native-iap");
+        const IAP = await import("expo-iap");
         setIapModule(IAP);
 
         await IAP.initConnection();
-        const items = await IAP.getProducts({
+        const items = await IAP.fetchProducts({
           skus: Object.keys(CREDIT_AMOUNTS),
         });
         setIapProducts(items as unknown as IAPProduct[]);
@@ -80,7 +80,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
                 });
                 dispatch(setUserCredits(newCredits));
               }
-              await IAP.finishTransaction({ purchase });
+              await IAP.finishTransaction({ purchase, isConsumable: true });
             } catch (err) {
               console.error("Error finishing transaction:", err);
             }
@@ -102,7 +102,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
     return () => {
       purchaseUpdateSub?.remove();
       purchaseErrorSub?.remove();
-      import("react-native-iap")
+      import("expo-iap")
         .then((IAP) => IAP.endConnection())
         .catch(() => {});
     };
@@ -128,7 +128,10 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
     if (!iapModule) return;
     setIsLoading(true);
     try {
-      await iapModule.requestPurchase({ sku: productId });
+      await iapModule.requestPurchase({
+        request: { sku: productId },
+        type: "in-app",
+      });
     } catch (err) {
       console.error("Purchase request error:", err);
     } finally {
