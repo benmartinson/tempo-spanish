@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   StyleSheet,
   View,
@@ -400,15 +406,13 @@ const ReviewTab: React.FC<ReviewTabProps> = ({
           onPlayClip={handlePlayClip}
           isVocabMode={isVocabMode}
         />
-        {hintWords.length > 0 && (
-          <WordHints
-            hintWords={hintWords}
-            handlePlayWordSnippet={() => {}}
-            isPlayingWordSnippet={false}
-            showWordHints={false}
-            showSlowPlay={false}
-          />
-        )}
+        <WordHints
+          hintWords={hintWords}
+          handlePlayWordSnippet={() => {}}
+          isPlayingWordSnippet={false}
+          showWordHints={false}
+          showSlowPlay={false}
+        />
 
         {answered && userMessages.length > 0 && (
           <UserAnswerBubble answer={userMessages[userMessages.length - 1]} />

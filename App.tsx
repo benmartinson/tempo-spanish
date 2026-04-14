@@ -372,7 +372,7 @@ const AuthenticatedApp: React.FC = () => {
   // When showTabsBelow is false, use NavTabBanner navigation
   return (
     <View style={{ flex: 1, backgroundColor: "white" }}>
-      {!currentVideo && <TopNavBar />}
+      {(!currentVideo || isRestoringState) && <TopNavBar />}
       {isRestoringState ? (
         <View
           style={{
@@ -411,24 +411,17 @@ const AppNavigator: React.FC = () => {
   // Show loading spinner while Clerk initializes
   if (!isLoaded) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#1a1a2e",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <MaterialCommunityIcons
-            name="waves"
-            size={24}
-            style={{ marginRight: 4 }}
-            color="white"
-          />
-          <Text style={{ color: "#fff", fontSize: 24, fontWeight: "600" }}>
-            Tempo Spanish
-          </Text>
+      <View style={{ flex: 1, backgroundColor: "white" }}>
+        <TopNavBar minimal />
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "white",
+          }}
+        >
+          <ActivityIndicator size="large" color="#5a5680" />
         </View>
       </View>
     );

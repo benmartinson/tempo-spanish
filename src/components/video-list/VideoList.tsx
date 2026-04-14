@@ -45,9 +45,8 @@ const VideoList: React.FC = () => {
   const isSearching = useSelector((state: RootState) => state.isSearching);
   const hasSearched = useSelector((state: RootState) => state.hasSearched);
   const allChannels = useSelector((state: RootState) => state.allChannels);
-  const selectedChannel = allChannels.find(
-    (c) => c.channel_id === selectedChannelId,
-  ) ?? null;
+  const selectedChannel =
+    allChannels.find((c) => c.channel_id === selectedChannelId) ?? null;
   const allTopics = useSelector((state: RootState) => state.allTopics);
   const channelTopics = useSelector((state: RootState) => state.channelTopics);
   const allVideos = useSelector((state: RootState) => state.allVideos);
@@ -290,7 +289,9 @@ const VideoList: React.FC = () => {
                       <View key={channel.id} style={styles.channelContainer}>
                         <TouchableOpacity
                           style={styles.channelHeader}
-                          onPress={() => dispatch(setSelectedChannelId(channel.channel_id))}
+                          onPress={() =>
+                            dispatch(setSelectedChannelId(channel.channel_id))
+                          }
                         >
                           <Image
                             source={{ uri: channel.thumbnail_url }}
@@ -323,7 +324,9 @@ const VideoList: React.FC = () => {
                           videos={channelVideos}
                           handleWatchPress={handleWatchPress}
                           loadingVideo={loadingVideo}
-                          onViewAll={() => dispatch(setSelectedChannelId(channel.channel_id))}
+                          onViewAll={() =>
+                            dispatch(setSelectedChannelId(channel.channel_id))
+                          }
                         />
                       </View>
                     );
@@ -392,7 +395,7 @@ const styles = StyleSheet.create({
   },
   channelContainer: {
     marginBottom: 24,
-    borderBottomWidth: 1,
+    borderBottomWidth: 2,
     borderBottomColor: "#d0d8f0",
   },
   channelHeader: {

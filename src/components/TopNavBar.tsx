@@ -18,7 +18,7 @@ export const getFlagForLanguage = (language: string): string => {
   }
 };
 
-const TopNavBar: React.FC = () => {
+const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
   const [profileVisible, setProfileVisible] = useState(false);
   const [languageVisible, setLanguageVisible] = useState(false);
 
@@ -26,25 +26,30 @@ const TopNavBar: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.leftFlagContainer} />
       <View style={styles.titleContainer}>
-        {/* <AppIcon size={20} /> */}
         <Text style={styles.appName}>Tempo Spanish</Text>
       </View>
-      <TouchableOpacity
-        style={styles.avatarButton}
-        onPress={() => setProfileVisible(true)}
-      >
-        <Ionicons name="person" size={16} color="#5a5680" />
-      </TouchableOpacity>
+      {minimal ? (
+        <View style={styles.leftFlagContainer} />
+      ) : (
+        <>
+          <TouchableOpacity
+            style={styles.avatarButton}
+            onPress={() => setProfileVisible(true)}
+          >
+            <Ionicons name="person" size={16} color="#5a5680" />
+          </TouchableOpacity>
 
-      <LanguageModal
-        visible={languageVisible}
-        onClose={() => setLanguageVisible(false)}
-      />
+          <LanguageModal
+            visible={languageVisible}
+            onClose={() => setLanguageVisible(false)}
+          />
 
-      <ProfileModal
-        visible={profileVisible}
-        onClose={() => setProfileVisible(false)}
-      />
+          <ProfileModal
+            visible={profileVisible}
+            onClose={() => setProfileVisible(false)}
+          />
+        </>
+      )}
     </View>
   );
 };

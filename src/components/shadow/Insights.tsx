@@ -69,22 +69,12 @@ const Insights: React.FC<InsightsProps> = ({
     setIsShowingCharacters(showCharacters);
   }, [showCharacters]);
 
-  if (isLoading) {
-    return;
-  }
-
   return (
     <View style={styles.container}>
       <Phrases
         subSegments={subSegments}
         sentenceText={sentenceText}
         onPlayClip={onPlayClip}
-        phraseRecordings={phraseRecordings}
-        recordingPhraseIndex={recordingPhraseIndex}
-        allPhrasesRecorded={allPhrasesRecorded}
-        onStartPhraseRecording={onStartPhraseRecording}
-        onStopPhraseRecording={onStopPhraseRecording}
-        onSubmitPhrases={onSubmitPhrases}
         playbackTime={playbackTime}
         playerIsPlaying={playerIsPlaying}
         replayingPhraseIndex={replayingPhraseIndex}
