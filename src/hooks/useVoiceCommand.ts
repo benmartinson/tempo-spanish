@@ -173,7 +173,7 @@ export const useVoiceCommand = ({
     try {
       ExpoSpeechRecognitionModule?.setCategoryIOS({
         category: "playback",
-        categoryOptions: ["defaultToSpeaker"],
+        categoryOptions: [],
         mode: "default",
       });
     } catch {}
