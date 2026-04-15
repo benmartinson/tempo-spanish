@@ -126,7 +126,9 @@ export type DataActionTypes =
   | "SET_CURRENT_SHADOW_TAB"
   | "SET_MEMORIZE_DIFFICULTY"
   | "SET_SELECTED_CHANNEL_ID"
-  | "SET_USER_CREDITS";
+  | "SET_USER_CREDITS"
+  | "UPDATE_FOCUS_VOCAB_TRANSLATION"
+  | "INCREMENT_FOCUS_VOCAB_REVIEW";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -159,6 +161,12 @@ export interface FocusSentence {
   sentence_index: number;
 }
 
+export interface FocusVocabEntry {
+  vocabulary_id: number;
+  translation: string | null;
+  times_reviewed: number;
+}
+
 export interface VideoContext {
   videoId: string;
   recordId: string;
@@ -166,7 +174,7 @@ export interface VideoContext {
   sentences: Sentence[];
   allWords: SegmentWord[];
   videoViewId: number;
-  focusVocab: number[];
+  focusVocab: FocusVocabEntry[];
   focusSentences: FocusSentence[];
 }
 

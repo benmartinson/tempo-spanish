@@ -76,7 +76,12 @@ export const fetchVideoContext = async ({
     console.error(focusVocabError);
   }
 
-  const focusVocab = focusVocabData?.map((v: any) => v.vocabulary_id) ?? [];
+  const focusVocab =
+    focusVocabData?.map((v: any) => ({
+      vocabulary_id: v.vocabulary_id,
+      translation: v.translation ?? null,
+      times_reviewed: v.times_reviewed ?? 0,
+    })) ?? [];
 
   const { data: focusSentenceData, error: focusSentenceError } = await supabase
     .from("video_view_focus_sentence")
@@ -157,6 +162,33 @@ export const evaluateVocabAnswer = async ({
     };
   }
   return null;
+};
+
+export const fetchVocabTranslation = async ({
+  vocabWord,
+  sentenceText,
+  sentenceTranslation,
+}: {
+  vocabWord: string;
+  sentenceText: string;
+  sentenceTranslation?: string | null;
+}): Promise<string | null> => {
+  const response = await fetch(`${BACKEND_BASE_URL}/fetch-vocab-translation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      vocab_word: vocabWord,
+      sentence_text: sentenceText,
+      sentence_translation: sentenceTranslation ?? undefined,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error fetching vocab translation: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.translation ?? null;
 };
 
 export interface FetchTranslationInsightsParams {
@@ -755,6 +787,28 @@ export const fetchFocusVocabWithReviewCount = async ({
     vocabulary_id: v.vocabulary_id,
     times_reviewed: v.times_reviewed ?? 0,
   }));
+};
+
+export const saveFocusVocabTranslation = async ({
+  supabase,
+  videoViewId,
+  vocabularyId,
+  translation,
+}: {
+  supabase: any;
+  videoViewId: number;
+  vocabularyId: number;
+  translation: string;
+}) => {
+  const { error } = await supabase
+    .from("video_view_focus_vocab")
+    .update({ translation })
+    .eq("video_view_id", videoViewId)
+    .eq("vocabulary_id", vocabularyId);
+
+  if (error) {
+    console.error("Error saving focus vocab translation:", error);
+  }
 };
 
 export const incrementFocusVocabReviewCount = async ({

@@ -88,6 +88,21 @@ export const addUserSelectedVocab = (vocabIds: number[]): DataAction => ({
   payload: vocabIds,
 });
 
+export const updateFocusVocabTranslation = (
+  vocabularyId: number,
+  translation: string,
+): DataAction => ({
+  type: "UPDATE_FOCUS_VOCAB_TRANSLATION",
+  payload: { vocabularyId, translation },
+});
+
+export const incrementFocusVocabReview = (
+  vocabularyId: number,
+): DataAction => ({
+  type: "INCREMENT_FOCUS_VOCAB_REVIEW",
+  payload: vocabularyId,
+});
+
 export const setCurrentSearchTerm = (term: string): DataAction => ({
   type: "SET_CURRENT_SEARCH_TERM",
   payload: term,

@@ -805,6 +805,85 @@ User's answer: {request.user_answer}
         return {"error": str(e)}
 
 
+class FetchVocabTranslationRequest(BaseModel):
+    vocab_word: str
+    sentence_text: str
+    sentence_translation: str | None = None
+
+
+VOCAB_TRANSLATION_SYSTEM_PROMPT = """You are a Spanish-to-English translation assistant.
+
+Given a Spanish vocabulary word, the sentence it appears in, and the full English translation of that sentence, provide the single English translation of the word AS IT IS USED in that specific sentence.
+
+Important:
+- Many Spanish words have multiple meanings depending on context. You MUST choose the meaning that fits THIS sentence.
+- Use the provided sentence translation to determine the correct meaning — find which English word(s) correspond to the Spanish word in question.
+- Provide exactly ONE concise translation (1-3 words max).
+- Do NOT provide definitions, explanations, or full sentence translations.
+
+Output ONLY valid JSON in this format:
+{
+  "translation": "the single best English translation for this context"
+}
+"""
+
+
+@app.post("/fetch-vocab-translation")
+async def fetch_vocab_translation(request: FetchVocabTranslationRequest):
+    """
+    Fetch the in-context English translation of a Spanish vocabulary word.
+    """
+    if not openai_client:
+        return {"error": "OpenAI API key not configured"}
+
+    try:
+        translation_line = ""
+        if request.sentence_translation:
+            translation_line = f'\nEnglish translation of the sentence: "{request.sentence_translation}"'
+
+        user_prompt = f"""Spanish word: "{request.vocab_word}"
+Sentence it appears in: "{request.sentence_text}"{translation_line}
+
+What does "{request.vocab_word}" mean in this sentence?"""
+
+        messages = [
+            {"role": "system", "content": VOCAB_TRANSLATION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=100,
+            temperature=0.3,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "vocab_translation_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["translation"],
+                        "properties": {
+                            "translation": {"type": "string"}
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
+
+        result = json.loads(response.choices[0].message.content.strip())
+
+        return {
+            "translation": result["translation"],
+            "status": "complete"
+        }
+    except Exception as e:
+        print(f"Error fetching vocab translation: {e}")
+        return {"error": str(e)}
+
+
 @app.post("/translation-insights")
 async def translation_insights(request: TranslationInsightsRequest):
     """

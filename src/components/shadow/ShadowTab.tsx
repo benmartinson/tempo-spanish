@@ -70,8 +70,8 @@ import Foundation from "@expo/vector-icons/Foundation";
 import {
   persistUserSettings,
   persistCurrentShadowTab,
-  fetchFocusVocabWithReviewCount,
   incrementFocusVocabReviewCount,
+  saveFocusVocabTranslation,
   deductUserCredit,
 } from "../../requests";
 import GuessWordModal from "../common/GuessWordModal";
@@ -87,7 +87,11 @@ import VoiceCommands from "./VoiceCommands";
 import { useCachedAudio } from "../../hooks/useCachedAudio";
 import { useVoiceCommand } from "../../hooks/useVoiceCommand";
 import { computeSubSegments } from "../../helpers/helpers";
-import { setCurrentSentence } from "../../store/actions/dataActions";
+import {
+  setCurrentSentence,
+  updateFocusVocabTranslation,
+  incrementFocusVocabReview,
+} from "../../store/actions/dataActions";
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import RecordingControls from "../common/RecordingControls";
 import NoCreditsModal from "../common/NoCreditsModal";
@@ -261,9 +265,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     translation: string;
     words: SegmentWord[];
   } | null>(null);
-  const [focusVocabReviewData, setFocusVocabReviewData] = useState<
-    { vocabulary_id: number; times_reviewed: number }[]
-  >([]);
   const reviewVocabIdRef = useRef<number | null>(null);
   const sentenceHistoryRef = useRef<
     Record<number, { text: string; translation: string; words: SegmentWord[] }>
@@ -288,14 +289,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [supabase, userId, currentVideo?.recordId]);
 
   // Fetch focus vocab review data when video view changes
-  useEffect(() => {
-    if (!supabase || !currentVideo?.videoViewId) return;
-    fetchFocusVocabWithReviewCount({
-      supabase,
-      videoViewId: currentVideo.videoViewId,
-    }).then(setFocusVocabReviewData);
-  }, [supabase, currentVideo?.videoViewId]);
-
   // Reset review state when video changes
   useEffect(() => {
     setReviewCount(0);
@@ -892,13 +885,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         videoViewId: currentVideo.videoViewId,
         vocabularyId: reviewVocabIdRef.current,
       });
-      setFocusVocabReviewData((prev) =>
-        prev.map((v) =>
-          v.vocabulary_id === reviewVocabIdRef.current
-            ? { ...v, times_reviewed: v.times_reviewed + 1 }
-            : v,
-        ),
-      );
+      dispatch(incrementFocusVocabReview(reviewVocabIdRef.current));
     }
     setReviewType(null);
     setReviewVocabWord(null);
@@ -927,7 +914,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     const reviewCycle = Math.floor(newCount / 2) % 2;
     const preferVocab = reviewCycle === 1;
 
-    const canDoVocab = focusVocabReviewData.length > 0;
+    const unreviewedVocab = (currentVideo?.focusVocab ?? []).filter(
+      (v) => v.times_reviewed === 0,
+    );
+    const canDoVocab = unreviewedVocab.length > 0;
     const reviewSentenceIndex = currentSentenceIndex - 2;
     const historySentence = sentenceHistoryRef.current[reviewSentenceIndex];
     const canDoTranslation = !!historySentence;
@@ -947,12 +937,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (!chosenType) return false;
 
     if (chosenType === "vocab") {
-      const minReviewed = Math.min(
-        ...focusVocabReviewData.map((v) => v.times_reviewed),
-      );
-      const candidates = focusVocabReviewData.filter(
-        (v) => v.times_reviewed === minReviewed,
-      );
+      const candidates = unreviewedVocab;
       const picked = candidates[Math.floor(Math.random() * candidates.length)];
       const vocabEntry = Object.values(allVocabulary).find(
         (v) => v.id === picked.vocabulary_id,
@@ -1665,10 +1650,37 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         visible={reviewType === "vocab"}
         onClose={proceedAfterReview}
         word={reviewVocabWord ?? undefined}
+        hideTranslationAtFirst
         sentenceText={reviewVocabSentenceText ?? undefined}
-        title="Remember the translation"
-        onFinished={proceedAfterReview}
-        instructions={""}
+        sentenceTranslation={sentenceTranslation}
+        existingTranslation={
+          currentVideo?.focusVocab.find(
+            (v) => v.vocabulary_id === reviewVocabIdRef.current,
+          )?.translation ?? null
+        }
+        onTranslationFetched={(translation) => {
+          if (reviewVocabIdRef.current) {
+            dispatch(
+              updateFocusVocabTranslation(
+                reviewVocabIdRef.current,
+                translation,
+              ),
+            );
+          }
+          if (
+            supabase &&
+            currentVideo?.videoViewId &&
+            reviewVocabIdRef.current
+          ) {
+            saveFocusVocabTranslation({
+              supabase,
+              videoViewId: currentVideo.videoViewId,
+              vocabularyId: reviewVocabIdRef.current,
+              translation,
+            });
+          }
+        }}
+        title="Vocab Review"
       />
       <TranslationReviewModal
         visible={reviewType === "translation"}

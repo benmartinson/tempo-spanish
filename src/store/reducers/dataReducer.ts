@@ -116,7 +116,14 @@ const dataReducer = (
         ...state,
         currentVideo: {
           ...state.currentVideo,
-          focusVocab: [...state.currentVideo.focusVocab, ...action.payload],
+          focusVocab: [
+            ...state.currentVideo.focusVocab,
+            ...action.payload.map((id: number) => ({
+              vocabulary_id: id,
+              translation: null,
+              times_reviewed: 0,
+            })),
+          ],
         },
       };
     case "SET_FOCUS_SENTENCES":
@@ -227,7 +234,7 @@ const dataReducer = (
         currentVideo: {
           ...state.currentVideo,
           focusVocab: state.currentVideo.focusVocab.filter(
-            (id: number) => !removeSet.has(id),
+            (v) => !removeSet.has(v.vocabulary_id),
           ),
         },
       };
@@ -259,6 +266,32 @@ const dataReducer = (
       return {
         ...state,
         userCredits: action.payload,
+      };
+    case "UPDATE_FOCUS_VOCAB_TRANSLATION":
+      if (!state.currentVideo) return state;
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          focusVocab: state.currentVideo.focusVocab.map((v) =>
+            v.vocabulary_id === action.payload.vocabularyId
+              ? { ...v, translation: action.payload.translation }
+              : v,
+          ),
+        },
+      };
+    case "INCREMENT_FOCUS_VOCAB_REVIEW":
+      if (!state.currentVideo) return state;
+      return {
+        ...state,
+        currentVideo: {
+          ...state.currentVideo,
+          focusVocab: state.currentVideo.focusVocab.map((v) =>
+            v.vocabulary_id === action.payload
+              ? { ...v, times_reviewed: v.times_reviewed + 1 }
+              : v,
+          ),
+        },
       };
     default:
       return state;

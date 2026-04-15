@@ -51,11 +51,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   onSaveRecordingRef.current = onSaveRecording;
 
   const handleNextPress = () => {
-    if (hasUnsavedRecording && onSaveRecording && showSaveRecordingsModal) {
-      setShowSaveModal(true);
-    } else {
-      handleNextSentence();
-    }
+    handleNextSentence();
   };
 
   const handleSaveAndContinue = async () => {

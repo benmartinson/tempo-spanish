@@ -19,8 +19,6 @@ import { selectGuidedVocab } from "../../helpers/helpers";
 import VocabClips from "./VocabClips";
 import SelectVocabFilterModal from "./SelectVocabFilterModal";
 
-const EMPTY_ARRAY: number[] = [];
-
 interface SelectVocabPageProps {
   wordListId?: number;
   onBack?: () => void;
@@ -44,8 +42,9 @@ const SelectVocabPage: React.FC<SelectVocabPageProps> = ({
     (state: RootState) => state.userKnownVocab,
   );
   const focusVocabIds =
-    useSelector((state: RootState) => state.currentVideo?.focusVocab) ??
-    EMPTY_ARRAY;
+    useSelector((state: RootState) =>
+      state.currentVideo?.focusVocab.map((v) => v.vocabulary_id),
+    ) ?? [];
 
   const [words, setWords] = useState<Vocabulary[]>([]);
   const [skippedIds, setSkippedIds] = useState<number[]>([]);

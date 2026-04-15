@@ -50,7 +50,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const vocabWord = allVocabulary[vocabFormatWord(word.word)];
   const isSelectedForReview = useMemo(
-    () => currentVideo?.focusVocab.find((v) => v === vocabWord.id),
+    () => currentVideo?.focusVocab.find((v) => v.vocabulary_id === vocabWord.id),
     [currentVideo, word],
   );
 

@@ -136,7 +136,7 @@ const ReviewTab: React.FC<ReviewTabProps> = ({
     };
 
     const focusWords = focusVocab?.length
-      ? getFocusVocabWords(focusVocab, allVocabulary)
+      ? getFocusVocabWords(focusVocab.map((v) => v.vocabulary_id), allVocabulary)
       : [];
     const uncommonWords = getUncommonVocabFromSentences(
       sentences,

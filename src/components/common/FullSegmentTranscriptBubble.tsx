@@ -10,10 +10,14 @@ import { RootState, SegmentWord } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import GuessWordModal from "../common/GuessWordModal";
 import { useSelector, useDispatch } from "react-redux";
-import { addUserSelectedVocab } from "../../store/actions/dataActions";
+import {
+  addUserSelectedVocab,
+  updateFocusVocabTranslation,
+} from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import { vocabFormatWord } from "../../helpers/helpers";
+import { saveFocusVocabTranslation } from "../../requests";
 import { useInterpolatedTime } from "../../hooks/useInterpolatedTime";
 
 interface FullSegmentTranscriptBubbleProps {
@@ -58,6 +62,7 @@ const FullSegmentTranscriptBubble: React.FC<
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
   const [guessWord, setGuessWord] = useState<string | null>(null);
+  const guessVocabIdRef = useRef<number | null>(null);
 
   const handleSelectForReview = useCallback(
     async (word: SegmentWord) => {
@@ -65,14 +70,22 @@ const FullSegmentTranscriptBubble: React.FC<
       const vocabEntry = allVocabulary[vocabFormatWord(word.word)];
       if (!vocabEntry) return;
       const vocabId = vocabEntry.id;
+      guessVocabIdRef.current = vocabId;
       dispatch(addUserSelectedVocab([vocabId]));
       if (supabase && userId && currentVideo.videoViewId) {
-        await supabase
+        const { data } = await supabase
           .from("video_view_focus_vocab")
-          .upsert(
-            { video_view_id: currentVideo.videoViewId, vocabulary_id: vocabId },
-            { onConflict: "video_view_id,vocabulary_id" },
-          );
+          .select("vocabulary_id")
+          .eq("video_view_id", currentVideo.videoViewId)
+          .eq("vocabulary_id", vocabId)
+          .single();
+
+        if (!data) {
+          await supabase.from("video_view_focus_vocab").insert({
+            video_view_id: currentVideo.videoViewId,
+            vocabulary_id: vocabId,
+          });
+        }
       }
       setGuessWord(word.word);
     },
@@ -91,7 +104,12 @@ const FullSegmentTranscriptBubble: React.FC<
   const [isActive, setIsActive] = useState(false);
   const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
 
-  const localTime = useInterpolatedTime(time, playerIsPlaying, playKey, playerSpeed);
+  const localTime = useInterpolatedTime(
+    time,
+    playerIsPlaying,
+    playKey,
+    playerSpeed,
+  );
 
   const handleLongPress = useCallback(
     (word: SegmentWord) => {
@@ -252,7 +270,11 @@ const FullSegmentTranscriptBubble: React.FC<
           let displayWord = wordEndsWithSpecialCase(word.word)
             ? word.word.slice(0, -1)
             : word.word;
-          if (index === 0 && displayWord[0] && displayWord[0] !== displayWord[0].toUpperCase()) {
+          if (
+            index === 0 &&
+            displayWord[0] &&
+            displayWord[0] !== displayWord[0].toUpperCase()
+          ) {
             displayWord = "..." + displayWord;
           }
           if (index === words.length - 1 && displayWord.endsWith(",")) {
@@ -297,6 +319,26 @@ const FullSegmentTranscriptBubble: React.FC<
         onClose={() => setGuessWord(null)}
         word={guessWord ?? ""}
         sentenceText={currentSentenceText}
+        existingTranslation={
+          currentVideo?.focusVocab.find(
+            (v) => v.vocabulary_id === guessVocabIdRef.current,
+          )?.translation ?? null
+        }
+        onTranslationFetched={(translation) => {
+          if (guessVocabIdRef.current) {
+            dispatch(
+              updateFocusVocabTranslation(guessVocabIdRef.current, translation),
+            );
+          }
+          if (supabase && currentVideo?.videoViewId && guessVocabIdRef.current) {
+            saveFocusVocabTranslation({
+              supabase,
+              videoViewId: currentVideo.videoViewId,
+              vocabularyId: guessVocabIdRef.current,
+              translation,
+            });
+          }
+        }}
       />
     </View>
   );
