@@ -46,26 +46,7 @@ import {
 } from "../../helpers/helpers";
 import SlideModal from "./SlideModal";
 
-interface SelectedVideoTabsProps {
-  selectedNavTab:
-    | "watch"
-    | "shadow"
-    | "review"
-    | "speed-run"
-    | "translate"
-    | "recordings"
-    | "turn-taking";
-  onSelectNavTab: (
-    tab:
-      | "watch"
-      | "shadow"
-      | "review"
-      | "speed-run"
-      | "translate"
-      | "recordings",
-    reviewDetails?: AutoReviewDetails | null,
-  ) => void;
-}
+const selectedNavTab: string = "shadow";
 
 if (
   Platform.OS === "android" &&
@@ -74,10 +55,7 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
-  selectedNavTab,
-  onSelectNavTab,
-}) => {
+const SelectedVideoTabs: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
@@ -517,10 +495,10 @@ const SelectedVideoTabs: React.FC<SelectedVideoTabsProps> = ({
   // }, [currentSentenceObject?.index, currentVideo?.sentences]);
 
   const handleReviewSegment = useCallback(
-    (details: AutoReviewDetails) => {
-      onSelectNavTab("review", details);
+    (_details: AutoReviewDetails) => {
+      // Review tab removed — no-op
     },
-    [onSelectNavTab],
+    [],
   );
 
   const playSentence = useCallback(() => {

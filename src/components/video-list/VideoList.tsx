@@ -13,7 +13,6 @@ import {
 import { Channel, RootState, Video } from "../../types";
 import {
   addUserVideoView,
-  setCurrentTab,
   setCurrentVideo,
   setSelectedChannelId,
 } from "../../store/actions/dataActions";
@@ -107,7 +106,6 @@ const VideoList: React.FC = () => {
 
       dispatch(addUserVideoView(videoView));
       dispatch(setCurrentVideo(videoContext));
-      dispatch(setCurrentTab("shadow"));
 
       // Persist video selection to user_ui_state
       if (supabase && userId) {

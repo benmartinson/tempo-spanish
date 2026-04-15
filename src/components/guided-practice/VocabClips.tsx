@@ -20,7 +20,6 @@ import GuessWordModal from "../common/GuessWordModal";
 import {
   addUserVideoView,
   setCurrentVideo,
-  setCurrentTab,
 } from "../../store/actions/dataActions";
 
 interface VocabClipsProps {
@@ -150,7 +149,6 @@ const VocabClips: React.FC<VocabClipsProps> = ({ vocabList, onBack }) => {
       });
       dispatch(addUserVideoView(videoView));
       dispatch(setCurrentVideo(videoContext));
-      dispatch(setCurrentTab("shadow"));
 
       if (userId) {
         await authSupabase.from("user_ui_state").upsert(

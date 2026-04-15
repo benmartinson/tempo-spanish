@@ -1,8 +1,7 @@
 import React from "react";
 import { Text, StyleSheet, TouchableOpacity, View } from "react-native";
 import { RootState } from "../../types";
-import { useDispatch, useSelector } from "react-redux";
-import { setCurrentTab } from "../../store/actions/dataActions";
+import { useSelector } from "react-redux";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface SelectedVideoBannerProps {
@@ -18,7 +17,6 @@ const SelectedVideoBanner: React.FC<SelectedVideoBannerProps> = ({
 }) => {
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const dispatch = useDispatch();
 
   const video = currentVideo
     ? (allVideos || []).find((v) => v.video_id === currentVideo.videoId)
@@ -28,7 +26,7 @@ const SelectedVideoBanner: React.FC<SelectedVideoBannerProps> = ({
 
   if (!displayTitle) return null;
 
-  const handlePress = onPress ?? (() => dispatch(setCurrentTab("watch")));
+  const handlePress = onPress ?? (() => {});
 
   return (
     <View style={styles.container}>

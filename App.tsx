@@ -2,15 +2,11 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import SignInScreen from "./src/components/SignInScreen";
 import SignUpScreen from "./src/components/SignUpScreen";
-import HomeTab from "./src/components/tabs/HomeTab";
-import VideosTab from "./src/components/tabs/VideosTab";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import store from "./src/store/store";
 import {
-  setCurrentTab,
   setCurrentVideo,
   setAllVocabulary,
   setUserKnownVocab,
@@ -25,7 +21,7 @@ import {
   setUserCredits,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
-import { VideoView, Vocabulary, RootState, UserUIState } from "./src/types";
+import { RootState } from "./src/types";
 import { createVocabHash } from "./src/helpers/helpers";
 import {
   fetchVideoContext,
@@ -34,26 +30,18 @@ import {
   fetchUserKnownVocab,
   fetchUserVideoViews,
   restoreUserUIState,
-  persistUserUITab,
   loadAndCacheTTSResponses,
   fetchUserCredits,
 } from "./src/requests";
 import { useUIStateSync } from "./src/hooks/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache as clerkTokenCache } from "@clerk/clerk-expo/token-cache";
-import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import TabIcon from "./src/components/tabs/TabIcon";
-import WatchTab from "./src/components/speed-run/SpeedRunTab";
+import { ActivityIndicator, View } from "react-native";
 import TopNavBar from "./src/components/TopNavBar";
-import ReviewTab from "./src/components/discuss/ReviewTab";
 import VideoList from "./src/components/video-list/VideoList";
-import SelectedVideoBanner from "./src/components/common/SelectedVideoBanner";
 import NavTabBanner from "./src/components/common/NavTabBanner";
-import ShadowTab from "./src/components/shadow/ShadowTab";
 import SelectedVideoTabs from "./src/components/common/SelectedVideoTabs";
 import Constants from "expo-constants";
-import AppIcon from "./src/components/common/AppIcon";
 const tokenCache = clerkTokenCache
   ? {
       getToken: async (key: string) => {
@@ -80,119 +68,14 @@ if (!publishableKey) {
 }
 
 const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
 
-// Main tabs for authenticated users
-const MainTabs: React.FC = () => {
-  const dispatch = useDispatch();
-
-  return (
-    <Tab.Navigator
-      id="MainTabs"
-      initialRouteName="Videos"
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: "white",
-          borderTopColor: "gray",
-          borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 20,
-          paddingTop: 10,
-        },
-        tabBarShowLabel: false,
-      }}
-    >
-      <Tab.Screen
-        name="Home"
-        component={HomeTab}
-        listeners={{
-          tabPress: () => {
-            dispatch(setCurrentTab("home"));
-          },
-        }}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="home-outline" label="Home" focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Videos"
-        component={VideoList}
-        listeners={{
-          tabPress: () => {
-            dispatch(setCurrentTab("videos"));
-          },
-        }}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="video-list" label="Browse" focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Watch"
-        component={WatchTab}
-        listeners={{
-          tabPress: () => {
-            dispatch(setCurrentTab("watch"));
-          },
-        }}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="video-outline" label="Watch" focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Shadow"
-        component={ShadowTab}
-        listeners={{
-          tabPress: () => {
-            dispatch(setCurrentTab("shadow"));
-          },
-        }}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="people-outline" label="Shadow" focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Discuss"
-        component={ReviewTab}
-        listeners={{
-          tabPress: () => {
-            dispatch(setCurrentTab("discuss"));
-          },
-        }}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="chat-outline" label="Review" focused={focused} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
-  );
-};
-
-// Wrapper component that includes TopNavBar and MainTabs
+// Wrapper component that includes TopNavBar
 const AuthenticatedApp: React.FC = () => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const userSettings = useSelector((state: RootState) => state.userSettings);
-  const [selectedNavTab, setSelectedNavTab] = useState<
-    | "watch"
-    | "shadow"
-    | "review"
-    | "speed-run"
-    | "translate"
-    | "recordings"
-    | "turn-taking"
-  >("watch");
   const [isRestoringState, setIsRestoringState] = useState(true);
 
   // Sync currentSentence changes to the database
@@ -242,7 +125,6 @@ const AuthenticatedApp: React.FC = () => {
     const restoreState = async () => {
       const {
         videoContext,
-        currentTab,
         currentShadowTab,
         memorizeDifficulty,
         settings,
@@ -263,39 +145,6 @@ const AuthenticatedApp: React.FC = () => {
         dispatch(setMemorizeDifficulty(settings.defaultMemorizeDifficulty));
       }
 
-      if (
-        currentTab &&
-        [
-          "watch",
-          "discuss",
-          "shadow",
-          "speed-run",
-          "translate",
-          "recordings",
-          "turns",
-        ].includes(currentTab)
-      ) {
-        if ((currentTab as string) === "recordings") {
-          setSelectedNavTab("recordings");
-        } else if ((currentTab as string) === "turns") {
-          setSelectedNavTab("turn-taking");
-        } else {
-          // speed-run and translate are now subtabs of shadow
-          const resolvedTab =
-            currentTab === "translate" || currentTab === "speed-run"
-              ? "shadow"
-              : currentTab;
-          dispatch(
-            setCurrentTab(resolvedTab === "discuss" ? "discuss" : resolvedTab),
-          );
-          if (resolvedTab === "discuss") {
-            setSelectedNavTab("review");
-          } else if (resolvedTab === "watch" || resolvedTab === "shadow") {
-            setSelectedNavTab(resolvedTab);
-          }
-        }
-      }
-
       if (videoContext) {
         dispatch(setCurrentVideo(videoContext));
       }
@@ -310,66 +159,6 @@ const AuthenticatedApp: React.FC = () => {
     restoreState();
   }, [supabase, dispatch, userId, userSettings.targetLanguage]);
 
-  const showTabsBelow = false;
-
-  // Track if this is first video selection after restoration
-  const isInitialVideoRef = React.useRef(true);
-
-  // When a video is selected (not from restoration), reset to shadow tab
-  useEffect(() => {
-    if (currentVideo && !isRestoringState) {
-      // Skip the first video set during restoration
-      if (isInitialVideoRef.current) {
-        isInitialVideoRef.current = false;
-        return;
-      }
-    }
-  }, [currentVideo?.videoId, isRestoringState]);
-
-  const handleNavTabSelect = async (
-    tab:
-      | "watch"
-      | "shadow"
-      | "review"
-      | "speed-run"
-      | "translate"
-      | "recordings"
-      | "turn-taking",
-  ) => {
-    setSelectedNavTab(tab);
-    // Also update redux current tab for consistency
-    const reduxTab = tab === "review" ? "discuss" : tab;
-    dispatch(
-      setCurrentTab(
-        reduxTab as "watch" | "shadow" | "discuss" | "home" | "videos",
-      ),
-    );
-
-    // Persist tab to database
-    const persistTab =
-      tab === "review" ? "discuss" : tab === "turn-taking" ? "turns" : tab;
-    await persistUserUITab({ supabase, userId, currentTab: persistTab });
-  };
-
-  const renderTabContent = () => {
-    return (
-      <SelectedVideoTabs
-        selectedNavTab={selectedNavTab}
-        onSelectNavTab={handleNavTabSelect}
-      />
-    );
-  };
-
-  if (showTabsBelow) {
-    return (
-      <View style={{ flex: 1 }}>
-        <TopNavBar />
-        <MainTabs />
-      </View>
-    );
-  }
-
-  // When showTabsBelow is false, use NavTabBanner navigation
   return (
     <View style={{ flex: 1, backgroundColor: "white" }}>
       {(!currentVideo || isRestoringState) && <TopNavBar />}
@@ -383,17 +172,11 @@ const AuthenticatedApp: React.FC = () => {
           }}
         >
           <ActivityIndicator size="large" color="#5a5680" />
-          <Text style={{ marginTop: 16, color: "#666" }}>
-            Loading your session...
-          </Text>
         </View>
       ) : currentVideo ? (
         <>
-          <NavTabBanner
-            selectedTab={selectedNavTab}
-            onTabSelect={handleNavTabSelect}
-          />
-          {renderTabContent()}
+          <NavTabBanner />
+          <SelectedVideoTabs />
         </>
       ) : (
         <VideoList />

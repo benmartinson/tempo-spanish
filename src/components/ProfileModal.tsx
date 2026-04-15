@@ -11,6 +11,7 @@ import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useSelector } from "react-redux";
 import SlideModal from "./common/SlideModal";
 import CreditStore from "./CreditStore";
+import TermsOfUseModal from "./TermsOfUseModal";
 import { RootState } from "../types";
 
 interface ProfileModalProps {
@@ -57,6 +58,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   const { user } = useUser();
   const userCredits = useSelector((state: RootState) => state.userCredits);
   const [creditStoreVisible, setCreditStoreVisible] = useState(false);
+  const [termsVisible, setTermsVisible] = useState(false);
 
   const handleSignOut = async () => {
     onClose();
@@ -110,7 +112,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
 
         <Text style={styles.sectionHeader}>Support</Text>
         <View style={styles.card}>
-          <MenuRow label="Terms of Use" onPress={() => {}} />
+          <MenuRow label="Terms of Use" onPress={() => setTermsVisible(true)} />
           <MenuRow label="Privacy Policy" onPress={() => {}} />
           <MenuRow label="Help & Feedback" onPress={() => {}} isLast />
         </View>
@@ -124,6 +126,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
       <CreditStore
         visible={creditStoreVisible}
         onClose={() => setCreditStoreVisible(false)}
+      />
+
+      <TermsOfUseModal
+        visible={termsVisible}
+        onClose={() => setTermsVisible(false)}
       />
     </SlideModal>
   );

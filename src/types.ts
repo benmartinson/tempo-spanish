@@ -73,7 +73,6 @@ export interface RootState {
   currentVideo: VideoContext | null;
   currentChatType: "general" | "video-based" | null;
   videoRefreshKey: number;
-  currentTab: "home" | "videos" | "watch" | "discuss" | "shadow";
   selectedChannelId: string | null;
   allChannels: Channel[];
   allTopics: Topic[];
@@ -98,7 +97,7 @@ export type DataActionTypes =
   | "SET_CURRENT_CHAT_TYPE"
   | "SET_NEXT_SEGMENT"
   | "REFRESH_VIDEO_PLAYER"
-  | "SET_CURRENT_TAB"
+
   | "SET_ALL_CHANNELS"
   | "SET_ALL_TOPICS"
   | "SET_CHANNEL_TOPICS"
@@ -345,7 +344,7 @@ export interface TranscriptCallbacks {
 export interface UserUIState {
   current_video: string | null;
   current_sentence: number;
-  current_tab: "watch" | "discuss" | "shadow";
+  current_tab: string | null;
   playback_speed: number | null;
   playback_speed_during_recording: number | null;
   show_word_hints: boolean | null;

@@ -9,7 +9,6 @@ const initialState: RootState = {
   currentVideo: null,
   currentChatType: null,
   videoRefreshKey: Date.now(),
-  currentTab: "discuss",
   selectedChannelId: null,
   allChannels: [],
   allTopics: [],
@@ -195,11 +194,6 @@ const dataReducer = (
       return {
         ...state,
         videoRefreshKey: Date.now(),
-      };
-    case "SET_CURRENT_TAB":
-      return {
-        ...state,
-        currentTab: action.payload,
       };
     case "SET_SELECTED_CHANNEL_ID":
       return {

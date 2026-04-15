@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Feather from "@expo/vector-icons/Feather";
-import { setCurrentTab } from "../../store/actions/dataActions";
+import { setCurrentVideo } from "../../store/actions/dataActions";
 import { useDispatch } from "react-redux";
 
 interface SelectVideoPromptProps {
@@ -18,8 +18,7 @@ const SelectVideoPrompt: React.FC<SelectVideoPromptProps> = ({
   const dispatch = useDispatch();
 
   const handleSelectVideo = () => {
-    dispatch(setCurrentTab("videos"));
-    // navigation.navigate('Videos' as never);
+    dispatch(setCurrentVideo(null));
   };
 
   return (

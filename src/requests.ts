@@ -419,7 +419,6 @@ export interface RestoreUserUIStateParams {
 
 export interface RestoreUserUIStateResult {
   videoContext: VideoContext | null;
-  currentTab: "watch" | "discuss" | "shadow" | "translate" | "speed-run" | null;
   currentShadowTab: ContentTab;
   memorizeDifficulty: number | null;
   settings: UserSettings;
@@ -431,7 +430,6 @@ export const restoreUserUIState = async ({
 }: RestoreUserUIStateParams): Promise<RestoreUserUIStateResult> => {
   const defaultResult = {
     videoContext: null,
-    currentTab: null,
     currentShadowTab: null,
     memorizeDifficulty: null,
     settings: DEFAULT_USER_SETTINGS,
@@ -520,7 +518,6 @@ export const restoreUserUIState = async ({
 
       return {
         videoContext,
-        currentTab: uiState.current_tab ?? null,
         currentShadowTab: uiState.current_shadow_tab ?? null,
         memorizeDifficulty: uiState.memorize_difficulty ?? null,
         settings,
@@ -529,7 +526,6 @@ export const restoreUserUIState = async ({
 
     return {
       videoContext: null,
-      currentTab: uiState?.current_tab,
       currentShadowTab: uiState?.current_shadow_tab ?? null,
       memorizeDifficulty: uiState?.memorize_difficulty ?? null,
       settings,
@@ -578,36 +574,6 @@ export const persistVideoUnselection = async ({
   );
 
   if (error) console.error("Error persisting video unselection:", error);
-};
-
-export interface PersistUserUITabParams {
-  supabase: any;
-  userId: string | null;
-  currentTab:
-    | "watch"
-    | "discuss"
-    | "shadow"
-    | "translate"
-    | "speed-run"
-    | "recordings"
-    | "turns";
-}
-
-export const persistUserUITab = async ({
-  supabase,
-  userId,
-  currentTab,
-}: PersistUserUITabParams): Promise<void> => {
-  if (!supabase || !userId) return;
-
-  const { error } = await supabase
-    .from("user_ui_state")
-    .upsert(
-      { user_id: userId, current_tab: currentTab, updated_at: new Date() },
-      { onConflict: "user_id" },
-    );
-
-  if (error) console.error("Error persisting tab:", error);
 };
 
 export const persistMemorizeDifficulty = async ({

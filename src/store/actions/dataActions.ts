@@ -49,13 +49,6 @@ export const refreshVideoPlayer = (): DataAction => ({
   payload: null,
 });
 
-export const setCurrentTab = (
-  tab: "home" | "videos" | "watch" | "discuss" | "shadow",
-): DataAction => ({
-  type: "SET_CURRENT_TAB",
-  payload: tab,
-});
-
 export const setSelectedChannelId = (
   channelId: string | null,
 ): DataAction => ({
