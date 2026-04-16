@@ -4,6 +4,7 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
+import { useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect } from "react";
 import {
   Platform,
@@ -46,6 +47,7 @@ interface Props {
 export default function OAuthButton({ strategy, children }: Props) {
   useWarmUpBrowser();
   const { startSSOFlow } = useSSO();
+  const navigation = useNavigation<any>();
   const config = providerConfig[strategy];
 
   const onPress = useCallback(async () => {
@@ -59,6 +61,7 @@ export default function OAuthButton({ strategy, children }: Props) {
 
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
+        navigation.goBack();
       } else {
         throw new Error("Failed to create session");
       }

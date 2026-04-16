@@ -21,6 +21,7 @@ export interface FetchVideoContextParams {
   recordId: string;
   initialSentence?: number;
   clip?: number;
+  userId?: string | null;
 }
 
 export interface FetchVideoContextResult {
@@ -34,6 +35,7 @@ export const fetchVideoContext = async ({
   recordId,
   initialSentence,
   clip,
+  userId,
 }: FetchVideoContextParams): Promise<FetchVideoContextResult> => {
   const { data: transcriptSegments, error: transcriptSegmentsError } =
     await supabase
@@ -47,52 +49,63 @@ export const fetchVideoContext = async ({
     throw new Error("Failed to fetch transcript segments");
   }
 
-  const { data: videoViewData, error: videoViewError } = await supabase
-    .from("video_views")
-    .upsert(
-      {
-        video_id: recordId,
-        watched_at: new Date(),
-      },
-      {
-        onConflict: "user_id,video_id",
-        ignoreDuplicates: false,
-      },
-    )
-    .select("id, last_sentence_watched, video_id, watched_at");
+  let videoViewData: any[] | null = null;
+  let videoViewId: number = 0;
+  let focusVocab: any[] = [];
+  let focusSentences: any[] = [];
 
-  if (videoViewError) {
-    console.error(videoViewError);
+  // Only track video views and fetch user-specific data when signed in
+  if (userId) {
+    const { data, error: videoViewError } = await supabase
+      .from("video_views")
+      .upsert(
+        {
+          video_id: recordId,
+          watched_at: new Date(),
+        },
+        {
+          onConflict: "user_id,video_id",
+          ignoreDuplicates: false,
+        },
+      )
+      .select("id, last_sentence_watched, video_id, watched_at");
+
+    if (videoViewError) {
+      console.error(videoViewError);
+    }
+
+    videoViewData = data;
+    videoViewId = videoViewData?.[0]?.id ?? 0;
+
+    const { data: focusVocabData, error: focusVocabError } = await supabase
+      .from("video_view_focus_vocab")
+      .select("*")
+      .eq("video_view_id", videoViewId);
+
+    if (focusVocabError) {
+      console.error(focusVocabError);
+    }
+
+    focusVocab =
+      focusVocabData?.map((v: any) => ({
+        vocabulary_id: v.vocabulary_id,
+        translation: v.translation ?? null,
+        times_reviewed: v.times_reviewed ?? 0,
+      })) ?? [];
+
+    const { data: focusSentenceData, error: focusSentenceError } =
+      await supabase
+        .from("video_view_focus_sentence")
+        .select("*")
+        .eq("video_view_id", videoViewId);
+
+    if (focusSentenceError) {
+      console.error(focusSentenceError);
+    }
+
+    focusSentences = focusSentenceData ?? [];
   }
 
-  const videoViewId = videoViewData?.[0]?.id ?? "";
-
-  const { data: focusVocabData, error: focusVocabError } = await supabase
-    .from("video_view_focus_vocab")
-    .select("*")
-    .eq("video_view_id", videoViewId);
-
-  if (focusVocabError) {
-    console.error(focusVocabError);
-  }
-
-  const focusVocab =
-    focusVocabData?.map((v: any) => ({
-      vocabulary_id: v.vocabulary_id,
-      translation: v.translation ?? null,
-      times_reviewed: v.times_reviewed ?? 0,
-    })) ?? [];
-
-  const { data: focusSentenceData, error: focusSentenceError } = await supabase
-    .from("video_view_focus_sentence")
-    .select("*")
-    .eq("video_view_id", videoViewId);
-
-  if (focusSentenceError) {
-    console.error(focusSentenceError);
-  }
-
-  const focusSentences = focusSentenceData ?? [];
   const sentences = splitSegmentsIntoSentences(transcriptSegments);
 
   let currentSentence =
@@ -546,6 +559,7 @@ export const restoreUserUIState = async ({
         videoId: videoRecord.video_id,
         recordId: uiState.current_video,
         initialSentence: uiState.current_sentence ?? 0,
+        userId,
       });
 
       return {

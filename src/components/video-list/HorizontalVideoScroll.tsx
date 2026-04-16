@@ -9,7 +9,7 @@ import { Video } from "../../types";
 import { formatTimestamp } from "../../helpers/helpers";
 import VideoCard from "./VideoCard";
 
-const MAX_VISIBLE = 10;
+const MAX_VISIBLE = 5;
 
 const HorizontalVideoScroll: React.FC<{
   videos: Video[];

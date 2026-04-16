@@ -79,6 +79,7 @@ import {
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import RecordingControls from "../common/RecordingControls";
 import NoCreditsModal from "../common/NoCreditsModal";
+import SignInPromptModal from "../common/SignInPromptModal";
 import MemorizeContent from "./MemorizeContent";
 import TranslateContent from "./TranslateContent";
 import ModeSwitcher from "./ModeSwitcher";
@@ -167,7 +168,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     : null;
 
   const supabase = useSupabaseWithClerk();
-  const { userId } = useAuth();
+  const { userId, isSignedIn } = useAuth();
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
   // Speed control state (internal settings)
   const userSettings = useSelector((state: RootState) => state.userSettings);
@@ -204,6 +205,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
   const [showNoCreditsModal, setShowNoCreditsModal] = useState(false);
+  const [showSignInModal, setShowSignInModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
     null,
@@ -903,6 +905,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const handleEnterRecordingMode = async () => {
+    if (!isSignedIn) {
+      setShowSignInModal(true);
+      return;
+    }
     if (userCredits <= 0) {
       setShowNoCreditsModal(true);
       return;
@@ -1476,6 +1482,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       <NoCreditsModal
         visible={showNoCreditsModal}
         onClose={() => setShowNoCreditsModal(false)}
+      />
+
+      {/* Sign In Prompt Modal */}
+      <SignInPromptModal
+        visible={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
       />
     </>
   );

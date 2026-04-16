@@ -46,7 +46,7 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const SelectedVideoTabs: React.FC = () => {
+const SelectedVideoPage: React.FC = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
@@ -620,4 +620,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SelectedVideoTabs;
+export default SelectedVideoPage;

@@ -16,6 +16,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
+import { useNavigation } from "@react-navigation/native";
 import {
   saveLastSentenceWatched,
   persistVideoUnselection,
@@ -26,7 +27,8 @@ import ProfileModal from "../ProfileModal";
 const NavTabBanner: React.FC = () => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
-  const { userId } = useAuth();
+  const { userId, isSignedIn } = useAuth();
+  const navigation = useNavigation<any>();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const video = allVideos.find((v) => v.video_id === currentVideo?.videoId);
@@ -84,7 +86,13 @@ const NavTabBanner: React.FC = () => {
 
         <TouchableOpacity
           style={styles.profileButton}
-          onPress={() => setProfileVisible(true)}
+          onPress={() => {
+            if (isSignedIn) {
+              setProfileVisible(true);
+            } else {
+              navigation.navigate("SignIn");
+            }
+          }}
         >
           <Ionicons name="person" size={16} color="#5a5680" />
         </TouchableOpacity>

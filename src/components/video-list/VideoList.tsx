@@ -17,6 +17,7 @@ import {
 } from "../../store/actions/dataActions";
 import { useDispatch, useSelector } from "react-redux";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
+import { supabase as rawSupabase } from "../../../lib/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import HorizontalVideoScroll from "./HorizontalVideoScroll";
 import VideoSectionHeader from "./VideoSectionHeader";
@@ -93,10 +94,11 @@ const VideoList: React.FC = () => {
     setLoadingVideo(true);
     try {
       const { videoContext, videoView } = await fetchVideoContext({
-        supabase,
+        supabase: rawSupabase,
         videoId,
         recordId,
         clip,
+        userId,
       });
 
       dispatch(addUserVideoView(videoView));

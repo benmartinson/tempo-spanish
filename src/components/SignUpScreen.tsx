@@ -2,7 +2,7 @@ import { styles } from '../constants/AuthStyles'
 import { useSignUp } from '@clerk/clerk-expo'
 import { useNavigation } from '@react-navigation/native'
 import { useState } from 'react'
-import { Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import OAuthButton from './OAuthButton'
 
 function SignUpScreen() {
@@ -46,7 +46,7 @@ function SignUpScreen() {
 
       if (completeSignUp.status === 'complete') {
         await setActive({ session: completeSignUp.createdSessionId })
-        // Navigation will happen automatically due to auth state change
+        navigation.goBack()
       } else {
         console.error(JSON.stringify(completeSignUp, null, 2))
       }
@@ -58,28 +58,33 @@ function SignUpScreen() {
   // Email verification screen
   if (pendingVerification) {
     return (
-      <View style={styles.formContainer}>
-        <View style={styles.headerContainer}>
-          <Text style={styles.title}>Verify your email</Text>
-          <Text style={styles.subtitle}>
-            Enter the verification code sent to your email address
-          </Text>
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        <View style={headerStyles.header}>
+          <View style={headerStyles.dragIndicator} />
         </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Verification code</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter the verification code"
-              value={code}
-              onChangeText={(text) => setCode(text)}
-            />
+        <View style={styles.formContainer}>
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>Verify Email</Text>
+            <Text style={styles.subtitle}>
+              Enter the verification code sent to your email address
+            </Text>
           </View>
 
-          <TouchableOpacity style={styles.button} onPress={onVerifyPress} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>Verify</Text>
-          </TouchableOpacity>
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Verification code</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter the verification code"
+                value={code}
+                onChangeText={(text) => setCode(text)}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.button} onPress={onVerifyPress} activeOpacity={0.8}>
+              <Text style={styles.buttonText}>Verify</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     )
@@ -87,61 +92,80 @@ function SignUpScreen() {
 
   // Sign up screen
   return (
-    <View style={styles.formContainer}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.title}>Sign Up</Text>
-        <Text style={styles.subtitle}>Create your account to get started</Text>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={headerStyles.header}>
+        <View style={headerStyles.dragIndicator} />
       </View>
-
-      <View style={{ marginBottom: 24, gap: 12 }}>
-        <OAuthButton strategy="oauth_apple" />
-        <OAuthButton strategy="oauth_google" />
-      </View>
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
-        <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
-        <Text style={{ marginHorizontal: 12, color: '#94A3B8', fontSize: 13, fontWeight: '500' }}>or</Text>
-        <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
-      </View>
-
-      <View style={styles.form}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email address</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email address"
-            value={emailAddress}
-            onChangeText={(text) => setEmailAddress(text)}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
+      <View style={styles.formContainer}>
+        <View style={styles.headerContainer}>
+          <Text style={styles.title}>Sign Up</Text>
+          <Text style={styles.subtitle}>Create your account to get started</Text>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Create a password"
-            value={password}
-            onChangeText={(text) => setPassword(text)}
-            secureTextEntry
-          />
+        <View style={{ marginBottom: 24, gap: 12 }}>
+          <OAuthButton strategy="oauth_apple" />
+          <OAuthButton strategy="oauth_google" />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={onSignUpPress} activeOpacity={0.8}>
-          <Text style={styles.buttonText}>Sign Up</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+          <Text style={{ marginHorizontal: 12, color: '#94A3B8', fontSize: 13, fontWeight: '500' }}>or</Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+        </View>
 
-        <TouchableOpacity
-          style={styles.textButton}
-          onPress={() => navigation.navigate('SignIn')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.textButtonText}>Already have an account? Sign in.</Text>
-        </TouchableOpacity>
+        <View style={styles.form}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email address</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your email address"
+              value={emailAddress}
+              onChangeText={(text) => setEmailAddress(text)}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Create a password"
+              value={password}
+              onChangeText={(text) => setPassword(text)}
+              secureTextEntry
+            />
+          </View>
+
+          <TouchableOpacity style={styles.button} onPress={onSignUpPress} activeOpacity={0.8}>
+            <Text style={styles.buttonText}>Sign Up</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.textButton}
+            onPress={() => navigation.navigate('SignIn')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.textButtonText}>Already have an account? Sign in.</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   )
 }
+
+const headerStyles = StyleSheet.create({
+  header: {
+    alignItems: 'center',
+  },
+  dragIndicator: {
+    width: 36,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#d0d0d4',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+})
 
 export default SignUpScreen

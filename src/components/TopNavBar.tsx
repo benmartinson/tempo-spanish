@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useAuth } from "@clerk/clerk-expo";
+import { useNavigation } from "@react-navigation/native";
 import LanguageModal from "./settings/LanguageModal";
 import ProfileModal from "./ProfileModal";
 
@@ -18,6 +20,8 @@ export const getFlagForLanguage = (language: string): string => {
 };
 
 const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
+  const { isSignedIn } = useAuth();
+  const navigation = useNavigation<any>();
   const [profileVisible, setProfileVisible] = useState(false);
   const [languageVisible, setLanguageVisible] = useState(false);
 
@@ -33,7 +37,13 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
         <>
           <TouchableOpacity
             style={styles.avatarButton}
-            onPress={() => setProfileVisible(true)}
+            onPress={() => {
+              if (isSignedIn) {
+                setProfileVisible(true);
+              } else {
+                navigation.navigate("SignIn");
+              }
+            }}
           >
             <Ionicons name="person" size={16} color="#5a5680" />
           </TouchableOpacity>
