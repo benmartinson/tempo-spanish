@@ -7,6 +7,8 @@ interface RecordingControlsProps {
   onTrash: () => void;
   onMic: () => void;
   disabled?: boolean;
+  showContainer?: boolean;
+  hideTrash?: boolean;
 }
 
 const RecordingControls: React.FC<RecordingControlsProps> = ({
@@ -14,23 +16,27 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onTrash,
   onMic,
   disabled = false,
+  showContainer = true,
+  hideTrash = false,
 }) => {
   return (
-    <View style={styles.inputArea}>
-      <TouchableOpacity
-        style={[
-          styles.trashButton,
-          { backgroundColor: isRecording ? "white" : "#f0f0f0" },
-        ]}
-        onPress={onTrash}
-        disabled={!isRecording}
-      >
-        <FontAwesome
-          name="trash-o"
-          size={22}
-          color={isRecording ? "red" : "#aaa"}
-        />
-      </TouchableOpacity>
+    <View style={showContainer ? styles.inputArea : styles.buttonsOnly}>
+      {!hideTrash && (
+        <TouchableOpacity
+          style={[
+            styles.trashButton,
+            { backgroundColor: isRecording ? "white" : "#f0f0f0" },
+          ]}
+          onPress={onTrash}
+          disabled={!isRecording}
+        >
+          <FontAwesome
+            name="trash-o"
+            size={22}
+            color={isRecording ? "red" : "#aaa"}
+          />
+        </TouchableOpacity>
+      )}
       <TouchableOpacity
         style={[
           styles.micButton,
@@ -88,6 +94,12 @@ const styles = StyleSheet.create({
   micButtonDisabled: {
     borderColor: "#eee",
     backgroundColor: "#f8f8f8",
+  },
+  buttonsOnly: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 24,
   },
 });
 

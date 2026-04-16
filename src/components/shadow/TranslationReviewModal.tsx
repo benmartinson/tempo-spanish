@@ -11,7 +11,11 @@ import {
 import Entypo from "@expo/vector-icons/Entypo";
 import SlideModal from "../common/SlideModal";
 import ShadowResults from "./ShadowResults";
+import CountdownTimer from "./CountdownTimer";
+import RecordingControls from "../common/RecordingControls";
+import { useRecording } from "../../hooks/useRecording";
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
+import { sendAudioForTranscription } from "../../helpers/streaming_helpers";
 import { AccuracyResult, SegmentWord } from "../../types";
 import { capitalize } from "../../helpers/helpers";
 
@@ -20,6 +24,7 @@ interface TranslationReviewModalProps {
   englishTranslation: string;
   targetText: string;
   targetWords: SegmentWord[];
+  targetLanguage: string;
   onComplete: () => void;
   onClose: () => void;
 }
@@ -29,6 +34,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   englishTranslation,
   targetText,
   targetWords,
+  targetLanguage,
   onComplete,
   onClose,
 }) => {
@@ -37,6 +43,37 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
     null,
   );
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+
+  const evaluateWords = (spokenWords: string[]) => {
+    const target = targetWords.map((w) => w.word);
+    const result = calculateAccuracy(spokenWords, target, []);
+    setAccuracyResult({
+      ...result,
+      targetSentence: capitalize(targetText),
+    });
+  };
+
+  const { isRecording, startRecording, stopRecording } = useRecording({
+    onRecordingComplete: async (audioUri: string) => {
+      setIsTranscribing(true);
+      try {
+        const transcriptionResult = await sendAudioForTranscription(
+          audioUri,
+          targetLanguage,
+        );
+        const spokenWords = transcriptionResult.transcript
+          .split(/\s+/)
+          .filter(Boolean);
+        evaluateWords(spokenWords);
+      } catch (err) {
+        console.error("Transcription error:", err);
+      } finally {
+        setIsTranscribing(false);
+      }
+    },
+    onError: (message) => console.error("Recording error:", message),
+  });
 
   const handleReset = () => {
     setUserAnswer("");
@@ -58,16 +95,21 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
     if (!userAnswer.trim()) return;
     Keyboard.dismiss();
     setIsEvaluating(true);
-
     const typedWords = userAnswer.trim().split(/\s+/);
-    const target = targetWords.map((w) => w.word);
-    const result = calculateAccuracy(typedWords, target, []);
-
-    setAccuracyResult({
-      ...result,
-      targetSentence: capitalize(targetText),
-    });
+    evaluateWords(typedWords);
     setIsEvaluating(false);
+  };
+
+  const handleStartRecordingFlow = () => {
+    startRecording();
+  };
+
+  const handleSubmitRecording = () => {
+    stopRecording(false);
+  };
+
+  const handleTrashRecording = () => {
+    stopRecording(true);
   };
 
   return (
@@ -81,44 +123,70 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
 
         {!accuracyResult && (
           <>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                placeholder="Type your translation..."
-                placeholderTextColor="#999"
-                value={userAnswer}
-                onChangeText={setUserAnswer}
-                multiline
-                autoCorrect={false}
-                returnKeyType="done"
-                submitBehavior="blurAndSubmit"
-                onSubmitEditing={() => {
-                  if (userAnswer.trim()) handleSubmit();
-                }}
-              />
-              {userAnswer.length > 0 && (
-                <TouchableOpacity
-                  style={styles.clearButton}
-                  onPress={() => setUserAnswer("")}
-                >
-                  <Entypo name="cross" size={16} color="#999" />
-                </TouchableOpacity>
-              )}
-            </View>
+            {!isRecording && (
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Type your translation..."
+                  placeholderTextColor="#999"
+                  value={userAnswer}
+                  onChangeText={setUserAnswer}
+                  multiline
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  submitBehavior="blurAndSubmit"
+                  onSubmitEditing={() => {
+                    if (userAnswer.trim()) handleSubmit();
+                  }}
+                />
+                {userAnswer.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.clearButton}
+                    onPress={() => setUserAnswer("")}
+                  >
+                    <Entypo name="cross" size={16} color="#999" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
-            {isEvaluating ? (
+            {isEvaluating || isTranscribing ? (
               <ActivityIndicator size="small" color="#4a69bd" />
             ) : (
-              <TouchableOpacity
-                style={[
-                  styles.submitButton,
-                  !userAnswer.trim() && styles.submitButtonDisabled,
-                ]}
-                onPress={handleSubmit}
-                disabled={!userAnswer.trim()}
-              >
-                <Text style={styles.submitButtonText}>Check</Text>
-              </TouchableOpacity>
+              <>
+                {isRecording ? (
+                  <CountdownTimer
+                    onStartRecording={() => {}}
+                    onStopRecording={handleSubmitRecording}
+                    onTrash={handleTrashRecording}
+                    sentenceEnded={false}
+                    maxRecordingDuration={30}
+                    countdownDuration={0}
+                    bufferDuration={30}
+                  />
+                ) : (
+                  <View style={styles.actionsRow}>
+                    <RecordingControls
+                      isRecording={false}
+                      onMic={handleStartRecordingFlow}
+                      onTrash={() => {}}
+                      disabled={isTranscribing}
+                      showContainer={false}
+                      hideTrash
+                    />
+                    <TouchableOpacity
+                      style={[
+                        styles.submitButton,
+                        !userAnswer.trim() && styles.submitButtonDisabled,
+                      ]}
+                      onPress={handleSubmit}
+                      disabled={!userAnswer.trim()}
+                    >
+                      <Text style={styles.submitButtonText}>Check</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
             )}
           </>
         )}
@@ -181,11 +249,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   submitButton: {
     backgroundColor: "#4a69bd",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
+    width: 100,
+    alignSelf: "flex-end",
   },
   submitButtonDisabled: {
     opacity: 0.5,

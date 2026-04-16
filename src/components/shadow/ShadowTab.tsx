@@ -850,70 +850,28 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (userSettings.disableReviewMode) return false;
 
     // Only show review if the user just recorded this segment (not skipping around)
-    if (currentSentenceIndex !== latestShadowedSentenceRef.current) {
-      return false;
-    }
+    // if (currentSentenceIndex !== latestShadowedSentenceRef.current) {
+    //   return false;
+    // }
 
     const newCount = reviewCount + 1;
     setReviewCount(newCount);
 
     // Only trigger based on review frequency setting
-    if (newCount % userSettings.reviewFrequency !== 0) return false;
-
-    // Alternate between vocab and translation (vocab first)
-    const reviewCycle = Math.floor(newCount / 2) % 2;
-    const preferVocab = reviewCycle === 1;
-
-    const unreviewedVocab = (currentVideo?.focusVocab ?? []).filter(
-      (v) => v.times_reviewed === 0,
-    );
-    const canDoVocab = unreviewedVocab.length > 0;
-    const reviewSentenceIndex = currentSentenceIndex - 2;
+    const reviewSentenceIndex =
+      currentSentenceIndex - userSettings.reviewFrequency;
     const historySentence = sentenceHistoryRef.current[reviewSentenceIndex];
-    const canDoTranslation = !!historySentence;
+    if (newCount % userSettings.reviewFrequency !== 0 || !historySentence)
+      return false;
 
-    const chosenType = preferVocab
-      ? canDoVocab
-        ? "vocab"
-        : canDoTranslation
-          ? "translation"
-          : null
-      : canDoTranslation
-        ? "translation"
-        : canDoVocab
-          ? "vocab"
-          : null;
-
-    if (!chosenType) return false;
-
-    if (chosenType === "vocab") {
-      const candidates = unreviewedVocab;
-      const picked = candidates[Math.floor(Math.random() * candidates.length)];
-      const vocabEntry = Object.values(allVocabulary).find(
-        (v) => v.id === picked.vocabulary_id,
-      );
-      if (!vocabEntry) return false;
-
-      reviewVocabIdRef.current = picked.vocabulary_id;
-      setReviewVocabWord(vocabEntry.word);
-      setReviewVocabSentenceText(currentSentenceObject?.text ?? null);
-      setReviewType("vocab");
-      pausePlayer();
-      return true;
-    }
-
-    if (chosenType === "translation" && historySentence) {
-      setReviewTranslationSentence({
-        text: historySentence.text,
-        translation: historySentence.translation,
-        words: historySentence.words,
-      });
-      setReviewType("translation");
-      pausePlayer();
-      return true;
-    }
-
-    return false;
+    setReviewTranslationSentence({
+      text: historySentence.text,
+      translation: historySentence.translation,
+      words: historySentence.words,
+    });
+    setReviewType("translation");
+    pausePlayer();
+    return true;
   };
 
   const handleShadowNextSentence = () => {
@@ -1215,6 +1173,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               onStopRecording={handleSubmitRecording}
               sentenceEnded={sentenceEnded}
               bufferDuration={getBufferDuration(recordSpeed)}
+              onTrash={() => {
+                handleTrashRecording(true);
+                handleResetAnswer();
+              }}
             />
           </View>
         )}
@@ -1541,6 +1503,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         englishTranslation={reviewTranslationSentence?.translation ?? ""}
         targetText={reviewTranslationSentence?.text ?? ""}
         targetWords={reviewTranslationSentence?.words ?? []}
+        targetLanguage={userSettings.targetLanguage}
         onComplete={proceedAfterReview}
         onClose={proceedAfterReview}
       />

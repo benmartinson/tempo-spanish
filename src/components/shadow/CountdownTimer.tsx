@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 type RecordingPhase = "countdown" | "recording" | "buffer" | "complete";
 
 interface CountdownTimerProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
+  onTrash?: () => void;
   sentenceEnded: boolean;
   bufferDuration?: number;
   countdownDuration?: number;
@@ -22,6 +24,7 @@ interface CountdownTimerProps {
 const CountdownTimer: React.FC<CountdownTimerProps> = ({
   onStartRecording,
   onStopRecording,
+  onTrash,
   sentenceEnded,
   bufferDuration = 5,
   countdownDuration = 0,
@@ -150,6 +153,11 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
           )}
         </View>
         <View style={styles.buttonRow}>
+          {onTrash && (
+            <TouchableOpacity onPress={onTrash} style={styles.trashButton}>
+              <FontAwesome name="trash-o" size={22} color={"red"} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={onStopRecording}
             style={styles.submitButton}
@@ -250,6 +258,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 8,
+  },
+  trashButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "white",
+    borderRadius: 100,
   },
   submitButton: {
     alignItems: "center",
