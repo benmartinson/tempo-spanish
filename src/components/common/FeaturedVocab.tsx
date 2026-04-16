@@ -25,7 +25,7 @@ import {
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import { MaterialIcons } from "@expo/vector-icons";
-import GuessWordModal from "../common/GuessWordModal";
+import GuessWordModal from "./GuessWordModal";
 
 interface FeaturedVocabProps {
   word: SegmentWord;
@@ -50,7 +50,8 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const vocabWord = allVocabulary[vocabFormatWord(word.word)];
   const isSelectedForReview = useMemo(
-    () => currentVideo?.focusVocab.find((v) => v.vocabulary_id === vocabWord.id),
+    () =>
+      currentVideo?.focusVocab.find((v) => v.vocabulary_id === vocabWord.id),
     [currentVideo, word],
   );
 

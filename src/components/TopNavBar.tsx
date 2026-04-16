@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
-import AppIcon from "./common/AppIcon";
 import LanguageModal from "./settings/LanguageModal";
 import ProfileModal from "./ProfileModal";
 
