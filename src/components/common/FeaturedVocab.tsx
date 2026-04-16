@@ -21,11 +21,13 @@ import {
   removeUserKnownVocab,
   removeUserSelectedVocab,
   setFocusVocab,
+  updateFocusVocabTranslation,
 } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import { MaterialIcons } from "@expo/vector-icons";
 import GuessWordModal from "./GuessWordModal";
+import { saveFocusVocabTranslation } from "../../requests";
 
 interface FeaturedVocabProps {
   word: SegmentWord;
@@ -174,9 +176,11 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
             <View style={styles.hiddenPlayButton}>
               <MaterialIcons name="play-arrow" size={20} color="black" />
             </View>
-            <View style={styles.hiddenPlayButton}>
-              <MaterialIcons name="play-arrow" size={20} color="black" />
-            </View>
+            <TouchableOpacity onPress={() => setModalVisible(true)}>
+              <View style={styles.playButton}>
+                <MaterialIcons name="translate" size={20} color="black" />
+              </View>
+            </TouchableOpacity>
             <Text style={styles.word}>{capitalize(word.word)}</Text>
             <TouchableOpacity onPress={() => playSnippet(word)}>
               <View style={styles.playButton}>
@@ -200,7 +204,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.buttonsContainer}>
+        {/* <View style={styles.buttonsContainer}>
           <Pressable
             style={
               !word.isKnown
@@ -246,7 +250,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
               <Entypo name="pencil" size={16} color="#5a5680" />
             )}
           </Pressable>
-        </View>
+        </View> */}
       </View>
 
       <GuessWordModal
@@ -254,6 +258,24 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
         onClose={handleCloseModal}
         word={vocabWord?.word || word.word}
         sentenceText={currentSentenceObject?.text}
+        existingTranslation={
+          currentVideo?.focusVocab.find(
+            (v) => v.vocabulary_id === vocabWord?.id,
+          )?.translation ?? null
+        }
+        onTranslationFetched={(translation) => {
+          if (vocabWord?.id) {
+            dispatch(updateFocusVocabTranslation(vocabWord.id, translation));
+          }
+          if (supabase && currentVideo?.videoViewId && vocabWord?.id) {
+            saveFocusVocabTranslation({
+              supabase,
+              videoViewId: currentVideo.videoViewId,
+              vocabularyId: vocabWord.id,
+              translation,
+            });
+          }
+        }}
         onReplaySentence={onReplaySentence}
         playerIsPlaying={playerIsPlaying}
       />
@@ -274,7 +296,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "white",
     borderRadius: 16,
-    padding: 16,
+    paddingTop: 16,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: "#e0e0e0",
     shadowColor: "#000",

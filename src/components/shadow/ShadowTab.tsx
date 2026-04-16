@@ -850,9 +850,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (userSettings.disableReviewMode) return false;
 
     // Only show review if the user just recorded this segment (not skipping around)
-    // if (currentSentenceIndex !== latestShadowedSentenceRef.current) {
-    //   return false;
-    // }
+    if (currentSentenceIndex !== latestShadowedSentenceRef.current) {
+      return false;
+    }
 
     const newCount = reviewCount + 1;
     setReviewCount(newCount);
@@ -1462,42 +1462,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           </Text>
         </TooltipModal>
       )}
-      <GuessWordModal
-        visible={reviewType === "vocab"}
-        onClose={proceedAfterReview}
-        word={reviewVocabWord ?? undefined}
-        hideTranslationAtFirst
-        sentenceText={reviewVocabSentenceText ?? undefined}
-        sentenceTranslation={sentenceTranslation}
-        existingTranslation={
-          currentVideo?.focusVocab.find(
-            (v) => v.vocabulary_id === reviewVocabIdRef.current,
-          )?.translation ?? null
-        }
-        onTranslationFetched={(translation) => {
-          if (reviewVocabIdRef.current) {
-            dispatch(
-              updateFocusVocabTranslation(
-                reviewVocabIdRef.current,
-                translation,
-              ),
-            );
-          }
-          if (
-            supabase &&
-            currentVideo?.videoViewId &&
-            reviewVocabIdRef.current
-          ) {
-            saveFocusVocabTranslation({
-              supabase,
-              videoViewId: currentVideo.videoViewId,
-              vocabularyId: reviewVocabIdRef.current,
-              translation,
-            });
-          }
-        }}
-        title="Vocab Review"
-      />
       <TranslationReviewModal
         visible={reviewType === "translation"}
         englishTranslation={reviewTranslationSentence?.translation ?? ""}

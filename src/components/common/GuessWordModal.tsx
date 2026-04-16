@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { capitalize, stripPunctuation } from "../../helpers/helpers";
 import { fetchVocabTranslation } from "../../requests";
-import SlideModal from "./SlideModal";
+import SmallSlideModal from "./SmallSlideModal";
 
 interface GuessWordModalProps {
   visible: boolean;
@@ -89,7 +89,11 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
   };
 
   return (
-    <SlideModal visible={visible} onRequestClose={handleClose} title={title}>
+    <SmallSlideModal
+      visible={visible}
+      onRequestClose={handleClose}
+      title={title}
+    >
       <View style={styles.content}>
         <Text style={styles.vocabWord}>
           {capitalize(stripPunctuation(word ?? ""))}
@@ -104,7 +108,9 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
             <Text style={styles.translationLabel}>Translation in context</Text>
             <Pressable
               style={styles.translationTextWrapper}
-              onPress={() => isHidingTranslation && setIsHidingTranslation(false)}
+              onPress={() =>
+                isHidingTranslation && setIsHidingTranslation(false)
+              }
             >
               <Text style={styles.translationText}>{translation}</Text>
               {isHidingTranslation && (
@@ -117,12 +123,8 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
             </Pressable>
           </View>
         ) : null}
-
-        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <Text style={styles.closeButtonText}>Continue</Text>
-        </TouchableOpacity>
       </View>
-    </SlideModal>
+    </SmallSlideModal>
   );
 };
 
@@ -190,6 +192,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 12,
     alignItems: "center",
+    width: 150,
+    alignSelf: "flex-end",
   },
   closeButtonText: {
     color: "white",
