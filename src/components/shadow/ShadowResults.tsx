@@ -1,24 +1,15 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { AccuracyResult } from "../../types";
 import { MaterialIcons } from "@expo/vector-icons";
-import TooltipModal from "../common/TooltipModal";
-import { useState, useRef } from "react";
 import { normalizeWord, removeSpecialPunctuation } from "../../helpers/helpers";
 import AccuracyCircle from "../common/AccuracyCircle";
-import SlideModal from "../common/SlideModal";
 
 interface ShadowResultsProps {
   accuracyResult: AccuracyResult;
   handleNextSentence: () => void;
   handleRetry: () => void;
   properNouns?: string[];
-  onReviewSegment?: () => void;
   onBackToShadow?: () => void;
-  hasUnsavedRecording?: boolean;
-  onSaveRecording?: () => Promise<void>;
-  showSaveRecordingsModal?: boolean;
-  onSetAlwaysSave?: () => void;
-  onSetDontAskAgain?: () => void;
   spokenLabel?: string;
   targetLabel?: string;
   hideRetry?: boolean;
@@ -31,43 +22,15 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   handleNextSentence,
   handleRetry,
   properNouns = [],
-  onReviewSegment,
-  onBackToShadow,
-  hasUnsavedRecording = false,
-  onSaveRecording,
-  showSaveRecordingsModal = true,
-  onSetAlwaysSave,
-  onSetDontAskAgain,
   spokenLabel = "Spoken: ",
   targetLabel = "Target: ",
   hideRetry = false,
-  alwaysShowNext = false,
   nextButtonLabel = "Next Segment",
 }) => {
-  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const onSaveRecordingRef = useRef(onSaveRecording);
-  onSaveRecordingRef.current = onSaveRecording;
-
   const handleNextPress = () => {
     handleNextSentence();
   };
 
-  const handleSaveAndContinue = async () => {
-    const saveFn = onSaveRecordingRef.current;
-    if (!saveFn) return;
-    setIsSaving(true);
-    await saveFn();
-    setIsSaving(false);
-    setShowSaveModal(false);
-    handleNextSentence();
-  };
-
-  const handleSkipSave = () => {
-    setShowSaveModal(false);
-    handleNextSentence();
-  };
   const missedWords = accuracyResult.details
     .filter((detail) => !detail.matched)
     .map((detail) => normalizeWord(detail.targetWord));
@@ -152,16 +115,6 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
     );
   };
 
-  const cleanUpSetence = (sentence: string) => {
-    const specialCases = [",.", ".,", "!,", "?,"];
-    return sentence
-      .split(" ")
-      .map((word) =>
-        specialCases.some((c) => word.endsWith(c)) ? word.slice(0, -1) : word,
-      )
-      .join(" ");
-  };
-
   return (
     <View style={styles.resultsContainer}>
       <AccuracyCircle percentage={accuracyResult.percentage} />
@@ -199,76 +152,6 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           </TouchableOpacity>
         }
       </View>
-      <SlideModal
-        visible={showSaveModal && hasUnsavedRecording && !!onSaveRecording}
-        onRequestClose={() => !isSaving && setShowSaveModal(false)}
-        title="Save Recording?"
-      >
-        <View style={styles.saveModalContent}>
-          <Text style={styles.saveModalMessage}>
-            You have an unsaved recording for this segment.
-          </Text>
-          <Text style={styles.saveModalSubmessage}>
-            Saved recordings show up in the 'Recordings' section, and can be
-            played as one long stream alongside the video.
-          </Text>
-
-          <Text style={styles.saveModalSubmessage}>
-            Hearing yourself speak and make mistakes can help you improve, but
-            also it is a great way to keep track of your progress over time!
-          </Text>
-          <View style={styles.saveModalButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.skipButton]}
-              onPress={handleSkipSave}
-              disabled={isSaving}
-            >
-              <Text style={styles.skipButtonText}>Skip</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.saveButton]}
-              onPress={handleSaveAndContinue}
-              disabled={isSaving}
-            >
-              <Text style={styles.actionButtonText}>
-                {isSaving ? "Saving..." : "Yes, Save"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.saveModalButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.alwaysSaveButton]}
-              onPress={() => {
-                onSetAlwaysSave?.();
-                handleSaveAndContinue();
-              }}
-              disabled={isSaving}
-            >
-              <Text style={styles.alwaysSaveButtonText}>Always Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.dontAskButton]}
-              onPress={() => {
-                onSetDontAskAgain?.();
-                handleSkipSave();
-              }}
-              disabled={isSaving}
-            >
-              <Text style={styles.dontAskButtonText}>Don't Ask Again</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </SlideModal>
-
-      {/* {onReviewSegment && (
-        <TouchableOpacity
-          style={[styles.actionButton, styles.reviewButton]}
-          onPress={onReviewSegment}
-        >
-          <MaterialIcons name="rate-review" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Review Previous Segment</Text>
-        </TouchableOpacity>
-      )} */}
     </View>
   );
 };

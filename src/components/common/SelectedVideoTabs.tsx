@@ -31,22 +31,13 @@ import {
   refreshVideoPlayer as refreshVideoPlayerAction,
 } from "../../store/actions/dataActions";
 import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
-import SpeedRunTab from "../speed-run/SpeedRunTab";
 import ShadowTab from "../shadow/ShadowTab";
-import ReviewTab from "../discuss/ReviewTab";
-import TranslateTab from "../translate/TranslateTab";
-import RecordingsTab from "../recordings/RecordingsTab";
-import TurnTakingTab from "../turn-taking/TurnTakingTab";
 import {
-  capitalize,
   isInterestingVocab,
   normalizeWord,
   stripPunctuation,
-  vocabFormatWord,
 } from "../../helpers/helpers";
 import SlideModal from "./SlideModal";
-
-const selectedNavTab: string = "shadow";
 
 if (
   Platform.OS === "android" &&
@@ -64,29 +55,7 @@ const SelectedVideoTabs: React.FC = () => {
 
   const [autoShadowDetails, setAutoShadowDetails] =
     useState<AutoShadowDetails | null>(null);
-  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
-
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      () => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setKeyboardVisible(true);
-      },
-    );
-    const hideSubscription = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setKeyboardVisible(false);
-      },
-    );
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
+  const [playerMuted, setPlayerMuted] = useState(false);
 
   // Refresh player when app returns from background
   useEffect(() => {
@@ -102,9 +71,7 @@ const SelectedVideoTabs: React.FC = () => {
   const [playKey, setPlayKey] = useState(0);
   const [isConfirmingStartOver, setIsConfirmingStartOver] =
     useState<boolean>(false);
-  // const currentSentence = currentVideo
-  //   ? { ...currentVideo.sentences[currentVideo.currentSentence] }
-  //   : null;
+
   const setCurrentSentence = useCallback(
     (next: React.SetStateAction<number>) => {
       dispatch(setCurrentSentenceAction(next));
@@ -195,13 +162,7 @@ const SelectedVideoTabs: React.FC = () => {
   };
 
   const loadTranslationInsights = useCallback(async () => {
-    if (
-      !currentSentenceObject?.text ||
-      !supabase ||
-      !currentVideo ||
-      selectedNavTab === "speed-run" ||
-      selectedNavTab === "review"
-    ) {
+    if (!currentSentenceObject?.text || !supabase || !currentVideo) {
       setOrderedCharacters([]);
       return;
     }
@@ -247,10 +208,6 @@ const SelectedVideoTabs: React.FC = () => {
     }
     loadTranslationInsights();
   }, [currentSentenceIndex, userSettings.translationLanguage]);
-
-  useEffect(() => {
-    refreshPlayer();
-  }, [selectedNavTab]);
 
   const [showVideo, setShowVideo] = useState<boolean>(true);
   const [clipRefreshKey, setClipRefreshKey] = useState(0);
@@ -311,15 +268,6 @@ const SelectedVideoTabs: React.FC = () => {
   const [shadowMode, setShadowMode] = useState<"shadow" | "stream">("shadow");
 
   useEffect(() => {
-    if (selectedNavTab !== "turn-taking") {
-      setPlayerSpeed(1);
-    }
-    if (selectedNavTab !== "review" && selectedNavTab !== "translate") {
-      setShowVideo(true);
-    }
-  }, [selectedNavTab]);
-
-  useEffect(() => {
     if (shadowMode === "stream") {
       playerRef.current?.disableClipEnforcement();
     } else {
@@ -330,25 +278,12 @@ const SelectedVideoTabs: React.FC = () => {
     }
   }, [shadowMode]);
 
-  useEffect(() => {
-    if (isKeyboardVisible && selectedNavTab === "review") {
-      setShowVideo(false);
-    }
-  }, [isKeyboardVisible]);
-
   const handleSetTime = (newTime: number, force = false) => {
     if (stallTimerRef.current) {
       clearTimeout(stallTimerRef.current);
       stallTimerRef.current = null;
     }
     if (isTransitioningRef.current && !force) return;
-
-    // During recordings playback, just update time without sentence transitions
-    if (selectedNavTab === "recordings") {
-      prevTimeRef.current = newTime;
-      setTime(newTime);
-      return;
-    }
 
     const prevTime = prevTimeRef.current;
     prevTimeRef.current = newTime;
@@ -382,21 +317,7 @@ const SelectedVideoTabs: React.FC = () => {
     // Pause at sentence end (enforces sentence clipping without URL reload)
 
     if (newTime >= currentSentenceObject?.end) {
-      if (clipEndTime !== undefined && newTime >= clipEndTime) {
-        pausePlayer();
-        return;
-      }
-      if (selectedNavTab === "shadow" && shadowMode === "stream") {
-        setCurrentSentence((prev) => prev + 1);
-        setTime(newTime);
-        return;
-      } else if (selectedNavTab === "shadow" || selectedNavTab === "review") {
-        // playerRef.current?.pause();
-      } else if (selectedNavTab === "turn-taking") {
-        // TurnTakingTab handles all segment transitions via time-based detection
-        setTime(newTime);
-        return;
-      } else {
+      if (shadowMode === "stream") {
         setCurrentSentence((prev) => prev + 1);
         setTime(newTime);
         return;
@@ -437,23 +358,6 @@ const SelectedVideoTabs: React.FC = () => {
     startStallTimerRef.current();
   }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
 
-  // Turn-taking variant: advances without setting clip end so the player flows freely
-  // const handleNextSentenceFree = useCallback(() => {
-  //   if (currentSentenceObject?.index === currentVideo?.sentences.length - 1) {
-  //     return;
-  //   }
-
-  //   handleTransition();
-  //   const next = currentVideo?.sentences[currentSentenceObject?.index + 1];
-  //   setCurrentSentence(next?.index);
-  //   setTime(next?.start);
-  //   prevTimeRef.current = -1;
-  //   setPlayerIsPlaying(true);
-  //   playerRef.current?.disableClipEnforcement();
-  //   playerRef.current?.seekAndPlay(next?.start ?? 0);
-  //   startStallTimerRef.current();
-  // }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
-
   const handlePreviousSentence = useCallback(
     (n = 1) => {
       if (currentSentenceObject?.index === 0) {
@@ -478,29 +382,6 @@ const SelectedVideoTabs: React.FC = () => {
     [currentSentenceObject?.index, currentVideo?.sentences],
   );
 
-  // const handlePreviousSentenceFree = useCallback(() => {
-  //   if (currentSentenceObject?.index === 0) {
-  //     return;
-  //   }
-  //   handleTransition();
-
-  //   const previous = currentVideo?.sentences[currentSentenceObject?.index - 1];
-  //   setCurrentSentence(previous?.index);
-  //   setTime(previous?.start);
-  //   prevTimeRef.current = -1;
-  //   setPlayerIsPlaying(true);
-  //   playerRef.current?.disableClipEnforcement();
-  //   playerRef.current?.seekAndPlay(previous?.start ?? 0);
-  //   startStallTimerRef.current();
-  // }, [currentSentenceObject?.index, currentVideo?.sentences]);
-
-  const handleReviewSegment = useCallback(
-    (_details: AutoReviewDetails) => {
-      // Review tab removed — no-op
-    },
-    [],
-  );
-
   const playSentence = useCallback(() => {
     handleTransition();
     setAutoplay(true);
@@ -511,16 +392,13 @@ const SelectedVideoTabs: React.FC = () => {
     currentClipSnippetRef.current = null;
     playerRef.current?.setClip(
       currentSentenceObject?.start ?? 0,
-      selectedNavTab === "watch" ||
-        selectedNavTab === "speed-run" ||
-        selectedNavTab === "turn-taking" ||
-        (selectedNavTab === "shadow" && shadowMode === "stream")
+      shadowMode === "stream"
         ? undefined
         : (currentSentenceObject?.end ?? undefined),
     );
     playerRef.current?.seekAndPlay(currentSentenceObject?.start ?? 0);
     startStallTimerRef.current();
-  }, [currentSentenceObject?.start, selectedNavTab, shadowMode]);
+  }, [currentSentenceObject?.start, shadowMode]);
 
   const playClipSnippet = useCallback(
     (start: number, end: number) => {
@@ -566,9 +444,7 @@ const SelectedVideoTabs: React.FC = () => {
   }, []);
 
   const effectiveRefreshKey = videoRefreshKey + clipRefreshKey;
-  // const effectiveAutoplay = true;
-
-  const startTimeForPlayer = selectedNavTab === "watch" ? undefined : time;
+  const startTimeForPlayer = time;
 
   const pausePlayer = useCallback(() => {
     userPressedPlayPause.current = true;
@@ -580,8 +456,6 @@ const SelectedVideoTabs: React.FC = () => {
     playerRef.current?.play();
   }, [playerRef]);
 
-  const [playerMuted, setPlayerMuted] = useState(false);
-
   const mutePlayer = useCallback(() => {
     setPlayerMuted(true);
     playerRef.current?.mute();
@@ -592,68 +466,9 @@ const SelectedVideoTabs: React.FC = () => {
     playerRef.current?.unMute();
   }, []);
 
-  // Mute when on Recordings tab, unmute when switching away
-  // Hide video initially on recordings tab, but once shown (by playback), keep it visible
-  const recordingsVideoShownRef = useRef(false);
-  useEffect(() => {
-    if (selectedNavTab === "recordings") {
-      mutePlayer();
-      if (!recordingsVideoShownRef.current) {
-        setShowVideo(false);
-      }
-    } else if (selectedNavTab !== "turn-taking") {
-      recordingsVideoShownRef.current = false;
-      unMutePlayer();
-      setShowVideo(true);
-    } else {
-      recordingsVideoShownRef.current = false;
-      setShowVideo(true);
-    }
-  }, [selectedNavTab]);
-
-  const [clipEndTime, setClipEndTime] = useState<number | undefined>(undefined);
-
-  // const setClipEnd = useCallback(
-  //   (end: number | undefined) => {
-  //     setClipEndTime(end);
-  //     playerRef.current?.setClip(currentSentenceObject?.start ?? 0, end);
-  //   },
-  //   [currentSentenceObject?.start],
-  // );
-
-  // const currentVideoText = useMemo(() => {
-  //   if (selectedNavTab !== "watch") return "";
-  //   const topHintWord = hintWords?.length ? hintWords[0] : null;
-  //   if (!topHintWord) return "";
-
-  //   const match =
-  //     time >= topHintWord.start - 1 && time <= topHintWord.start + 3;
-  //   let vocabulary = null;
-  //   if (match) {
-  //     vocabulary = allVocabulary[vocabFormatWord(topHintWord.word)];
-  //     const translation =
-  //       topHintWord.contextTranslation || vocabulary.translation;
-  //     return `${capitalize(topHintWord.word)} => ${capitalize(translation)}`;
-  //   }
-
-  //   return "";
-  // }, [hintWords, time, selectedNavTab]);
-
   if (!currentVideo) return null;
 
-  const getTabStyle = (isActive: boolean) =>
-    ({
-      display: isActive ? "flex" : "none",
-      flex: 1,
-    }) as const;
-
-  const endTime =
-    selectedNavTab !== "watch" &&
-    selectedNavTab !== "speed-run" &&
-    selectedNavTab !== "recordings" &&
-    selectedNavTab !== "turn-taking"
-      ? currentSentenceObject?.end
-      : undefined;
+  const endTime = currentSentenceObject?.end;
   return (
     <View style={styles.container}>
       <View
@@ -672,7 +487,7 @@ const SelectedVideoTabs: React.FC = () => {
             start: currentSentenceObject?.start,
             end: endTime,
           }}
-          autoplay={selectedNavTab === "shadow"}
+          autoplay={true}
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
           muted={playerMuted}
@@ -681,23 +496,13 @@ const SelectedVideoTabs: React.FC = () => {
           onPlayingStateChange={handlePlayingStateChange}
         />
       </View>
-      {/* {!showVideo && !isKeyboardVisible && (
-        <TouchableOpacity
-          style={styles.showVideoButton}
-          onPress={() => setShowVideo(true)}
-        >
-          <Text style={styles.showVideoButtonText}>Show Video</Text>
-        </TouchableOpacity>
-      )} */}
-
-      <View style={getTabStyle(selectedNavTab === "shadow")}>
+      <View style={{ display: "flex", flex: 1 }}>
         <ShadowTab
           time={time}
           playKey={playKey}
           handleNextSentence={handleNextSentence}
           handlePreviousSentence={handlePreviousSentence}
           playSentence={playSentence}
-          isActive={selectedNavTab === "shadow"}
           setPlayerSpeed={setPlayerSpeed}
           pausePlayer={pausePlayer}
           resumePlayer={playPlayer}
@@ -713,7 +518,6 @@ const SelectedVideoTabs: React.FC = () => {
           isLoadingInsights={isLoadingInsights}
           orderedCharacters={orderedCharacters}
           sentenceTranslation={sentenceTranslation}
-          onReviewSegment={handleReviewSegment}
           autoShadowDetails={autoShadowDetails}
           onAutoShadowHandled={() => setAutoShadowDetails(null)}
           mutePlayer={mutePlayer}
@@ -722,103 +526,6 @@ const SelectedVideoTabs: React.FC = () => {
           setShadowMode={setShadowMode}
         />
       </View>
-      {/* <View style={getTabStyle(selectedNavTab === "speed-run")}>
-        <SpeedRunTab
-          time={time}
-          currentSentence={currentSentenceObject}
-          setCurrentSentence={setCurrentSentence}
-          setAutoplay={setAutoplay}
-          refreshPlayer={refreshPlayer}
-          isActive={selectedNavTab === "speed-run"}
-          hintWords={hintWords}
-          handlePlayWordSnippet={(word: SegmentWord) =>
-            playClipSnippet(word.start - 0.3, word.end + 0.3)
-          }
-          isPlayingWordSnippet={!!currentClipSnippetRef.current}
-          handleNextSentence={handleNextSentence}
-          handlePreviousSentence={handlePreviousSentence}
-          onPlayClip={handlePlayClip}
-          playSentence={playSentence}
-          pausePlayer={pausePlayer}
-          resumePlayer={playPlayer}
-          playerIsPlaying={playerIsPlaying}
-          setPlayerSpeed={setPlayerSpeed}
-          orderedCharacters={orderedCharacters}
-          targetLanguage={userSettings.targetLanguage}
-          mutePlayer={mutePlayer}
-          unMutePlayer={unMutePlayer}
-          onTimeUpdate={handleSetTime}
-          setClipEnd={setClipEnd}
-        />
-      </View> */}
-
-      {/* {selectedNavTab === "recordings" && (
-        <View style={getTabStyle(selectedNavTab === "recordings")}>
-          <RecordingsTab
-            time={time}
-            isActive={selectedNavTab === "recordings"}
-            playerRef={playerRef}
-            pausePlayer={pausePlayer}
-            resumePlayer={playPlayer}
-            setPlayerSpeed={setPlayerSpeed}
-            onShowVideo={(show) => {
-              if (show) recordingsVideoShownRef.current = true;
-              setShowVideo(show);
-            }}
-            playerIsPlaying={playerIsPlaying}
-            onNavigateToShadow={(sentenceIndex) => {
-              setCurrentSentence(sentenceIndex);
-              onSelectNavTab("shadow");
-            }}
-          />
-        </View>
-      )} */}
-
-      {/* {selectedNavTab === "review" && (
-        <View style={getTabStyle(selectedNavTab === "review")}>
-          <ReviewTab
-            onPlayClip={playClipSnippet}
-            isKeyboardVisible={isKeyboardVisible}
-            setShowVideo={setShowVideo}
-          />
-        </View>
-      )} */}
-
-      {/* <View style={getTabStyle(selectedNavTab === "turn-taking")}>
-        <TurnTakingTab
-          time={time}
-          playKey={playKey}
-          playerSpeed={playerSpeed}
-          handleNextSentence={handleNextSentenceFree}
-          handlePreviousSentence={handlePreviousSentenceFree}
-          isActive={selectedNavTab === "turn-taking"}
-          playSentence={playSentence}
-          setPlayerSpeed={setPlayerSpeed}
-          pausePlayer={pausePlayer}
-          resumePlayer={playPlayer}
-          playerIsPlaying={playerIsPlaying}
-          mutePlayer={mutePlayer}
-          unMutePlayer={unMutePlayer}
-          advanceSentence={() => setCurrentSentence((prev) => prev + 1)}
-          orderedCharacters={orderedCharacters}
-          targetLanguage={userSettings.targetLanguage}
-        />
-      </View> */}
-
-      {/* {selectedNavTab === "translate" && (
-        <View style={getTabStyle(selectedNavTab === "translate")}>
-          <TranslateTab
-            onPlayClip={(segment) =>
-              playClipSnippet(segment.start, segment.end)
-            }
-            onPlayClipStart={handlePlayClip}
-            isKeyboardVisible={isKeyboardVisible}
-            playerIsPlaying={playerIsPlaying}
-            setShowVideo={setShowVideo}
-            playSentence={playSentence}
-          />
-        </View>
-      )} */}
 
       {isConfirmingStartOver && (
         <SlideModal

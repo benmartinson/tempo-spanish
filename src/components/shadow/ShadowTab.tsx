@@ -12,14 +12,8 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Keyboard,
-  TextInput,
-  LayoutAnimation,
   Linking,
-  Modal,
-  TouchableWithoutFeedback,
   AppState,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
@@ -36,13 +30,12 @@ import {
   SegmentWord,
   VoiceCommand,
 } from "../../types";
-import SelectVideoPrompt from "../common/SelectVideoPrompt";
+import SelectVideoPrompt from "./SelectVideoPrompt";
 import { useRecording } from "../../hooks/useRecording";
 import {
   sendAudioForTranscription,
   playLocalAudio,
   stopAudio,
-  playAiSpeech,
   playDing,
   playDingStop,
   playDingWarning,
@@ -51,16 +44,7 @@ import { AccuracyResult, CachedResponse } from "../../types";
 import SettingsModal from "./SettingsModal";
 import SpeedDial from "./SpeedDial";
 import CountdownTimer from "./CountdownTimer";
-import {
-  capitalize,
-  findSentenceWithVocab,
-  isInterestingVocab,
-  normalizeWord,
-  splitIntoSentences,
-  determineCefrLevel,
-  CEFR_COLORS,
-  hasUnnaturalSpeechTiming,
-} from "../../helpers/helpers";
+import { capitalize, hasUnnaturalSpeechTiming } from "../../helpers/helpers";
 import ShadowResults from "./ShadowResults";
 import TooltipModal from "../common/TooltipModal";
 import NavSwitcher from "../common/NavSwitcher";
@@ -95,8 +79,8 @@ import {
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import RecordingControls from "../common/RecordingControls";
 import NoCreditsModal from "../common/NoCreditsModal";
-import MemorizeContent from "../speed-run/MemorizeContent";
-import TranslateContent from "../translate/TranslateContent";
+import MemorizeContent from "./MemorizeContent";
+import TranslateContent from "./TranslateContent";
 import ModeSwitcher from "./ModeSwitcher";
 
 interface ShadowTabProps {
@@ -105,7 +89,6 @@ interface ShadowTabProps {
   playerSpeed?: number;
   handleNextSentence: () => void;
   handlePreviousSentence: (n?: number) => void;
-  isActive?: boolean;
   playSentence: () => void;
   setPlayerSpeed: (speed: number) => void;
   pausePlayer: () => void;
@@ -119,7 +102,6 @@ interface ShadowTabProps {
   isLoadingInsights: boolean;
   orderedCharacters: string[];
   sentenceTranslation: string | null;
-  onReviewSegment?: (details: AutoReviewDetails) => void;
   autoShadowDetails?: AutoShadowDetails | null;
   onAutoShadowHandled?: () => void;
   mutePlayer: () => void;
@@ -134,7 +116,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   playerSpeed,
   handleNextSentence: parentHandleNextSentence,
   handlePreviousSentence: parentHandlePreviousSentence,
-  isActive = true,
   playSentence,
   playWordSnippet,
   setPlayerSpeed,
@@ -148,7 +129,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   isLoadingInsights,
   orderedCharacters,
   sentenceTranslation,
-  onReviewSegment,
   autoShadowDetails,
   onAutoShadowHandled,
   mutePlayer,
@@ -185,14 +165,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const currentSentenceObject = currentVideo
     ? { ...currentVideo.sentences[currentSentenceIndex] }
     : null;
-  // const cefrLevel = useMemo(() => {
-  //   if (!currentSentenceObject) return null;
-  //   return determineCefrLevel(currentSentenceObject, allVocabulary);
-  // }, [currentSentenceIndex, allVocabulary]);
+
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
-  const [isLooping, setIsLooping] = useState<boolean>(false);
   // Speed control state (internal settings)
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const userCredits = useSelector((state: RootState) => state.userCredits);
@@ -760,11 +736,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     accuracyResult,
   ]);
 
-  // Stop listening when sentence or tab changes
-  useEffect(() => {
-    stopListening();
-  }, [isActive]);
-
   // Stop listening when switching to stream mode
   useEffect(() => {
     if (isListening && shadowMode === "stream") {
@@ -774,22 +745,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const justRecordedRef = useRef(false);
   const voiceInitiatedRecordRef = useRef(false);
-
-  const isFakingSubmissionRef = useRef(false);
-
-  useEffect(() => {
-    if (!isActive) {
-      if (isRecording) {
-        stopRecording();
-      }
-      stopListening();
-      setIsRecordingMode(false);
-      setSentenceEnded(false);
-      clearRecordingTimer();
-      setIsSettingsVisible(false);
-      setShowNoVocabFoundTooltip(false);
-    }
-  }, [isActive, isRecording]);
 
   useEffect(() => {
     return () => {
@@ -841,10 +796,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       if (isRecording) {
         setSentenceEnded(true);
         setHasPlayedSentence(true);
-      } else if (isActive && isLooping && !justRecordedRef.current) {
-        setTimeout(() => {
-          handleEnterRecordingMode();
-        }, 1000);
       }
     }
   }, [time, currentSentenceObject?.end, isRecording, sentenceEnded]);
@@ -896,7 +847,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const tryStartReview = (): boolean => {
-    if (isLooping) return false;
     if (userSettings.disableReviewMode) return false;
 
     // Only show review if the user just recorded this segment (not skipping around)
@@ -978,25 +928,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     handleNextRef.current = handleShadowNextSentence;
     handlePreviousRef.current = handleShadowPreviousSentence;
   });
-
-  useEffect(() => {
-    if (isActive && isLooping && accuracyResult) {
-      setNextSentenceCountdown(5);
-      const interval = setInterval(() => {
-        setNextSentenceCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            handleNextRef.current();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
-    } else {
-      setNextSentenceCountdown(0);
-    }
-  }, [isActive, isLooping, accuracyResult]);
 
   const handleResetState = () => {
     setError(null);
@@ -1162,18 +1093,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setUserAnswer("");
   };
 
-  const handleReviewPreviousSegment = useCallback(() => {
-    if (!onReviewSegment) return;
-    const reviewSegmentId =
-      currentSentenceIndex > 3 ? currentSentenceIndex - 2 : 0;
-    onReviewSegment({
-      reviewSegmentId,
-      quizType: "Vocab",
-      backToSegmentId: currentSentenceIndex + 1,
-      isVoiceMode: selectedTab === "voice",
-    });
-  }, [onReviewSegment, currentSentenceIndex, selectedTab]);
-
   const handlePreviousResults = () => {
     setAccuracyResult(previousResults);
   };
@@ -1231,16 +1150,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           videoId={currentVideo.videoId}
           recordId={currentVideo.recordId}
         >
-          {/* {cefrLevel && (
-            <View
-              style={[
-                styles.cefrBadge,
-                { backgroundColor: CEFR_COLORS[cefrLevel] },
-              ]}
-            >
-              <Text style={styles.cefrBadgeText}>{cefrLevel}</Text>
-            </View>
-          )} */}
           <Text style={styles.segmentNavText}>
             Segment {currentSentenceIndex + 1} of{" "}
             {currentVideo.sentences.length + 1}
@@ -1276,26 +1185,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   />
                 </TouchableOpacity>
               )}
-              {/* <FocusSentenceRequest
-                markedId={
-                  currentVideo.focusSentences.find(
-                    (s) =>
-                      s.segment_index === currentSentenceIndex &&
-                      s.sentence_index === currentSentenceIndex,
-                  )?.id ?? null
-                }
-                onReplay={() => handlePlaySnippetAgain()}
-                sentenceIndex={currentSentenceIndex}
-                sentenceText={currentSentenceObject?.text}
-                segmentIndex={currentSentenceIndex}
-                videoViewId={currentVideo.videoViewId}
-                sentenceTranslation={sentenceTranslation}
-                isLoadingTranslation={isLoadingInsights}
-                playerIsPlaying={playerIsPlaying}
-              /> */}
-              {/* <TouchableOpacity onPress={() => setShowTranslation(true)}>
-                <MaterialIcons name="translate" size={30} color="#222222" />
-              </TouchableOpacity> */}
               <ModeSwitcher mode={shadowMode} onModeChange={setShadowMode} />
               <SpeedDial
                 speed={recordSpeed}
@@ -1316,9 +1205,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
                 <Feather name="settings" size={30} color="#222222" />
               </TouchableOpacity>
-              {/* <TouchableOpacity onPress={() => setShowShadowInstructions(true)}>
-                <AntDesign name="info-circle" size={32} color="#222222" />
-              </TouchableOpacity> */}
             </View>
           </View>
         )}
@@ -1347,14 +1233,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   handleNextSentence={handleShadowNextSentence}
                   handleRetry={handleRetry}
                   properNouns={orderedCharacters}
-                  onReviewSegment={
-                    onReviewSegment ? handleReviewPreviousSegment : undefined
-                  }
-                  hasUnsavedRecording={false}
-                  onSaveRecording={undefined}
-                  showSaveRecordingsModal={false}
-                  onSetAlwaysSave={() => {}}
-                  onSetDontAskAgain={() => {}}
                 />
                 {nextSentenceCountdown > 0 && (
                   <View style={styles.nextSentenceCountdownRefContainer}>
@@ -1575,7 +1453,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           visible={isSettingsVisible}
           onClose={() => setIsSettingsVisible(false)}
           recordSpeed={recordSpeed}
-          setPlaybackSpeed={setPlaybackSpeed}
           setRecordSpeed={setRecordSpeed}
           initMute={muteVideoWhenRecording}
           setMuteWhenRecording={setMuteVideoWhenRecording}
@@ -1623,29 +1500,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           </Text>
         </TooltipModal>
       )}
-      {/* <Modal
-        visible={showTranslation}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowTranslation(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setShowTranslation(false)}>
-          <View style={styles.translationOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.translationModal}>
-                <Text style={styles.translationTitle}>Translation</Text>
-                {isLoadingInsights ? (
-                  <ActivityIndicator size="small" color="#999" />
-                ) : (
-                  <Text style={styles.translationText}>
-                    {sentenceTranslation || "No translation available"}
-                  </Text>
-                )}
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal> */}
       <GuessWordModal
         visible={reviewType === "vocab"}
         onClose={proceedAfterReview}
