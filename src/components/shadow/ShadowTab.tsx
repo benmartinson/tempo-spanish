@@ -849,6 +849,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
 
   const tryStartReview = (): boolean => {
+    if (!isSignedIn) return false;
     if (userSettings.disableReviewMode) return false;
 
     // Only show review if the user just recorded this segment (not skipping around)

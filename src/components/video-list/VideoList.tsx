@@ -64,10 +64,11 @@ const VideoList: React.FC = () => {
   );
 
   useEffect(() => {
+    if (!supabase) return;
     fetchUserVideoViews({ supabase }).then((videoViews) => {
       dispatch(setUserVideoViews(videoViews));
     });
-  }, [currentVideo]);
+  }, [supabase, currentVideo]);
   const videoResults = currentSearchResults.reduce(
     (acc, result) => {
       const video = allVideos.find((video) => video.id === result.video_id);
@@ -101,7 +102,9 @@ const VideoList: React.FC = () => {
         userId,
       });
 
-      dispatch(addUserVideoView(videoView));
+      if (userId && videoView) {
+        dispatch(addUserVideoView(videoView));
+      }
       dispatch(setCurrentVideo(videoContext));
 
       // Persist video selection to user_ui_state
@@ -124,23 +127,26 @@ const VideoList: React.FC = () => {
     }
   };
 
-  const recentlyWatchedVideos = videosForLanguage
-    ?.filter((video) =>
-      userVideoViews?.some((videoView) => videoView.video_id === video.id),
-    )
-    .map((video) => {
-      const videoView = userVideoViews?.find(
-        (videoView) => videoView.video_id === video.id,
-      );
-      return {
-        ...video,
-        watched_at: videoView?.watched_at,
-      };
-    })
-    .sort(
-      (a, b) =>
-        new Date(b.watched_at).getTime() - new Date(a.watched_at).getTime(),
-    );
+  console.log({ userVideoViews });
+  const recentlyWatchedVideos = userId
+    ? videosForLanguage
+        ?.filter((video) =>
+          userVideoViews?.some((videoView) => videoView.video_id === video.id),
+        )
+        .map((video) => {
+          const videoView = userVideoViews?.find(
+            (videoView) => videoView.video_id === video.id,
+          );
+          return {
+            ...video,
+            watched_at: videoView?.watched_at,
+          };
+        })
+        .sort(
+          (a, b) =>
+            new Date(b.watched_at).getTime() - new Date(a.watched_at).getTime(),
+        )
+    : [];
 
   if (selectedChannel) {
     const channelVideos = allVideos
@@ -160,6 +166,7 @@ const VideoList: React.FC = () => {
       />
     );
   }
+  console.log({ result: Boolean(recentlyWatchedVideos?.length) });
 
   return (
     <View style={styles.outerContainer}>
@@ -213,6 +220,7 @@ const VideoList: React.FC = () => {
                 ),
               )
               .sort((a, b) => {
+                if (!userId) return 0;
                 const aViews = (userVideoViews || []).filter((v) =>
                   filteredVideos.some(
                     (fv) =>
@@ -239,7 +247,12 @@ const VideoList: React.FC = () => {
               });
             return (
               <>
-                <VideoSectionHeader title="All Channels">
+                <VideoSectionHeader
+                  title="All Channels"
+                  removeBorderTop={
+                    Boolean(recentlyWatchedVideos?.length) === false
+                  }
+                >
                   {filterButton}
                 </VideoSectionHeader>
                 {activeFilterBar}

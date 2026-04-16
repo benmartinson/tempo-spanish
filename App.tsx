@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import SignInScreen from "./src/components/SignInScreen";
-import SignUpScreen from "./src/components/SignUpScreen";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import store from "./src/store/store";
 import {
@@ -82,9 +81,12 @@ const MainApp: React.FC = () => {
   // Sync currentSentence changes to the database
   useUIStateSync();
 
-  // Public data — always fetch using raw supabase client
+  // Use authenticated client when available, raw client for guests
+  const publicSupabase = clerkSupabase ?? rawSupabase;
+
+  // Public data — fetch once client is ready
   useEffect(() => {
-    fetchAllVideos({ supabase: rawSupabase }).then(
+    fetchAllVideos({ supabase: publicSupabase }).then(
       ({ channelData, videoData, topicData, channelTopicData }) => {
         dispatch(setAllChannels(channelData));
         dispatch(setAllVideos(videoData));
@@ -93,19 +95,19 @@ const MainApp: React.FC = () => {
       },
     );
 
-  }, []);
+  }, [publicSupabase]);
 
   useEffect(() => {
     // Fetch all vocabulary (public data)
     fetchAllVocabulary({
-      supabase: rawSupabase,
+      supabase: publicSupabase,
       targetLanguage: userSettings.targetLanguage,
       translationLanguage: userSettings.translationLanguage,
     }).then((allVocab) => {
       const vocabHash = createVocabHash(allVocab);
       dispatch(setAllVocabulary(vocabHash));
     });
-  }, [userSettings.targetLanguage]);
+  }, [publicSupabase, userSettings.targetLanguage]);
 
   // User-specific data — only when signed in
   useEffect(() => {
@@ -222,11 +224,6 @@ const AppNavigator: React.FC = () => {
       <Stack.Screen
         name="SignIn"
         component={SignInScreen}
-        options={{ presentation: "formSheet" }}
-      />
-      <Stack.Screen
-        name="SignUp"
-        component={SignUpScreen}
         options={{ presentation: "formSheet" }}
       />
     </Stack.Navigator>

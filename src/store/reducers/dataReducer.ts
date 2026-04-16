@@ -21,7 +21,7 @@ const initialState: RootState = {
   currentSearchResults: [],
   isSearching: false,
   hasSearched: false,
-  currentShadowTab: "insights",
+  currentShadowTab: "memorize",
   memorizeDifficulty: 0,
   userSettings: DEFAULT_USER_SETTINGS,
   cachedResponses: [],
