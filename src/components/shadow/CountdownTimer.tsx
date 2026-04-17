@@ -63,15 +63,15 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     }
   }, [phase, pulseAnim]);
 
-  // useEffect(() => {
-  //   if (remainingSeconds <= 0 && phase === "recording") {
-  //     if (!hasStoppedRecording.current) {
-  //       hasStoppedRecording.current = true;
-  //       setPhase("complete");
-  //       onStopRecording();
-  //     }
-  //   }
-  // }, [remainingSeconds]);
+  useEffect(() => {
+    if (remainingSeconds <= 0 && phase === "recording") {
+      if (!hasStoppedRecording.current) {
+        hasStoppedRecording.current = true;
+        setPhase("complete");
+        onStopRecording();
+      }
+    }
+  }, [remainingSeconds]);
 
   // Track elapsed recording time
   useEffect(() => {

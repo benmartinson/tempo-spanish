@@ -244,6 +244,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     words: SegmentWord[];
   } | null>(null);
   const reviewVocabIdRef = useRef<number | null>(null);
+  const [reviewTranslationSentenceIndex, setReviewTranslationSentenceIndex] =
+    useState<number | null>(null);
   const sentenceHistoryRef = useRef<
     Record<number, { text: string; translation: string; words: SegmentWord[] }>
   >({});
@@ -826,6 +828,20 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     parentHandleNextSentence();
   };
 
+  const markSentenceReviewed = async (sentenceIndex: number) => {
+    if (!supabase || !userId || !currentVideo) return;
+    try {
+      await supabase
+        .from("user_shadow_result")
+        .update({ was_reviewed: true })
+        .eq("user_id", userId)
+        .eq("video_id", parseInt(currentVideo.recordId))
+        .eq("sentence", sentenceIndex);
+    } catch (err) {
+      console.error("Failed to mark sentence as reviewed:", err);
+    }
+  };
+
   const proceedAfterReview = () => {
     if (
       reviewType === "vocab" &&
@@ -848,7 +864,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     doAdvanceToNextSentence();
   };
 
-  const tryStartReview = (): boolean => {
+  const tryStartReview = async (): Promise<boolean> => {
     if (!isSignedIn) return false;
     if (userSettings.disableReviewMode) return false;
 
@@ -867,6 +883,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (newCount % userSettings.reviewFrequency !== 0 || !historySentence)
       return false;
 
+    // Skip if already reviewed
+    if (supabase && userId && currentVideo) {
+      const { data } = await supabase
+        .from("user_shadow_result")
+        .select("was_reviewed")
+        .eq("user_id", userId)
+        .eq("video_id", parseInt(currentVideo.recordId))
+        .eq("sentence", reviewSentenceIndex)
+        .single();
+      if (data?.was_reviewed) return false;
+    }
+
+    markSentenceReviewed(reviewSentenceIndex);
     setReviewTranslationSentence({
       text: historySentence.text,
       translation: historySentence.translation,
@@ -877,8 +906,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     return true;
   };
 
-  const handleShadowNextSentence = () => {
-    if (!tryStartReview()) {
+  const handleShadowNextSentence = async () => {
+    if (!(await tryStartReview())) {
       doAdvanceToNextSentence();
     }
   };

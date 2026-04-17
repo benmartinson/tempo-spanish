@@ -123,7 +123,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
 
         {!accuracyResult && (
           <>
-            {!isRecording && (
+            {!isRecording && !isEvaluating && !isTranscribing && (
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
@@ -151,7 +151,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
             )}
 
             {isEvaluating || isTranscribing ? (
-              <ActivityIndicator size="small" color="#4a69bd" />
+              <ActivityIndicator size="large" color="#4a69bd" />
             ) : (
               <>
                 {isRecording ? (
@@ -162,7 +162,6 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
                     sentenceEnded={false}
                     maxRecordingDuration={30}
                     countdownDuration={0}
-                    bufferDuration={30}
                   />
                 ) : (
                   <View style={styles.actionsRow}>
