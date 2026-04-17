@@ -10,17 +10,21 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import Feather from "@expo/vector-icons/Feather";
 
 type Mode = "shadow" | "stream";
+type OptionKey = Mode | "help";
 
 interface ModeSwitcherProps {
   mode: Mode;
   onModeChange: (mode: Mode) => void;
+  onHelpSelect?: () => void;
 }
 
-const OPTIONS: { key: Mode; label: string }[] = [
+const OPTIONS: { key: OptionKey; label: string }[] = [
   { key: "shadow", label: "Shadow" },
   { key: "stream", label: "Stream" },
+  { key: "help", label: "Help" },
 ];
 
 const DIAL_RADIUS = 70;
@@ -28,7 +32,7 @@ const OPTION_SIZE = 48;
 const START_ANGLE = Math.PI;
 const END_ANGLE = Math.PI / 2;
 
-const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ mode, onModeChange }) => {
+const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ mode, onModeChange, onHelpSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const hoveredIndexRef = useRef<number | null>(null);
@@ -85,7 +89,12 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ mode, onModeChange }) => {
     (commit: boolean) => {
       const idx = hoveredIndexRef.current;
       if (commit && idx !== null) {
-        onModeChange(OPTIONS[idx].key);
+        const key = OPTIONS[idx].key;
+        if (key === "help") {
+          onHelpSelect?.();
+        } else {
+          onModeChange(key);
+        }
       }
       Animated.timing(scaleAnim, {
         toValue: 0,
@@ -124,11 +133,14 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ mode, onModeChange }) => {
     }),
   ).current;
 
-  const renderIcon = (key: Mode, color: string, size = 18) => {
+  const renderIcon = (key: OptionKey, color: string, size = 18) => {
     if (key === "shadow") {
       return (
         <MaterialIcons name="record-voice-over" size={size} color={color} />
       );
+    }
+    if (key === "help") {
+      return <Feather name="help-circle" size={size} color={color} />;
     }
     return (
       <MaterialCommunityIcons name="play-speed" size={size} color={color} />

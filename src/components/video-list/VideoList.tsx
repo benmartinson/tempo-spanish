@@ -25,6 +25,7 @@ import { fetchVideoContext, fetchUserVideoViews } from "../../requests";
 import { setUserVideoViews } from "../../store/actions/dataActions";
 import ChannelVideoList from "./ChannelVideoList";
 import FilterVideos from "./FilterVideos";
+import WelcomeModal from "../common/WelcomeModal";
 
 const VideoList: React.FC = () => {
   const dispatch = useDispatch();
@@ -49,6 +50,10 @@ const VideoList: React.FC = () => {
     (state: RootState) => state.userVideoViews,
   );
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const hasSeenWelcomeModals = useSelector(
+    (state: RootState) => state.hasSeenWelcomeModals,
+  );
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const targetLanguage = useSelector(
     (state: RootState) => state.userSettings.targetLanguage,
   );
@@ -62,6 +67,12 @@ const VideoList: React.FC = () => {
   const videosForLanguage = allVideos.filter((video) =>
     targetChannelIds.has(video.channel_id),
   );
+
+  useEffect(() => {
+    if (!hasSeenWelcomeModals) {
+      setIsWelcomeModalOpen(true);
+    }
+  }, [hasSeenWelcomeModals]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -127,7 +138,10 @@ const VideoList: React.FC = () => {
     }
   };
 
-  console.log({ userVideoViews });
+  const handleDismissWelcome = () => {
+    setIsWelcomeModalOpen(false);
+  };
+
   const recentlyWatchedVideos = userId
     ? videosForLanguage
         ?.filter((video) =>
@@ -166,8 +180,21 @@ const VideoList: React.FC = () => {
       />
     );
   }
-  console.log({ result: Boolean(recentlyWatchedVideos?.length) });
 
+  if (!videosForLanguage?.length) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "white",
+        }}
+      >
+        <ActivityIndicator size="large" color="#5a5680" />
+      </View>
+    );
+  }
   return (
     <View style={styles.outerContainer}>
       <ScrollView style={styles.container}>
@@ -313,6 +340,10 @@ const VideoList: React.FC = () => {
           }}
         </FilterVideos>
       </ScrollView>
+      <WelcomeModal
+        visible={isWelcomeModalOpen}
+        onClose={handleDismissWelcome}
+      />
     </View>
   );
 };

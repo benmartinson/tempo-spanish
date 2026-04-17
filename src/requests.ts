@@ -425,6 +425,7 @@ export interface RestoreUserUIStateResult {
   currentShadowTab: ContentTab;
   memorizeDifficulty: number | null;
   settings: UserSettings;
+  hasSeenWelcomeModals: boolean;
 }
 
 export const restoreUserUIState = async ({
@@ -436,6 +437,7 @@ export const restoreUserUIState = async ({
     currentShadowTab: null,
     memorizeDifficulty: null,
     settings: DEFAULT_USER_SETTINGS,
+    hasSeenWelcomeModals: false,
   };
 
   if (!userId) {
@@ -509,6 +511,7 @@ export const restoreUserUIState = async ({
           settings,
           currentShadowTab: uiState?.current_shadow_tab ?? null,
           memorizeDifficulty: uiState?.memorize_difficulty ?? null,
+          hasSeenWelcomeModals: uiState?.has_seen_welcome_modals ?? false,
         };
       }
 
@@ -525,6 +528,7 @@ export const restoreUserUIState = async ({
         currentShadowTab: uiState.current_shadow_tab ?? null,
         memorizeDifficulty: uiState.memorize_difficulty ?? null,
         settings,
+        hasSeenWelcomeModals: uiState.has_seen_welcome_modals ?? false,
       };
     }
 
@@ -533,6 +537,7 @@ export const restoreUserUIState = async ({
       currentShadowTab: uiState?.current_shadow_tab ?? null,
       memorizeDifficulty: uiState?.memorize_difficulty ?? null,
       settings,
+      hasSeenWelcomeModals: uiState?.has_seen_welcome_modals ?? false,
     };
   } catch (err) {
     console.error("Error restoring user UI state:", err);

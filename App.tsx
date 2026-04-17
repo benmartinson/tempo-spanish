@@ -17,6 +17,7 @@ import {
   setCurrentShadowTab,
   setMemorizeDifficulty,
   setUserCredits,
+  setHasSeenWelcomeModals,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import { supabase as rawSupabase } from "./lib/supabase";
@@ -73,7 +74,7 @@ const MainApp: React.FC = () => {
   const { userId, isSignedIn } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
-  const [isRestoringState, setIsRestoringState] = useState(false);
+  const [isRestoringState, setIsRestoringState] = useState(true);
 
   // Sync currentSentence changes to the database
   useUIStateSync();
@@ -91,7 +92,6 @@ const MainApp: React.FC = () => {
         dispatch(setChannelTopics(channelTopicData));
       },
     );
-
   }, [publicSupabase]);
 
   // User-specific data — only when signed in
@@ -104,8 +104,8 @@ const MainApp: React.FC = () => {
     setIsRestoringState(true);
 
     // Pre-load and cache TTS responses in the background
-    loadAndCacheTTSResponses({ supabase: clerkSupabase, dispatch }).catch((err) =>
-      console.error("Failed to load cached TTS responses:", err),
+    loadAndCacheTTSResponses({ supabase: clerkSupabase, dispatch }).catch(
+      (err) => console.error("Failed to load cached TTS responses:", err),
     );
 
     // Fetch user's known vocabulary
@@ -120,13 +120,14 @@ const MainApp: React.FC = () => {
 
     // Fetch and restore user UI state
     const restoreState = async () => {
-      const { videoContext, currentShadowTab, memorizeDifficulty, settings } =
+      const { videoContext, currentShadowTab, memorizeDifficulty, settings, hasSeenWelcomeModals } =
         await restoreUserUIState({
           supabase: clerkSupabase,
           userId,
         });
 
       dispatch(setUserSettings(settings));
+      dispatch(setHasSeenWelcomeModals(hasSeenWelcomeModals));
 
       if (currentShadowTab) {
         dispatch(setCurrentShadowTab(currentShadowTab));
@@ -143,7 +144,10 @@ const MainApp: React.FC = () => {
       }
 
       // Fetch user credits
-      const credits = await fetchUserCredits({ supabase: clerkSupabase, userId });
+      const credits = await fetchUserCredits({
+        supabase: clerkSupabase,
+        userId,
+      });
       dispatch(setUserCredits(credits));
 
       setIsRestoringState(false);

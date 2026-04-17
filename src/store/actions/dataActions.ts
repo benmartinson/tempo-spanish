@@ -188,3 +188,8 @@ export const setUserCredits = (credits: number): DataAction => ({
   type: "SET_USER_CREDITS",
   payload: credits,
 });
+
+export const setHasSeenWelcomeModals = (seen: boolean): DataAction => ({
+  type: "SET_HAS_SEEN_WELCOME_MODALS",
+  payload: seen,
+});

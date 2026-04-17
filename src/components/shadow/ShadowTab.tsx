@@ -51,6 +51,7 @@ import NavSwitcher from "../common/NavSwitcher";
 import ContentTabBar from "../common/ContentTabBar";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import Foundation from "@expo/vector-icons/Foundation";
+import WalkthroughModal from "../common/WalkthroughModal";
 import {
   persistUserSettings,
   persistCurrentShadowTab,
@@ -212,6 +213,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [previousResults, setPreviousResults] = useState<
     (AccuracyResult & { recordingId: string }) | null
   >(null);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState<boolean>(false);
   const [isRecordingMode, setIsRecordingMode] = useState<boolean>(false);
   const [sentenceEnded, setSentenceEnded] = useState<boolean>(false);
@@ -1178,7 +1180,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   />
                 </TouchableOpacity>
               )}
-              <ModeSwitcher mode={shadowMode} onModeChange={setShadowMode} />
+              <ModeSwitcher
+                mode={shadowMode}
+                onModeChange={setShadowMode}
+                onHelpSelect={() => setShowWalkthrough(true)}
+              />
               <SpeedDial
                 speed={recordSpeed}
                 onSpeedChange={(s) => {
@@ -1518,6 +1524,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         visible={showSignInModal}
         onClose={() => setShowSignInModal(false)}
       />
+
+      <WalkthroughModal
+        visible={showWalkthrough}
+        onComplete={() => setShowWalkthrough(false)}
+        closeable
+      />
     </>
   );
 };
@@ -1764,7 +1776,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 6,
+    marginRight: 2,
     paddingVertical: 12,
     borderRadius: 24,
   },

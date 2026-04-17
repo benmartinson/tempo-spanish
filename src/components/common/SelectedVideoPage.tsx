@@ -17,6 +17,7 @@ import {
   AppState,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
+import { useAuth } from "@clerk/clerk-expo";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import {
   AutoReviewDetails,
@@ -32,11 +33,10 @@ import {
 } from "../../store/actions/dataActions";
 import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import ShadowTab from "../shadow/ShadowTab";
-import {
-  ignoreVocab,
-  stripPunctuation,
-} from "../../helpers/helpers";
+import { ignoreVocab, stripPunctuation } from "../../helpers/helpers";
 import SlideModal from "./SlideModal";
+import WalkthroughModal from "./WalkthroughModal";
+import { setHasSeenWelcomeModals } from "../../store/actions/dataActions";
 
 if (
   Platform.OS === "android" &&
@@ -51,6 +51,10 @@ const SelectedVideoPage: React.FC = () => {
     (state: RootState) => state.videoRefreshKey,
   );
   const dispatch = useDispatch();
+  const { userId } = useAuth();
+  const hasSeenWelcomeModals = useSelector(
+    (state: RootState) => state.hasSeenWelcomeModals,
+  );
 
   const [autoShadowDetails, setAutoShadowDetails] =
     useState<AutoShadowDetails | null>(null);
@@ -82,9 +86,22 @@ const SelectedVideoPage: React.FC = () => {
     ? { ...currentVideo.sentences[currentSentenceIndex] }
     : null;
 
-
   // Translation insights state (shared across tabs)
   const supabase = useSupabaseWithClerk();
+  const handleWalkthroughComplete = useCallback(async () => {
+    dispatch(setHasSeenWelcomeModals(true));
+    if (supabase && userId) {
+      await supabase.from("user_ui_state").upsert(
+        {
+          user_id: userId,
+          has_seen_welcome_modals: true,
+          updated_at: new Date(),
+        },
+        { onConflict: "user_id" },
+      );
+    }
+  }, [dispatch, supabase, userId]);
+
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const translationLanguage = userSettings.translationLanguage;
   const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(true);
@@ -120,10 +137,7 @@ const SelectedVideoPage: React.FC = () => {
       .sort((a, b) => a.frequency - b.frequency);
 
     return result;
-  }, [
-    currentSentenceObject.start,
-    orderedCharacters,
-  ]);
+  }, [currentSentenceObject.start, orderedCharacters]);
 
   const orderCharactersByAppearance = (properNouns: string[], text: string) => {
     const textWords = text.split(/\s+/);
@@ -196,11 +210,19 @@ const SelectedVideoPage: React.FC = () => {
     _setPlayerSpeed(speed);
     playerRef.current?.setSpeed(speed);
   }, []);
-  const [autoplay, setAutoplay] = useState<boolean>(false);
+  const [autoplay, setAutoplay] = useState<boolean>(true);
   const [playerIsPlaying, setPlayerIsPlaying] = useState<boolean>(false);
   const playingStateQueueRef = useRef<boolean[]>([]);
   const playingStateTimerRef = useRef<NodeJS.Timeout | null>(null);
   const userPressedPlayPause = useRef(false);
+
+  useEffect(() => {
+    setAutoplay(hasSeenWelcomeModals);
+  }, [hasSeenWelcomeModals]);
+
+  useEffect(() => {
+    refreshPlayer();
+  }, [autoplay]);
 
   const handlePlayingStateChange = useCallback((isPlaying: boolean) => {
     if (playingStateTimerRef.current && !userPressedPlayPause.current) {
@@ -465,7 +487,7 @@ const SelectedVideoPage: React.FC = () => {
             start: currentSentenceObject?.start,
             end: endTime,
           }}
-          autoplay={true}
+          autoplay={autoplay}
           refreshKey={effectiveRefreshKey}
           setTime={handleSetTime}
           muted={playerMuted}
@@ -504,6 +526,11 @@ const SelectedVideoPage: React.FC = () => {
           setShadowMode={setShadowMode}
         />
       </View>
+
+      <WalkthroughModal
+        visible={!hasSeenWelcomeModals}
+        onComplete={handleWalkthroughComplete}
+      />
 
       {isConfirmingStartOver && (
         <SlideModal

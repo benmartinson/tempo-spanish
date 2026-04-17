@@ -89,6 +89,7 @@ export interface RootState {
   userSettings: UserSettings;
   cachedResponses: CachedResponse[];
   userCredits: number;
+  hasSeenWelcomeModals: boolean;
 }
 
 export type DataActionTypes =
@@ -127,7 +128,8 @@ export type DataActionTypes =
   | "SET_SELECTED_CHANNEL_ID"
   | "SET_USER_CREDITS"
   | "UPDATE_FOCUS_VOCAB_TRANSLATION"
-  | "INCREMENT_FOCUS_VOCAB_REVIEW";
+  | "INCREMENT_FOCUS_VOCAB_REVIEW"
+  | "SET_HAS_SEEN_WELCOME_MODALS";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
@@ -354,6 +356,7 @@ export interface UserUIState {
   play_video_while_recording: boolean | null;
   disable_review_mode: boolean | null;
   review_frequency: number | null;
+  has_seen_welcome_modals: boolean | null;
 }
 
 export type ContentTab =
