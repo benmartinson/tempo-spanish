@@ -33,8 +33,7 @@ import {
 import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import ShadowTab from "../shadow/ShadowTab";
 import {
-  isInterestingVocab,
-  normalizeWord,
+  ignoreVocab,
   stripPunctuation,
 } from "../../helpers/helpers";
 import SlideModal from "./SlideModal";
@@ -83,10 +82,6 @@ const SelectedVideoPage: React.FC = () => {
     ? { ...currentVideo.sentences[currentSentenceIndex] }
     : null;
 
-  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
-  const userKnownVocab = useSelector(
-    (state: RootState) => state.userKnownVocab,
-  );
 
   // Translation insights state (shared across tabs)
   const supabase = useSupabaseWithClerk();
@@ -100,7 +95,6 @@ const SelectedVideoPage: React.FC = () => {
 
   const hintWords = useMemo(() => {
     const sentenceWords = currentSentenceObject?.words || [];
-    const knownVocabSet = new Set(userKnownVocab);
     if (sentenceWords.length === 0) return [];
     const uniqueWords = [
       ...new Map(sentenceWords.map((sw) => [sw.word, sw])).values(),
@@ -111,39 +105,23 @@ const SelectedVideoPage: React.FC = () => {
     );
 
     const result: SegmentWord[] = uniqueWords
-      .map((sw) => {
+      .filter((sw) => {
         const normalized = stripPunctuation(sw.word.toLowerCase()).trim();
-        const vocab = allVocabulary[normalized];
-        const cleanedWord = stripPunctuation(sw.word).trim();
-        return vocab ? { sw: { ...sw, word: cleanedWord }, vocab } : null;
+        return (
+          normalized.length > 3 &&
+          !ignoreVocab.includes(normalized) &&
+          !properNounSet.has(normalized)
+        );
       })
-      .filter(
-        (item): item is { sw: SegmentWord; vocab: any } =>
-          item?.vocab?.word &&
-          isInterestingVocab(item.vocab) &&
-          !properNounSet.has(item.vocab.word.toLowerCase()),
-      )
-      .sort((a, b) => b.vocab.percentile - a.vocab.percentile)
-      .sort((a, b) => {
-        const aTranslationMatchesWord =
-          normalizeWord(a.vocab.translation) === normalizeWord(a.vocab.word);
-        const bTranslationMatchesWord =
-          normalizeWord(b.vocab.translation) === normalizeWord(b.vocab.word);
-        if (aTranslationMatchesWord === bTranslationMatchesWord) return 0;
-        return aTranslationMatchesWord ? 1 : -1;
-      })
-      .map((item) => {
-        return {
-          ...item.sw,
-          isKnown: knownVocabSet.has(item.vocab.id),
-        };
-      });
+      .map((sw) => ({
+        ...sw,
+        word: stripPunctuation(sw.word).trim(),
+      }))
+      .sort((a, b) => a.frequency - b.frequency);
 
     return result;
   }, [
     currentSentenceObject.start,
-    userKnownVocab,
-    allVocabulary,
     orderedCharacters,
   ]);
 

@@ -1,28 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Pressable,
 } from "react-native";
 import { RootState, SegmentWord } from "../../types";
-import {
-  capitalize,
-  normalizeWord,
-  stripPunctuation,
-  vocabFormatWord,
-} from "../../helpers/helpers";
-import Entypo from "@expo/vector-icons/Entypo";
+import { capitalize, vocabFormatWord } from "../../helpers/helpers";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  addUserKnownVocab,
-  addUserSelectedVocab,
-  removeUserKnownVocab,
-  removeUserSelectedVocab,
-  setFocusVocab,
-  updateFocusVocabTranslation,
-} from "../../store/actions/dataActions";
+import { updateFocusVocabTranslation } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -49,13 +35,6 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   playerIsPlaying = false,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
-  const vocabWord = allVocabulary[vocabFormatWord(word.word)];
-  const isSelectedForReview = useMemo(
-    () =>
-      currentVideo?.focusVocab.find((v) => v.vocabulary_id === vocabWord.id),
-    [currentVideo, word],
-  );
 
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -67,102 +46,6 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   const currentSentenceObject = currentVideo
     ? currentVideo.sentences[currentSentenceIndex]
     : null;
-
-  const handleMarkKnown = async (word: SegmentWord) => {
-    if (!currentVideo) return;
-
-    const vocabId = Object.values(allVocabulary).find(
-      (v) => normalizeWord(v.word) === normalizeWord(word.word),
-    )?.id;
-
-    if (supabase && userId && currentVideo.videoViewId) {
-      const { error: insertError } = await supabase
-        .from("user_known_vocab")
-        .upsert(
-          { vocabulary_id: vocabId, user_id: userId },
-          { onConflict: "vocabulary_id,user_id" },
-        );
-
-      if (insertError)
-        console.error("Error adding to known vocab:", insertError);
-    }
-    dispatch(addUserKnownVocab([vocabId]));
-  };
-
-  const handleUnmarkKnown = async (word: SegmentWord) => {
-    if (!currentVideo) return;
-
-    const vocabId = Object.values(allVocabulary).find(
-      (v) => normalizeWord(v.word) === normalizeWord(word.word),
-    )?.id;
-
-    if (supabase && userId) {
-      const { error } = await supabase
-        .from("user_known_vocab")
-        .delete()
-        .match({ vocabulary_id: vocabId, user_id: userId });
-
-      if (error) console.error("Error removing from known vocab:", error);
-    }
-    dispatch(removeUserKnownVocab([vocabId]));
-  };
-
-  const handleUnselectForReview = async (word: SegmentWord) => {
-    if (!currentVideo) return;
-
-    const normalizedWord = normalizeWord(word.word);
-    const vocabId = Object.values(allVocabulary).find(
-      (v) => normalizeWord(v.word) === normalizedWord,
-    )?.id;
-
-    if (supabase && userId && currentVideo.videoViewId) {
-      const { error } = await supabase
-        .from("video_view_focus_vocab")
-        .delete()
-        .match({
-          video_view_id: currentVideo.videoViewId,
-          vocabulary_id: vocabId,
-        });
-
-      if (error) console.error("Error removing from selected vocab:", error);
-    }
-    dispatch(removeUserSelectedVocab([vocabId]));
-  };
-
-  const saveSelectForReview = async () => {
-    if (!currentVideo) return;
-
-    const normalizedWord = normalizeWord(word.word);
-    const vocabId = Object.values(allVocabulary).find(
-      (v) => normalizeWord(v.word) === normalizedWord,
-    )?.id;
-    dispatch(addUserSelectedVocab([vocabId]));
-
-    if (supabase && userId && currentVideo.videoViewId) {
-      const { data, error: insertError } = await supabase
-        .from("video_view_focus_vocab")
-        .upsert(
-          { video_view_id: currentVideo.videoViewId, vocabulary_id: vocabId },
-          { onConflict: "video_view_id,vocabulary_id" },
-        );
-
-      if (insertError)
-        console.error("Error adding to selected vocab:", insertError);
-
-      if (data) {
-        dispatch(addUserSelectedVocab([vocabId]));
-      }
-    }
-  };
-
-  const handleSelectForReviewPress = () => {
-    if (isSelectedForReview) {
-      handleUnselectForReview(word);
-    } else {
-      saveSelectForReview();
-      setModalVisible(true);
-    }
-  };
 
   const handleCloseModal = () => {
     setModalVisible(false);
@@ -204,74 +87,26 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-        {/* <View style={styles.buttonsContainer}>
-          <Pressable
-            style={
-              !word.isKnown
-                ? styles.reviewButton
-                : [styles.reviewButton, styles.selectedReviewButton]
-            }
-            onPress={() =>
-              word.isKnown ? handleUnmarkKnown(word) : handleMarkKnown(word)
-            }
-          >
-            <Text
-              style={
-                word.isKnown
-                  ? [styles.reviewButtonText, styles.selectedReviewButtonText]
-                  : styles.reviewButtonText
-              }
-            >
-              {word.isKnown ? "Marked as Known" : "Mark as Known"}
-            </Text>
-            {!word.isKnown && <Entypo name="check" size={16} color="#5a5680" />}
-          </Pressable>
-
-          <Pressable
-            style={
-              !isSelectedForReview
-                ? styles.reviewButton
-                : [styles.reviewButton, styles.selectedReviewButton]
-            }
-            onPress={handleSelectForReviewPress}
-          >
-            <Text
-              style={
-                isSelectedForReview
-                  ? [styles.reviewButtonText, styles.selectedReviewButtonText]
-                  : styles.reviewButtonText
-              }
-            >
-              {isSelectedForReview
-                ? "Selected for Review"
-                : "Select for Review"}
-            </Text>
-            {!isSelectedForReview && (
-              <Entypo name="pencil" size={16} color="#5a5680" />
-            )}
-          </Pressable>
-        </View> */}
       </View>
 
       <GuessWordModal
         visible={modalVisible}
         onClose={handleCloseModal}
-        word={vocabWord?.word || word.word}
+        word={word.word}
         sentenceText={currentSentenceObject?.text}
         existingTranslation={
           currentVideo?.focusVocab.find(
-            (v) => v.vocabulary_id === vocabWord?.id,
+            (v) => v.word === vocabFormatWord(word.word),
           )?.translation ?? null
         }
         onTranslationFetched={(translation) => {
-          if (vocabWord?.id) {
-            dispatch(updateFocusVocabTranslation(vocabWord.id, translation));
-          }
-          if (supabase && currentVideo?.videoViewId && vocabWord?.id) {
+          const wordKey = vocabFormatWord(word.word);
+          dispatch(updateFocusVocabTranslation(wordKey, translation));
+          if (supabase && currentVideo?.videoViewId) {
             saveFocusVocabTranslation({
               supabase,
               videoViewId: currentVideo.videoViewId,
-              vocabularyId: vocabWord.id,
+              word: wordKey,
               translation,
             });
           }

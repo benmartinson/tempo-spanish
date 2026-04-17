@@ -78,7 +78,6 @@ export interface RootState {
   allTopics: Topic[];
   channelTopics: ChannelTopic[];
   allVideos: Video[];
-  allVocabulary: Record<string, Vocabulary>;
   userKnownVocab: number[];
   userVideoViews: VideoView[];
   currentSearchTerm: string | null;
@@ -106,7 +105,7 @@ export type DataActionTypes =
   | "SET_SENTENCE_BY_TIME"
   | "SET_CURRENT_SENTENCE"
   | "SET_FOCUS_VOCAB"
-  | "SET_ALL_VOCABULARY"
+
   | "SET_USER_KNOWN_VOCAB"
   | "ADD_USER_KNOWN_VOCAB"
   | "SET_USER_VIDEO_VIEWS"
@@ -146,14 +145,6 @@ interface SubSegment {
   end: number;
 }
 
-export interface Vocabulary {
-  id: number;
-  word: string;
-  translation: string;
-  frequency: number;
-  percentile: number;
-}
-
 export interface FocusSentence {
   id?: number;
   text: string;
@@ -162,7 +153,7 @@ export interface FocusSentence {
 }
 
 export interface FocusVocabEntry {
-  vocabulary_id: number;
+  word: string;
   translation: string | null;
   times_reviewed: number;
 }
@@ -248,15 +239,9 @@ export interface SegmentWord {
   frequency: number;
   isKnown?: boolean;
   contextTranslation?: string;
+  vocabularyId?: number;
 }
 
-export interface KeyVocabulary {
-  value: string;
-  translations: string[];
-  correct_translation: number;
-  start: number;
-  end: number;
-}
 
 export interface Answer {
   answer: string;

@@ -59,37 +59,32 @@ const FullSegmentTranscriptBubble: React.FC<
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
 
   const [guessWord, setGuessWord] = useState<string | null>(null);
-  const guessVocabIdRef = useRef<number | null>(null);
 
   const handleSelectForReview = useCallback(
     async (word: SegmentWord) => {
       if (!currentVideo) return;
-      const vocabEntry = allVocabulary[vocabFormatWord(word.word)];
-      if (!vocabEntry) return;
-      const vocabId = vocabEntry.id;
-      guessVocabIdRef.current = vocabId;
-      dispatch(addUserSelectedVocab([vocabId]));
+      const wordKey = vocabFormatWord(word.word);
+      dispatch(addUserSelectedVocab([wordKey]));
       if (supabase && userId && currentVideo.videoViewId) {
         const { data } = await supabase
           .from("video_view_focus_vocab")
-          .select("vocabulary_id")
+          .select("word")
           .eq("video_view_id", currentVideo.videoViewId)
-          .eq("vocabulary_id", vocabId)
+          .eq("word", wordKey)
           .single();
 
         if (!data) {
           await supabase.from("video_view_focus_vocab").insert({
             video_view_id: currentVideo.videoViewId,
-            vocabulary_id: vocabId,
+            word: wordKey,
           });
         }
       }
       setGuessWord(word.word);
     },
-    [currentVideo, allVocabulary, supabase, userId, dispatch],
+    [currentVideo, supabase, userId, dispatch],
   );
 
   const currentSentenceText = useMemo(
@@ -102,7 +97,6 @@ const FullSegmentTranscriptBubble: React.FC<
     {},
   );
   const [isActive, setIsActive] = useState(false);
-  const [tooltipWord, setTooltipWord] = useState<SegmentWord | null>(null);
 
   const localTime = useInterpolatedTime(
     time,
@@ -110,30 +104,6 @@ const FullSegmentTranscriptBubble: React.FC<
     playKey,
     playerSpeed,
   );
-
-  const handleLongPress = useCallback(
-    (word: SegmentWord) => {
-      const cleanWordText = word.word.replace(
-        /[.,\/#!$%\^&\*;:{}=\-_`~()]/g,
-        "",
-      );
-      const vocabulary = word.word
-        ? allVocabulary[vocabFormatWord(word.word)]
-        : null;
-
-      if (vocabulary) {
-        setTooltipWord({
-          ...word,
-          word: cleanWordText,
-        });
-      }
-    },
-    [allVocabulary],
-  );
-
-  const hideTooltip = useCallback(() => {
-    setTooltipWord(null);
-  }, []);
 
   // Build a stable identity for the segment (based on timing, not text content)
   // so masking/revealing words doesn't trigger a full reset
@@ -292,8 +262,8 @@ const FullSegmentTranscriptBubble: React.FC<
                   handleSelectForReview(word);
                 }
               }}
-              onLongPress={() =>
-                onWordPress ? onWordPress(index) : handleLongPress(word)
+              onLongPress={
+                onWordPress ? () => onWordPress(index) : undefined
               }
               delayLongPress={300}
               style={isBlurred ? styles.maskedWordWrapper : undefined}
@@ -321,22 +291,23 @@ const FullSegmentTranscriptBubble: React.FC<
         sentenceText={currentSentenceText}
         existingTranslation={
           currentVideo?.focusVocab.find(
-            (v) => v.vocabulary_id === guessVocabIdRef.current,
+            (v) => v.word === vocabFormatWord(guessWord ?? ""),
           )?.translation ?? null
         }
         onTranslationFetched={(translation) => {
-          if (guessVocabIdRef.current) {
+          if (guessWord) {
+            const wordKey = vocabFormatWord(guessWord);
             dispatch(
-              updateFocusVocabTranslation(guessVocabIdRef.current, translation),
+              updateFocusVocabTranslation(wordKey, translation),
             );
-          }
-          if (supabase && currentVideo?.videoViewId && guessVocabIdRef.current) {
-            saveFocusVocabTranslation({
-              supabase,
-              videoViewId: currentVideo.videoViewId,
-              vocabularyId: guessVocabIdRef.current,
-              translation,
-            });
+            if (supabase && currentVideo?.videoViewId) {
+              saveFocusVocabTranslation({
+                supabase,
+                videoViewId: currentVideo.videoViewId,
+                word: wordKey,
+                translation,
+              });
+            }
           }
         }}
       />

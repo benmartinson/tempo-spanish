@@ -3,8 +3,6 @@ import {
   Sentence,
   SegmentWord,
   VideoContext,
-  Vocabulary,
-  ContextSegment,
   AccuracyResult,
 } from "../types";
 import { levenshtein } from "./calculate_accuracy";
@@ -136,28 +134,6 @@ export const stripPunctuation = (word: string) => {
 export const normalizeWord = (word: string) =>
   capitalize(stripPunctuation(word.trim().toLowerCase()));
 
-export const randomlySelectVocabFromVocabulary = (
-  vocab: Vocabulary[],
-  count: number,
-  alreadySelectedVocab: string[],
-): Vocabulary[] => {
-  const normalizedAlready = new Set(alreadySelectedVocab.map(normalizeWord));
-  const filtered = vocab.filter(
-    (v) =>
-      !ignoreVocab.some((i) => i.toLowerCase() === v.word.toLowerCase()) &&
-      v.translation !== v.word &&
-      !normalizedAlready.has(normalizeWord(v.word)),
-  );
-  const byWord = new Map<string, Vocabulary>();
-  for (const v of filtered) {
-    const key = normalizeWord(v.word);
-    if (!byWord.has(key)) byWord.set(capitalize(key), v);
-  }
-  return Array.from(byWord.values())
-    .sort(() => Math.random() - 0.5)
-    .slice(0, count);
-};
-
 // Helper function to split words into sentences based on punctuation
 export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
   const sentences: SegmentWord[][] = [];
@@ -273,96 +249,55 @@ export const vocabFormatWord = (word: string) => {
   return stripPunctuation(word.toLowerCase()).trim();
 };
 
-export const autoSelectVocabForVideo = (
-  allWords: SegmentWord[],
-  allVocabulary: Record<string, Vocabulary>,
-  userKnownVocab: number[],
-): SegmentWord[] => {
-  const allSentences = splitIntoSentences(allWords);
-  const selectedVocab = [];
-  const minimumInterval = 7;
-  let latestTime = 0;
-  for (const sentence of allSentences) {
-    const lowestFrequencyWord = sentence
-      .filter((w) => {
-        const normalizedWord = vocabFormatWord(w.word);
-        const vocabulary = allVocabulary[normalizedWord];
-        if (!vocabulary) return false;
-        const normalizedTranslation = stripPunctuation(
-          vocabulary.translation.toLowerCase(),
-        );
-
-        return (
-          (latestTime === 0 || w.start > latestTime + minimumInterval) &&
-          isInterestingVocab(vocabulary) &&
-          !userKnownVocab.includes(vocabulary.id)
-        );
-      })
-      .reduce(
-        (min, word) => {
-          const normalizedWord = stripPunctuation(
-            word.word.toLowerCase(),
-          ).trim();
-          const vocabulary = allVocabulary[normalizedWord];
-          const frequency = vocabulary?.frequency;
-          if (frequency && frequency < min.frequency) {
-            latestTime = word.start;
-            return {
-              ...word,
-              translation: normalizeWord(vocabulary.translation),
-              word: normalizeWord(word.word),
-              frequency,
-            };
-          }
-          return min;
-        },
-        { frequency: Infinity },
-      );
-    if (lowestFrequencyWord.frequency < Infinity) {
-      selectedVocab.push(lowestFrequencyWord);
-    }
-  }
-  return selectedVocab;
-};
-
-export const createVocabHash = (
-  vocab: Vocabulary[],
-): Record<string, Vocabulary> => {
-  const vocabSortedByFrequency = vocab
-    .filter((v) => !ignoreVocab.includes(v.word.toLowerCase()))
-    .sort((a, b) => b.frequency - a.frequency);
-  const totalWords = vocabSortedByFrequency.length;
-
-  let index = 0;
-  return vocabSortedByFrequency.reduce(
-    (acc, v) => {
-      let percentile = Math.round((index / totalWords) * 100);
-      if (percentile === 0) {
-        percentile = 1;
-      }
-
-      v.percentile = percentile;
-      acc[v.word] = v;
-      index++;
-      return acc;
-    },
-    {} as Record<string, Vocabulary>,
-  );
-};
-
 const SPANISH_NUMBER_WORDS: Record<string, string> = {
-  cero: "0", uno: "1", una: "1", dos: "2", tres: "3", cuatro: "4",
-  cinco: "5", seis: "6", siete: "7", ocho: "8", nueve: "9",
-  diez: "10", once: "11", doce: "12", trece: "13", catorce: "14", quince: "15",
-  dieciseis: "16", diecisiete: "17", dieciocho: "18", diecinueve: "19",
-  veinte: "20", veintiuno: "21", veintidos: "22", veintitres: "23",
-  veinticuatro: "24", veinticinco: "25", veintiseis: "26", veintisiete: "27",
-  veintiocho: "28", veintinueve: "29",
-  treinta: "30", cuarenta: "40", cincuenta: "50", sesenta: "60",
-  setenta: "70", ochenta: "80", noventa: "90",
-  cien: "100", ciento: "100",
-  doscientos: "200", trescientos: "300", cuatrocientos: "400", quinientos: "500",
-  seiscientos: "600", setecientos: "700", ochocientos: "800", novecientos: "900",
+  cero: "0",
+  uno: "1",
+  una: "1",
+  dos: "2",
+  tres: "3",
+  cuatro: "4",
+  cinco: "5",
+  seis: "6",
+  siete: "7",
+  ocho: "8",
+  nueve: "9",
+  diez: "10",
+  once: "11",
+  doce: "12",
+  trece: "13",
+  catorce: "14",
+  quince: "15",
+  dieciseis: "16",
+  diecisiete: "17",
+  dieciocho: "18",
+  diecinueve: "19",
+  veinte: "20",
+  veintiuno: "21",
+  veintidos: "22",
+  veintitres: "23",
+  veinticuatro: "24",
+  veinticinco: "25",
+  veintiseis: "26",
+  veintisiete: "27",
+  veintiocho: "28",
+  veintinueve: "29",
+  treinta: "30",
+  cuarenta: "40",
+  cincuenta: "50",
+  sesenta: "60",
+  setenta: "70",
+  ochenta: "80",
+  noventa: "90",
+  cien: "100",
+  ciento: "100",
+  doscientos: "200",
+  trescientos: "300",
+  cuatrocientos: "400",
+  quinientos: "500",
+  seiscientos: "600",
+  setecientos: "700",
+  ochocientos: "800",
+  novecientos: "900",
   mil: "1000",
 };
 
@@ -467,18 +402,6 @@ export const areWordsSimilar = (word1: string, word2: string) => {
   return diffCount <= 2;
 };
 
-export const isInterestingVocab = (vocab: Vocabulary) => {
-  // const normalizedWord = stripPunctuation(vocab.word.toLowerCase()).trim();
-  // const normalizedTranslation = stripPunctuation(
-  //   vocab.translation.toLowerCase(),
-  // );
-
-  return (
-    vocab.word.length > 3 &&
-    // !areWordsSimilar(normalizedWord, normalizedTranslation) &&
-    !ignoreVocab.includes(vocab.word.toLowerCase())
-  );
-};
 
 // Score display constants for review evaluations
 export type VocabEvaluationScore = "correct" | "incorrect";
@@ -510,134 +433,6 @@ export const getRandomUniqueIndex = (
     count++;
   }
   return newIndex;
-};
-
-export const findMatchingSentencesForVocab = (
-  vocabWord: string,
-  sentences: Sentence[],
-): ContextSegment[] => {
-  const matchingSentences: ContextSegment[] = [];
-  for (let sentIndex = 0; sentIndex < sentences.length; sentIndex++) {
-    const sentenceWords = sentences[sentIndex].text
-      .split(" ")
-      .map((s) => normalizeWord(s));
-    if (sentenceWords.includes(normalizeWord(vocabWord))) {
-      matchingSentences.push({
-        segment_id: sentIndex,
-        start: sentences[sentIndex].start,
-        end: sentences[sentIndex].end,
-        text: sentences[sentIndex].text,
-        score: 1,
-      });
-    }
-  }
-  return matchingSentences;
-};
-
-export interface VocabItem {
-  word: string;
-  id: number;
-  translation: string;
-  contextSegments: ContextSegment[];
-}
-
-export const buildVocabItemsWithContext = (
-  vocabWords: Vocabulary[],
-  sentences: Sentence[],
-): VocabItem[] => {
-  return vocabWords.map((vocab) => {
-    const matchingSentences = findMatchingSentencesForVocab(
-      vocab.word,
-      sentences,
-    );
-    return {
-      word: vocab.word,
-      id: vocab.id,
-      translation: vocab.translation,
-      contextSegments: matchingSentences,
-    };
-  });
-};
-
-export const getUncommonVocabFromSentences = (
-  sentences: Sentence[],
-  allVocabulary: Record<string, Vocabulary>,
-  limit: number = 50,
-): Vocabulary[] => {
-  const seenKeys = new Set<string>();
-  const videoVocab: Vocabulary[] = [];
-
-  sentences.forEach((sentence) => {
-    sentence.words.forEach((segWord) => {
-      const key = vocabFormatWord(segWord.word);
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key);
-        const vocab = allVocabulary[key];
-        if (vocab) {
-          videoVocab.push(vocab);
-        }
-      }
-    });
-  });
-
-  return [...videoVocab]
-    .filter((vocab) => isInterestingVocab(vocab))
-    .sort((a, b) => a.frequency - b.frequency)
-    .slice(0, limit);
-};
-
-export const getFocusVocabWords = (
-  focusVocabIds: number[],
-  allVocabulary: Record<string, Vocabulary>,
-): Vocabulary[] => {
-  return focusVocabIds
-    .map((id) => Object.values(allVocabulary).find((v) => v.id === id))
-    .filter((vocab): vocab is Vocabulary => {
-      if (!vocab) {
-        console.error(`Vocabulary not found for word id`);
-        return false;
-      }
-      return true;
-    });
-};
-
-export const selectGuidedVocab = (
-  allVocabulary: Record<string, Vocabulary>,
-  userKnownVocab: number[],
-  focusVocabIds: number[],
-  percentileRange: [number, number] | null,
-  count: number = 8,
-  excludeIds: number[] = [],
-): Vocabulary[] => {
-  const knownSet = new Set(userKnownVocab);
-  const excludeSet = new Set(excludeIds);
-  const allWords = Object.values(allVocabulary).filter(
-    (v) => !knownSet.has(v.id) && !excludeSet.has(v.id),
-  );
-
-  const [minP, maxP] = percentileRange ?? [1, 20];
-
-  // Pick up to 2 from focus vocab that are not known
-  const focusWords = focusVocabIds
-    .map((id) => allWords.find((v) => v.id === id))
-    .filter((v): v is Vocabulary => !!v)
-    .slice(0, 2);
-
-  const focusIds = new Set(focusWords.map((v) => v.id));
-
-  // Fill remaining from percentile range
-  const poolWords = allWords
-    .filter(
-      (v) =>
-        normalizeWord(v.translation) !== normalizeWord(v.word) &&
-        !focusIds.has(v.id) &&
-        v.percentile >= minP &&
-        v.percentile <= maxP,
-    )
-    .sort(() => Math.random() - 0.5);
-
-  const remaining = count - focusWords.length;
-  return [...focusWords, ...poolWords.slice(0, remaining)];
 };
 
 export const removeSpecialPunctuation = (text: string) => {
@@ -814,79 +609,6 @@ const findSubSegmentBySplitWord = (
       end: secondSlice[secondSlice.length - 1].end,
     },
   ];
-};
-
-export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
-
-export const CEFR_COLORS: Record<CefrLevel, string> = {
-  A1: "#2ecc71",
-  A2: "#27ae60",
-  B1: "#f39c12",
-  B2: "#e67e22",
-  C1: "#e74c3c",
-  C2: "#8e44ad",
-};
-
-export const determineCefrLevel = (
-  sentence: Sentence,
-  allVocabulary: Record<string, Vocabulary>,
-): CefrLevel => {
-  const words = sentence.words;
-  if (words.length === 0) return "A1";
-
-  // 1. Words per minute (speech rate)
-  const durationSeconds = sentence.end - sentence.start;
-  const wpm = durationSeconds > 0 ? (words.length / durationSeconds) * 60 : 0;
-
-  // 2. Vocabulary rarity - average percentile of known words
-  let totalPercentile = 0;
-  let vocabMatchCount = 0;
-  let unknownWordCount = 0;
-  for (const w of words) {
-    const key = vocabFormatWord(w.word);
-    const vocab = allVocabulary[key];
-    if (vocab) {
-      totalPercentile += vocab.percentile;
-      vocabMatchCount++;
-    } else if (key.length > 2) {
-      // Word not in vocabulary at all — likely rare/specialized
-      unknownWordCount++;
-    }
-  }
-  const avgPercentile =
-    vocabMatchCount > 0 ? totalPercentile / vocabMatchCount : 50;
-  const unknownRatio = words.length > 0 ? unknownWordCount / words.length : 0;
-
-  // 3. Sentence length (word count)
-  const wordCount = words.length;
-
-  // 4. Average word length (character complexity)
-  const avgWordLength =
-    words.reduce((sum, w) => sum + w.word.length, 0) / words.length;
-
-  // Score each factor 0-100
-  // WPM: typical range 80-220 for speech
-  const wpmScore = Math.min(100, Math.max(0, ((wpm - 80) / 140) * 100));
-
-  // Percentile: 1=common, 100=rare — use directly
-  const vocabScore = avgPercentile + unknownRatio * 40;
-
-  // Word count: 1-20+ words per sentence
-  const lengthScore = Math.min(100, Math.max(0, ((wordCount - 2) / 16) * 100));
-
-  // Avg word length: typically 3-10 chars
-  const charScore = Math.min(100, Math.max(0, ((avgWordLength - 3) / 5) * 100));
-
-  // Weighted composite
-  const composite =
-    wpmScore * 0.25 + vocabScore * 0.4 + lengthScore * 0.2 + charScore * 0.15;
-
-  if (composite < 15) return "A1";
-  if (composite < 30) return "A2";
-  if (composite < 45) return "B1";
-  if (composite < 60) return "B2";
-  if (composite < 75) return "C1";
-  return "C2";
 };
 
 // @ts-ignore

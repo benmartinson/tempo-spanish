@@ -6,7 +6,6 @@ import {
   VocabEvaluation,
   VideoContext,
   VideoView,
-  Vocabulary,
   UserUIState,
   UserSettings,
   DEFAULT_USER_SETTINGS,
@@ -88,7 +87,7 @@ export const fetchVideoContext = async ({
 
     focusVocab =
       focusVocabData?.map((v: any) => ({
-        vocabulary_id: v.vocabulary_id,
+        word: v.word,
         translation: v.translation ?? null,
         times_reviewed: v.times_reviewed ?? 0,
       })) ?? [];
@@ -378,47 +377,6 @@ export const fetchAllVideos = async ({
     topicData: topicData ?? [],
     channelTopicData: channelTopicData ?? [],
   };
-};
-
-export interface FetchAllVocabularyParams {
-  supabase: any;
-  targetLanguage: string;
-  translationLanguage: string;
-}
-
-export const fetchAllVocabulary = async ({
-  supabase,
-  targetLanguage,
-  translationLanguage,
-}: FetchAllVocabularyParams): Promise<Vocabulary[]> => {
-  let allVocab: Vocabulary[] = [];
-  let from = 0;
-  const limit = 1000;
-  let fetching = true;
-
-  while (fetching) {
-    const { data, error } = await supabase
-      .from("vocabulary")
-      .select("id, word, translation, frequency")
-      .eq("from_language", targetLanguage)
-      .eq("to_language", translationLanguage)
-      .range(from, from + limit - 1);
-
-    if (error) {
-      console.error(error);
-      fetching = false;
-    } else {
-      const vocabBatch = (data as Vocabulary[]) ?? [];
-      allVocab = [...allVocab, ...vocabBatch];
-      if (vocabBatch.length < limit) {
-        fetching = false;
-      } else {
-        from += limit;
-      }
-    }
-  }
-
-  return allVocab;
 };
 
 export interface FetchUserKnownVocabParams {
@@ -786,10 +744,10 @@ export const fetchFocusVocabWithReviewCount = async ({
 }: {
   supabase: any;
   videoViewId: number;
-}): Promise<{ vocabulary_id: number; times_reviewed: number }[]> => {
+}): Promise<{ word: string; times_reviewed: number }[]> => {
   const { data, error } = await supabase
     .from("video_view_focus_vocab")
-    .select("vocabulary_id, times_reviewed")
+    .select("word, times_reviewed")
     .eq("video_view_id", videoViewId);
 
   if (error) {
@@ -798,7 +756,7 @@ export const fetchFocusVocabWithReviewCount = async ({
   }
 
   return (data ?? []).map((v: any) => ({
-    vocabulary_id: v.vocabulary_id,
+    word: v.word,
     times_reviewed: v.times_reviewed ?? 0,
   }));
 };
@@ -806,19 +764,19 @@ export const fetchFocusVocabWithReviewCount = async ({
 export const saveFocusVocabTranslation = async ({
   supabase,
   videoViewId,
-  vocabularyId,
+  word,
   translation,
 }: {
   supabase: any;
   videoViewId: number;
-  vocabularyId: number;
+  word: string;
   translation: string;
 }) => {
   const { error } = await supabase
     .from("video_view_focus_vocab")
     .update({ translation })
     .eq("video_view_id", videoViewId)
-    .eq("vocabulary_id", vocabularyId);
+    .eq("word", word);
 
   if (error) {
     console.error("Error saving focus vocab translation:", error);
@@ -828,17 +786,17 @@ export const saveFocusVocabTranslation = async ({
 export const incrementFocusVocabReviewCount = async ({
   supabase,
   videoViewId,
-  vocabularyId,
+  word,
 }: {
   supabase: any;
   videoViewId: number;
-  vocabularyId: number;
+  word: string;
 }) => {
   const { data: current, error: fetchError } = await supabase
     .from("video_view_focus_vocab")
     .select("times_reviewed")
     .eq("video_view_id", videoViewId)
-    .eq("vocabulary_id", vocabularyId)
+    .eq("word", word)
     .single();
 
   if (fetchError) {
@@ -850,7 +808,7 @@ export const incrementFocusVocabReviewCount = async ({
     .from("video_view_focus_vocab")
     .update({ times_reviewed: (current?.times_reviewed ?? 0) + 1 })
     .eq("video_view_id", videoViewId)
-    .eq("vocabulary_id", vocabularyId);
+    .eq("word", word);
 
   if (error) {
     console.error("Error incrementing focus vocab review count:", error);

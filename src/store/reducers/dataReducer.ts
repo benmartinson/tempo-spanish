@@ -14,7 +14,6 @@ const initialState: RootState = {
   allTopics: [],
   channelTopics: [],
   allVideos: [],
-  allVocabulary: {},
   userKnownVocab: [],
   userVideoViews: [],
   currentSearchTerm: null,
@@ -83,11 +82,6 @@ const dataReducer = (
         ...state,
         allVideos: action.payload,
       };
-    case "SET_ALL_VOCABULARY":
-      return {
-        ...state,
-        allVocabulary: action.payload,
-      };
     case "SET_CURRENT_VIDEO":
       return {
         ...state,
@@ -118,8 +112,8 @@ const dataReducer = (
           ...state.currentVideo,
           focusVocab: [
             ...state.currentVideo.focusVocab,
-            ...action.payload.map((id: number) => ({
-              vocabulary_id: id,
+            ...action.payload.map((w: string) => ({
+              word: w,
               translation: null,
               times_reviewed: 0,
             })),
@@ -234,7 +228,7 @@ const dataReducer = (
         currentVideo: {
           ...state.currentVideo,
           focusVocab: state.currentVideo.focusVocab.filter(
-            (v) => !removeSet.has(v.vocabulary_id),
+            (v) => !removeSet.has(v.word),
           ),
         },
       };
@@ -274,7 +268,7 @@ const dataReducer = (
         currentVideo: {
           ...state.currentVideo,
           focusVocab: state.currentVideo.focusVocab.map((v) =>
-            v.vocabulary_id === action.payload.vocabularyId
+            v.word === action.payload.word
               ? { ...v, translation: action.payload.translation }
               : v,
           ),
@@ -287,7 +281,7 @@ const dataReducer = (
         currentVideo: {
           ...state.currentVideo,
           focusVocab: state.currentVideo.focusVocab.map((v) =>
-            v.vocabulary_id === action.payload
+            v.word === action.payload
               ? { ...v, times_reviewed: v.times_reviewed + 1 }
               : v,
           ),

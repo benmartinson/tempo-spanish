@@ -12,7 +12,6 @@ import {
   Video,
   VideoContext,
   VideoView,
-  Vocabulary,
 } from "../../types";
 
 export const removeFocusSentence = (id: number): DataAction => ({
@@ -83,24 +82,24 @@ export const setFocusVocab = (vocab: SegmentWord[]): DataAction => ({
   payload: vocab,
 });
 
-export const addUserSelectedVocab = (vocabIds: number[]): DataAction => ({
+export const addUserSelectedVocab = (words: string[]): DataAction => ({
   type: "ADD_USER_SELECTED_VOCAB",
-  payload: vocabIds,
+  payload: words,
 });
 
 export const updateFocusVocabTranslation = (
-  vocabularyId: number,
+  word: string,
   translation: string,
 ): DataAction => ({
   type: "UPDATE_FOCUS_VOCAB_TRANSLATION",
-  payload: { vocabularyId, translation },
+  payload: { word, translation },
 });
 
 export const incrementFocusVocabReview = (
-  vocabularyId: number,
+  word: string,
 ): DataAction => ({
   type: "INCREMENT_FOCUS_VOCAB_REVIEW",
-  payload: vocabularyId,
+  payload: word,
 });
 
 export const setCurrentSearchTerm = (term: string): DataAction => ({
@@ -121,13 +120,6 @@ export const setIsSearching = (isSearching: boolean): DataAction => ({
 export const setHasSearched = (hasSearched: boolean): DataAction => ({
   type: "SET_HAS_SEARCHED",
   payload: hasSearched,
-});
-
-export const setAllVocabulary = (
-  vocab: Record<string, Vocabulary>,
-): DataAction => ({
-  type: "SET_ALL_VOCABULARY",
-  payload: vocab,
 });
 
 export const setUserKnownVocab = (vocabIds: number[]): DataAction => ({

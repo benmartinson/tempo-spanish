@@ -139,7 +139,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 }) => {
   const dispatch = useDispatch();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const allVocabulary = useSelector((state: RootState) => state.allVocabulary);
   const selectedTab = useSelector((state: RootState) => state.currentShadowTab);
 
   // Track when a clip was just started so voice mode doesn't connect prematurely
@@ -243,7 +242,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     translation: string;
     words: SegmentWord[];
   } | null>(null);
-  const reviewVocabIdRef = useRef<number | null>(null);
+  const reviewVocabWordRef = useRef<string | null>(null);
   const [reviewTranslationSentenceIndex, setReviewTranslationSentenceIndex] =
     useState<number | null>(null);
   const sentenceHistoryRef = useRef<
@@ -273,7 +272,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   useEffect(() => {
     setReviewCount(0);
     setReviewType(null);
-    reviewVocabIdRef.current = null;
+    reviewVocabWordRef.current = null;
     sentenceHistoryRef.current = {};
     latestShadowedSentenceRef.current = -1;
   }, [currentVideo?.videoId]);
@@ -286,7 +285,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setReviewVocabWord(null);
         setReviewVocabSentenceText(null);
         setReviewTranslationSentence(null);
-        reviewVocabIdRef.current = null;
+        reviewVocabWordRef.current = null;
       }
     });
     return () => subscription.remove();
@@ -845,22 +844,22 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const proceedAfterReview = () => {
     if (
       reviewType === "vocab" &&
-      reviewVocabIdRef.current &&
+      reviewVocabWordRef.current &&
       supabase &&
       currentVideo?.videoViewId
     ) {
       incrementFocusVocabReviewCount({
         supabase,
         videoViewId: currentVideo.videoViewId,
-        vocabularyId: reviewVocabIdRef.current,
+        word: reviewVocabWordRef.current,
       });
-      dispatch(incrementFocusVocabReview(reviewVocabIdRef.current));
+      dispatch(incrementFocusVocabReview(reviewVocabWordRef.current));
     }
     setReviewType(null);
     setReviewVocabWord(null);
     setReviewVocabSentenceText(null);
     setReviewTranslationSentence(null);
-    reviewVocabIdRef.current = null;
+    reviewVocabWordRef.current = null;
     doAdvanceToNextSentence();
   };
 

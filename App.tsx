@@ -7,7 +7,6 @@ import { Provider, useDispatch, useSelector } from "react-redux";
 import store from "./src/store/store";
 import {
   setCurrentVideo,
-  setAllVocabulary,
   setUserKnownVocab,
   setUserVideoViews,
   setAllVideos,
@@ -22,11 +21,9 @@ import {
 import { useSupabaseWithClerk } from "./utils/supabase";
 import { supabase as rawSupabase } from "./lib/supabase";
 import { RootState } from "./src/types";
-import { createVocabHash } from "./src/helpers/helpers";
 import {
   fetchVideoContext,
   fetchAllVideos,
-  fetchAllVocabulary,
   fetchUserKnownVocab,
   fetchUserVideoViews,
   restoreUserUIState,
@@ -75,7 +72,7 @@ const MainApp: React.FC = () => {
   const clerkSupabase = useSupabaseWithClerk();
   const { userId, isSignedIn } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const userSettings = useSelector((state: RootState) => state.userSettings);
+
   const [isRestoringState, setIsRestoringState] = useState(false);
 
   // Sync currentSentence changes to the database
@@ -96,18 +93,6 @@ const MainApp: React.FC = () => {
     );
 
   }, [publicSupabase]);
-
-  useEffect(() => {
-    // Fetch all vocabulary (public data)
-    fetchAllVocabulary({
-      supabase: publicSupabase,
-      targetLanguage: userSettings.targetLanguage,
-      translationLanguage: userSettings.translationLanguage,
-    }).then((allVocab) => {
-      const vocabHash = createVocabHash(allVocab);
-      dispatch(setAllVocabulary(vocabHash));
-    });
-  }, [publicSupabase, userSettings.targetLanguage]);
 
   // User-specific data — only when signed in
   useEffect(() => {
