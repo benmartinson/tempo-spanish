@@ -46,13 +46,9 @@ export default {
       },
       // Development URLs - for local testing
       devBaseUrl: "http://192.168.1.124:8000",
-      devWsUrl: "ws://192.168.1.124:8000/ws/transcribe",
       // devBaseUrl: "https://aqgubuisev.us-west-2.awsapprunner.com",
-      // devWsUrl: "wss://aqgubuisev.us-west-2.awsapprunner.com/ws/transcribe",
       // Production URLs - set via EAS environment variables or replace with your actual URLs
       productionBaseUrl: "https://aqgubuisev.us-west-2.awsapprunner.com",
-      productionWsUrl:
-        "wss://aqgubuisev.us-west-2.awsapprunner.com/ws/transcribe",
       EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
         process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
       EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,

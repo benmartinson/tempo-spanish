@@ -11,11 +11,10 @@ import {
 } from "expo-audio";
 import { decode, encode } from "base64-arraybuffer";
 import {
-  TranscriptCallbacks,
-  BackendMessage,
   TranscriptionResponse,
   AccuracyResult,
 } from "../types";
+import { backendFetch } from "./backendFetch";
 import { supabase } from "../../lib/supabase";
 import Constants from "expo-constants";
 
@@ -26,19 +25,12 @@ export const BACKEND_BASE_URL = __DEV__
   ? // ? config?.productionBaseUrl
     config?.devBaseUrl
   : config?.productionBaseUrl;
-export const BACKEND_WS_URL = __DEV__
-  ? config?.devWsUrl
-  : config?.productionWsUrl;
-
 // Debug: uncomment to verify which URLs are being used
 // console.log('Environment:', __DEV__ ? 'DEV' : 'PROD', 'Backend:', BACKEND_BASE_URL);
 
 export const generateTTS = async (text: string): Promise<string> => {
-  const resp = await fetch(`${BACKEND_BASE_URL}/tts`, {
+  const resp = await backendFetch("/tts", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify({ text }),
   });
 
@@ -313,139 +305,6 @@ export const deleteAudioFromStorage = async (
     console.error("Error deleting audio from storage:", err);
     throw err;
   }
-};
-
-/**
- * Connect to the backend WebSocket server for transcription
- */
-export const connectToBackend = (
-  callbacks: TranscriptCallbacks,
-): Promise<WebSocket> => {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(BACKEND_WS_URL);
-
-    ws.onopen = () => {
-      console.log("Connected to backend server");
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data: BackendMessage = JSON.parse(event.data);
-
-        switch (data.type) {
-          case "ready":
-            console.log("Server ready:", data.message);
-            callbacks.onReady?.(data.message || "");
-            break;
-
-          case "connected":
-            callbacks.onConnected?.();
-            resolve(ws);
-            break;
-
-          case "transcript":
-            if (data.transcript) {
-              callbacks.onTranscript?.(
-                data.transcript,
-                data.is_final || false,
-                data.words,
-              );
-            }
-            break;
-
-          case "error":
-            console.error("Backend error:", data.message);
-            callbacks.onError?.(data.message || "Server error occurred");
-            reject(new Error(data.message || "Server error"));
-            break;
-
-          case "metadata":
-            console.log("Received metadata from DeepGram");
-            callbacks.onMetadata?.();
-            break;
-        }
-      } catch (err) {
-        console.error("Error parsing backend message:", err);
-      }
-    };
-
-    ws.onerror = (event) => {
-      console.error("WebSocket error:", event);
-      reject(new Error("Failed to connect to transcription server"));
-    };
-
-    ws.onclose = (event) => {
-      console.log("WebSocket closed:", event.code, event.reason);
-    };
-
-    // Timeout if we don't get connected within 10 seconds
-    setTimeout(() => {
-      if (ws.readyState !== WebSocket.OPEN) {
-        reject(new Error("Connection timeout"));
-      }
-    }, 10000);
-  });
-};
-
-/**
- * Start streaming audio chunks to the backend server
- * Returns a function to stop the streaming
- */
-export const startAudioStreaming = (
-  getRecording: () => AudioRecorder | null,
-  getWebSocket: () => WebSocket | null,
-): NodeJS.Timeout => {
-  let lastBytesSent = 0;
-  const headerSize = 44; // WAV header size
-  // 80ms chunks at 16kHz, 16-bit mono = 2560 bytes (recommended by DeepGram)
-  const chunkSize = 2560;
-
-  // Poll for new audio data every 80ms to match chunk size
-  const intervalId = setInterval(async () => {
-    const recording = getRecording();
-    const ws = getWebSocket();
-
-    if (!recording || !ws) return;
-    if (ws.readyState !== WebSocket.OPEN) return;
-
-    try {
-      const uri = recording.uri;
-      if (!uri) return;
-
-      // Read the entire file as base64
-      const base64Audio = await FileSystem.readAsStringAsync(uri, {
-        encoding: "base64",
-      });
-
-      // Convert base64 to binary
-      const binaryString = atob(base64Audio);
-      const totalBytes = binaryString.length;
-
-      // Calculate how many audio bytes we have (excluding header)
-      const audioDataLength = totalBytes - headerSize;
-
-      // Only process if we have at least one new chunk worth of data
-      if (audioDataLength >= lastBytesSent + chunkSize) {
-        const bytes = new Uint8Array(totalBytes);
-        for (let i = 0; i < totalBytes; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        // Send complete 80ms chunks
-        while (lastBytesSent + chunkSize <= audioDataLength) {
-          const startOffset = headerSize + lastBytesSent;
-          const chunk = bytes.slice(startOffset, startOffset + chunkSize);
-          ws.send(chunk.buffer);
-          lastBytesSent += chunkSize;
-        }
-      }
-    } catch (err) {
-      // Ignore errors during streaming - file might be temporarily locked
-      console.log("Streaming chunk skipped:", err);
-    }
-  }, 80);
-
-  return intervalId;
 };
 
 /**
@@ -852,14 +711,11 @@ export const sendAudioForTranscription = async (
 
     console.log(`Sending audio for transcription: ${audioUri}`);
 
-    const response = await fetch(
-      `${BACKEND_BASE_URL}/api/transcribe?language=${targetLanguage}`,
+    const response = await backendFetch(
+      `/api/transcribe?language=${targetLanguage}`,
       {
         method: "POST",
         body: formData,
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
       },
     );
 

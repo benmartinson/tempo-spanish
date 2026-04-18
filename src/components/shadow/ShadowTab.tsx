@@ -57,7 +57,6 @@ import {
   persistCurrentShadowTab,
   incrementFocusVocabReviewCount,
   saveFocusVocabTranslation,
-  deductUserCredit,
 } from "../../requests";
 import GuessWordModal from "../common/GuessWordModal";
 import TranslationReviewModal from "./TranslationReviewModal";
@@ -523,11 +522,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
 
-        // Deduct 1 credit after successful recording submission
-        const newCredits = await deductUserCredit({ supabase, userId });
-        if (newCredits !== null) {
-          dispatch(setUserCredits(newCredits));
-        }
+        // Backend already deducted 1 credit — update local count
+        dispatch(setUserCredits(userCredits - 1));
       } catch (err) {
         console.error("Transcription error:", err);
         setError(

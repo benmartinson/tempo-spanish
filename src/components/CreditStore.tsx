@@ -8,13 +8,11 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux";
-import { useAuth } from "@clerk/clerk-expo";
 import Constants from "expo-constants";
 import SlideModal from "./common/SlideModal";
 import { RootState } from "../types";
-import { useSupabaseWithClerk } from "../../utils/supabase";
-import { addUserCredits } from "../requests";
 import { setUserCredits } from "../store/actions/dataActions";
+import { backendFetch } from "../helpers/backendFetch";
 
 const isExpoGo = Constants.appOwnership === "expo";
 
@@ -41,8 +39,6 @@ interface CreditStoreProps {
 
 const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
   const dispatch = useDispatch();
-  const supabase = useSupabaseWithClerk();
-  const { userId } = useAuth();
   const userCredits = useSelector((state: RootState) => state.userCredits);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -71,14 +67,16 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
         purchaseUpdateSub = IAP.purchaseUpdatedListener(
           async (purchase: any) => {
             try {
-              const credits = CREDIT_AMOUNTS[purchase.productId] ?? 0;
-              if (credits > 0) {
-                const newCredits = await addUserCredits({
-                  supabase,
-                  userId,
-                  amount: credits,
-                });
-                dispatch(setUserCredits(newCredits));
+              const response = await backendFetch("/api/verify-purchase", {
+                method: "POST",
+                body: JSON.stringify({
+                  transaction_receipt: purchase.transactionReceipt ?? "",
+                  product_id: purchase.productId,
+                }),
+              });
+              if (response.ok) {
+                const data = await response.json();
+                dispatch(setUserCredits(data.credits));
               }
               await IAP.finishTransaction({ purchase, isConsumable: true });
             } catch (err) {
@@ -108,15 +106,20 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
     };
   }, [visible]);
 
-  const handleDevPurchase = async (credits: number) => {
+  const handleDevPurchase = async (productId: string) => {
     setIsLoading(true);
     try {
-      const newCredits = await addUserCredits({
-        supabase,
-        userId,
-        amount: credits,
+      const response = await backendFetch("/api/verify-purchase", {
+        method: "POST",
+        body: JSON.stringify({
+          transaction_receipt: "dev-test",
+          product_id: productId,
+        }),
       });
-      dispatch(setUserCredits(newCredits));
+      if (response.ok) {
+        const data = await response.json();
+        dispatch(setUserCredits(data.credits));
+      }
     } catch (err) {
       console.error("Dev purchase error:", err);
     } finally {
@@ -177,7 +180,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
         <TouchableOpacity
           key={pack.id}
           style={styles.productRow}
-          onPress={() => handleDevPurchase(pack.credits)}
+          onPress={() => handleDevPurchase(pack.id)}
           disabled={isLoading}
           activeOpacity={0.7}
         >

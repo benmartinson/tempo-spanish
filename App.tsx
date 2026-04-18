@@ -148,7 +148,7 @@ const MainApp: React.FC = () => {
         supabase: clerkSupabase,
         userId,
       });
-      dispatch(setUserCredits(credits));
+      dispatch(setUserCredits(credits ?? 0));
 
       setIsRestoringState(false);
     };

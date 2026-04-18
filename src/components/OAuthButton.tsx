@@ -6,6 +6,8 @@ import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect } from "react";
+import { useSupabaseWithClerk } from "../../utils/supabase";
+import { initializeUserCredits } from "../requests";
 import {
   Platform,
   StyleSheet,
@@ -47,6 +49,7 @@ interface Props {
 export default function OAuthButton({ strategy, children }: Props) {
   useWarmUpBrowser();
   const { startSSOFlow } = useSSO();
+  const supabase = useSupabaseWithClerk();
   const navigation = useNavigation<any>();
   const config = providerConfig[strategy];
 
@@ -54,13 +57,18 @@ export default function OAuthButton({ strategy, children }: Props) {
     try {
       const redirectUrl = AuthSession.makeRedirectUri();
       console.log("Redirect URI:", redirectUrl);
-      const { createdSessionId, setActive } = await startSSOFlow({
+      const { createdSessionId, setActive, signUp } = await startSSOFlow({
         strategy,
         redirectUrl,
       });
 
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
+        // Initialize credits for new users only
+        const newUserId = signUp?.createdUserId;
+        if (newUserId) {
+          await initializeUserCredits({ supabase, userId: newUserId });
+        }
         navigation.goBack();
       } else {
         throw new Error("Failed to create session");

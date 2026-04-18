@@ -1,4 +1,5 @@
-import { BACKEND_BASE_URL, generateTTS } from "./helpers/streaming_helpers";
+import { generateTTS } from "./helpers/streaming_helpers";
+import { backendFetch } from "./helpers/backendFetch";
 import {
   CachedResponse,
   ContextSegment,
@@ -135,47 +136,6 @@ export const fetchVideoContext = async ({
   return { videoContext, videoView };
 };
 
-export interface EvaluateVocabAnswerParams {
-  question: string;
-  userAnswer: string;
-  contextSegments: { text: string }[];
-  vocabWord: string;
-  quizType?: "vocab" | "phrase" | "translate";
-}
-
-export const evaluateVocabAnswer = async ({
-  question,
-  userAnswer,
-  contextSegments,
-  vocabWord,
-  quizType = "vocab",
-}: EvaluateVocabAnswerParams): Promise<VocabEvaluation | null> => {
-  const response = await fetch(`${BACKEND_BASE_URL}/evaluate-vocab-answer`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question,
-      user_answer: userAnswer,
-      context_segments: contextSegments,
-      vocab_word: vocabWord,
-      quiz_type: quizType,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Error evaluating vocab answer: ${response.status}`);
-  }
-
-  const data = await response.json();
-  if (data.score && data.accepted_answers) {
-    return {
-      score: data.score,
-      acceptedAnswers: data.accepted_answers,
-    };
-  }
-  return null;
-};
-
 export const fetchVocabTranslation = async ({
   vocabWord,
   sentenceText,
@@ -185,9 +145,8 @@ export const fetchVocabTranslation = async ({
   sentenceText: string;
   sentenceTranslation?: string | null;
 }): Promise<string | null> => {
-  const response = await fetch(`${BACKEND_BASE_URL}/fetch-vocab-translation`, {
+  const response = await backendFetch("/fetch-vocab-translation", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       vocab_word: vocabWord,
       sentence_text: sentenceText,
@@ -217,9 +176,8 @@ export const fetchTranslationInsights = async ({
   text,
   language,
 }: FetchTranslationInsightsParams): Promise<TranslationInsightsResult | null> => {
-  const response = await fetch(`${BACKEND_BASE_URL}/translation-insights`, {
+  const response = await backendFetch("/translation-insights", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, language }),
   });
 
@@ -275,7 +233,6 @@ export const loadSentenceInsights = async ({
       translation: cached[translationColumn],
     };
   }
-
   // Fetch from backend
   const result = await fetchTranslationInsights({
     text: sentenceText,
@@ -306,37 +263,6 @@ export const loadSentenceInsights = async ({
     translation: cached?.[translationColumn] ?? null,
   };
 };
-
-export const evaluateTranslation = async ({
-  sentenceText,
-  translation,
-  translationLanguage,
-  userTranslation,
-}: {
-  sentenceText: string;
-  translation: string;
-  translationLanguage: string;
-  userTranslation: string;
-}): Promise<{ score: number } | null> => {
-  const response = await fetch(`${BACKEND_BASE_URL}/evaluate-translation`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sentence_text: sentenceText,
-      translation,
-      translation_language: translationLanguage,
-      user_translation: userTranslation,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Error evaluating translation: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return { score: data.score };
-};
-
 export interface FetchAllVideosParams {
   supabase: any;
 }
@@ -489,11 +415,9 @@ export const restoreUserUIState = async ({
         uiState.play_video_while_recording ??
         DEFAULT_USER_SETTINGS.playVideoWhileRecording,
       disableReviewMode:
-        uiState.disable_review_mode ??
-        DEFAULT_USER_SETTINGS.disableReviewMode,
+        uiState.disable_review_mode ?? DEFAULT_USER_SETTINGS.disableReviewMode,
       reviewFrequency:
-        uiState.review_frequency ??
-        DEFAULT_USER_SETTINGS.reviewFrequency,
+        uiState.review_frequency ?? DEFAULT_USER_SETTINGS.reviewFrequency,
     };
 
     if (uiState?.current_video) {
@@ -828,39 +752,6 @@ export const fetchUserCredits = async ({
 }: {
   supabase: any;
   userId: string | null | undefined;
-}): Promise<number> => {
-  if (!userId) return 0;
-
-  const { data, error } = await supabase
-    .from("user_credits")
-    .select("credits")
-    .eq("user_id", userId)
-    .single();
-
-  if (error || !data) {
-    // No row yet — create one with default 100 credits
-    const { data: inserted, error: insertError } = await supabase
-      .from("user_credits")
-      .upsert({ user_id: userId, credits: 100 })
-      .select("credits")
-      .single();
-
-    if (insertError) {
-      console.error("Error initializing user credits:", insertError);
-      return 0;
-    }
-    return inserted?.credits ?? 100;
-  }
-
-  return data.credits;
-};
-
-export const deductUserCredit = async ({
-  supabase,
-  userId,
-}: {
-  supabase: any;
-  userId: string | null | undefined;
 }): Promise<number | null> => {
   if (!userId) return null;
 
@@ -868,56 +759,47 @@ export const deductUserCredit = async ({
     .from("user_credits")
     .select("credits")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
-  if (error || !data || data.credits <= 0) return null;
-
-  const newCredits = data.credits - 1;
-  const { error: updateError } = await supabase
-    .from("user_credits")
-    .update({ credits: newCredits, updated_at: new Date().toISOString() })
-    .eq("user_id", userId);
-
-  if (updateError) {
-    console.error("Error deducting credit:", updateError);
+  if (error) {
+    console.error("Error fetching user credits:", error);
     return null;
   }
 
-  return newCredits;
+  if (!data) return null;
+
+  return data.credits;
 };
 
-export const addUserCredits = async ({
+export const initializeUserCredits = async ({
   supabase,
   userId,
-  amount,
+  defaultCredits = 100,
 }: {
   supabase: any;
-  userId: string | null | undefined;
-  amount: number;
+  userId: string;
+  defaultCredits?: number;
 }): Promise<number> => {
-  if (!userId) return 0;
-
-  const { data, error } = await supabase
+  const { data: existing } = await supabase
     .from("user_credits")
     .select("credits")
     .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existing) return existing.credits;
+
+  const { data, error } = await supabase
+    .from("user_credits")
+    .insert({ user_id: userId, credits: defaultCredits })
+    .select("credits")
     .single();
 
-  if (error || !data) {
-    console.error("Error fetching credits for add:", error);
+  if (error) {
+    console.error("Error initializing user credits:", error);
     return 0;
   }
 
-  const newCredits = data.credits + amount;
-  const { error: updateError } = await supabase
-    .from("user_credits")
-    .update({ credits: newCredits, updated_at: new Date().toISOString() })
-    .eq("user_id", userId);
-
-  if (updateError) {
-    console.error("Error adding credits:", updateError);
-    return data.credits;
-  }
-
-  return newCredits;
+  return data?.credits ?? defaultCredits;
 };
+
+
