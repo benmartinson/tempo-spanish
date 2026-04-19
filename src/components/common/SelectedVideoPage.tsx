@@ -32,6 +32,7 @@ import {
   setCurrentSentence as setCurrentSentenceAction,
   refreshVideoPlayer as refreshVideoPlayerAction,
 } from "../../store/actions/dataActions";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import ShadowTab from "../shadow/ShadowTab";
 import { ignoreVocab, stripPunctuation } from "../../helpers/helpers";
@@ -91,17 +92,8 @@ const SelectedVideoPage: React.FC = () => {
   const supabase = useSupabaseWithClerk();
   const handleWalkthroughComplete = useCallback(async () => {
     dispatch(setHasSeenWelcomeModals(true));
-    if (supabase && userId) {
-      await supabase.from("user_ui_state").upsert(
-        {
-          user_id: userId,
-          has_seen_welcome_modals: true,
-          updated_at: new Date(),
-        },
-        { onConflict: "user_id" },
-      );
-    }
-  }, [dispatch, supabase, userId]);
+    await AsyncStorage.setItem("has_seen_welcome_modals", "true");
+  }, [dispatch]);
 
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const translationLanguage = userSettings.translationLanguage;

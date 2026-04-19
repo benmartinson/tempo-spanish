@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Dimensions,
 } from "react-native";
 
 export interface TabDefinition {
@@ -105,6 +106,7 @@ const styles = StyleSheet.create({
     maxWidth: 600,
     alignSelf: "center" as const,
     width: "100%",
+    marginTop: Dimensions.get("window").width > 600 ? 16 : 0,
   },
 });
 

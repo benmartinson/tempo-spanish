@@ -69,9 +69,7 @@ const VideoList: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!hasSeenWelcomeModals) {
-      setIsWelcomeModalOpen(true);
-    }
+    setIsWelcomeModalOpen(!hasSeenWelcomeModals);
   }, [hasSeenWelcomeModals]);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import SignInScreen from "./src/components/SignInScreen";
@@ -97,6 +98,15 @@ const MainApp: React.FC = () => {
   // User-specific data — only when signed in
   useEffect(() => {
     if (!clerkSupabase || !userId) {
+      // Still restore hasSeenWelcomeModals from local storage when signed out
+      // DEV: uncomment to reset walkthrough state
+      // AsyncStorage.removeItem("has_seen_welcome_modals");
+      AsyncStorage.getItem("has_seen_welcome_modals").then((seen) => {
+        console.log("[AsyncStorage] has_seen_welcome_modals =", seen);
+        if (seen === "true") {
+          dispatch(setHasSeenWelcomeModals(true));
+        }
+      });
       setIsRestoringState(false);
       return;
     }
@@ -120,11 +130,16 @@ const MainApp: React.FC = () => {
 
     // Fetch and restore user UI state
     const restoreState = async () => {
-      const { videoContext, currentShadowTab, memorizeDifficulty, settings, hasSeenWelcomeModals } =
-        await restoreUserUIState({
-          supabase: clerkSupabase,
-          userId,
-        });
+      const {
+        videoContext,
+        currentShadowTab,
+        memorizeDifficulty,
+        settings,
+        hasSeenWelcomeModals,
+      } = await restoreUserUIState({
+        supabase: clerkSupabase,
+        userId,
+      });
 
       dispatch(setUserSettings(settings));
       dispatch(setHasSeenWelcomeModals(hasSeenWelcomeModals));
