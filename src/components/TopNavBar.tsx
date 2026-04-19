@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@clerk/clerk-expo";
@@ -87,6 +87,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
+    marginTop: Dimensions.get("window").height > 850 ? 12 : 0,
   },
   appName: {
     fontSize: 20,

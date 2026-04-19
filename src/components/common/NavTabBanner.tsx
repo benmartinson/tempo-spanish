@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  Dimensions,
 } from "react-native";
 import { RootState } from "../../types";
 import { useDispatch, useSelector } from "react-redux";
@@ -136,6 +137,7 @@ const styles = StyleSheet.create({
   centerArea: {
     flex: 1,
     alignItems: "center",
+    marginTop: Dimensions.get("window").height > 850 ? 12 : 0,
   },
   tabSelector: {
     flexDirection: "row",

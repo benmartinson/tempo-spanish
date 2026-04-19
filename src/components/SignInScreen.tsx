@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 function SignInScreen() {
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: "#fff", minHeight: "100%" }}>
       <View style={styles.header}>
         <View style={styles.dragIndicator} />
       </View>

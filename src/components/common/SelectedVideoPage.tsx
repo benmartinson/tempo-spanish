@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   Text,
   AppState,
+  Dimensions,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
@@ -527,6 +528,7 @@ const SelectedVideoPage: React.FC = () => {
           unMutePlayer={unMutePlayer}
           shadowMode={shadowMode}
           setShadowMode={setShadowMode}
+          setAutoplay={setAutoplay}
         />
       </View>
 
@@ -610,7 +612,7 @@ const styles = StyleSheet.create({
     margin: 12,
   },
   videoContainer: {
-    height: 230,
+    height: Dimensions.get("window").width > 600 ? Math.round(Dimensions.get("window").width * 9 / 16) : 230,
     backgroundColor: "#000",
     position: "relative",
     marginTop: 0,

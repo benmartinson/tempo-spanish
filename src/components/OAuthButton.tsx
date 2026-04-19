@@ -70,8 +70,6 @@ export default function OAuthButton({ strategy, children }: Props) {
           await initializeUserCredits({ supabase, userId: newUserId });
         }
         navigation.goBack();
-      } else {
-        throw new Error("Failed to create session");
       }
     } catch (err: any) {
       console.error("Error during SSO flow:", err);

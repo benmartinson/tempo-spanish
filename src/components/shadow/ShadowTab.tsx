@@ -49,6 +49,7 @@ import ShadowResults from "./ShadowResults";
 import TooltipModal from "../common/TooltipModal";
 import NavSwitcher from "../common/NavSwitcher";
 import ContentTabBar from "../common/ContentTabBar";
+import { useNavigation } from "@react-navigation/native";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import Foundation from "@expo/vector-icons/Foundation";
 import WalkthroughModal from "../common/WalkthroughModal";
@@ -64,6 +65,7 @@ import {
   setCurrentShadowTab,
   setUserSettings,
   setUserCredits,
+  refreshVideoPlayer,
 } from "../../store/actions/dataActions";
 import Insights from "./Insights";
 import PlayerControls from "./PlayerControls";
@@ -109,6 +111,7 @@ interface ShadowTabProps {
   unMutePlayer: () => void;
   shadowMode: "shadow" | "stream";
   setShadowMode: (mode: "shadow" | "stream") => void;
+  setAutoplay: (autoplay: boolean) => void;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -136,8 +139,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   unMutePlayer,
   shadowMode,
   setShadowMode,
+  setAutoplay,
 }) => {
   const dispatch = useDispatch();
+  const navigation = useNavigation();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const selectedTab = useSelector((state: RootState) => state.currentShadowTab);
 
@@ -205,6 +210,18 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showNoCreditsModal, setShowNoCreditsModal] = useState(false);
   const [showSignInModal, setShowSignInModal] = useState(false);
+
+  // Restore autoplay when returning from SignInScreen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      if (!showSignInModal) {
+        setAutoplay(true);
+        dispatch(refreshVideoPlayer());
+      }
+    });
+    return unsubscribe;
+  }, [navigation, showSignInModal, setAutoplay, dispatch]);
+
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
     null,
@@ -927,6 +944,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleEnterRecordingMode = async () => {
     if (!isSignedIn) {
+      pausePlayer();
+      setAutoplay(false);
       setShowSignInModal(true);
       return;
     }
@@ -1100,6 +1119,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     return <SelectVideoPrompt />;
   }
 
+  const isMissingPermission = error?.toLowerCase().includes("permission");
+
   return (
     <>
       <View style={styles.container}>
@@ -1107,7 +1128,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           <View style={styles.errorContainer}>
             <View style={styles.errorContent}>
               <Text style={styles.errorText}>{error}</Text>
-              {error.toLowerCase().includes("permission") && (
+              {isMissingPermission && (
                 <TouchableOpacity
                   style={styles.grantPermissionButton}
                   onPress={() => Linking.openSettings()}
@@ -1118,9 +1139,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 </TouchableOpacity>
               )}
             </View>
-            <TouchableOpacity onPress={() => setError(null)}>
-              <MaterialIcons name="close" size={20} color="black" />
-            </TouchableOpacity>
+            {!isMissingPermission && (
+              <TouchableOpacity onPress={() => setError(null)}>
+                <MaterialIcons name="close" size={20} color="black" />
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -1512,7 +1535,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       {/* Sign In Prompt Modal */}
       <SignInPromptModal
         visible={showSignInModal}
-        onClose={() => setShowSignInModal(false)}
+        onClose={() => {
+          setShowSignInModal(false);
+          setAutoplay(true);
+          dispatch(refreshVideoPlayer());
+        }}
+        onSignIn={() => {
+          setShowSignInModal(false);
+        }}
       />
 
       <WalkthroughModal

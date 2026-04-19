@@ -54,7 +54,9 @@ const ContentTabBar: React.FC<ContentTabBarProps> = ({
           ))}
         </ScrollView>
       )}
-      {children}
+      <View style={styles.childrenWrapper}>
+        {children}
+      </View>
     </View>
   );
 };
@@ -97,6 +99,12 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: "#333",
+  },
+  childrenWrapper: {
+    flex: 1,
+    maxWidth: 600,
+    alignSelf: "center" as const,
+    width: "100%",
   },
 });
 

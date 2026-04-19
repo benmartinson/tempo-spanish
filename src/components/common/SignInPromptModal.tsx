@@ -13,11 +13,13 @@ import { useNavigation } from "@react-navigation/native";
 interface SignInPromptModalProps {
   visible: boolean;
   onClose: () => void;
+  onSignIn?: () => void;
 }
 
 const SignInPromptModal: React.FC<SignInPromptModalProps> = ({
   visible,
   onClose,
+  onSignIn,
 }) => {
   const navigation = useNavigation<any>();
 
@@ -47,7 +49,7 @@ const SignInPromptModal: React.FC<SignInPromptModalProps> = ({
                 <TouchableOpacity
                   style={styles.signInButton}
                   onPress={() => {
-                    onClose();
+                    onSignIn?.();
                     navigation.navigate("SignIn");
                   }}
                 >
