@@ -80,7 +80,7 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   }, [words]);
 
   const activeChunkIndex = useMemo(() => {
-    if (!isRecording || !playerIsPlaying || !chunks.length) return -1;
+    if (!playerIsPlaying || !chunks.length) return -1;
     const duration = segmentEnd - segmentStart;
     if (duration <= 0) return -1;
     const elapsed = localTime - segmentStart;
@@ -99,8 +99,6 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   }
 
   if (!translationText) return null;
-
-  const label = `Translate into ${LANGUAGE_NAMES[userSettings.targetLanguage] || userSettings.targetLanguage}`;
 
   return (
     <View style={styles.container}>

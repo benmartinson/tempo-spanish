@@ -512,13 +512,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         }
         // Track latest shadowed sentence and save to history for translation review
         latestShadowedSentenceRef.current = currentSentenceIndex;
-        if (currentSentenceObject && sentenceTranslation) {
-          sentenceHistoryRef.current[currentSentenceIndex] = {
-            text: currentSentenceObject.text,
-            translation: sentenceTranslation,
-            words: currentSentenceObject.words,
-          };
-        }
+
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
 

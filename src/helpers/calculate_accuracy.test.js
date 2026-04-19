@@ -495,6 +495,33 @@ describe("calculateAccuracy - skipped words with proper noun and near-matches", 
   });
 });
 
+describe("calculateAccuracy - strips quotes from spoken words", () => {
+  it("should remove quote characters from spokenWord in results", () => {
+    const spokenWords = [
+      "Esto", "es", "por", "tratar", "con", "los", "ejemplos:",
+      '"No', "te", "falte", "que", "te", '"quedes"', "con", "el", "nombre.",
+    ];
+    const targetWords = [
+      "Esto", "es", "por", "tratar", "con", "los", "ejemplos,",
+      "no", "te", "falta", "que", "te", "quedes", "con", "el", "nombre.",
+    ];
+
+    const result = calculateAccuracy(spokenWords, targetWords, []);
+
+    // '"quedes"' with quotes stripped should be a perfect match to target "quedes"
+    const quedesMatch = result.details.find((d) => d.targetWord === "quedes");
+    expect(quedesMatch?.matched).toBe(true);
+    expect(quedesMatch?.spokenWord).toBe("quedes");
+    expect(quedesMatch?._matchScore).toBe(1);
+
+    // '"No' with quote stripped should be a perfect match to target "no"
+    const noMatch = result.details.find((d) => d.targetWord === "no");
+    expect(noMatch?.matched).toBe(true);
+    expect(noMatch?.spokenWord).toBe("no");
+    expect(noMatch?._matchScore).toBe(1);
+  });
+});
+
 describe("calculateAccuracy - number word normalization", () => {
   it("should match spoken number words to digit equivalents", () => {
     const spokenWords = [

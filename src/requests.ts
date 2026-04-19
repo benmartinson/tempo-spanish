@@ -801,5 +801,3 @@ export const initializeUserCredits = async ({
 
   return data?.credits ?? defaultCredits;
 };
-
-

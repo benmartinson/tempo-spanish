@@ -195,7 +195,10 @@ const SelectedVideoPage: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (!userSettings.translationLanguage || !currentSentenceIndex) {
+    if (
+      !userSettings.translationLanguage ||
+      (!currentSentenceIndex && currentSentenceIndex !== 0)
+    ) {
       return;
     }
     loadTranslationInsights();

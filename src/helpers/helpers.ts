@@ -135,16 +135,49 @@ export const normalizeWord = (word: string) =>
   capitalize(stripPunctuation(word.trim().toLowerCase()));
 
 // Helper function to split words into sentences based on punctuation
+const ABBREVIATIONS = new Set([
+  "Dr.",
+  "Mr.",
+  "Mrs.",
+  "Ms.",
+  "Sr.",
+  "Sra.",
+  "Srta.",
+  "Prof.",
+  "Dra.",
+  "Jr.",
+  "St.",
+  "Ave.",
+  "vs.",
+  "etc.",
+  "Ud.",
+  "Uds.",
+  "Lic.",
+  "Ing.",
+]);
+
 export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
   const sentences: SegmentWord[][] = [];
   let currentSentenceWords: SegmentWord[] = [];
   for (const word of words) {
     word.word = word.word.trim();
     currentSentenceWords.push(word);
-    // Check if word ends with sentence-ending punctuation
+    // Check if word ends with sentence-ending punctuation, but not abbreviations
+    const bare = word.word.replace(/^[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]*/, "");
     if (/[.!?]$/.test(word.word)) {
-      sentences.push(currentSentenceWords);
-      currentSentenceWords = [];
+      if (ABBREVIATIONS.has(bare)) {
+        // Abbreviation — look back for a ".,"-marked word to split on instead
+        for (let i = currentSentenceWords.length - 2; i >= 0; i--) {
+          if (/\.,$/.test(currentSentenceWords[i].word)) {
+            sentences.push(currentSentenceWords.slice(0, i + 1));
+            currentSentenceWords = currentSentenceWords.slice(i + 1);
+            break;
+          }
+        }
+      } else {
+        sentences.push(currentSentenceWords);
+        currentSentenceWords = [];
+      }
     }
   }
   // Handle remaining words (last sentence without punctuation)
@@ -401,7 +434,6 @@ export const areWordsSimilar = (word1: string, word2: string) => {
   diffCount += Math.abs(word2.length - word1.length);
   return diffCount <= 2;
 };
-
 
 // Score display constants for review evaluations
 export type VocabEvaluationScore = "correct" | "incorrect";
