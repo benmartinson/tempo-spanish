@@ -165,8 +165,8 @@ const VideoList: React.FC = () => {
       .filter((video) => video.channel_id === selectedChannel.channel_id)
       .sort(
         (a, b) =>
-          new Date(b.created_at ?? 0).getTime() -
-          new Date(a.created_at ?? 0).getTime(),
+          new Date(b.release_date ?? b.created_at ?? 0).getTime() -
+          new Date(a.release_date ?? a.created_at ?? 0).getTime(),
       );
     return (
       <ChannelVideoList
