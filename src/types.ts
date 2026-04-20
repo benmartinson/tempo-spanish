@@ -201,6 +201,7 @@ export interface Video {
   thumbnail_url: string;
   duration?: number;
   created_at?: string;
+  release_date?: string;
 }
 
 export interface Segment {

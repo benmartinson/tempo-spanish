@@ -45,6 +45,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         ]}
         onPress={onMic}
         disabled={disabled}
+        hitSlop={{ top: 20, bottom: 16, left: 16, right: 30 }}
       >
         <MaterialIcons
           name={isRecording ? "send" : "mic"}

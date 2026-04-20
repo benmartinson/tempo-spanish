@@ -493,6 +493,38 @@ export const removeSpecialPunctuation = (text: string) => {
     .join(" ");
 };
 
+// Multi-word phrases where the first word's trailing comma should be stripped
+const PHRASE_PAIRS: [string, string][] = [
+  ["sin", "embargo"],
+  ["por", "un"],
+  ["por", "lo"],
+  ["por", "ejemplo"],
+  ["por", "cierto"],
+  ["por", "tanto"],
+  ["un", "lado"],
+  ["lo", "tanto"],
+  ["lo", "general"],
+  ["en", "parte"],
+  ["en", "cambio"],
+];
+
+// Strip trailing comma from a word if it and the next word form a known phrase
+export const stripPhraseComma = (word: string, nextWord?: string): string => {
+  if (!nextWord || !word.endsWith(",")) return word;
+  const base = word.slice(0, -1).toLowerCase();
+  const nextBase = nextWord.replace(/[,.]$/, "").toLowerCase();
+  if (PHRASE_PAIRS.some(([a, b]) => a === base && b === nextBase)) {
+    return word.slice(0, -1);
+  }
+  return word;
+};
+
+// Clean phrase commas in a full text string
+export const cleanPhraseCommas = (text: string): string => {
+  const words = text.split(/\s+/);
+  return words.map((w, i) => stripPhraseComma(w, words[i + 1])).join(" ");
+};
+
 export interface SubSegment {
   preview: string;
   start: number;

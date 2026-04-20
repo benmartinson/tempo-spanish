@@ -13,9 +13,7 @@ const VideoInsights: React.FC<VideoInsightsProps> = ({ onSeeAllVideos }) => {
   const allChannels = useSelector((state: RootState) => state.allChannels);
 
   const video = allVideos.find((v) => v.video_id === currentVideo?.videoId);
-  const channel = allChannels.find(
-    (c) => c.channel_id === video?.channel_id,
-  );
+  const channel = allChannels.find((c) => c.channel_id === video?.channel_id);
 
   const sentences = currentVideo?.sentences ?? [];
   const totalWords = sentences.reduce(
@@ -31,6 +29,13 @@ const VideoInsights: React.FC<VideoInsightsProps> = ({ onSeeAllVideos }) => {
 
   return (
     <View style={styles.container}>
+      {video?.title && <Text style={styles.title}>{video.title}</Text>}
+      {video?.release_date && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Released</Text>
+          <Text style={styles.value}>{video.release_date}</Text>
+        </View>
+      )}
       {channel && (
         <View style={styles.row}>
           <Text style={styles.label}>Channel</Text>
@@ -73,6 +78,15 @@ const styles = StyleSheet.create({
   },
   linkButton: {
     marginTop: 4,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#3d3a52",
+  },
+  releaseDate: {
+    fontSize: 14,
+    color: "#888",
   },
   linkText: {
     fontSize: 14,

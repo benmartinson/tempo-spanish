@@ -16,7 +16,7 @@ import {
 } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
-import { vocabFormatWord } from "../../helpers/helpers";
+import { vocabFormatWord, stripPhraseComma } from "../../helpers/helpers";
 import { saveFocusVocabTranslation } from "../../requests";
 import { useInterpolatedTime } from "../../hooks/useInterpolatedTime";
 import { CHAR_WIDTHS, DEFAULT_CHAR_WIDTH, TEST_CHAR } from "../../constants";
@@ -242,9 +242,10 @@ const FullSegmentTranscriptBubble: React.FC<
           const isBlurred = blurredIndices?.has(index);
           const wordStyle = getWordStyle();
           const isActive = wordStyle === styles.activeWord;
+          const nextWord = words[index + 1]?.word;
           let displayWord = wordEndsWithSpecialCase(word.word)
             ? word.word.slice(0, -1)
-            : word.word;
+            : stripPhraseComma(word.word, nextWord);
           if (
             index === 0 &&
             displayWord[0] &&
