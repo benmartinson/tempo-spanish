@@ -64,6 +64,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     ],
   );
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
+  const [hintLevels, setHintLevels] = useState<Record<number, number>>({});
 
   const maskedIndices = useMemo(() => {
     const masked = new Set<number>();
@@ -88,10 +89,21 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     return masked;
   }, [currentSentence.words, difficulty, revealedWords]);
 
-  // Reset revealed words on segment change
+  // How many characters to reveal per hint level
+  const revealCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    for (const [indexStr, level] of Object.entries(hintLevels)) {
+      const index = Number(indexStr);
+      if (level === 1) counts[index] = 1;
+    }
+    return counts;
+  }, [hintLevels, currentSentence.index, difficulty]);
+
+  // Reset revealed words on segment change or recording toggle
   useEffect(() => {
     setRevealedWords(new Set());
-  }, [currentSentence.index]);
+    setHintLevels({});
+  }, [currentSentence.index, disableGuessModal]);
 
   return (
     <ScrollView style={styles.container}>
@@ -105,12 +117,29 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
         showFullText
         disableGuessModal={disableGuessModal}
         playWordSnippet={playWordSnippet}
+        revealCounts={revealCounts}
         onWordPress={(index) => {
-          setRevealedWords((prev) => {
-            const next = new Set(prev);
-            next.add(index);
-            return next;
-          });
+          if (disableGuessModal) {
+            // During recording: progressive hint reveal
+            const currentLevel = hintLevels[index] ?? 0;
+            const wordText = currentSentence.words?.[index]?.word?.trim() ?? "";
+            const skipHint = /^\d/.test(wordText) || wordText.length <= 1;
+            if (currentLevel === 0 && !skipHint) {
+              setHintLevels((prev) => ({ ...prev, [index]: 1 }));
+            } else {
+              setRevealedWords((prev) => {
+                const next = new Set(prev);
+                next.add(index);
+                return next;
+              });
+            }
+          } else {
+            setRevealedWords((prev) => {
+              const next = new Set(prev);
+              next.add(index);
+              return next;
+            });
+          }
         }}
       />
 

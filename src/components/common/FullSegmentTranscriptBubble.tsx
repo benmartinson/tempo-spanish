@@ -19,6 +19,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { vocabFormatWord } from "../../helpers/helpers";
 import { saveFocusVocabTranslation } from "../../requests";
 import { useInterpolatedTime } from "../../hooks/useInterpolatedTime";
+import { CHAR_WIDTHS, DEFAULT_CHAR_WIDTH, TEST_CHAR } from "../../constants";
 
 interface FullSegmentTranscriptBubbleProps {
   words?: SegmentWord[];
@@ -34,6 +35,7 @@ interface FullSegmentTranscriptBubbleProps {
   playerSpeed?: number;
   disableGuessModal?: boolean;
   playWordSnippet?: (word: SegmentWord, isSlow?: boolean) => void;
+  revealCounts?: Record<number, number>;
 }
 
 const LINE_HEIGHT = 28;
@@ -56,6 +58,7 @@ const FullSegmentTranscriptBubble: React.FC<
   playerSpeed = 1,
   disableGuessModal = false,
   playWordSnippet,
+  revealCounts,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -277,6 +280,12 @@ const FullSegmentTranscriptBubble: React.FC<
                   style={[
                     styles.maskedWordOverlay,
                     isActive && { backgroundColor: "#b9e6bf" },
+                    revealCounts?.[index] != null && {
+                      left:
+                        1 +
+                        (CHAR_WIDTHS[TEST_CHAR ?? word.word.trim()[0]] ??
+                          DEFAULT_CHAR_WIDTH),
+                    },
                   ]}
                 />
               )}
@@ -296,7 +305,8 @@ const FullSegmentTranscriptBubble: React.FC<
         }
         onPlaySnippetSlow={
           playWordSnippet && guessWord
-            ? () => playWordSnippet(words.find((w) => w.word === guessWord)!, true)
+            ? () =>
+                playWordSnippet(words.find((w) => w.word === guessWord)!, true)
             : undefined
         }
         existingTranslation={
