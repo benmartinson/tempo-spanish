@@ -418,6 +418,12 @@ export const restoreUserUIState = async ({
         uiState.disable_review_mode ?? DEFAULT_USER_SETTINGS.disableReviewMode,
       reviewFrequency:
         uiState.review_frequency ?? DEFAULT_USER_SETTINGS.reviewFrequency,
+      autoSelectDifficulty:
+        uiState.auto_select_difficulty ??
+        DEFAULT_USER_SETTINGS.autoSelectDifficulty,
+      autoSelectDifficultyLevel:
+        uiState.auto_select_difficulty_level ??
+        DEFAULT_USER_SETTINGS.autoSelectDifficultyLevel,
     };
 
     if (uiState?.current_video) {
@@ -599,6 +605,10 @@ export const persistUserSettings = async ({
     updateData.disable_review_mode = settings.disableReviewMode;
   if (settings.reviewFrequency !== undefined)
     updateData.review_frequency = settings.reviewFrequency;
+  if (settings.autoSelectDifficulty !== undefined)
+    updateData.auto_select_difficulty = settings.autoSelectDifficulty;
+  if (settings.autoSelectDifficultyLevel !== undefined)
+    updateData.auto_select_difficulty_level = settings.autoSelectDifficultyLevel;
 
   const { error } = await supabase
     .from("user_ui_state")

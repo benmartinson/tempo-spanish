@@ -9,6 +9,7 @@ import { setMemorizeDifficulty } from "../../store/actions/dataActions";
 import { persistMemorizeDifficulty } from "../../requests";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { SPANISH_PREPOSITIONS, SPANISH_PRONOUNS } from "../../constants";
+import { getAutoHintDifficulty } from "../../helpers/helpers";
 
 interface MemorizeContentProps {
   time: number;
@@ -40,12 +41,24 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   const savedDifficulty = useSelector(
     (state: RootState) => state.memorizeDifficulty,
   );
-  const difficulty = userSettings.saveMemorizeDifficulty
-    ? savedDifficulty
-    : localDifficulty;
+  const [manualOverride, setManualOverride] = useState<number | null>(null);
+
+  const baseDifficulty = userSettings.autoSelectDifficulty
+    ? getAutoHintDifficulty(
+        currentSentence.words?.length ?? 0,
+        userSettings.autoSelectDifficultyLevel,
+      )
+    : userSettings.saveMemorizeDifficulty
+      ? savedDifficulty
+      : localDifficulty;
+
+  const difficulty = manualOverride ?? baseDifficulty;
+
   const setDifficulty = useCallback(
     (d: number) => {
-      if (userSettings.saveMemorizeDifficulty) {
+      if (userSettings.autoSelectDifficulty) {
+        setManualOverride(d);
+      } else if (userSettings.saveMemorizeDifficulty) {
         dispatch(setMemorizeDifficulty(d));
         persistMemorizeDifficulty({
           supabase,
@@ -61,6 +74,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
       supabase,
       userId,
       userSettings.saveMemorizeDifficulty,
+      userSettings.autoSelectDifficulty,
       onLocalDifficultyChange,
     ],
   );
@@ -122,10 +136,11 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     return counts;
   }, [hintLevels, currentSentence.index, difficulty]);
 
-  // Reset revealed words on segment change or recording toggle
+  // Reset revealed words and manual override on segment change or recording toggle
   useEffect(() => {
     setRevealedWords(new Set());
     setHintLevels({});
+    setManualOverride(null);
   }, [currentSentence.index, disableGuessModal]);
 
   return (

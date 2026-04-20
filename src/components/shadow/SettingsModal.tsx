@@ -105,6 +105,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     useState(userSettings.saveMemorizeDifficulty);
   const [editedDefaultMemorizeDifficulty, setEditedDefaultMemorizeDifficulty] =
     useState(userSettings.defaultMemorizeDifficulty);
+  const [editedAutoSelectDifficulty, setEditedAutoSelectDifficulty] = useState(
+    userSettings.autoSelectDifficulty,
+  );
+  const [editedAutoSelectDifficultyLevel, setEditedAutoSelectDifficultyLevel] =
+    useState(userSettings.autoSelectDifficultyLevel);
 
   const difficultyOptions = [
     { value: 0, label: "No Hidden Words" },
@@ -124,6 +129,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     setRecordSpeed(editedRecordSpeed);
     setMuteWhenRecording(muteVideoWhenRecording);
+    // When auto-select is on, force save-difficulty off
+    if (editedAutoSelectDifficulty && editedSaveMemorizeDifficulty) {
+      setEditedSaveMemorizeDifficulty(false);
+      return; // will re-run with updated value
+    }
     const newSettings = {
       ...userSettingsRef.current,
       playbackSpeedDuringRecording: editedRecordSpeed,
@@ -135,6 +145,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       autoSaveRecordings: editedAutoSaveRecordings,
       disableReviewMode: editedDisableReviewMode,
       reviewFrequency: editedReviewFrequency,
+      autoSelectDifficulty: editedAutoSelectDifficulty,
+      autoSelectDifficultyLevel: editedAutoSelectDifficultyLevel,
     };
     dispatch(setUserSettings(newSettings));
     onSaveRef.current(newSettings);
@@ -149,6 +161,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     editedShowPhrases,
     editedSaveMemorizeDifficulty,
     editedDefaultMemorizeDifficulty,
+    editedAutoSelectDifficulty,
+    editedAutoSelectDifficultyLevel,
     dispatch,
     setRecordSpeed,
     setMuteWhenRecording,
@@ -220,44 +234,78 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
         </View>
 
-        {/* Insights */}
-        {!hideToggles && (
-          <>
-            <Text style={styles.sectionHeader}>INSIGHTS</Text>
-            <View style={styles.card}>
-              <SettingRow
-                label="Show Word Hints by Default?"
-                value={editedShowWordsHints}
-                onToggle={setEditedShowWordsHints}
-              />
-              <SettingRow
-                label="Show Characters List by Default?"
-                value={editedShowCharacters}
-                onToggle={setEditedShowCharacters}
-              />
-              <SettingRow
-                label="Show Phrases by Default?"
-                value={editedShowPhrases}
-                onToggle={setEditedShowPhrases}
-                isLast
-              />
-            </View>
-          </>
-        )}
-
         {/* Transcript */}
         {!hideToggles && (
           <>
             <Text style={styles.sectionHeader}>TRANSCRIPT</Text>
             <View style={styles.card}>
               <SettingRow
-                label="Save Hint Difficulty?"
-                value={editedSaveMemorizeDifficulty}
-                onToggle={setEditedSaveMemorizeDifficulty}
-                isLast
+                label="Auto-Select Hint Difficulty?"
+                value={editedAutoSelectDifficulty}
+                onToggle={setEditedAutoSelectDifficulty}
+                isLast={!editedAutoSelectDifficulty}
               />
+              {editedAutoSelectDifficulty && (
+                <>
+                  <View style={styles.cardDivider} />
+                  <View style={styles.difficultyInner}>
+                    {(
+                      [
+                        { value: "moderate", label: "Moderate" },
+                        { value: "challenging", label: "Challenging" },
+                        { value: "difficult", label: "Difficult" },
+                        { value: "hardest", label: "Hardest" },
+                      ] as const
+                    ).map((option, index) => {
+                      const isActive =
+                        editedAutoSelectDifficultyLevel === option.value;
+                      const isLast = index === 3;
+                      return (
+                        <TouchableOpacity
+                          key={option.value}
+                          style={[
+                            styles.difficultyOption,
+                            !isLast && styles.difficultyOptionBorder,
+                          ]}
+                          onPress={() =>
+                            setEditedAutoSelectDifficultyLevel(option.value)
+                          }
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.difficultyOptionText,
+                              isActive && styles.difficultyOptionTextActive,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                          <View
+                            style={[
+                              styles.radio,
+                              isActive && styles.radioActive,
+                            ]}
+                          >
+                            {isActive && <View style={styles.radioDot} />}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
             </View>
-            {!editedSaveMemorizeDifficulty && (
+            {!editedAutoSelectDifficulty && (
+              <View style={styles.card}>
+                <SettingRow
+                  label="Save Hint Difficulty?"
+                  value={editedSaveMemorizeDifficulty}
+                  onToggle={setEditedSaveMemorizeDifficulty}
+                  isLast
+                />
+              </View>
+            )}
+            {!editedAutoSelectDifficulty && !editedSaveMemorizeDifficulty && (
               <>
                 <Text style={styles.subsectionLabel}>Default Difficulty</Text>
                 <View style={styles.card}>
@@ -301,6 +349,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </View>
               </>
             )}
+          </>
+        )}
+
+        {/* Insights */}
+        {!hideToggles && (
+          <>
+            <Text style={styles.sectionHeader}>INSIGHTS</Text>
+            <View style={styles.card}>
+              <SettingRow
+                label="Show Word Hints by Default?"
+                value={editedShowWordsHints}
+                onToggle={setEditedShowWordsHints}
+              />
+              <SettingRow
+                label="Show Characters List by Default?"
+                value={editedShowCharacters}
+                onToggle={setEditedShowCharacters}
+              />
+              <SettingRow
+                label="Show Phrases by Default?"
+                value={editedShowPhrases}
+                onToggle={setEditedShowPhrases}
+                isLast
+              />
+            </View>
           </>
         )}
       </ScrollView>

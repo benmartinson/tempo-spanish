@@ -527,6 +527,36 @@ export const cleanPhraseCommas = (text: string): string => {
   return words.map((w, i) => stripPhraseComma(w, words[i + 1])).join(" ");
 };
 
+export type DifficultyLevel =
+  | "moderate"
+  | "challenging"
+  | "difficult"
+  | "hardest";
+
+export const getAutoHintDifficulty = (
+  wordCount: number,
+  level: DifficultyLevel,
+): number => {
+  switch (level) {
+    case "moderate":
+      if (wordCount <= 12) return 2;
+      if (wordCount <= 20) return 1;
+      return 0;
+    case "challenging":
+      if (wordCount <= 12) return 3;
+      if (wordCount <= 20) return 2;
+      if (wordCount <= 30) return 1;
+      return 0;
+    case "difficult":
+      if (wordCount <= 12) return 4;
+      if (wordCount <= 20) return 3;
+      return 2;
+    case "hardest":
+      if (wordCount <= 16) return 4;
+      return 3;
+  }
+};
+
 export interface SubSegment {
   preview: string;
   start: number;

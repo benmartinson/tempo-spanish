@@ -15,6 +15,8 @@ export interface UserSettings {
   showSaveRecordingsModal: boolean;
   disableReviewMode: boolean;
   reviewFrequency: number;
+  autoSelectDifficulty: boolean;
+  autoSelectDifficultyLevel: "moderate" | "challenging" | "difficult" | "hardest";
 }
 
 export type VoiceCommand =
@@ -61,6 +63,8 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   showSaveRecordingsModal: true,
   disableReviewMode: false,
   reviewFrequency: 2,
+  autoSelectDifficulty: false,
+  autoSelectDifficultyLevel: "moderate",
 };
 
 export interface CachedResponse {
@@ -333,6 +337,8 @@ export interface UserUIState {
   disable_review_mode: boolean | null;
   review_frequency: number | null;
   has_seen_welcome_modals: boolean | null;
+  auto_select_difficulty: boolean | null;
+  auto_select_difficulty_level: string | null;
 }
 
 export type ContentTab =
