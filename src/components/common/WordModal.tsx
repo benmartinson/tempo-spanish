@@ -9,9 +9,10 @@ import {
 } from "react-native";
 import { capitalize, stripPunctuation } from "../../helpers/helpers";
 import { fetchVocabTranslation } from "../../requests";
+import { MaterialIcons } from "@expo/vector-icons";
 import SmallSlideModal from "./SmallSlideModal";
 
-interface GuessWordModalProps {
+interface WordModalProps {
   visible: boolean;
   onClose: () => void;
   word?: string;
@@ -27,9 +28,11 @@ interface GuessWordModalProps {
   title?: string;
   instructions?: string;
   hideTranslationAtFirst?: boolean;
+  onPlaySnippet?: () => void;
+  onPlaySnippetSlow?: () => void;
 }
 
-const GuessWordModal: React.FC<GuessWordModalProps> = ({
+const WordModal: React.FC<WordModalProps> = ({
   visible,
   onClose,
   word,
@@ -39,6 +42,8 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
   onTranslationFetched,
   title = "Vocab Review",
   hideTranslationAtFirst = false,
+  onPlaySnippet,
+  onPlaySnippetSlow,
 }) => {
   const [translation, setTranslation] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -95,9 +100,24 @@ const GuessWordModal: React.FC<GuessWordModalProps> = ({
       title={title}
     >
       <View style={styles.content}>
-        <Text style={styles.vocabWord}>
-          {capitalize(stripPunctuation(word ?? ""))}
-        </Text>
+        <View style={styles.wordRow}>
+          <Text style={styles.vocabWord}>
+            {capitalize(stripPunctuation(word ?? ""))}
+          </Text>
+          {onPlaySnippet && (
+            <TouchableOpacity onPress={onPlaySnippet} style={styles.playButton}>
+              <MaterialIcons name="play-arrow" size={20} color="black" />
+            </TouchableOpacity>
+          )}
+          {onPlaySnippetSlow && (
+            <TouchableOpacity
+              onPress={onPlaySnippetSlow}
+              style={styles.playButton}
+            >
+              <MaterialIcons name="slow-motion-video" size={24} color="black" />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {isLoading ? (
           <View style={styles.translationContainer}>
@@ -133,11 +153,22 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 20,
   },
+  wordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
   vocabWord: {
     fontSize: 28,
     fontWeight: "700",
     color: "#222",
     textAlign: "center",
+  },
+  playButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: "#f0f0f5",
   },
   contextText: {
     fontSize: 15,
@@ -202,4 +233,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GuessWordModal;
+export default WordModal;

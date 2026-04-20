@@ -82,8 +82,6 @@ const WordHints: React.FC<WordHintsProps> = ({
         <FeaturedVocab
           word={currentHintWord}
           playSnippet={handlePlayWordSnippet}
-          isPlayingWordSnippet={isPlayingWordSnippet}
-          handleWordHintChange={handleWordHintChange}
           showSlowPlay={showSlowPlay}
           onReplaySentence={onReplaySentence}
           playerIsPlaying={playerIsPlaying}

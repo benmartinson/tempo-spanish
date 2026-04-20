@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { RootState, SegmentWord } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
-import GuessWordModal from "../common/GuessWordModal";
+import WordModal from "./WordModal";
 import { useSelector, useDispatch } from "react-redux";
 import {
   addUserSelectedVocab,
@@ -33,6 +33,7 @@ interface FullSegmentTranscriptBubbleProps {
   playKey?: number;
   playerSpeed?: number;
   disableGuessModal?: boolean;
+  playWordSnippet?: (word: SegmentWord, isSlow?: boolean) => void;
 }
 
 const LINE_HEIGHT = 28;
@@ -54,6 +55,7 @@ const FullSegmentTranscriptBubble: React.FC<
   playKey,
   playerSpeed = 1,
   disableGuessModal = false,
+  playWordSnippet,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -262,9 +264,7 @@ const FullSegmentTranscriptBubble: React.FC<
                   handleSelectForReview(word);
                 }
               }}
-              onLongPress={
-                onWordPress ? () => onWordPress(index) : undefined
-              }
+              onLongPress={onWordPress ? () => onWordPress(index) : undefined}
               delayLongPress={300}
               style={isBlurred ? styles.maskedWordWrapper : undefined}
             >
@@ -284,11 +284,21 @@ const FullSegmentTranscriptBubble: React.FC<
           );
         })}
       </ScrollView>
-      <GuessWordModal
+      <WordModal
         visible={!!guessWord}
         onClose={() => setGuessWord(null)}
         word={guessWord ?? ""}
         sentenceText={currentSentenceText}
+        onPlaySnippet={
+          playWordSnippet && guessWord
+            ? () => playWordSnippet(words.find((w) => w.word === guessWord)!)
+            : undefined
+        }
+        onPlaySnippetSlow={
+          playWordSnippet && guessWord
+            ? () => playWordSnippet(words.find((w) => w.word === guessWord)!, true)
+            : undefined
+        }
         existingTranslation={
           currentVideo?.focusVocab.find(
             (v) => v.word === vocabFormatWord(guessWord ?? ""),
@@ -297,9 +307,7 @@ const FullSegmentTranscriptBubble: React.FC<
         onTranslationFetched={(translation) => {
           if (guessWord) {
             const wordKey = vocabFormatWord(guessWord);
-            dispatch(
-              updateFocusVocabTranslation(wordKey, translation),
-            );
+            dispatch(updateFocusVocabTranslation(wordKey, translation));
             if (supabase && currentVideo?.videoViewId) {
               saveFocusVocabTranslation({
                 supabase,

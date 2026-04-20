@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { RootState, SegmentWord } from "../../types";
 import { capitalize, vocabFormatWord } from "../../helpers/helpers";
 import { useDispatch, useSelector } from "react-redux";
@@ -12,14 +7,12 @@ import { updateFocusVocabTranslation } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import { MaterialIcons } from "@expo/vector-icons";
-import GuessWordModal from "./GuessWordModal";
+import WordModal from "./WordModal";
 import { saveFocusVocabTranslation } from "../../requests";
 
 interface FeaturedVocabProps {
   word: SegmentWord;
-  playSnippet?: (word: SegmentWord, isSlow?: boolean) => void;
-  isPlayingWordSnippet?: boolean;
-  handleWordHintChange: (direction: number) => void;
+  playSnippet: (word: SegmentWord, isSlow?: boolean) => void;
   showSlowPlay?: boolean;
   onReplaySentence?: () => void;
   playerIsPlaying?: boolean;
@@ -28,8 +21,6 @@ interface FeaturedVocabProps {
 const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   word,
   playSnippet,
-  isPlayingWordSnippet,
-  handleWordHintChange,
   showSlowPlay = true,
   onReplaySentence,
   playerIsPlaying = false,
@@ -89,7 +80,7 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
         </View>
       </View>
 
-      <GuessWordModal
+      <WordModal
         visible={modalVisible}
         onClose={handleCloseModal}
         word={word.word}

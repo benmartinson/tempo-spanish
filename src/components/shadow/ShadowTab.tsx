@@ -59,7 +59,7 @@ import {
   incrementFocusVocabReviewCount,
   saveFocusVocabTranslation,
 } from "../../requests";
-import GuessWordModal from "../common/GuessWordModal";
+import WordModal from "../common/WordModal";
 import TranslationReviewModal from "./TranslationReviewModal";
 import {
   setCurrentShadowTab,
@@ -1302,6 +1302,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   disableGuessModal={isRecording}
                   localDifficulty={localDifficulty}
                   onLocalDifficultyChange={setLocalDifficulty}
+                  playWordSnippet={handlePlaySnippetAgain}
                 />
               ) : selectedTab === "translate" ? (
                 <TranslateContent
