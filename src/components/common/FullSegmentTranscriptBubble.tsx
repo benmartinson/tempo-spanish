@@ -246,6 +246,11 @@ const FullSegmentTranscriptBubble: React.FC<
           let displayWord = wordEndsWithSpecialCase(word.word)
             ? word.word.slice(0, -1)
             : stripPhraseComma(word.word, nextWord);
+          const prevWord = words[index - 1]?.word?.trim();
+          const afterSentenceStart =
+            index === 0 || prevWord?.endsWith(".") || prevWord?.endsWith(".,");
+          if (!afterSentenceStart && displayWord === "Y") displayWord = "y";
+
           if (
             index === 0 &&
             displayWord[0] &&

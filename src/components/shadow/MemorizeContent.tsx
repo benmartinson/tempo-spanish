@@ -8,6 +8,7 @@ import DifficultySlider from "../common/DifficultySlider";
 import { setMemorizeDifficulty } from "../../store/actions/dataActions";
 import { persistMemorizeDifficulty } from "../../requests";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
+import { SPANISH_PREPOSITIONS, SPANISH_PRONOUNS } from "../../constants";
 
 interface MemorizeContentProps {
   time: number;
@@ -69,23 +70,45 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   const maskedIndices = useMemo(() => {
     const masked = new Set<number>();
     if (difficulty === 0 || !currentSentence.words) return masked;
-    currentSentence.words.forEach((_, i) => {
+    if (difficulty === 4) {
+      currentSentence.words.forEach((_, i) => {
+        if (!revealedWords.has(i)) masked.add(i);
+      });
+      return masked;
+    }
+    const easyWords = new Set([...SPANISH_PREPOSITIONS, ...SPANISH_PRONOUNS]);
+    const easyIndices: number[] = [];
+    const restIndices: number[] = [];
+    currentSentence.words.forEach((word, i) => {
       if (revealedWords.has(i)) return;
-      switch (difficulty) {
-        case 1:
-          if ((i + 1) % 3 === 0) masked.add(i);
-          break;
-        case 2:
-          if (i % 2 === 1) masked.add(i);
-          break;
-        case 3:
-          if (i % 3 !== 0) masked.add(i);
-          break;
-        case 4:
-          masked.add(i);
-          break;
+      const normalized = word.word
+        .trim()
+        .toLowerCase()
+        .replace(/[,.!?]$/, "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      if (easyWords.has(normalized)) {
+        easyIndices.push(i);
+      } else {
+        restIndices.push(i);
       }
     });
+    // Case 1: only easy words, but skip if previous two are already masked.
+    easyIndices.forEach((i) => {
+      if (difficulty === 1 && masked.has(i - 1) && masked.has(i - 2)) return;
+      masked.add(i);
+    });
+    if (difficulty >= 2) {
+      const available = easyIndices.length + restIndices.length;
+      const targetPct = difficulty === 2 ? 0.55 : 0.75;
+      const targetCount = Math.round(available * targetPct);
+      const additionalNeeded = Math.max(0, targetCount - easyIndices.length);
+      const count = Math.min(additionalNeeded, restIndices.length);
+      for (let j = 0; j < count; j++) {
+        const idx = Math.floor((j * restIndices.length) / count);
+        masked.add(restIndices[idx]);
+      }
+    }
     return masked;
   }, [currentSentence.words, difficulty, revealedWords]);
 

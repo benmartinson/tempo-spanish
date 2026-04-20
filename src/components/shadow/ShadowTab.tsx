@@ -537,9 +537,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         dispatch(setUserCredits(userCredits - 1));
       } catch (err) {
         console.error("Transcription error:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to process audio",
-        );
+        setError("Failed to process audio");
       } finally {
         setIsProcessing(false);
       }
@@ -1070,7 +1068,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       await playLocalAudio(audioUri);
     } catch (err) {
       console.error("Failed to play recording:", err);
-      setError(err instanceof Error ? err.message : "Failed to play recording");
+      setError("Failed to play recording");
     } finally {
       setIsPlayingRecording(false);
       if (wasPlaying) playSentence();
@@ -1127,9 +1125,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         {error && (
           <View style={styles.errorContainer}>
             <View style={styles.errorContent}>
-              <Text style={styles.errorText}>
-                {isMissingPermission ? error : "Something Went Wrong"}
-              </Text>
+              <Text style={styles.errorText}>{error}</Text>
               {isMissingPermission && (
                 <TouchableOpacity
                   style={styles.grantPermissionButton}
