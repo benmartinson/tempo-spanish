@@ -1127,7 +1127,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         {error && (
           <View style={styles.errorContainer}>
             <View style={styles.errorContent}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>
+                {isMissingPermission ? error : "Something Went Wrong"}
+              </Text>
               {isMissingPermission && (
                 <TouchableOpacity
                   style={styles.grantPermissionButton}

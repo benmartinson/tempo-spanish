@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
 import { AccuracyResult } from "../../types";
 import { MaterialIcons } from "@expo/vector-icons";
 import { normalizeWord, removeSpecialPunctuation } from "../../helpers/helpers";
@@ -255,7 +255,7 @@ export const styles = StyleSheet.create({
   },
   resultsContainer: {
     alignItems: "center",
-    marginTop: 16,
+    marginTop: Dimensions.get("window").width > 600 ? 48 : 16,
     paddingHorizontal: 16,
   },
   tooltipTitle: {

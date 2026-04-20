@@ -31,8 +31,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ visible, onClose }) => {
                 skills, you've come to the right place!
               </Text>
               <Text style={styles.message}>
-                We offer a way to incorporate speaking practice into a
-                'comprehensible-input' approach to language learning.
+                Tempo offers a way to incorporate speaking practice into a
+                'comprehensible input' approach to language learning.
               </Text>
               <Text style={styles.message}>
                 To get started, search among our wide selection of native
