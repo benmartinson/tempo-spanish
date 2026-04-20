@@ -506,6 +506,8 @@ const PHRASE_PAIRS: [string, string][] = [
   ["lo", "general"],
   ["en", "parte"],
   ["en", "cambio"],
+  ["sobre", "todo"],
+  ["y", "sobre"],
 ];
 
 // Strip trailing comma from a word if it and the next word form a known phrase

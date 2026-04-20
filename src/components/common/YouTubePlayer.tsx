@@ -3,14 +3,10 @@ import React, {
   useImperativeHandle,
   forwardRef,
   useEffect,
-  useState,
-  useCallback,
 } from "react";
 import { StyleSheet, View, Text, Linking, Platform } from "react-native";
 import { WebView } from "react-native-webview";
-import YoutubeIframePlayer from "react-native-youtube-iframe";
-import { Segment, Sentence } from "../../types";
-import { useSession, useUser } from "@clerk/clerk-expo";
+import { Sentence } from "../../types";
 
 export interface YouTubePlayerHandle {
   pause: () => void;
@@ -40,185 +36,8 @@ interface YouTubePlayerProps {
   onPlayingStateChange?: (isPlaying: boolean) => void;
 }
 
-const YoutubePlayerWeb = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
-  (
-    {
-      videoId,
-      clip,
-      autoplay,
-      setTime,
-      muted = false,
-      playbackSpeed = 1,
-      startTime,
-      videoText,
-      onPlayingStateChange,
-    },
-    ref,
-  ) => {
-    const playerRef = useRef<any>(null);
-    const containerId = useRef(
-      `player-${Math.random().toString(36).substr(2, 9)}`,
-    );
-    const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const previousStateRef = useRef<number | null>(null);
-    const clipEnforcementEnabledRef = useRef(true);
-
-    const start = clip ? clip.start : (startTime ?? 0);
-    const end = clip ? clip.end : null;
-
-    useImperativeHandle(ref, () => ({
-      play: () => playerRef.current?.playVideo(),
-      pause: () => playerRef.current?.pauseVideo(),
-      seekTo: (time: number) => playerRef.current?.seekTo(time, true),
-      seekAndPlay: (time: number) => {
-        playerRef.current?.seekTo(time, true);
-        if (playerRef.current?.getPlayerState() !== 1) {
-          playerRef.current?.playVideo();
-        }
-      },
-      disableClipEnforcement: () => {
-        clipEnforcementEnabledRef.current = false;
-      },
-      setClip: (start: number, end: number) => {
-        clipEnforcementEnabledRef.current = true;
-      },
-      setSpeed: (speed: number) => {
-        playerRef.current?.setPlaybackRate(speed);
-      },
-      mute: () => {
-        playerRef.current?.mute();
-      },
-      unMute: () => {
-        playerRef.current?.unMute();
-      },
-    }));
-
-    const stopTimePolling = () => {
-      if (timeIntervalRef.current) {
-        clearInterval(timeIntervalRef.current);
-        timeIntervalRef.current = null;
-      }
-    };
-
-    const startTimePolling = () => {
-      stopTimePolling();
-      timeIntervalRef.current = setInterval(() => {
-        if (
-          !playerRef.current ||
-          typeof playerRef.current.getCurrentTime !== "function"
-        )
-          return;
-
-        const currentTime = playerRef.current.getCurrentTime();
-        setTime(currentTime);
-
-        if (clipEnforcementEnabledRef.current && end && currentTime >= end) {
-          playerRef.current.pauseVideo();
-        }
-      }, 100);
-    };
-
-    const onPlayerStateChange = (event: any) => {
-      const state = event.data;
-      const YT = (window as any).YT;
-
-      // Update time immediately on state change
-      if (
-        playerRef.current &&
-        typeof playerRef.current.getCurrentTime === "function"
-      ) {
-        setTime(playerRef.current.getCurrentTime());
-      }
-
-      if (
-        previousStateRef.current === YT.PlayerState.ENDED &&
-        state === YT.PlayerState.PLAYING
-      ) {
-        playerRef.current.seekTo(start);
-      }
-
-      if (state === YT.PlayerState.PLAYING) {
-        startTimePolling();
-        onPlayingStateChange?.(true);
-      }
-
-      if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.ENDED) {
-        stopTimePolling();
-        onPlayingStateChange?.(false);
-      }
-
-      previousStateRef.current = state;
-    };
-
-    useEffect(() => {
-      const initPlayer = () => {
-        const YT = (window as any).YT;
-        playerRef.current = new YT.Player(containerId.current, {
-          videoId,
-          height: "100%",
-          width: "100%",
-          playerVars: {
-            autoplay: autoplay ? 1 : 0,
-            controls: 0,
-            start: Math.floor(start),
-            rel: 0,
-            playsinline: 1,
-            mute: muted ? 1 : 0,
-          },
-          events: {
-            onReady: (event: any) => {
-              if (playbackSpeed) event.target.setPlaybackRate(playbackSpeed);
-              if (autoplay) event.target.playVideo();
-              // Report initial time
-              if (typeof event.target.getCurrentTime === "function") {
-                setTime(event.target.getCurrentTime());
-              }
-            },
-            onStateChange: onPlayerStateChange,
-          },
-        });
-      };
-
-      if (!(window as any).YT) {
-        const tag = document.createElement("script");
-        tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName("script")[0];
-        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-        (window as any).onYouTubeIframeAPIReady = initPlayer;
-      } else {
-        initPlayer();
-      }
-
-      return () => {
-        stopTimePolling();
-        if (playerRef.current) {
-          playerRef.current.destroy();
-        }
-      };
-    }, []);
-
-    return (
-      <View style={styles.container}>
-        <div
-          id={containerId.current}
-          style={{ width: "100%", height: "100%" }}
-        />
-        {videoText && (
-          <View style={styles.videoTextContainer}>
-            <Text style={styles.videoText}>{videoText}</Text>
-          </View>
-        )}
-      </View>
-    );
-  },
-);
-
 const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
   (props, ref) => {
-    if (Platform.OS === "web") {
-      return <YoutubePlayerWeb {...props} ref={ref} key={props.refreshKey} />;
-    }
-
     const {
       videoId,
       clip,
@@ -305,7 +124,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
         start: clip?.start
           ? clip.start.toString()
           : (startTime?.toString() ?? "0"),
-        end: clip && clip.end ? clip.end.toString() : undefined,
+        end: clip?.end ? clip.end.toString() : undefined,
         controls: "1",
         speed: playbackSpeed.toString(),
       });

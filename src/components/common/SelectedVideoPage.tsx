@@ -197,6 +197,17 @@ const SelectedVideoPage: React.FC = () => {
     loadTranslationInsights();
   }, [currentSentenceIndex, userSettings.translationLanguage]);
 
+  const getEndPadding = useCallback(
+    (sentenceIndex: number) => {
+      const next = currentVideo?.sentences[sentenceIndex + 1];
+      if (!next) return 0.4;
+      const current = currentVideo?.sentences[sentenceIndex];
+      const gap = next.start - (current?.end ?? 0);
+      return gap > 0.5 ? 0.4 : 0;
+    },
+    [currentVideo?.sentences],
+  );
+
   const [showVideo, setShowVideo] = useState<boolean>(true);
   const [clipRefreshKey, setClipRefreshKey] = useState(0);
 
@@ -269,7 +280,7 @@ const SelectedVideoPage: React.FC = () => {
     } else {
       playerRef.current?.setClip(
         currentSentenceObject?.start ?? 0,
-        currentSentenceObject?.end ?? 0,
+        (currentSentenceObject?.end ?? 0) + getEndPadding(currentSentenceIndex),
       );
     }
   }, [shadowMode]);
@@ -348,11 +359,18 @@ const SelectedVideoPage: React.FC = () => {
     if (shadowMode === "stream") {
       playerRef.current?.disableClipEnforcement();
     } else {
-      playerRef.current?.setClip(next?.start ?? 0, next?.end ?? 0);
+      playerRef.current?.setClip(
+        next?.start ?? 0,
+        (next?.end ?? 0) + getEndPadding(next?.index ?? 0),
+      );
     }
     playerRef.current?.seekAndPlay(next?.start ?? 0);
     startStallTimerRef.current();
-  }, [currentSentenceObject?.index, currentVideo?.sentences.length]);
+  }, [
+    currentSentenceObject?.index,
+    currentVideo?.sentences.length,
+    getEndPadding,
+  ]);
 
   const handlePreviousSentence = useCallback(
     (n = 1) => {
@@ -370,7 +388,10 @@ const SelectedVideoPage: React.FC = () => {
       if (shadowMode === "stream") {
         playerRef.current?.disableClipEnforcement();
       } else {
-        playerRef.current?.setClip(target?.start ?? 0, target?.end ?? 0);
+        playerRef.current?.setClip(
+          target?.start ?? 0,
+          (target?.end ?? 0) + getEndPadding(target?.index ?? 0),
+        );
       }
       playerRef.current?.seekAndPlay(target?.start ?? 0);
       startStallTimerRef.current();
@@ -390,7 +411,8 @@ const SelectedVideoPage: React.FC = () => {
       currentSentenceObject?.start ?? 0,
       shadowMode === "stream"
         ? undefined
-        : (currentSentenceObject?.end ?? undefined),
+        : (currentSentenceObject?.end ?? 0) +
+            getEndPadding(currentSentenceIndex),
     );
     playerRef.current?.seekAndPlay(currentSentenceObject?.start ?? 0);
     startStallTimerRef.current();
@@ -464,7 +486,8 @@ const SelectedVideoPage: React.FC = () => {
 
   if (!currentVideo) return null;
 
-  const endTime = currentSentenceObject?.end;
+  const endTime =
+    (currentSentenceObject?.end ?? 0) + getEndPadding(currentSentenceIndex);
   return (
     <View style={styles.container}>
       <View
@@ -604,7 +627,10 @@ const styles = StyleSheet.create({
     margin: 12,
   },
   videoContainer: {
-    height: Dimensions.get("window").width > 600 ? Math.round(Dimensions.get("window").width * 9 / 16) : 230,
+    height:
+      Dimensions.get("window").width > 600
+        ? Math.round((Dimensions.get("window").width * 9) / 16)
+        : 230,
     backgroundColor: "#000",
     position: "relative",
     marginTop: 0,

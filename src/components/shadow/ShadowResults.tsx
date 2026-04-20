@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
 import { AccuracyResult } from "../../types";
 import { MaterialIcons } from "@expo/vector-icons";
-import { normalizeWord, removeSpecialPunctuation } from "../../helpers/helpers";
+import { normalizeWord, removeSpecialPunctuation, stripPhraseComma } from "../../helpers/helpers";
 import AccuracyCircle from "../common/AccuracyCircle";
 
 interface ShadowResultsProps {
@@ -89,7 +89,11 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
     index: number,
   ) => {
     const isLast = index === accuracyResult.details.length - 1;
-    let targetText = removeSpecialPunctuation(detail.targetWord);
+    const nextTargetWord = accuracyResult.details[index + 1]?.targetWord;
+    let targetText = stripPhraseComma(
+      removeSpecialPunctuation(detail.targetWord),
+      nextTargetWord,
+    );
     if (
       index === 0 &&
       targetText[0] &&
