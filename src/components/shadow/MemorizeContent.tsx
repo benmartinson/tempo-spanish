@@ -17,7 +17,7 @@ interface MemorizeContentProps {
   playerSpeed?: number;
   currentSentence: Sentence;
   playerIsPlaying: boolean;
-  disableGuessModal?: boolean;
+  isRecording?: boolean;
   localDifficulty: number;
   onLocalDifficultyChange: (d: number) => void;
   playWordSnippet?: (word: SegmentWord, isSlow?: boolean) => void;
@@ -29,7 +29,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   playerSpeed,
   currentSentence,
   playerIsPlaying,
-  disableGuessModal = false,
+  isRecording = false,
   localDifficulty,
   onLocalDifficultyChange,
   playWordSnippet,
@@ -81,20 +81,18 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
   const [hintLevels, setHintLevels] = useState<Record<number, number>>({});
 
-  const maskedIndices = useMemo(() => {
+  // Compute which words would be masked (ignoring reveals) — stable per difficulty/segment
+  const baseMaskedIndices = useMemo(() => {
     const masked = new Set<number>();
     if (difficulty === 0 || !currentSentence.words) return masked;
     if (difficulty === 4) {
-      currentSentence.words.forEach((_, i) => {
-        if (!revealedWords.has(i)) masked.add(i);
-      });
+      currentSentence.words.forEach((_, i) => masked.add(i));
       return masked;
     }
     const easyWords = new Set([...SPANISH_PREPOSITIONS, ...SPANISH_PRONOUNS]);
     const easyIndices: number[] = [];
     const restIndices: number[] = [];
     currentSentence.words.forEach((word, i) => {
-      if (revealedWords.has(i)) return;
       const normalized = word.word
         .trim()
         .toLowerCase()
@@ -124,7 +122,15 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
       }
     }
     return masked;
-  }, [currentSentence.words, difficulty, revealedWords]);
+  }, [currentSentence.words, difficulty]);
+
+  // Subtract revealed words — doesn't shift which other words are masked
+  const maskedIndices = useMemo(() => {
+    if (revealedWords.size === 0) return baseMaskedIndices;
+    const masked = new Set(baseMaskedIndices);
+    revealedWords.forEach((i) => masked.delete(i));
+    return masked;
+  }, [baseMaskedIndices, revealedWords]);
 
   // How many characters to reveal per hint level
   const revealCounts = useMemo(() => {
@@ -141,7 +147,12 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     setRevealedWords(new Set());
     setHintLevels({});
     setManualOverride(null);
-  }, [currentSentence.index, disableGuessModal]);
+  }, [currentSentence.index]);
+
+  useEffect(() => {
+    setRevealedWords(new Set());
+    setHintLevels({});
+  }, [isRecording]);
 
   return (
     <ScrollView style={styles.container}>
@@ -153,11 +164,11 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
         playerSpeed={playerSpeed}
         playerIsPlaying={playerIsPlaying}
         showFullText
-        disableGuessModal={disableGuessModal}
+        disableGuessModal={isRecording}
         playWordSnippet={playWordSnippet}
         revealCounts={revealCounts}
         onWordPress={(index) => {
-          if (disableGuessModal) {
+          if (isRecording) {
             // During recording: progressive hint reveal
             const currentLevel = hintLevels[index] ?? 0;
             const wordText = currentSentence.words?.[index]?.word?.trim() ?? "";

@@ -1,4 +1,12 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  LayoutChangeEvent,
+} from "react-native";
+import { useRef, useEffect, useState } from "react";
 
 const MAX_DIFFICULTY = 4;
 
@@ -12,6 +20,31 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
   onDifficultyChange,
 }) => {
   const ticks = Array.from({ length: MAX_DIFFICULTY + 1 }, (_, i) => i);
+  const animatedValue = useRef(new Animated.Value(difficulty)).current;
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  useEffect(() => {
+    Animated.timing(animatedValue, {
+      toValue: difficulty,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [difficulty]);
+
+  const handleTrackLayout = (e: LayoutChangeEvent) => {
+    setTrackWidth(e.nativeEvent.layout.width);
+  };
+
+  const indicatorLeft =
+    trackWidth > 0
+      ? animatedValue.interpolate({
+          inputRange: [0, MAX_DIFFICULTY],
+          outputRange: [4, trackWidth - 8],
+        })
+      : animatedValue.interpolate({
+          inputRange: [0, MAX_DIFFICULTY],
+          outputRange: ["0%", "100%"],
+        });
 
   return (
     <View style={styles.container}>
@@ -20,13 +53,11 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
         disabled={difficulty === 0}
         hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
       >
-        <Text
-          style={[styles.label, difficulty === 0 && styles.labelDisabled]}
-        >
+        <Text style={[styles.label, difficulty === 0 && styles.labelDisabled]}>
           More hints
         </Text>
       </TouchableOpacity>
-      <View style={styles.trackContainer}>
+      <View style={styles.trackContainer} onLayout={handleTrackLayout}>
         <View style={styles.line} />
         <View style={styles.ticksRow}>
           {ticks.map((i) => (
@@ -36,12 +67,13 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
               onPress={() => onDifficultyChange(i)}
               hitSlop={{ top: 16, bottom: 16, left: 10, right: 10 }}
             >
-              <View
-                style={[styles.tick, i === difficulty && styles.tickActive]}
-              />
+              <View style={styles.tick} />
             </TouchableOpacity>
           ))}
         </View>
+        {trackWidth > 0 && (
+          <Animated.View style={[styles.indicator, { left: indicatorLeft }]} />
+        )}
       </View>
       <TouchableOpacity
         onPress={() =>
@@ -107,11 +139,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#ccc",
     borderRadius: 1,
   },
-  tickActive: {
+  indicator: {
+    position: "absolute",
     width: 4,
     height: 20,
     backgroundColor: "#3d3a52",
     borderRadius: 2,
+    top: 2,
   },
 });
 
