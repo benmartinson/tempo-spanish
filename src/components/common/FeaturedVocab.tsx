@@ -8,6 +8,7 @@ import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import { MaterialIcons } from "@expo/vector-icons";
 import WordModal from "./WordModal";
+import SignInPromptModal from "./SignInPromptModal";
 import { saveFocusVocabTranslation } from "../../requests";
 
 interface FeaturedVocabProps {
@@ -33,9 +34,10 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
 
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
-  const { userId } = useAuth();
+  const { userId, isSignedIn } = useAuth();
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
@@ -54,7 +56,13 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
             <View style={styles.hiddenPlayButton}>
               <MaterialIcons name="play-arrow" size={20} color="black" />
             </View>
-            <TouchableOpacity onPress={() => setModalVisible(true)}>
+            <TouchableOpacity
+              onPress={() =>
+                isSignedIn
+                  ? setModalVisible(true)
+                  : setShowSignInModal(true)
+              }
+            >
               <View style={styles.playButton}>
                 <MaterialIcons name="translate" size={20} color="black" />
               </View>
@@ -105,6 +113,10 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
         playerIsPlaying={playerIsPlaying}
         vocabCache={vocabCache}
         onVocabCacheUpdate={onVocabCacheUpdate}
+      />
+      <SignInPromptModal
+        visible={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
       />
     </View>
   );

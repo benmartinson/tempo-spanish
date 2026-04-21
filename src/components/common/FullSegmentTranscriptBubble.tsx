@@ -9,6 +9,7 @@ import {
 import { RootState, SegmentWord, VocabCacheEntry } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import WordModal from "./WordModal";
+import SignInPromptModal from "./SignInPromptModal";
 import { useSelector, useDispatch } from "react-redux";
 import {
   addUserSelectedVocab,
@@ -66,14 +67,19 @@ const FullSegmentTranscriptBubble: React.FC<
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
-  const { userId } = useAuth();
+  const { userId, isSignedIn } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
   const [guessWord, setGuessWord] = useState<string | null>(null);
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   const handleSelectForReview = useCallback(
     async (word: SegmentWord) => {
       if (!currentVideo) return;
+      if (!isSignedIn) {
+        setShowSignInModal(true);
+        return;
+      }
       const wordKey = vocabFormatWord(word.word);
       dispatch(addUserSelectedVocab([wordKey]));
       if (supabase && userId && currentVideo.videoViewId) {
@@ -335,6 +341,10 @@ const FullSegmentTranscriptBubble: React.FC<
             }
           }
         }}
+      />
+      <SignInPromptModal
+        visible={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
       />
     </View>
   );

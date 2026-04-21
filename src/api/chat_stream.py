@@ -28,7 +28,7 @@ from elevenlabs.client import ElevenLabs
 
 # Import the transcription router
 from soniox_transcription import router as transcription_router
-from auth import check_credits, verify_jwt, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+from auth import verify_jwt, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 # Load environment variables
 load_dotenv()
@@ -274,7 +274,7 @@ class TTSRequest(BaseModel):
 
 
 @app.post("/tts")
-async def tts(request: TTSRequest, user_id: str = Depends(check_credits)):
+async def tts(request: TTSRequest, user_id: str = Depends(verify_jwt)):
     """Generate TTS audio for arbitrary text."""
     audio_base64 = generate_tts_audio(request.text)
     if audio_base64 is None:
@@ -323,7 +323,7 @@ Output ONLY valid JSON in this format:
 
 
 @app.post("/fetch-vocab-translation")
-async def fetch_vocab_translation(request: FetchVocabTranslationRequest, user_id: str = Depends(check_credits)):
+async def fetch_vocab_translation(request: FetchVocabTranslationRequest, user_id: str = Depends(verify_jwt)):
     """
     Fetch the in-context English translation of a Spanish vocabulary word.
     """
@@ -413,7 +413,7 @@ What does "{request.vocab_word}" mean in this sentence?"""
 
 
 @app.post("/translation-insights")
-async def translation_insights(request: TranslationInsightsRequest, user_id: str = Depends(check_credits)):
+async def translation_insights(request: TranslationInsightsRequest, user_id: str = Depends(verify_jwt)):
     """
     Extract proper nouns (characters, places) from a sentence and
     translate each word in the context of the sentence.
