@@ -132,7 +132,9 @@ const WordModal: React.FC<WordModalProps> = ({
                 isHidingTranslation && setIsHidingTranslation(false)
               }
             >
-              <Text style={styles.translationText}>{translation}</Text>
+              <Text style={styles.translationText}>
+                {capitalize(translation)}
+              </Text>
               {isHidingTranslation && (
                 <View style={styles.translationOverlay}>
                   <Text style={styles.showTranslationText}>
