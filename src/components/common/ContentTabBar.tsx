@@ -55,7 +55,7 @@ const ContentTabBar: React.FC<ContentTabBarProps> = ({
           ))}
         </ScrollView>
       )}
-      <View style={styles.childrenWrapper}>
+      <View style={[styles.childrenWrapper, hidden && { display: 'none' }]}>
         {children}
       </View>
     </View>

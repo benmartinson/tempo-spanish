@@ -208,6 +208,17 @@ const SelectedVideoPage: React.FC = () => {
     [currentVideo?.sentences],
   );
 
+  const getStartPadding = useCallback(
+    (sentenceIndex: number) => {
+      const prev = currentVideo?.sentences[sentenceIndex - 1];
+      if (!prev) return 0.4;
+      const current = currentVideo?.sentences[sentenceIndex];
+      const gap = (current?.start ?? 0) - prev.end;
+      return gap > 0.5 ? 0.4 : 0;
+    },
+    [currentVideo?.sentences],
+  );
+
   const [showVideo, setShowVideo] = useState<boolean>(true);
   const [clipRefreshKey, setClipRefreshKey] = useState(0);
 
@@ -279,7 +290,7 @@ const SelectedVideoPage: React.FC = () => {
       playerRef.current?.disableClipEnforcement();
     } else {
       playerRef.current?.setClip(
-        currentSentenceObject?.start ?? 0,
+        (currentSentenceObject?.start ?? 0) - getStartPadding(currentSentenceIndex),
         (currentSentenceObject?.end ?? 0) + getEndPadding(currentSentenceIndex),
       );
     }
@@ -360,16 +371,17 @@ const SelectedVideoPage: React.FC = () => {
       playerRef.current?.disableClipEnforcement();
     } else {
       playerRef.current?.setClip(
-        next?.start ?? 0,
+        (next?.start ?? 0) - getStartPadding(next?.index ?? 0),
         (next?.end ?? 0) + getEndPadding(next?.index ?? 0),
       );
     }
-    playerRef.current?.seekAndPlay(next?.start ?? 0);
+    playerRef.current?.seekAndPlay((next?.start ?? 0) - getStartPadding(next?.index ?? 0));
     startStallTimerRef.current();
   }, [
     currentSentenceObject?.index,
     currentVideo?.sentences.length,
     getEndPadding,
+    getStartPadding,
   ]);
 
   const handlePreviousSentence = useCallback(
@@ -389,11 +401,11 @@ const SelectedVideoPage: React.FC = () => {
         playerRef.current?.disableClipEnforcement();
       } else {
         playerRef.current?.setClip(
-          target?.start ?? 0,
+          (target?.start ?? 0) - getStartPadding(target?.index ?? 0),
           (target?.end ?? 0) + getEndPadding(target?.index ?? 0),
         );
       }
-      playerRef.current?.seekAndPlay(target?.start ?? 0);
+      playerRef.current?.seekAndPlay((target?.start ?? 0) - getStartPadding(target?.index ?? 0));
       startStallTimerRef.current();
     },
     [currentSentenceObject?.index, currentVideo?.sentences],
@@ -407,14 +419,15 @@ const SelectedVideoPage: React.FC = () => {
     prevTimeRef.current = -1;
     setPlayerIsPlaying(true);
     currentClipSnippetRef.current = null;
+    const startPad = getStartPadding(currentSentenceIndex);
     playerRef.current?.setClip(
-      currentSentenceObject?.start ?? 0,
+      (currentSentenceObject?.start ?? 0) - startPad,
       shadowMode === "stream"
         ? undefined
         : (currentSentenceObject?.end ?? 0) +
             getEndPadding(currentSentenceIndex),
     );
-    playerRef.current?.seekAndPlay(currentSentenceObject?.start ?? 0);
+    playerRef.current?.seekAndPlay((currentSentenceObject?.start ?? 0) - startPad);
     startStallTimerRef.current();
   }, [currentSentenceObject?.start, shadowMode]);
 
@@ -486,6 +499,8 @@ const SelectedVideoPage: React.FC = () => {
 
   if (!currentVideo) return null;
 
+  const startTime =
+    (currentSentenceObject?.start ?? 0) - getStartPadding(currentSentenceIndex);
   const endTime =
     (currentSentenceObject?.end ?? 0) + getEndPadding(currentSentenceIndex);
   return (
@@ -503,7 +518,7 @@ const SelectedVideoPage: React.FC = () => {
             index: currentSentenceObject?.index,
             text: currentSentenceObject?.text,
             words: currentSentenceObject?.words,
-            start: currentSentenceObject?.start,
+            start: startTime,
             end: endTime,
           }}
           autoplay={autoplay}

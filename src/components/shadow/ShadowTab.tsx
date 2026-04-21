@@ -1276,8 +1276,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               </TouchableOpacity>
             </View>
           )}
-          {!accuracyResult && !isProcessing && (
+          {
             <ContentTabBar
+              hidden={!!(accuracyResult || isProcessing)}
               tabs={[
                 { key: "memorize", label: "Transcript" },
                 { key: "insights", label: "Insights" },
@@ -1286,7 +1287,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               ]}
               selectedTab={selectedTab}
               onSelectTab={(key) => setSelectedTab(key as ContentTab)}
-              hidden={false}
             >
               {selectedTab === "memorize" ? (
                 <MemorizeContent
@@ -1437,7 +1437,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                 </ScrollView>
               )}
             </ContentTabBar>
-          )}
+          }
         </View>
 
         {/* Input Area - always visible when not in recording mode or showing results */}
