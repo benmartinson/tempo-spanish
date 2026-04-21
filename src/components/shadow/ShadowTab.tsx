@@ -1476,6 +1476,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               }
             }}
             disabled={!hasPermission || isProcessing}
+            hideTrash={!isRecording}
           />
         )}
       </View>

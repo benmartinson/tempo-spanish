@@ -26,8 +26,6 @@ A single-page HTML app hosted on **Vercel** at `https://yt-relay.vercel.app`. Th
 
 This relay architecture allows full control over YouTube playback (seeking, speed, clip enforcement) without relying on any third-party React Native YouTube package.
 
--- currently on hobby plan
-
 ### Backend API (`src/api/` — AWS App Runner)
 
 A **FastAPI** server hosted on **AWS App Runner** at `https://aqgubuisev.us-west-2.awsapprunner.com`. Handles AI-powered features that require server-side API keys.
@@ -36,7 +34,7 @@ A **FastAPI** server hosted on **AWS App Runner** at `https://aqgubuisev.us-west
 
 | Endpoint                        | Auth          | Description                                                                                |
 | ------------------------------- | ------------- | ------------------------------------------------------------------------------------------ |
-| `POST /api/transcribe`          | JWT + credits | Sends recorded audio to **Soniox** for Spanish speech-to-text (deducts 1 credit)          |
+| `POST /api/transcribe`          | JWT + credits | Sends recorded audio to **Soniox** for Spanish speech-to-text (deducts 1 credit)           |
 | `POST /fetch-vocab-translation` | JWT           | Uses **OpenAI** (gpt-4.1-mini) to translate a Spanish word in context + alternate meanings |
 | `POST /translation-insights`    | JWT           | Extracts proper nouns and translates a full sentence via **OpenAI**                        |
 | `POST /tts`                     | JWT           | Generates speech audio via **ElevenLabs**                                                  |
@@ -56,16 +54,12 @@ PostgreSQL database accessed directly from the mobile app (via Supabase client +
 - `video_view_focus_vocab` — per-video vocab translations and review counts
 - `sentence_insights` — cached translations and proper nouns per sentence
 
--- Currently on pro plan ($25/month)
-
 ### Clerk (Authentication)
 
 Manages user sign-up/sign-in. Issues JWTs with two templates:
 
 - **`supabase`** — used by the mobile app's Supabase client (RLS policies)
 - **`backend`** — used for API calls to the FastAPI server
-
-- Currently on free plan
 
 ## Development
 
@@ -83,3 +77,19 @@ uvicorn chat_stream:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 The app uses `devBaseUrl` (`http://192.168.1.124:8000`) in development and `productionBaseUrl` (App Runner) in production, configured in `app.config.js`.
+
+### All Accounts and costs
+
+1. OpenAI API ($0.001/request) - for word translations and segment insights
+2. Supabase (pro plan) ($25/month) - storage and tables
+3. Vercel (hobby plan) - yt-relay and Next site, will this scale correctly on free plan? tempo-spanish.com domain
+4. Clerk (free plan for now) ($30/month) - up until 50k users? Need to switch to prod deployed
+5. Google translate - for full segment translation
+6. Google oauth - need to switch to prod?
+7. Aws AppRunner - backend api - will start costing more with more users
+8. Aws ECR - hosts the code for batch
+9. Aws Batch - Runs transcript processing - $0.05 per video
+10. Apple developer account - $100 per year
+11. Apple store connect - iap, and pushing to store
+12. Email service?
+13. Sonoix transcription ($0.10/hour)

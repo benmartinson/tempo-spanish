@@ -12,6 +12,8 @@ import { useSelector } from "react-redux";
 import SlideModal from "./common/SlideModal";
 import CreditStore from "./CreditStore";
 import TermsOfUseModal from "./TermsOfUseModal";
+import PrivacyPolicyModal from "./PrivacyPolicyModal";
+import HelpAndFeedbackModal from "./HelpAndFeedbackModal";
 import { RootState } from "../types";
 
 interface ProfileModalProps {
@@ -59,6 +61,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   const userCredits = useSelector((state: RootState) => state.userCredits);
   const [creditStoreVisible, setCreditStoreVisible] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
+  const [helpVisible, setHelpVisible] = useState(false);
 
   const handleSignOut = async () => {
     onClose();
@@ -113,8 +117,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
         <Text style={styles.sectionHeader}>Support</Text>
         <View style={styles.card}>
           <MenuRow label="Terms of Use" onPress={() => setTermsVisible(true)} />
-          <MenuRow label="Privacy Policy" onPress={() => {}} />
-          <MenuRow label="Help & Feedback" onPress={() => {}} isLast />
+          <MenuRow label="Privacy Policy" onPress={() => setPrivacyVisible(true)} />
+          <MenuRow label="Help & Feedback" onPress={() => setHelpVisible(true)} isLast />
         </View>
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
@@ -131,6 +135,16 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
       <TermsOfUseModal
         visible={termsVisible}
         onClose={() => setTermsVisible(false)}
+      />
+
+      <PrivacyPolicyModal
+        visible={privacyVisible}
+        onClose={() => setPrivacyVisible(false)}
+      />
+
+      <HelpAndFeedbackModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
       />
     </SlideModal>
   );
