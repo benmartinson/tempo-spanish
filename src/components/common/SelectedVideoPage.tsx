@@ -35,10 +35,11 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import ShadowTab from "../shadow/ShadowTab";
-import { ignoreVocab, stripPunctuation } from "../../helpers/helpers";
+import { stripPunctuation } from "../../helpers/helpers";
 import SlideModal from "./SlideModal";
 import WalkthroughModal from "./WalkthroughModal";
 import { setHasSeenWelcomeModals } from "../../store/actions/dataActions";
+import { SPANISH_PREPOSITIONS, SPANISH_PRONOUNS } from "../../constants";
 
 if (
   Platform.OS === "android" &&
@@ -53,7 +54,6 @@ const SelectedVideoPage: React.FC = () => {
     (state: RootState) => state.videoRefreshKey,
   );
   const dispatch = useDispatch();
-  const { userId } = useAuth();
   const hasSeenWelcomeModals = useSelector(
     (state: RootState) => state.hasSeenWelcomeModals,
   );
@@ -119,7 +119,8 @@ const SelectedVideoPage: React.FC = () => {
         const normalized = stripPunctuation(sw.word.toLowerCase()).trim();
         return (
           normalized.length > 3 &&
-          !ignoreVocab.includes(normalized) &&
+          !SPANISH_PREPOSITIONS.includes(normalized) &&
+          !SPANISH_PRONOUNS.includes(normalized) &&
           !properNounSet.has(normalized)
         );
       })
@@ -290,7 +291,8 @@ const SelectedVideoPage: React.FC = () => {
       playerRef.current?.disableClipEnforcement();
     } else {
       playerRef.current?.setClip(
-        (currentSentenceObject?.start ?? 0) - getStartPadding(currentSentenceIndex),
+        (currentSentenceObject?.start ?? 0) -
+          getStartPadding(currentSentenceIndex),
         (currentSentenceObject?.end ?? 0) + getEndPadding(currentSentenceIndex),
       );
     }
@@ -375,7 +377,9 @@ const SelectedVideoPage: React.FC = () => {
         (next?.end ?? 0) + getEndPadding(next?.index ?? 0),
       );
     }
-    playerRef.current?.seekAndPlay((next?.start ?? 0) - getStartPadding(next?.index ?? 0));
+    playerRef.current?.seekAndPlay(
+      (next?.start ?? 0) - getStartPadding(next?.index ?? 0),
+    );
     startStallTimerRef.current();
   }, [
     currentSentenceObject?.index,
@@ -405,7 +409,9 @@ const SelectedVideoPage: React.FC = () => {
           (target?.end ?? 0) + getEndPadding(target?.index ?? 0),
         );
       }
-      playerRef.current?.seekAndPlay((target?.start ?? 0) - getStartPadding(target?.index ?? 0));
+      playerRef.current?.seekAndPlay(
+        (target?.start ?? 0) - getStartPadding(target?.index ?? 0),
+      );
       startStallTimerRef.current();
     },
     [currentSentenceObject?.index, currentVideo?.sentences],
@@ -427,7 +433,9 @@ const SelectedVideoPage: React.FC = () => {
         : (currentSentenceObject?.end ?? 0) +
             getEndPadding(currentSentenceIndex),
     );
-    playerRef.current?.seekAndPlay((currentSentenceObject?.start ?? 0) - startPad);
+    playerRef.current?.seekAndPlay(
+      (currentSentenceObject?.start ?? 0) - startPad,
+    );
     startStallTimerRef.current();
   }, [currentSentenceObject?.start, shadowMode]);
 

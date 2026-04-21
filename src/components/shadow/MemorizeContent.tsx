@@ -45,7 +45,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
 
   const baseDifficulty = userSettings.autoSelectDifficulty
     ? getAutoHintDifficulty(
-        currentSentence.words?.length ?? 0,
+        currentSentence.text?.length ?? 0,
         userSettings.autoSelectDifficultyLevel,
       )
     : userSettings.saveMemorizeDifficulty

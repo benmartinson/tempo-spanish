@@ -1,4 +1,9 @@
 import {
+  ABBREVIATIONS,
+  COMMON_SPLIT_WORDS,
+  SPANISH_NUMBER_WORDS,
+} from "../constants";
+import {
   Segment,
   Sentence,
   SegmentWord,
@@ -59,49 +64,6 @@ export const getResponseForPercentage = (percentage: number): string => {
   return "You got less than 10 percent correct";
 };
 
-export const ignoreVocab = [
-  "por",
-  "la",
-  "los",
-  "las",
-  "el",
-  "un",
-  "una",
-  "unos",
-  "unas",
-  "familia",
-  "de",
-  "se",
-  "y",
-  "en",
-  "con",
-  "quien",
-  "como",
-  "sin",
-  "al",
-  "del",
-  "a",
-  "no",
-  "les",
-  "le",
-  "lo",
-  "que",
-  "es",
-  "si",
-  "su",
-  "uno",
-  "o",
-  "esta",
-  "está",
-  "esto",
-  "estos",
-  "estas",
-  "esté",
-  "este",
-  "todo",
-  "todos",
-];
-
 export const addEllipsis = (text: string, sentenceText?: string) => {
   const ref = sentenceText ?? text;
   const firstChar = ref.trimStart()[0];
@@ -133,28 +95,6 @@ export const stripPunctuation = (word: string) => {
 
 export const normalizeWord = (word: string) =>
   capitalize(stripPunctuation(word.trim().toLowerCase()));
-
-// Helper function to split words into sentences based on punctuation
-const ABBREVIATIONS = new Set([
-  "Dr.",
-  "Mr.",
-  "Mrs.",
-  "Ms.",
-  "Sr.",
-  "Sra.",
-  "Srta.",
-  "Prof.",
-  "Dra.",
-  "Jr.",
-  "St.",
-  "Ave.",
-  "vs.",
-  "etc.",
-  "Ud.",
-  "Uds.",
-  "Lic.",
-  "Ing.",
-]);
 
 export const splitIntoSentences = (words: SegmentWord[]): SegmentWord[][] => {
   const sentences: SegmentWord[][] = [];
@@ -280,58 +220,6 @@ export const findSentenceWithVocab = (
 
 export const vocabFormatWord = (word: string) => {
   return stripPunctuation(word.toLowerCase()).trim();
-};
-
-const SPANISH_NUMBER_WORDS: Record<string, string> = {
-  cero: "0",
-  uno: "1",
-  una: "1",
-  dos: "2",
-  tres: "3",
-  cuatro: "4",
-  cinco: "5",
-  seis: "6",
-  siete: "7",
-  ocho: "8",
-  nueve: "9",
-  diez: "10",
-  once: "11",
-  doce: "12",
-  trece: "13",
-  catorce: "14",
-  quince: "15",
-  dieciseis: "16",
-  diecisiete: "17",
-  dieciocho: "18",
-  diecinueve: "19",
-  veinte: "20",
-  veintiuno: "21",
-  veintidos: "22",
-  veintitres: "23",
-  veinticuatro: "24",
-  veinticinco: "25",
-  veintiseis: "26",
-  veintisiete: "27",
-  veintiocho: "28",
-  veintinueve: "29",
-  treinta: "30",
-  cuarenta: "40",
-  cincuenta: "50",
-  sesenta: "60",
-  setenta: "70",
-  ochenta: "80",
-  noventa: "90",
-  cien: "100",
-  ciento: "100",
-  doscientos: "200",
-  trescientos: "300",
-  cuatrocientos: "400",
-  quinientos: "500",
-  seiscientos: "600",
-  setecientos: "700",
-  ochocientos: "800",
-  novecientos: "900",
-  mil: "1000",
 };
 
 export const normalize = (s: string): string => {
@@ -534,26 +422,28 @@ export type DifficultyLevel =
   | "hardest";
 
 export const getAutoHintDifficulty = (
-  wordCount: number,
+  charCount: number,
   level: DifficultyLevel,
 ): number => {
   switch (level) {
     case "moderate":
-      if (wordCount <= 12) return 2;
-      if (wordCount <= 20) return 1;
+      if (charCount <= 72) return 2;
+      if (charCount <= 120) return 1;
       return 0;
     case "challenging":
-      if (wordCount <= 12) return 3;
-      if (wordCount <= 20) return 2;
-      if (wordCount <= 30) return 1;
+      if (charCount <= 72) return 3;
+      if (charCount <= 120) return 2;
+      if (charCount <= 180) return 1;
       return 0;
     case "difficult":
-      if (wordCount <= 12) return 4;
-      if (wordCount <= 20) return 3;
-      return 2;
+      if (charCount <= 72) return 4;
+      if (charCount <= 120) return 3;
+      if (charCount <= 180) return 2;
+      return 1;
     case "hardest":
-      if (wordCount <= 16) return 4;
-      return 3;
+      if (charCount <= 96) return 4;
+      if (charCount <= 180) return 3;
+      return 2;
   }
 };
 
@@ -648,17 +538,6 @@ export const computeSubSegments = (
 
   return [];
 };
-
-const COMMON_SPLIT_WORDS = [
-  "para",
-  "y",
-  "porque",
-  "and",
-  "because",
-  "now",
-  "ahora",
-  "tal vez",
-];
 
 const findSubSegmentBySplitWord = (
   segmentWords: SegmentWord[],
