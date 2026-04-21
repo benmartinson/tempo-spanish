@@ -39,7 +39,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   const hasStartedRecording = useRef(false);
   const hasStoppedRecording = useRef(false);
   const remainingSeconds = maxRecordingDuration - elapsedSeconds;
-  const showTimeWarning = phase === "recording" && remainingSeconds <= 10;
+  const showTimeWarning = phase === "recording" && remainingSeconds <= 5;
 
   // Pulse animation for recording indicator
   useEffect(() => {
@@ -148,8 +148,10 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
             style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]}
           />
           <Text style={styles.recordingText}>Recording</Text>
-          {showTimeWarning && remainingSeconds > 0 && (
-            <Text style={styles.timeWarningText}>{remainingSeconds}s</Text>
+          {showTimeWarning && Math.floor(remainingSeconds) > 0 && (
+            <Text style={styles.timeWarningText}>
+              {Math.floor(remainingSeconds)}s
+            </Text>
           )}
         </View>
         <View style={styles.buttonRow}>
@@ -177,7 +179,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginHorizontal: 16,
     backgroundColor: "#2d2a40",
     borderRadius: 16,
   },

@@ -101,37 +101,28 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   if (!translationText) return null;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.questionBubble}>
-        {/* <Text style={styles.questionLabel}>{label}</Text> */}
-        <Text style={styles.questionText}>
-          {words.map((word, index) => {
-            const isActive =
-              activeChunkIndex >= 0 &&
-              chunks[activeChunkIndex] &&
-              index >= chunks[activeChunkIndex][0] &&
-              index <= chunks[activeChunkIndex][1];
-            return (
-              <Text
-                key={index}
-                style={isActive ? styles.activeWord : undefined}
-              >
-                {index > 0 ? " " : ""}
-                {word}
-              </Text>
-            );
-          })}
-        </Text>
-      </View>
+    <View style={styles.questionBubble}>
+      {/* <Text style={styles.questionLabel}>{label}</Text> */}
+      <Text style={styles.questionText}>
+        {words.map((word, index) => {
+          const isActive =
+            activeChunkIndex >= 0 &&
+            chunks[activeChunkIndex] &&
+            index >= chunks[activeChunkIndex][0] &&
+            index <= chunks[activeChunkIndex][1];
+          return (
+            <Text key={index} style={isActive ? styles.activeWord : undefined}>
+              {index > 0 ? " " : ""}
+              {word}
+            </Text>
+          );
+        })}
+      </Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
   questionBubble: {
     backgroundColor: "#f0f4ff",
     borderRadius: 16,

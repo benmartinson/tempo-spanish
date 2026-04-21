@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import { sendAudioForTranscription } from "../../helpers/streaming_helpers";
 import { AccuracyResult, SegmentWord } from "../../types";
 import { capitalize } from "../../helpers/helpers";
+import TranslateContent from "./TranslateContent";
 
 interface TranslationReviewModalProps {
   visible: boolean;
@@ -75,6 +76,33 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
     onError: (message) => console.error("Recording error:", message),
   });
 
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const estimatedDuration = useMemo(
+    () => Math.max(3, englishTranslation.split(/\s+/).length * 0.8),
+    [englishTranslation],
+  );
+
+  useEffect(() => {
+    if (isRecording) {
+      setRecordingTime(0);
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime((t) => t + 0.1);
+      }, 100);
+    } else {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+    };
+  }, [isRecording]);
+
   const handleReset = () => {
     setUserAnswer("");
     setAccuracyResult(null);
@@ -105,6 +133,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   };
 
   const handleSubmitRecording = () => {
+    setIsTranscribing(true);
     stopRecording(false);
   };
 
@@ -119,7 +148,14 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
       title="Translate this sentence"
     >
       <View style={styles.content}>
-        <Text style={styles.englishText}>{englishTranslation}</Text>
+        <TranslateContent
+          translationText={englishTranslation}
+          isLoading={false}
+          time={recordingTime}
+          playerIsPlaying={isRecording}
+          segmentStart={0}
+          segmentEnd={estimatedDuration}
+        />
 
         {!accuracyResult && (
           <>
@@ -160,7 +196,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
                     onStopRecording={handleSubmitRecording}
                     onTrash={handleTrashRecording}
                     sentenceEnded={false}
-                    maxRecordingDuration={30}
+                    maxRecordingDuration={estimatedDuration + 5}
                     countdownDuration={0}
                   />
                 ) : (
@@ -216,12 +252,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#555",
     fontWeight: "500",
-  },
-  englishText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#222",
-    textAlign: "center",
   },
   inputWrapper: {
     position: "relative",

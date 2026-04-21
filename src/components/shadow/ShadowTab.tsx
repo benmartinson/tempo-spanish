@@ -1301,18 +1301,25 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   playWordSnippet={handlePlaySnippetAgain}
                 />
               ) : selectedTab === "translate" ? (
-                <TranslateContent
-                  translationText={sentenceTranslation}
-                  sentenceText={currentSentenceObject?.text}
-                  isLoading={isLoadingInsights}
-                  time={time}
-                  playerIsPlaying={playerIsPlaying}
-                  segmentStart={currentSentenceObject?.start}
-                  segmentEnd={currentSentenceObject?.end}
-                  playKey={playKey}
-                  isRecording={isRecording}
-                  playerSpeed={playerSpeed}
-                />
+                <View
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingTop: 12,
+                  }}
+                >
+                  <TranslateContent
+                    translationText={sentenceTranslation}
+                    sentenceText={currentSentenceObject?.text}
+                    isLoading={isLoadingInsights}
+                    time={time}
+                    playerIsPlaying={playerIsPlaying}
+                    segmentStart={currentSentenceObject?.start}
+                    segmentEnd={currentSentenceObject?.end}
+                    playKey={playKey}
+                    isRecording={isRecording}
+                    playerSpeed={playerSpeed}
+                  />
+                </View>
               ) : (
                 <ScrollView
                   style={styles.transcriptContainer}
@@ -1562,7 +1569,8 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   countdownTimer: {
-    marginVertical: 11,
+    marginHorizontal: 16,
+    marginVertical: 10,
   },
   instructionContainer: {
     alignItems: "center",
