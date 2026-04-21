@@ -369,8 +369,42 @@ What does "{request.vocab_word}" mean in this sentence?"""
 
         result = json.loads(response.choices[0].message.content.strip())
 
+        # Parallel call for alternate meanings
+        alt_messages = [
+            {"role": "system", "content": "Given a Spanish word, list up to 3 other common English meanings of this word that are NOT the meaning used in the given sentence. Only include meanings that are genuinely different from the in-context meaning. If the word has fewer than 2 other common meanings, return fewer. Each meaning should be 1-3 words. Output valid JSON."},
+            {"role": "user", "content": f'Spanish word: "{request.vocab_word}"\nIn-context meaning: "{result["translation"]}"\nSentence: "{request.sentence_text}"'}
+        ]
+
+        alt_response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=alt_messages,
+            max_tokens=100,
+            temperature=0.3,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "alternate_meanings_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["meanings"],
+                        "properties": {
+                            "meanings": {
+                                "type": "array",
+                                "items": {"type": "string"}
+                            }
+                        },
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
+
+        alt_result = json.loads(alt_response.choices[0].message.content.strip())
+
         return {
             "translation": result["translation"],
+            "alternate_meanings": alt_result.get("meanings", [])[:3],
             "status": "complete"
         }
     except Exception as e:

@@ -59,7 +59,7 @@ import {
   incrementFocusVocabReviewCount,
   saveFocusVocabTranslation,
 } from "../../requests";
-import WordModal from "../common/WordModal";
+import { VocabCacheEntry } from "../../types";
 import TranslationReviewModal from "./TranslationReviewModal";
 import {
   setCurrentShadowTab,
@@ -201,8 +201,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [localDifficulty, setLocalDifficulty] = useState<number>(
     userSettings.defaultMemorizeDifficulty,
   );
+  const [vocabCache, setVocabCache] = useState<VocabCacheEntry[]>([]);
+  const handleVocabCacheUpdate = useCallback((entry: VocabCacheEntry) => {
+    setVocabCache((prev) => [...prev, entry]);
+  }, []);
   useEffect(() => {
     setLocalDifficulty(userSettings.defaultMemorizeDifficulty);
+    setVocabCache([]);
     setError(null);
   }, [currentSentenceIndex]);
 
@@ -1299,6 +1304,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   localDifficulty={localDifficulty}
                   onLocalDifficultyChange={setLocalDifficulty}
                   playWordSnippet={handlePlaySnippetAgain}
+                  vocabCache={vocabCache}
+                  onVocabCacheUpdate={handleVocabCacheUpdate}
                 />
               ) : selectedTab === "translate" ? (
                 <View
@@ -1343,6 +1350,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       replayingPhraseIndex={replayingPhraseIndex}
                       playbackTime={time}
                       isRecordingMode={isRecordingMode}
+                      vocabCache={vocabCache}
+                      onVocabCacheUpdate={handleVocabCacheUpdate}
                     />
                   ) : (
                     <VoiceCommands

@@ -300,6 +300,12 @@ export interface AccuracyDetail {
   _matchScore?: number;
   _spokenIndex?: number;
 }
+export interface VocabCacheEntry {
+  word: string;
+  translation: string;
+  alternateMeanings: string[];
+}
+
 export interface AccuracyResult {
   percentage: number;
   matchedWords: number;

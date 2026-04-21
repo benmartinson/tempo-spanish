@@ -144,7 +144,7 @@ export const fetchVocabTranslation = async ({
   vocabWord: string;
   sentenceText: string;
   sentenceTranslation?: string | null;
-}): Promise<string | null> => {
+}): Promise<{ translation: string | null; alternateMeanings: string[] }> => {
   const response = await backendFetch("/fetch-vocab-translation", {
     method: "POST",
     body: JSON.stringify({
@@ -159,7 +159,10 @@ export const fetchVocabTranslation = async ({
   }
 
   const data = await response.json();
-  return data.translation ?? null;
+  return {
+    translation: data.translation ?? null,
+    alternateMeanings: data.alternate_meanings ?? [],
+  };
 };
 
 export interface FetchTranslationInsightsParams {

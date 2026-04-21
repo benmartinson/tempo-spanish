@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { SegmentWord } from "../../types";
+import { SegmentWord, VocabCacheEntry } from "../../types";
 import {
   addEllipsis,
   removeSpecialPunctuation,
@@ -33,6 +33,8 @@ interface InsightsProps {
   onSubmitPhrases?: () => void;
   playbackTime?: number;
   isRecordingMode?: boolean;
+  vocabCache?: VocabCacheEntry[];
+  onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
 }
 
 const Insights: React.FC<InsightsProps> = ({
@@ -58,6 +60,8 @@ const Insights: React.FC<InsightsProps> = ({
   onSubmitPhrases,
   playbackTime,
   isRecordingMode,
+  vocabCache,
+  onVocabCacheUpdate,
 }) => {
   const [isShowingCharacters, setIsShowingCharacters] =
     useState<boolean>(showCharacters);
@@ -102,6 +106,8 @@ const Insights: React.FC<InsightsProps> = ({
         showWordHints={showWordsHints}
         onReplaySentence={onReplaySentence}
         playerIsPlaying={playerIsPlaying}
+        vocabCache={vocabCache}
+        onVocabCacheUpdate={onVocabCacheUpdate}
       />
       <>
         {characters.length > 0 && (

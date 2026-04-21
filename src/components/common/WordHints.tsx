@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { SegmentWord } from "../../types";
+import { SegmentWord, VocabCacheEntry } from "../../types";
 import FeaturedVocab from "./FeaturedVocab";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import ToggleHeader from "./ToggleHeader";
@@ -14,6 +14,8 @@ interface WordHintsProps {
   showSlowPlay?: boolean;
   onReplaySentence?: () => void;
   playerIsPlaying?: boolean;
+  vocabCache?: VocabCacheEntry[];
+  onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
 }
 
 const WordHints: React.FC<WordHintsProps> = ({
@@ -25,6 +27,8 @@ const WordHints: React.FC<WordHintsProps> = ({
   showSlowPlay = true,
   onReplaySentence,
   playerIsPlaying,
+  vocabCache,
+  onVocabCacheUpdate,
 }) => {
   const [currentHintIndex, setCurrentHintIndex] = useState<number>(0);
   const currentHintWord = hintWords[currentHintIndex];
@@ -85,6 +89,8 @@ const WordHints: React.FC<WordHintsProps> = ({
           showSlowPlay={showSlowPlay}
           onReplaySentence={onReplaySentence}
           playerIsPlaying={playerIsPlaying}
+          vocabCache={vocabCache}
+          onVocabCacheUpdate={onVocabCacheUpdate}
         />
       )}
     </View>

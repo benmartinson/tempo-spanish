@@ -11,6 +11,7 @@ import { capitalize, stripPunctuation } from "../../helpers/helpers";
 import { fetchVocabTranslation } from "../../requests";
 import { MaterialIcons } from "@expo/vector-icons";
 import SmallSlideModal from "./SmallSlideModal";
+import { VocabCacheEntry } from "../../types";
 
 interface WordModalProps {
   visible: boolean;
@@ -19,7 +20,6 @@ interface WordModalProps {
   words?: string[];
   sentenceText?: string;
   sentenceTranslation?: string | null;
-  existingTranslation?: string | null;
   onTranslationFetched?: (translation: string) => void;
   onReplaySentence?: () => void;
   playerIsPlaying?: boolean;
@@ -30,6 +30,8 @@ interface WordModalProps {
   hideTranslationAtFirst?: boolean;
   onPlaySnippet?: () => void;
   onPlaySnippetSlow?: () => void;
+  vocabCache?: VocabCacheEntry[];
+  onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
 }
 
 const WordModal: React.FC<WordModalProps> = ({
@@ -38,14 +40,16 @@ const WordModal: React.FC<WordModalProps> = ({
   word,
   sentenceText,
   sentenceTranslation,
-  existingTranslation,
   onTranslationFetched,
   title = "Vocab Review",
   hideTranslationAtFirst = false,
   onPlaySnippet,
   onPlaySnippetSlow,
+  vocabCache = [],
+  onVocabCacheUpdate,
 }) => {
   const [translation, setTranslation] = useState<string | null>(null);
+  const [alternateMeanings, setAlternateMeanings] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isHidingTranslation, setIsHidingTranslation] = useState(
     hideTranslationAtFirst,
@@ -55,8 +59,10 @@ const WordModal: React.FC<WordModalProps> = ({
     if (!visible || !word) return;
     setIsHidingTranslation(hideTranslationAtFirst);
 
-    if (existingTranslation) {
-      setTranslation(existingTranslation);
+    const cached = vocabCache.find((e) => e.word === word);
+    if (cached) {
+      setTranslation(cached.translation);
+      setAlternateMeanings(cached.alternateMeanings);
       return;
     }
 
@@ -64,15 +70,21 @@ const WordModal: React.FC<WordModalProps> = ({
     const fetchTranslation = async () => {
       setIsLoading(true);
       try {
-        const fetched = await fetchVocabTranslation({
+        const result = await fetchVocabTranslation({
           vocabWord: word,
           sentenceText: sentenceText ?? "",
           sentenceTranslation,
         });
 
-        if (!cancelled && fetched) {
-          setTranslation(fetched);
-          onTranslationFetched?.(fetched);
+        if (!cancelled && result.translation) {
+          setTranslation(result.translation);
+          setAlternateMeanings(result.alternateMeanings);
+          onTranslationFetched?.(result.translation);
+          onVocabCacheUpdate?.({
+            word,
+            translation: result.translation,
+            alternateMeanings: result.alternateMeanings,
+          });
         }
       } catch (err) {
         console.error("Error fetching vocab translation:", err);
@@ -145,6 +157,18 @@ const WordModal: React.FC<WordModalProps> = ({
             </Pressable>
           </View>
         ) : null}
+        {!isLoading && alternateMeanings.length > 0 && !isHidingTranslation && (
+          <View style={styles.altMeaningsContainer}>
+            <Text style={styles.altMeaningsLabel}>Other meanings</Text>
+            {alternateMeanings
+              .sort((a, b) => a.length - b.length)
+              .map((meaning, i) => (
+                <Text key={i} style={styles.altMeaningText}>
+                  {capitalize(meaning)}
+                </Text>
+              ))}
+          </View>
+        )}
       </View>
     </SmallSlideModal>
   );
@@ -232,6 +256,19 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  altMeaningsContainer: {
+    gap: 4,
+    alignItems: "center",
+  },
+  altMeaningsLabel: {
+    fontSize: 13,
+    color: "#999",
+    fontWeight: "500",
+  },
+  altMeaningText: {
+    fontSize: 15,
+    color: "#555",
   },
 });
 

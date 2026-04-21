@@ -6,7 +6,7 @@ import {
   LayoutChangeEvent,
   Pressable,
 } from "react-native";
-import { RootState, SegmentWord } from "../../types";
+import { RootState, SegmentWord, VocabCacheEntry } from "../../types";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import WordModal from "./WordModal";
 import { useSelector, useDispatch } from "react-redux";
@@ -36,6 +36,8 @@ interface FullSegmentTranscriptBubbleProps {
   disableGuessModal?: boolean;
   playWordSnippet?: (word: SegmentWord, isSlow?: boolean) => void;
   revealCounts?: Record<number, number>;
+  vocabCache?: VocabCacheEntry[];
+  onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
 }
 
 const LINE_HEIGHT = 28;
@@ -59,6 +61,8 @@ const FullSegmentTranscriptBubble: React.FC<
   disableGuessModal = false,
   playWordSnippet,
   revealCounts,
+  vocabCache,
+  onVocabCacheUpdate,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -315,11 +319,8 @@ const FullSegmentTranscriptBubble: React.FC<
                 playWordSnippet(words.find((w) => w.word === guessWord)!, true)
             : undefined
         }
-        existingTranslation={
-          currentVideo?.focusVocab.find(
-            (v) => v.word === vocabFormatWord(guessWord ?? ""),
-          )?.translation ?? null
-        }
+        vocabCache={vocabCache}
+        onVocabCacheUpdate={onVocabCacheUpdate}
         onTranslationFetched={(translation) => {
           if (guessWord) {
             const wordKey = vocabFormatWord(guessWord);

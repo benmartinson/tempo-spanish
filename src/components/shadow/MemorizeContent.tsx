@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, ScrollView } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
-import { RootState, Sentence, SegmentWord } from "../../types";
+import { RootState, Sentence, SegmentWord, VocabCacheEntry } from "../../types";
 import FullSegmentTranscriptBubble from "../common/FullSegmentTranscriptBubble";
 import DifficultySlider from "../common/DifficultySlider";
 import { setMemorizeDifficulty } from "../../store/actions/dataActions";
@@ -21,6 +21,8 @@ interface MemorizeContentProps {
   localDifficulty: number;
   onLocalDifficultyChange: (d: number) => void;
   playWordSnippet?: (word: SegmentWord, isSlow?: boolean) => void;
+  vocabCache?: VocabCacheEntry[];
+  onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
 }
 
 const MemorizeContent: React.FC<MemorizeContentProps> = ({
@@ -33,6 +35,8 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   localDifficulty,
   onLocalDifficultyChange,
   playWordSnippet,
+  vocabCache,
+  onVocabCacheUpdate,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -167,6 +171,8 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
         disableGuessModal={isRecording}
         playWordSnippet={playWordSnippet}
         revealCounts={revealCounts}
+        vocabCache={vocabCache}
+        onVocabCacheUpdate={onVocabCacheUpdate}
         onWordPress={(index) => {
           if (isRecording) {
             // During recording: progressive hint reveal

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { RootState, SegmentWord } from "../../types";
+import { RootState, SegmentWord, VocabCacheEntry } from "../../types";
 import { capitalize, vocabFormatWord } from "../../helpers/helpers";
 import { useDispatch, useSelector } from "react-redux";
 import { updateFocusVocabTranslation } from "../../store/actions/dataActions";
@@ -16,6 +16,8 @@ interface FeaturedVocabProps {
   showSlowPlay?: boolean;
   onReplaySentence?: () => void;
   playerIsPlaying?: boolean;
+  vocabCache?: VocabCacheEntry[];
+  onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
 }
 
 const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
@@ -24,6 +26,8 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
   showSlowPlay = true,
   onReplaySentence,
   playerIsPlaying = false,
+  vocabCache,
+  onVocabCacheUpdate,
 }) => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
@@ -85,11 +89,6 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
         onClose={handleCloseModal}
         word={word.word}
         sentenceText={currentSentenceObject?.text}
-        existingTranslation={
-          currentVideo?.focusVocab.find(
-            (v) => v.word === vocabFormatWord(word.word),
-          )?.translation ?? null
-        }
         onTranslationFetched={(translation) => {
           const wordKey = vocabFormatWord(word.word);
           dispatch(updateFocusVocabTranslation(wordKey, translation));
@@ -104,6 +103,8 @@ const FeaturedVocab: React.FC<FeaturedVocabProps> = ({
         }}
         onReplaySentence={onReplaySentence}
         playerIsPlaying={playerIsPlaying}
+        vocabCache={vocabCache}
+        onVocabCacheUpdate={onVocabCacheUpdate}
       />
     </View>
   );
