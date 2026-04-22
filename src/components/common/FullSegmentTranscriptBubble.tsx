@@ -118,6 +118,7 @@ const FullSegmentTranscriptBubble: React.FC<
     playerIsPlaying,
     playKey,
     playerSpeed,
+    words?.[0]?.start,
   );
 
   // Build a stable identity for the segment (based on timing, not text content)
@@ -133,25 +134,74 @@ const FullSegmentTranscriptBubble: React.FC<
     setWordPositions({});
   }, [segmentIdentity]);
 
+  // Precompute highlight chunks: 5 words each, but if 6 remain split into 4+2
+  const chunks = useMemo(() => {
+    if (!words?.length) return [];
+    const result: [number, number][] = [];
+    let i = 0;
+    while (i < words.length) {
+      const remaining = words.length - i;
+      const size = remaining === 6 ? 4 : Math.min(5, remaining);
+      result.push([i, i + size - 1]);
+      i += size;
+    }
+    return result;
+  }, [words]);
+
+  // Track the highest chunk index reached to prevent backward jumps
+  const highestChunkRef = useRef(-1);
+
+  // Reset highest chunk on segment change
+  useEffect(() => {
+    highestChunkRef.current = -1;
+  }, [segmentIdentity]);
+
   // Find the current word index based on time (video mode) or currentTargetIndex (shadow mode)
   const currentWordIndex = useMemo(() => {
     if (mode === "shadow") {
       return currentTargetIndex;
     }
     // Video mode: find word based on playback time (using localTime to cover the initial gap)
+    let rawIndex = 0;
     for (let i = 0; i < words.length; i++) {
       if (localTime >= words[i].start && localTime <= words[i].end) {
-        return i;
+        rawIndex = i;
+        break;
       }
       if (
         localTime > words[i].end &&
         (i === words.length - 1 || localTime < words[i + 1].start)
       ) {
-        return i;
+        rawIndex = i;
+        break;
       }
     }
-    return 0;
-  }, [words, localTime, mode, currentTargetIndex]);
+
+    // Find which chunk this word belongs to
+    const rawChunkIdx = chunks.findIndex(
+      ([start, end]) => rawIndex >= start && rawIndex <= end,
+    );
+
+    // Allow backward only if time is near segment start (real replay)
+    const segmentStart = words[0]?.start ?? 0;
+    const isReplay = localTime <= segmentStart + 0.5;
+
+    if (isReplay) {
+      highestChunkRef.current = rawChunkIdx;
+      return rawIndex;
+    }
+
+    if (rawChunkIdx > highestChunkRef.current) {
+      highestChunkRef.current = rawChunkIdx;
+    }
+
+    // If raw chunk is behind our highest, keep returning a word in the highest chunk
+    if (rawChunkIdx < highestChunkRef.current && chunks[highestChunkRef.current]) {
+      return chunks[highestChunkRef.current][0];
+    }
+
+    return rawIndex;
+  }, [words, localTime, mode, currentTargetIndex, chunks]);
 
   // Activate when we first hit a valid word (video mode) or immediately (shadow mode)
   useEffect(() => {
@@ -192,20 +242,6 @@ const FullSegmentTranscriptBubble: React.FC<
       word.endsWith("!,")
     );
   };
-
-  // Precompute highlight chunks: 5 words each, but if 6 remain split into 4+2
-  const chunks = useMemo(() => {
-    if (!words?.length) return [];
-    const result: [number, number][] = [];
-    let i = 0;
-    while (i < words.length) {
-      const remaining = words.length - i;
-      const size = remaining === 6 ? 4 : Math.min(5, remaining);
-      result.push([i, i + size - 1]);
-      i += size;
-    }
-    return result;
-  }, [words]);
 
   // Show blank when not active (before first word or after words change)
   if (!isActive) {

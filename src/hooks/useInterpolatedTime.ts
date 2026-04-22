@@ -9,6 +9,7 @@ export const useInterpolatedTime = (
   playerIsPlaying: boolean,
   playKey?: number,
   playerSpeed: number = 1,
+  segmentStart?: number,
 ): number => {
   const [localTime, setLocalTime] = useState(time);
   const localTimeRef = useRef(time);
@@ -16,7 +17,6 @@ export const useInterpolatedTime = (
   const interpolatingRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevPlayerIsPlayingRef = useRef(playerIsPlaying);
-
   const startInterpolation = (startTime: number) => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -49,8 +49,9 @@ export const useInterpolatedTime = (
 
   // Track incoming time prop updates
   useEffect(() => {
-    // Detect replay: time jumped backward while still playing
-    if (playerIsPlaying && time < localTimeRef.current) {
+    // Detect replay: time jumped back to near segment start while still playing
+    const replayThreshold = (segmentStart ?? 0) + 0.5;
+    if (playerIsPlaying && time < localTimeRef.current && time <= replayThreshold) {
       setLocalTime(time);
       localTimeRef.current = time;
       startInterpolation(time);

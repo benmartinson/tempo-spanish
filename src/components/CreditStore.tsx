@@ -17,10 +17,24 @@ import { backendFetch } from "../helpers/backendFetch";
 const isExpoGo = Constants.appOwnership === "expo";
 
 const CREDIT_PACKS = [
-  { id: "tempo_credits_500", credits: 500, price: "$2.99", hours: "~2 hours of speaking practice" },
-  { id: "tempo_credits_1000", credits: 1000, price: "$4.99", hours: "~4 hours of speaking practice" },
-  { id: "tempo_credits_5000", credits: 5000, price: "$14.99", hours: "~20 hours of speaking practice" },
-  { id: "tempo_credits_10000", credits: 10000, price: "$19.99", hours: "~40 hours of speaking practice" },
+  {
+    id: "tempo_credits_1000",
+    credits: 1000,
+    price: "$3.00",
+    hours: "~4 hours of speaking practice",
+  },
+  {
+    id: "tempo_credits_5000",
+    credits: 5000,
+    price: "$7.00",
+    hours: "~20 hours of speaking practice",
+  },
+  {
+    id: "tempo_credits_10000",
+    credits: 10000,
+    price: "$10.00",
+    hours: "~40 hours of speaking practice",
+  },
 ];
 
 const CREDIT_AMOUNTS: Record<string, number> = Object.fromEntries(
@@ -100,9 +114,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
     return () => {
       purchaseUpdateSub?.remove();
       purchaseErrorSub?.remove();
-      import("expo-iap")
-        .then((IAP) => IAP.endConnection())
-        .catch(() => {});
+      import("expo-iap").then((IAP) => IAP.endConnection()).catch(() => {});
     };
   }, [visible]);
 
@@ -144,11 +156,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
 
   const renderIAPProducts = () => {
     if (iapProducts.length === 0) {
-      return (
-        <Text style={styles.emptyText}>
-          Loading credit packs...
-        </Text>
-      );
+      return <Text style={styles.emptyText}>Loading credit packs...</Text>;
     }
 
     return iapProducts.map((product) => {
