@@ -499,6 +499,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     async (uri: string) => {
       if (!currentVideo) return;
       setError(null);
+      setIsProcessing(true);
 
       // Copy recording to a stable path so it survives temp file cleanup
       const stableUri = `${FileSystem.cacheDirectory}shadow_recording_${currentSentenceIndex}_${Date.now()}.wav`;
@@ -983,7 +984,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     pausePlayer();
     unMutePlayer();
     setPlayerSpeed(1);
-    setIsProcessing(true);
     await stopRecording(false);
     setIsRecordingMode(false);
   };
@@ -1222,7 +1222,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             </View>
           </View>
         )}
-        {isRecordingMode && !isProcessing && (
+        {isRecordingMode && (
           <View style={styles.countdownTimer}>
             <CountdownTimer
               onStartRecording={handleActualStartRecording}
@@ -1475,7 +1475,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               }
             }}
             disabled={!hasPermission || isProcessing}
-            hideTrash={!isRecording}
           />
         )}
       </View>
