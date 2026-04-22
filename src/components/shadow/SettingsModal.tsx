@@ -95,8 +95,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editedAutoSaveRecordings, setEditedAutoSaveRecordings] = useState(
     userSettings.autoSaveRecordings,
   );
-  const [editedDisableReviewMode, setEditedDisableReviewMode] = useState(
-    userSettings.disableReviewMode,
+  const [editedShowReviewMode, setEditedShowReviewMode] = useState(
+    userSettings.showReviewMode,
   );
   const [editedReviewFrequency, setEditedReviewFrequency] = useState(
     userSettings.reviewFrequency,
@@ -143,7 +143,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       saveMemorizeDifficulty: editedSaveMemorizeDifficulty,
       defaultMemorizeDifficulty: editedDefaultMemorizeDifficulty,
       autoSaveRecordings: editedAutoSaveRecordings,
-      disableReviewMode: editedDisableReviewMode,
+      showReviewMode: editedShowReviewMode,
       reviewFrequency: editedReviewFrequency,
       autoSelectDifficulty: editedAutoSelectDifficulty,
       autoSelectDifficultyLevel: editedAutoSelectDifficultyLevel,
@@ -153,7 +153,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   }, [
     editedRecordSpeed,
     editedAutoSaveRecordings,
-    editedDisableReviewMode,
+    editedShowReviewMode,
     editedReviewFrequency,
     muteVideoWhenRecording,
     editedShowWordsHints,
@@ -188,12 +188,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </View>
           <View style={styles.cardDivider} />
           <SettingRow
-            label="Disable Review Popups"
-            value={editedDisableReviewMode}
-            onToggle={setEditedDisableReviewMode}
-            isLast={editedDisableReviewMode}
+            label="Show Review Popups?"
+            value={editedShowReviewMode}
+            onToggle={setEditedShowReviewMode}
+            isLast={!editedShowReviewMode}
           />
-          {!editedDisableReviewMode && (
+          {editedShowReviewMode && (
             <>
               <View style={styles.cardDivider} />
               <View style={styles.frequencyRow}>
@@ -203,7 +203,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     style={styles.frequencyButton}
                     onPress={() =>
                       setEditedReviewFrequency(
-                        Math.max(1, editedReviewFrequency - 1),
+                        Math.max(2, editedReviewFrequency - 1),
                       )
                     }
                     disabled={editedReviewFrequency <= 1}
@@ -227,8 +227,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </View>
               </View>
               <Text style={styles.frequencyHint}>
-                Review every {editedReviewFrequency} segment
-                {editedReviewFrequency > 1 ? "s" : ""}
+                Review every {editedReviewFrequency} segments
+                {editedReviewFrequency === 2 && ". Max Frequency."}
               </Text>
             </>
           )}

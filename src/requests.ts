@@ -417,8 +417,8 @@ export const restoreUserUIState = async ({
       playVideoWhileRecording:
         uiState.play_video_while_recording ??
         DEFAULT_USER_SETTINGS.playVideoWhileRecording,
-      disableReviewMode:
-        uiState.disable_review_mode ?? DEFAULT_USER_SETTINGS.disableReviewMode,
+      showReviewMode:
+        uiState.show_review_mode ?? DEFAULT_USER_SETTINGS.showReviewMode,
       reviewFrequency:
         uiState.review_frequency ?? DEFAULT_USER_SETTINGS.reviewFrequency,
       autoSelectDifficulty:
@@ -604,8 +604,8 @@ export const persistUserSettings = async ({
     updateData.default_memorize_difficulty = settings.defaultMemorizeDifficulty;
   if (settings.playVideoWhileRecording !== undefined)
     updateData.play_video_while_recording = settings.playVideoWhileRecording;
-  if (settings.disableReviewMode !== undefined)
-    updateData.disable_review_mode = settings.disableReviewMode;
+  if (settings.showReviewMode !== undefined)
+    updateData.show_review_mode = settings.showReviewMode;
   if (settings.reviewFrequency !== undefined)
     updateData.review_frequency = settings.reviewFrequency;
   if (settings.autoSelectDifficulty !== undefined)

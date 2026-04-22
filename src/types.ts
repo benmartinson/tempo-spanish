@@ -13,7 +13,7 @@ export interface UserSettings {
   playVideoWhileRecording: boolean;
   autoSaveRecordings: boolean;
   showSaveRecordingsModal: boolean;
-  disableReviewMode: boolean;
+  showReviewMode: boolean;
   reviewFrequency: number;
   autoSelectDifficulty: boolean;
   autoSelectDifficultyLevel: "moderate" | "challenging" | "difficult" | "hardest";
@@ -61,7 +61,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   playVideoWhileRecording: true,
   autoSaveRecordings: false,
   showSaveRecordingsModal: true,
-  disableReviewMode: false,
+  showReviewMode: true,
   reviewFrequency: 2,
   autoSelectDifficulty: false,
   autoSelectDifficultyLevel: "moderate",
@@ -340,7 +340,7 @@ export interface UserUIState {
   save_memorize_difficulty: boolean | null;
   default_memorize_difficulty: number | null;
   play_video_while_recording: boolean | null;
-  disable_review_mode: boolean | null;
+  show_review_mode: boolean | null;
   review_frequency: number | null;
   has_seen_welcome_modals: boolean | null;
   auto_select_difficulty: boolean | null;

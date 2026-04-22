@@ -876,7 +876,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const tryStartReview = async (): Promise<boolean> => {
     if (!isSignedIn) return false;
-    if (userSettings.disableReviewMode) return false;
+    if (!userSettings.showReviewMode) return false;
 
     // Only show review if the user just recorded this segment (not skipping around)
     if (currentSentenceIndex !== latestShadowedSentenceRef.current) {
