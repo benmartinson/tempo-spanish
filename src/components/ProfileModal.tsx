@@ -8,13 +8,16 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useClerk, useUser } from "@clerk/clerk-expo";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { useAuth } from "@clerk/clerk-expo";
 import SlideModal from "./common/SlideModal";
 import CreditStore from "./CreditStore";
 import TermsOfUseModal from "./TermsOfUseModal";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
 import HelpAndFeedbackModal from "./HelpAndFeedbackModal";
-import { RootState } from "../types";
+import { setUserCredits } from "../store/actions/dataActions";
+import { useSupabaseWithClerk } from "../../utils/supabase";
+import { fetchUserCredits } from "../requests";
 
 interface ProfileModalProps {
   visible: boolean;
@@ -56,9 +59,12 @@ const menuStyles = StyleSheet.create({
 });
 
 const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
+  const dispatch = useDispatch();
   const { signOut } = useClerk();
   const { user } = useUser();
-  const userCredits = useSelector((state: RootState) => state.userCredits);
+  const { userId } = useAuth();
+  const supabase = useSupabaseWithClerk();
+  const userCredits = useSelector((state: any) => state.userCredits);
   const [creditStoreVisible, setCreditStoreVisible] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
@@ -71,7 +77,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
 
   const firstName = user?.firstName ?? "";
   const lastName = user?.lastName ?? "";
-  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "?";
+  const initials =
+    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "?";
 
   return (
     <SlideModal visible={visible} onRequestClose={onClose} title="Profile">
@@ -94,31 +101,42 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
           )}
         </View>
 
-        <View style={styles.creditsRow}>
-          <View style={styles.creditsInfo}>
-            <MaterialIcons name="token" size={20} color="#5a5680" />
-            <Text style={styles.creditsLabel}>Credits</Text>
-            <Text style={styles.creditsValue}>{userCredits}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.buyButton}
-            onPress={() => setCreditStoreVisible(true)}
-          >
-            <Text style={styles.buyButtonText}>Buy More</Text>
-          </TouchableOpacity>
-        </View>
-
         <Text style={styles.sectionHeader}>Account Settings</Text>
         <View style={styles.card}>
-          <MenuRow label="Subscription" onPress={() => {}} />
+          <TouchableOpacity
+            style={[menuStyles.row, menuStyles.border]}
+            onPress={async () => {
+              setCreditStoreVisible(true);
+              const credits = await fetchUserCredits({ supabase, userId });
+              if (credits != null) dispatch(setUserCredits(credits));
+            }}
+            activeOpacity={0.6}
+          >
+            <View style={styles.creditsLeft}>
+              <Text style={menuStyles.label}>Credits</Text>
+              <View style={styles.creditsBadge}>
+                <Text style={styles.creditsBadgeText}>{userCredits}</Text>
+              </View>
+            </View>
+            <View style={styles.buyMoreButton}>
+              <Text style={styles.buyMoreText}>Buy More</Text>
+            </View>
+          </TouchableOpacity>
           <MenuRow label="Close account" onPress={() => {}} isLast />
         </View>
 
         <Text style={styles.sectionHeader}>Support</Text>
         <View style={styles.card}>
           <MenuRow label="Terms of Use" onPress={() => setTermsVisible(true)} />
-          <MenuRow label="Privacy Policy" onPress={() => setPrivacyVisible(true)} />
-          <MenuRow label="Help & Feedback" onPress={() => setHelpVisible(true)} isLast />
+          <MenuRow
+            label="Privacy Policy"
+            onPress={() => setPrivacyVisible(true)}
+          />
+          <MenuRow
+            label="Help & Feedback"
+            onPress={() => setHelpVisible(true)}
+            isLast
+          />
         </View>
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
@@ -220,39 +238,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  creditsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: 16,
-    marginTop: 20,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  creditsInfo: {
+  creditsLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  creditsLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#1a1a2e",
+  creditsBadge: {
+    backgroundColor: "#f0f0f5",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
   },
-  creditsValue: {
-    fontSize: 16,
+  creditsBadgeText: {
+    fontSize: 14,
     fontWeight: "700",
     color: "#5a5680",
   },
-  buyButton: {
+  buyMoreButton: {
     backgroundColor: "#4a69bd",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     borderRadius: 10,
   },
-  buyButtonText: {
+  buyMoreText: {
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
