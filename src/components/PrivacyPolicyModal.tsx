@@ -135,7 +135,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
           {"\u2022"} Object to or restrict certain processing{"\n"}
           {"\u2022"} Request a copy of your data in a portable format{"\n\n"}
           To exercise any of these rights, contact us at
-          tempo.spanish.app@gmail.com.
+          tempo.spanish@gmail.com.
         </Text>
 
         <Text style={styles.heading}>8. Children's Privacy</Text>
@@ -159,7 +159,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
         <Text style={styles.body}>
           If you have questions about this Privacy Policy or how your data is
           handled, please contact us at:{"\n\n"}
-          tempo.spanish.app@gmail.com
+          tempo.spanish@gmail.com
         </Text>
       </ScrollView>
     </SlideModal>

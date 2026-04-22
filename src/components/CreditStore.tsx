@@ -20,19 +20,19 @@ const CREDIT_PACKS = [
   {
     id: "tempo_credits_1000",
     credits: 1000,
-    price: "$3.00",
+    price: "$2.99",
     hours: "~4 hours of speaking practice",
   },
   {
     id: "tempo_credits_5000",
     credits: 5000,
-    price: "$7.00",
+    price: "$6.99",
     hours: "~20 hours of speaking practice",
   },
   {
     id: "tempo_credits_10000",
     credits: 10000,
-    price: "$10.00",
+    price: "$9.99",
     hours: "~40 hours of speaking practice",
   },
 ];
@@ -76,6 +76,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
         const items = await IAP.fetchProducts({
           skus: Object.keys(CREDIT_AMOUNTS),
         });
+        console.log("IAP fetched products:", JSON.stringify(items, null, 2));
         setIapProducts(items as unknown as IAPProduct[]);
 
         purchaseUpdateSub = IAP.purchaseUpdatedListener(

@@ -83,14 +83,12 @@ const HelpAndFeedbackModal: React.FC<HelpAndFeedbackModalProps> = ({
           style={styles.emailButton}
           onPress={() =>
             Linking.openURL(
-              "mailto:tempo.spanish.app@gmail.com?subject=Tempo Spanish Feedback"
+              "mailto:tempo.spanish@gmail.com?subject=Tempo Spanish Feedback",
             )
           }
         >
           <MaterialIcons name="email" size={20} color="#fff" />
-          <Text style={styles.emailButtonText}>
-            tempo.spanish.app@gmail.com
-          </Text>
+          <Text style={styles.emailButtonText}>tempo.spanish@gmail.com</Text>
         </TouchableOpacity>
       </ScrollView>
     </SlideModal>

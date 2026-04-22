@@ -173,7 +173,7 @@ const TermsOfUseModal: React.FC<TermsOfUseModalProps> = ({
         <Text style={styles.heading}>17. Contact</Text>
         <Text style={styles.body}>
           If you have questions about these Terms, please contact us at:{"\n\n"}
-          tempo.spanish.app@gmail.com
+          tempo.spanish@gmail.com
         </Text>
       </ScrollView>
     </SlideModal>

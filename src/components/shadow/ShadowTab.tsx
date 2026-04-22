@@ -1162,7 +1162,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         >
           <Text style={styles.segmentNavText}>
             Segment {currentSentenceIndex + 1} of{" "}
-            {currentVideo.sentences.length + 1}
+            {currentVideo.sentences.length}
           </Text>
         </NavSwitcher>
         {!isRecordingMode && !accuracyResult && !isProcessing && (

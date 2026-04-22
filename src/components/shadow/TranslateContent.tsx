@@ -4,14 +4,13 @@ import { RootState } from "../../types";
 import { useSelector } from "react-redux";
 import { removeSpecialPunctuation, addEllipsis } from "../../helpers/helpers";
 import { useInterpolatedTime } from "../../hooks/useInterpolatedTime";
+import { useStableChunkIdx } from "../../hooks/useStableChunkIdx";
 
 const LANGUAGE_NAMES: Record<string, string> = {
   es: "Spanish",
   en: "English",
   pt: "Portuguese",
 };
-
-const CHUNK_SIZE = 4;
 
 interface TranslateContentProps {
   translationText: string | null;
@@ -55,39 +54,22 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
     [displayText],
   );
 
-  const chunks = useMemo(() => {
-    if (!words.length) return [];
-    const result: [number, number][] = [];
-    let i = 0;
-    while (i < words.length) {
-      const remaining = words.length - i;
-      let size: number;
-      if (remaining <= CHUNK_SIZE) {
-        size = remaining;
-      } else if (remaining === 5) {
-        size = 3; // 3 + 2
-      } else if (remaining === 6) {
-        size = 3; // 3 + 3
-      } else if (remaining === 7) {
-        size = 4; // 4 + 3
-      } else {
-        size = CHUNK_SIZE;
-      }
-      result.push([i, i + size - 1]);
-      i += size;
-    }
-    return result;
-  }, [words]);
-
-  const activeChunkIndex = useMemo(() => {
-    if (!playerIsPlaying || !chunks.length) return -1;
+  const rawWordIdx = useMemo(() => {
+    if (!playerIsPlaying || !words.length) return -1;
     const duration = segmentEnd - segmentStart;
     if (duration <= 0) return -1;
     const elapsed = localTime - segmentStart;
-    const timePerChunk = duration / chunks.length;
-    const idx = Math.floor(elapsed / timePerChunk);
-    return Math.min(Math.max(idx, 0), chunks.length - 1);
-  }, [localTime, playerIsPlaying, segmentStart, segmentEnd, chunks]);
+    const timePerWord = duration / words.length;
+    const idx = Math.floor(elapsed / timePerWord);
+    return Math.min(Math.max(idx, 0), words.length - 1);
+  }, [localTime, playerIsPlaying, segmentStart, segmentEnd, words.length]);
+
+  const { activeChunkStart, activeChunkEnd } = useStableChunkIdx({
+    wordCount: words.length,
+    rawWordIdx,
+    isReplay: localTime <= segmentStart + 0.5,
+    resetKey: `${segmentStart}-${segmentEnd}-${words.length}`,
+  });
 
   if (isLoading) {
     return (
@@ -106,10 +88,9 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
       <Text style={styles.questionText}>
         {words.map((word, index) => {
           const isActive =
-            activeChunkIndex >= 0 &&
-            chunks[activeChunkIndex] &&
-            index >= chunks[activeChunkIndex][0] &&
-            index <= chunks[activeChunkIndex][1];
+            activeChunkStart >= 0 &&
+            index >= activeChunkStart &&
+            index <= activeChunkEnd;
           return (
             <Text key={index} style={isActive ? styles.activeWord : undefined}>
               {index > 0 ? " " : ""}
