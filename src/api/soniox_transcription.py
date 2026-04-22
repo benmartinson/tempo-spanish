@@ -1,155 +1,237 @@
 """
-Batch transcription using AssemblyAI API.
-
-This module handles POST endpoint for batch audio file transcription.
+Batch transcription — Groq Whisper (primary) with Soniox fallback on 429.
 
 Run with the main chat_stream.py server - this module provides the transcription router.
 """
 
 import json
 import os
-import tempfile
+import asyncio
+import httpx
 
-# import assemblyai as aai
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from auth import check_credits
 from groq import Groq
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-# Load environment variables
 load_dotenv()
 
-# AssemblyAI configuration
-# ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+SONIOX_API_KEY = os.getenv("SONIOX_API_KEY")
+SONIOX_API_BASE_URL = "https://api.soniox.com"
 
-# Create router for transcription endpoints
+# TEMP: set to True to test Soniox fallback without hitting Groq rate limit
+FORCE_SONIOX_FALLBACK = False
+
+import time as _time
+_groq_backoff_until = 0.0
+
 router = APIRouter()
 
 
-# @router.post("/api/transcribe")
-# async def transcribe_audio(file: UploadFile = File(...), language: str = "es", user_id: str = Depends(check_credits)):
-#     """
-#     Batch transcription endpoint - accepts an audio file and returns the complete transcript.
-
-#     Accepts: WAV audio file (16kHz, mono, 16-bit PCM)
-#     Returns: JSON with transcript and word timings
-
-#     Response format:
-#     {
-#         "transcript": "the transcribed text",
-#         "confidence": 0.95,
-#         "words": [{"word": "hello", "start": 0.0, "end": 0.5, "confidence": 0.95}, ...]
-#     }
-#     """
-#     if not ASSEMBLYAI_API_KEY:
-#         raise HTTPException(status_code=500, detail="Transcription service is not configured")
-
-#     try:
-#         # Read the uploaded file
-#         audio_data = await file.read()
-
-#         if len(audio_data) == 0:
-#             raise HTTPException(status_code=400, detail="Empty audio file")
-
-#         print(f"Received audio file: {file.filename}, size: {len(audio_data)} bytes")
-
-#         aai.settings.api_key = ASSEMBLYAI_API_KEY
-
-#         # Write audio to a temp file since AssemblyAI SDK expects a file path
-#         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-#             tmp.write(audio_data)
-#             tmp_path = tmp.name
-
-#         try:
-#             config = aai.TranscriptionConfig(
-#                 speech_models=["universal-3-pro"],
-#                 language_code=language,
-#                 prompt="Preserve all disfluencies exactly as spoken including verbal hesitations, restarts, and self-corrections.",
-#             )
-
-#             transcriber = aai.Transcriber(config=config)
-#             transcript = transcriber.transcribe(tmp_path)
-#         finally:
-#             os.unlink(tmp_path)
-
-#         if transcript.status == aai.TranscriptStatus.error:
-#             print(f"AssemblyAI transcription error: {transcript.error}")
-#             raise HTTPException(status_code=502, detail="Transcription failed")
-
-#         print(f"AssemblyAI transcript: {transcript.text}")
-#         print(f"AssemblyAI words: {json.dumps([{'word': w.text, 'start': w.start, 'end': w.end, 'confidence': w.confidence} for w in (transcript.words or [])], indent=2)}")
-
-#         text = transcript.text or ""
-#         words = []
-
-#         if transcript.words:
-#             for w in transcript.words:
-#                 words.append({
-#                     "word": w.text,
-#                     "start": w.start / 1000.0,
-#                     "end": w.end / 1000.0,
-#                     "confidence": w.confidence,
-#                 })
-
-#         avg_confidence = 0.0
-#         if words:
-#             avg_confidence = sum(w["confidence"] for w in words) / len(words)
-
-#         return JSONResponse({
-#             "transcript": text,
-#             "confidence": avg_confidence,
-#             "words": words,
-#         })
-
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         print(f"Transcription error: {e}")
-#         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+def _is_special_token(text: str) -> bool:
+    special_tokens = {"<end>", "<start>", "<unk>", "<silence>"}
+    return text.strip() in special_tokens or (text.startswith("<") and text.endswith(">"))
 
 
+async def _transcribe_soniox(audio_data: bytes, filename: str, language: str) -> dict:
+    """Fallback transcription via Soniox."""
+    if not SONIOX_API_KEY:
+        raise HTTPException(status_code=500, detail="Soniox fallback not configured")
+
+    print("Falling back to Soniox transcription...")
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        headers = {"Authorization": f"Bearer {SONIOX_API_KEY}"}
+
+        upload_response = await client.post(
+            f"{SONIOX_API_BASE_URL}/v1/files",
+            headers=headers,
+            files={"file": (filename, audio_data, "audio/wav")},
+        )
+        if upload_response.status_code not in (200, 201):
+            print(f"Soniox file upload error: {upload_response.status_code} - {upload_response.text}")
+            raise HTTPException(status_code=502, detail="Transcription service unavailable")
+
+        file_id = upload_response.json().get("id")
+
+        transcription_response = await client.post(
+            f"{SONIOX_API_BASE_URL}/v1/transcriptions",
+            headers={**headers, "Content-Type": "application/json"},
+            json={
+                "model": "stt-async-v4",
+                "file_id": file_id,
+                "language_hints": [language],
+                "language_hints_strict": True,
+            },
+        )
+        if transcription_response.status_code not in (200, 201):
+            print(f"Soniox transcription create error: {transcription_response.status_code}")
+            await client.delete(f"{SONIOX_API_BASE_URL}/v1/files/{file_id}", headers=headers)
+            raise HTTPException(status_code=502, detail="Transcription failed")
+
+        transcription_id = transcription_response.json().get("id")
+
+        for _ in range(60):
+            status_response = await client.get(
+                f"{SONIOX_API_BASE_URL}/v1/transcriptions/{transcription_id}",
+                headers=headers,
+            )
+            status_data = status_response.json()
+            status = status_data.get("status")
+
+            if status == "completed":
+                break
+            elif status == "error":
+                await client.delete(f"{SONIOX_API_BASE_URL}/v1/transcriptions/{transcription_id}", headers=headers)
+                await client.delete(f"{SONIOX_API_BASE_URL}/v1/files/{file_id}", headers=headers)
+                raise HTTPException(status_code=502, detail="Transcription failed")
+            await asyncio.sleep(1)
+        else:
+            await client.delete(f"{SONIOX_API_BASE_URL}/v1/transcriptions/{transcription_id}", headers=headers)
+            await client.delete(f"{SONIOX_API_BASE_URL}/v1/files/{file_id}", headers=headers)
+            raise HTTPException(status_code=504, detail="Transcription request timed out")
+
+        transcript_response = await client.get(
+            f"{SONIOX_API_BASE_URL}/v1/transcriptions/{transcription_id}/transcript",
+            headers=headers,
+        )
+        if transcript_response.status_code != 200:
+            raise HTTPException(status_code=502, detail="Failed to retrieve transcript")
+
+        result = transcript_response.json()
+        print(f"Soniox response: {json.dumps(result, indent=2)}")
+
+        await client.delete(f"{SONIOX_API_BASE_URL}/v1/transcriptions/{transcription_id}", headers=headers)
+        await client.delete(f"{SONIOX_API_BASE_URL}/v1/files/{file_id}", headers=headers)
+
+        transcript_parts = []
+        words = []
+
+        if "tokens" in result:
+            for token in result["tokens"]:
+                text = token.get("text", "")
+                if text and not _is_special_token(text):
+                    transcript_parts.append(text)
+                    word_info = {
+                        "word": text,
+                        "start": token.get("start_ms", 0) / 1000.0,
+                        "end": token.get("end_ms", 0) / 1000.0,
+                        "confidence": token.get("confidence", 1.0),
+                    }
+                    if token.get("language"):
+                        word_info["language"] = token.get("language")
+                    words.append(word_info)
+        elif "words" in result:
+            for word_data in result["words"]:
+                text = word_data.get("text", word_data.get("word", ""))
+                if text and not _is_special_token(text):
+                    transcript_parts.append(text)
+                    words.append({
+                        "word": text,
+                        "start": word_data.get("start_ms", word_data.get("start", 0)) / 1000.0 if "start_ms" in word_data else word_data.get("start", 0),
+                        "end": word_data.get("end_ms", word_data.get("end", 0)) / 1000.0 if "end_ms" in word_data else word_data.get("end", 0),
+                        "confidence": word_data.get("confidence", 1.0),
+                    })
+        elif "text" in result:
+            transcript_parts.append(result["text"])
+        elif "transcript" in result:
+            transcript_parts.append(result["transcript"])
+
+        transcript = "".join(transcript_parts).strip()
+
+        confidence = 0.0
+        if words:
+            confidences = [w.get("confidence", 1.0) for w in words]
+            confidence = sum(confidences) / len(confidences)
+
+        return {
+            "transcript": transcript,
+            "confidence": confidence,
+            "words": words,
+        }
+
+
+# @router.post("/api/test_transcribe")  # TEMP: no-auth route for rate limit testing (remove after testing)
+# async def test_transcribe_audio(file: UploadFile = File(...), language: str = "es"):
+#     return await transcribe_audio(file=file, language=language, user_id="test")
 
 
 @router.post("/api/transcribe")
 async def transcribe_audio(file: UploadFile = File(...), language: str = "es", user_id: str = Depends(check_credits)):
-    if not GROQ_API_KEY:
-        raise HTTPException(status_code=500, detail="Transcription service is not configured")
     try:
         audio_data = await file.read()
         if len(audio_data) == 0:
             raise HTTPException(status_code=400, detail="Empty audio file")
-        print(f"Received audio file: {file.filename}, size: {len(audio_data)} bytes")
-        client = Groq(api_key=GROQ_API_KEY)
-        result = client.audio.transcriptions.create(
-            file=(file.filename or "audio.wav", audio_data, file.content_type or "audio/wav"),
-            model="whisper-large-v3-turbo",
-            language=language,
-            temperature=0.0,
-            response_format="verbose_json",
-            timestamp_granularities=["word"],
-        )
-        raw = result.model_dump() if hasattr(result, "model_dump") else result
-        print(f"Groq response: {json.dumps(raw, indent=2, default=str)}")
-        transcript = raw.get("text", "")
-        words = []
-        if raw.get("words"):
-            for w in raw["words"]:
-                words.append({
-                    "word": w["word"],
-                    "start": w["start"],
-                    "end": w["end"],
-                    "confidence": 1.0,
-                })
-        return JSONResponse({
-            "transcript": transcript,
-            "confidence": 1.0,
-            "words": words,
-        })
+
+        filename = file.filename or "audio.wav"
+        print(f"Received audio file: {filename}, size: {len(audio_data)} bytes")
+
+        global _groq_backoff_until
+
+        # If we're in backoff period, skip Groq entirely
+        if _time.time() < _groq_backoff_until:
+            remaining = int(_groq_backoff_until - _time.time())
+            print(f"Groq in backoff ({remaining}s remaining), using Soniox directly")
+            result = await _transcribe_soniox(audio_data, filename, language)
+            return JSONResponse(result)
+
+        if not GROQ_API_KEY:
+            raise HTTPException(status_code=500, detail="Transcription service is not configured")
+
+        try:
+            client = Groq(api_key=GROQ_API_KEY, max_retries=0)
+            result = client.audio.transcriptions.create(
+                file=(filename, audio_data, file.content_type or "audio/wav"),
+                model="whisper-large-v3-turbo",
+                language=language,
+                temperature=0.0,
+                response_format="verbose_json",
+                timestamp_granularities=["word"],
+            )
+            raw = result.model_dump() if hasattr(result, "model_dump") else result
+            print(f"Groq response: {json.dumps(raw, indent=2, default=str)}")
+
+            transcript = raw.get("text", "")
+            words = []
+            if raw.get("words"):
+                for w in raw["words"]:
+                    words.append({
+                        "word": w["word"],
+                        "start": w["start"],
+                        "end": w["end"],
+                        "confidence": 1.0,
+                    })
+            return JSONResponse({
+                "transcript": transcript,
+                "confidence": 1.0,
+                "words": words,
+            })
+
+        except Exception as groq_err:
+            err_str = str(groq_err).lower()
+            if "429" in err_str or "rate" in err_str:
+                if "minute" in err_str:
+                    backoff = 60
+                elif "hour" in err_str:
+                    backoff = 3600
+                else:
+                    backoff = 3600
+                print(f"Groq rate limited: {groq_err}")
+                print(f"Groq backoff set for {backoff}s")
+                _groq_backoff_until = _time.time() + backoff
+                result = await _transcribe_soniox(audio_data, filename, language)
+                return JSONResponse(result)
+            raise
+
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Transcription error: {e}")
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+        print(f"Groq transcription error: {e}, trying Soniox fallback...")
+        try:
+            result = await _transcribe_soniox(audio_data, filename, language)
+            return JSONResponse(result)
+        except Exception as soniox_err:
+            print(f"Soniox fallback also failed: {soniox_err}")
+            raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
