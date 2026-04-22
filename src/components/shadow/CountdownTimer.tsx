@@ -148,9 +148,9 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
             style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]}
           />
           <Text style={styles.recordingText}>Recording</Text>
-          {showTimeWarning && Math.floor(remainingSeconds) > 0 && (
+          {showTimeWarning && Math.ceil(remainingSeconds) > 0 && (
             <Text style={styles.timeWarningText}>
-              {Math.floor(remainingSeconds)}s
+              {Math.ceil(remainingSeconds)}s
             </Text>
           )}
         </View>
