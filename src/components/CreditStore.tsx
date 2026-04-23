@@ -83,6 +83,15 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
         console.log("IAP fetched products:", JSON.stringify(items, null, 2));
         setIapProducts(items as unknown as IAPProduct[]);
 
+        const safeFinish = async (purchase: any) => {
+          try {
+            await IAP.finishTransaction({ purchase, isConsumable: true });
+          } catch (err) {
+            // "Transaction not found" means Apple already finished it — benign.
+            console.log("finishTransaction skipped:", err);
+          }
+        };
+
         purchaseUpdateSub = IAP.purchaseUpdatedListener(
           async (purchase: any) => {
             try {
@@ -96,11 +105,11 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
               if (response.ok) {
                 const data = await response.json();
                 dispatch(setUserCredits(data.credits));
-                await IAP.finishTransaction({ purchase, isConsumable: true });
+                await safeFinish(purchase);
               } else if (response.status === 409) {
                 // Already processed previously (replay protection). Finish
                 // the transaction so Apple stops redelivering it.
-                await IAP.finishTransaction({ purchase, isConsumable: true });
+                await safeFinish(purchase);
               } else {
                 console.error(
                   `verify-purchase failed: ${response.status} ${await response.text()}`,
@@ -115,10 +124,14 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
         );
 
         purchaseErrorSub = IAP.purchaseErrorListener((error: any) => {
-          if (error.code !== "user-cancelled") {
-            console.error("Purchase error:", error.message);
-            setErrorMessage("Something went wrong");
+          if (
+            error.code === "user-cancelled" ||
+            error.message === "Transaction not found"
+          ) {
+            return;
           }
+          console.error("Purchase error:", error.message);
+          setErrorMessage("Something went wrong");
         });
       } catch (err) {
         console.warn("IAP init error:", err);
