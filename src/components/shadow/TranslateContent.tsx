@@ -55,7 +55,7 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   );
 
   const rawWordIdx = useMemo(() => {
-    if (!playerIsPlaying || !words.length) return -1;
+    if (!playerIsPlaying || !words.length || !isRecording) return -1;
     const duration = segmentEnd - segmentStart;
     if (duration <= 0) return -1;
     const elapsed = localTime - segmentStart;

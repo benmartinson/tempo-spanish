@@ -153,9 +153,9 @@ async def _transcribe_soniox(audio_data: bytes, filename: str, language: str) ->
         }
 
 
-@router.post("/api/test_transcribe")  # TEMP: no-auth route for rate limit testing (remove after testing)
-async def test_transcribe_audio(file: UploadFile = File(...), language: str = "es"):
-    return await transcribe_audio(file=file, language=language, user_id="test")
+# @router.post("/api/test_transcribe")  # TEMP: no-auth route for rate limit testing (remove after testing)
+# async def test_transcribe_audio(file: UploadFile = File(...), language: str = "es"):
+#     return await transcribe_audio(file=file, language=language, user_id="test")
 
 
 @router.post("/api/transcribe")
