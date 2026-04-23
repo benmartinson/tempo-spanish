@@ -42,8 +42,8 @@ const CREDIT_AMOUNTS: Record<string, number> = Object.fromEntries(
 );
 
 interface IAPProduct {
-  productId: string;
-  localizedPrice: string;
+  id: string;
+  displayPrice: string;
 }
 
 interface CreditStoreProps {
@@ -85,7 +85,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
               const response = await backendFetch("/api/verify-purchase", {
                 method: "POST",
                 body: JSON.stringify({
-                  transaction_receipt: purchase.transactionReceipt ?? "",
+                  transaction_receipt: purchase.purchaseToken ?? "",
                   product_id: purchase.productId,
                 }),
               });
@@ -161,13 +161,13 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
     }
 
     return iapProducts.map((product) => {
-      const pack = CREDIT_PACKS.find((p) => p.id === product.productId);
-      const credits = CREDIT_AMOUNTS[product.productId] ?? 0;
+      const pack = CREDIT_PACKS.find((p) => p.id === product.id);
+      const credits = CREDIT_AMOUNTS[product.id] ?? 0;
       return (
         <TouchableOpacity
-          key={product.productId}
+          key={product.id}
           style={styles.productRow}
-          onPress={() => handleIAPPurchase(product.productId)}
+          onPress={() => handleIAPPurchase(product.id)}
           disabled={isLoading}
           activeOpacity={0.7}
         >
@@ -177,7 +177,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
             </Text>
             <Text style={styles.productHours}>{pack?.hours}</Text>
           </View>
-          <Text style={styles.productPrice}>{product.localizedPrice}</Text>
+          <Text style={styles.productPrice}>{product.displayPrice}</Text>
         </TouchableOpacity>
       );
     });
