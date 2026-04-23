@@ -97,6 +97,10 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
                 const data = await response.json();
                 dispatch(setUserCredits(data.credits));
                 await IAP.finishTransaction({ purchase, isConsumable: true });
+              } else if (response.status === 409) {
+                // Already processed previously (replay protection). Finish
+                // the transaction so Apple stops redelivering it.
+                await IAP.finishTransaction({ purchase, isConsumable: true });
               } else {
                 console.error(
                   `verify-purchase failed: ${response.status} ${await response.text()}`,
