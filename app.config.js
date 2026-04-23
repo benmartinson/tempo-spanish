@@ -23,6 +23,8 @@ export default {
           "This app uses the microphone to record audio.",
         NSSpeechRecognitionUsageDescription:
           "This app uses speech recognition for voice commands.",
+        NSPhotoLibraryUsageDescription:
+          "This app does not access your photo library.",
       },
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
