@@ -8,13 +8,10 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux";
-import Constants from "expo-constants";
 import SlideModal from "./common/SlideModal";
 import { RootState } from "../types";
 import { setUserCredits } from "../store/actions/dataActions";
 import { backendFetch } from "../helpers/backendFetch";
-
-const isExpoGo = Constants.appOwnership === "expo";
 
 const CREDIT_PACKS = [
   {
@@ -55,6 +52,13 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
   const dispatch = useDispatch();
   const userCredits = useSelector((state: RootState) => state.userCredits);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!errorMessage) return;
+    const timer = setTimeout(() => setErrorMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [errorMessage]);
 
   // IAP state (only used in real builds)
   const [iapProducts, setIapProducts] = useState<IAPProduct[]>([]);
@@ -62,7 +66,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
 
   // Dynamically load expo-iap only in real builds when modal is visible
   useEffect(() => {
-    if (isExpoGo || !visible) return;
+    if (!visible) return;
 
     let purchaseUpdateSub: { remove: () => void } | undefined;
     let purchaseErrorSub: { remove: () => void } | undefined;
@@ -92,10 +96,16 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
               if (response.ok) {
                 const data = await response.json();
                 dispatch(setUserCredits(data.credits));
+                await IAP.finishTransaction({ purchase, isConsumable: true });
+              } else {
+                console.error(
+                  `verify-purchase failed: ${response.status} ${await response.text()}`,
+                );
+                setErrorMessage("Something went wrong");
               }
-              await IAP.finishTransaction({ purchase, isConsumable: true });
             } catch (err) {
-              console.error("Error finishing transaction:", err);
+              console.error("Error verifying purchase:", err);
+              setErrorMessage("Something went wrong");
             }
           },
         );
@@ -103,6 +113,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
         purchaseErrorSub = IAP.purchaseErrorListener((error: any) => {
           if (error.code !== "user-cancelled") {
             console.error("Purchase error:", error.message);
+            setErrorMessage("Something went wrong");
           }
         });
       } catch (err) {
@@ -119,29 +130,12 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
     };
   }, [visible]);
 
-  const handleDevPurchase = async (productId: string) => {
-    setIsLoading(true);
-    try {
-      const response = await backendFetch("/api/verify-purchase", {
-        method: "POST",
-        body: JSON.stringify({
-          purchase_token: "dev-test",
-          product_id: productId,
-        }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        dispatch(setUserCredits(data.credits));
-      }
-    } catch (err) {
-      console.error("Dev purchase error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleIAPPurchase = async (productId: string) => {
-    if (!iapModule) return;
+    setErrorMessage(null);
+    if (!iapModule) {
+      setErrorMessage("Something went wrong");
+      return;
+    }
     setIsLoading(true);
     try {
       await iapModule.requestPurchase({
@@ -153,19 +147,15 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
       });
     } catch (err) {
       console.error("Purchase request error:", err);
+      setErrorMessage("Something went wrong");
     } finally {
       setIsLoading(false);
     }
   };
 
   const renderIAPProducts = () => {
-    if (iapProducts.length === 0) {
-      return <Text style={styles.emptyText}>Loading credit packs...</Text>;
-    }
-
     return CREDIT_PACKS.map((pack) => {
       const product = iapProducts.find((p) => p.id === pack.id);
-      if (!product) return null;
       return (
         <TouchableOpacity
           key={pack.id}
@@ -180,33 +170,13 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
             </Text>
             <Text style={styles.productHours}>{pack.hours}</Text>
           </View>
-          <Text style={styles.productPrice}>{product.displayPrice}</Text>
+          <Text style={styles.productPrice}>
+            {product?.displayPrice ?? pack.price}
+          </Text>
         </TouchableOpacity>
       );
     });
   };
-
-  const renderDevProducts = () => (
-    <>
-      {CREDIT_PACKS.map((pack) => (
-        <TouchableOpacity
-          key={pack.id}
-          style={styles.productRow}
-          onPress={() => handleDevPurchase(pack.id)}
-          disabled={isLoading}
-          activeOpacity={0.7}
-        >
-          <View style={styles.productInfo}>
-            <Text style={styles.productCredits}>
-              {pack.credits.toLocaleString()} credits
-            </Text>
-            <Text style={styles.productHours}>{pack.hours}</Text>
-          </View>
-          <Text style={styles.productPrice}>{pack.price}</Text>
-        </TouchableOpacity>
-      ))}
-    </>
-  );
 
   return (
     <SlideModal visible={visible} onRequestClose={onClose} title="Buy Credits">
@@ -219,13 +189,20 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
 
         <Text style={styles.sectionHeader}>Credit Packs</Text>
 
-        {isExpoGo ? renderDevProducts() : renderIAPProducts()}
+        {errorMessage && (
+          <View style={styles.errorBanner}>
+            <MaterialIcons name="error-outline" size={18} color="#c0392b" />
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        )}
+
+        {renderIAPProducts()}
 
         {isLoading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color="#4a69bd" />
             <Text style={styles.loadingText}>
-              {isExpoGo ? "Adding credits..." : "Processing purchase..."}
+              Processing purchase...
             </Text>
           </View>
         )}
@@ -322,6 +299,21 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
     lineHeight: 18,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fdecea",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#c0392b",
+    fontWeight: "500",
   },
 });
 
