@@ -58,6 +58,8 @@ import {
   persistCurrentShadowTab,
   incrementFocusVocabReviewCount,
   saveFocusVocabTranslation,
+  fetchSentenceWordTranslations,
+  appendSentenceWordTranslation,
 } from "../../requests";
 import { VocabCacheEntry } from "../../types";
 import TranslationReviewModal from "./TranslationReviewModal";
@@ -202,14 +204,52 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     userSettings.defaultMemorizeDifficulty,
   );
   const [vocabCache, setVocabCache] = useState<VocabCacheEntry[]>([]);
-  const handleVocabCacheUpdate = useCallback((entry: VocabCacheEntry) => {
-    setVocabCache((prev) => [...prev, entry]);
-  }, []);
+  const [vocabCacheHydrating, setVocabCacheHydrating] = useState(false);
+  const handleVocabCacheUpdate = useCallback(
+    (entry: VocabCacheEntry) => {
+      setVocabCache((prev) => {
+        if (prev.some((e) => e.word === entry.word)) return prev;
+        return [...prev, entry];
+      });
+      if (currentVideo?.recordId) {
+        appendSentenceWordTranslation({
+          supabase,
+          videoRecordId: currentVideo.recordId,
+          sentenceIndex: currentSentenceIndex,
+          entry,
+        }).catch((err) =>
+          console.error("Failed to persist word translation:", err),
+        );
+      }
+    },
+    [supabase, currentVideo?.recordId, currentSentenceIndex],
+  );
   useEffect(() => {
     setLocalDifficulty(userSettings.defaultMemorizeDifficulty);
     setVocabCache([]);
     setError(null);
-  }, [currentSentenceIndex]);
+
+    if (!currentVideo?.recordId) return;
+    let cancelled = false;
+    setVocabCacheHydrating(true);
+    fetchSentenceWordTranslations({
+      supabase,
+      videoRecordId: currentVideo.recordId,
+      sentenceIndex: currentSentenceIndex,
+    })
+      .then((entries) => {
+        if (!cancelled && entries.length) setVocabCache(entries);
+      })
+      .catch((err) =>
+        console.error("Failed to load word translations:", err),
+      )
+      .finally(() => {
+        if (!cancelled) setVocabCacheHydrating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSentenceIndex, currentVideo?.recordId]);
 
   // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
@@ -1316,6 +1356,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   <TranslateContent
                     translationText={sentenceTranslation}
                     sentenceText={currentSentenceObject?.text}
+                    sentenceWords={currentSentenceObject?.words}
                     isLoading={isLoadingInsights}
                     time={time}
                     playerIsPlaying={playerIsPlaying}
@@ -1324,6 +1365,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                     playKey={playKey}
                     isRecording={isRecording}
                     playerSpeed={playerSpeed}
+                    vocabCache={vocabCache}
+                    onVocabCacheUpdate={handleVocabCacheUpdate}
+                    vocabCacheHydrating={vocabCacheHydrating}
                   />
                 </View>
               ) : (

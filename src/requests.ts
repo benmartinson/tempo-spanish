@@ -11,6 +11,7 @@ import {
   UserSettings,
   DEFAULT_USER_SETTINGS,
   ContentTab,
+  VocabCacheEntry,
 } from "./types";
 import { cachedResponses, splitSegmentsIntoSentences } from "./helpers/helpers";
 import { setCachedResponses } from "./store/actions/dataActions";
@@ -155,7 +156,13 @@ export const fetchVocabTranslation = async ({
   });
 
   if (!response.ok) {
-    throw new Error(`Error fetching vocab translation: ${response.status}`);
+    const body = await response.text().catch(() => "<unreadable>");
+    console.error(
+      `fetchVocabTranslation failed [${response.status}] word="${vocabWord}": ${body}`,
+    );
+    throw new Error(
+      `Error fetching vocab translation: ${response.status} — ${body}`,
+    );
   }
 
   const data = await response.json();
@@ -266,6 +273,60 @@ export const loadSentenceInsights = async ({
     translation: cached?.[translationColumn] ?? null,
   };
 };
+
+export const fetchSentenceWordTranslations = async ({
+  supabase,
+  videoRecordId,
+  sentenceIndex,
+}: {
+  supabase: any;
+  videoRecordId: string;
+  sentenceIndex: number;
+}): Promise<VocabCacheEntry[]> => {
+  const { data, error } = await supabase
+    .from("sentence_insights")
+    .select("word_translations")
+    .eq("video_id", parseInt(videoRecordId))
+    .eq("sentence_index", sentenceIndex)
+    .maybeSingle();
+
+  if (error || !data?.word_translations) return [];
+  return data.word_translations as VocabCacheEntry[];
+};
+
+export const appendSentenceWordTranslation = async ({
+  supabase,
+  videoRecordId,
+  sentenceIndex,
+  entry,
+}: {
+  supabase: any;
+  videoRecordId: string;
+  sentenceIndex: number;
+  entry: VocabCacheEntry;
+}): Promise<void> => {
+  const { data } = await supabase
+    .from("sentence_insights")
+    .select("word_translations")
+    .eq("video_id", parseInt(videoRecordId))
+    .eq("sentence_index", sentenceIndex)
+    .maybeSingle();
+
+  const existing: VocabCacheEntry[] = (data?.word_translations ??
+    []) as VocabCacheEntry[];
+  if (existing.some((e) => e.word === entry.word)) return;
+
+  const updated = [...existing, entry];
+  await supabase.from("sentence_insights").upsert(
+    {
+      video_id: parseInt(videoRecordId),
+      sentence_index: sentenceIndex,
+      word_translations: updated,
+    },
+    { onConflict: "video_id,sentence_index" },
+  );
+};
+
 export interface FetchAllVideosParams {
   supabase: any;
 }
@@ -611,7 +672,8 @@ export const persistUserSettings = async ({
   if (settings.autoSelectDifficulty !== undefined)
     updateData.auto_select_difficulty = settings.autoSelectDifficulty;
   if (settings.autoSelectDifficultyLevel !== undefined)
-    updateData.auto_select_difficulty_level = settings.autoSelectDifficultyLevel;
+    updateData.auto_select_difficulty_level =
+      settings.autoSelectDifficultyLevel;
 
   const { error } = await supabase
     .from("user_ui_state")

@@ -135,28 +135,13 @@ const FullSegmentTranscriptBubble: React.FC<
     setWordPositions({});
   }, [segmentIdentity]);
 
-  // Compute raw word index from current playback time
-  const rawWordIdx = useMemo(() => {
-    if (mode === "shadow") return currentTargetIndex;
-    if (!words?.length) return -1;
-    for (let i = 0; i < words.length; i++) {
-      if (localTime >= words[i].start && localTime <= words[i].end) return i;
-      if (
-        localTime > words[i].end &&
-        (i === words.length - 1 || localTime < words[i + 1].start)
-      ) {
-        return i;
-      }
-    }
-    return 0;
-  }, [words, localTime, mode, currentTargetIndex]);
-
   const segmentStartTime = words?.[0]?.start ?? 0;
   const { activeChunkStart, activeChunkEnd, displayWordIdx } = useStableChunkIdx({
-    wordCount: words?.length ?? 0,
-    rawWordIdx,
+    words: words ?? [],
+    time: localTime,
     isReplay: localTime <= segmentStartTime + 0.5,
     resetKey: segmentIdentity,
+    overrideWordIdx: mode === "shadow" ? currentTargetIndex : undefined,
   });
 
   const currentWordIndex = displayWordIdx;

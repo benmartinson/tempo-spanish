@@ -9,6 +9,7 @@ import {
   SegmentWord,
   VideoContext,
   AccuracyResult,
+  VocabCacheEntry,
 } from "../types";
 import { levenshtein } from "./calculate_accuracy";
 
@@ -689,4 +690,152 @@ export const hasUnnaturalSpeechTiming = (words: SegmentWord[]) => {
     }
   }
   return false;
+};
+
+export interface TimedWord {
+  word: string;
+  start: number;
+  end: number;
+}
+
+export interface ComputeMatchedTimedWordsParams {
+  words: string[]; // English translation words in display order
+  wordsToTranslate: SegmentWord[]; // Spanish content words with real timings
+  vocabCache: VocabCacheEntry[]; // per-word translations (Spanish word -> English)
+  segmentStart: number;
+  segmentEnd: number;
+}
+
+/**
+ * Builds timed word entries for an English translation by matching each English word
+ * to the Spanish word whose translation contains it. Unmatched English words get
+ * linearly interpolated timings between the nearest matched neighbors. Returns null
+ * if no matches could be made (caller should fall back to uniform distribution).
+ */
+export const computeMatchedTimedWords = ({
+  words,
+  wordsToTranslate,
+  vocabCache,
+  segmentStart,
+  segmentEnd,
+}: ComputeMatchedTimedWordsParams): TimedWord[] | null => {
+  const duration = segmentEnd - segmentStart;
+  if (!words.length || duration <= 0) return null;
+
+  // Strips punctuation, lowercases, and removes diacritics — used to match
+  // Spanish words case- and accent-insensitively (e.g. "Pero" vs "pero",
+  // "más" vs "mas"), and similarly for English lookup.
+  const norm = (w: string) =>
+    stripDiacritics(stripPunctuation(w.trim().toLowerCase()));
+
+  // Index the vocab cache by normalized Spanish word — multiple entries per
+  // word are supported (e.g. "para" with translations "for" and "so").
+  const cacheByNorm = new Map<string, VocabCacheEntry[]>();
+  for (const c of vocabCache) {
+    const key = norm(c.word);
+    if (!key) continue;
+    if (!cacheByNorm.has(key)) cacheByNorm.set(key, []);
+    cacheByNorm.get(key)!.push(c);
+  }
+
+  // english word -> matched Spanish timing (first match wins)
+  const lookup = new Map<string, { start: number; end: number }>();
+  for (const sp of wordsToTranslate) {
+    const entries = cacheByNorm.get(norm(sp.word));
+    if (!entries) continue;
+    for (const entry of entries) {
+      if (!entry.translation) continue;
+      for (const piece of entry.translation.split(/\s+/)) {
+        const key = norm(piece);
+        if (!key || lookup.has(key)) continue;
+        lookup.set(key, { start: sp.start, end: sp.end });
+      }
+    }
+  }
+
+  if (!lookup.size) return null;
+
+  const matched: ({ start: number; end: number } | null)[] = words.map((w) => {
+    return lookup.get(norm(w)) ?? null;
+  });
+
+  // Keep only the longest non-decreasing subsequence of matched times; drop
+  // outliers (e.g. an early-position English word that first-match-wins mapped
+  // to a late Spanish time). This preserves the bulk of good timing data rather
+  // than bumping everything forward to accommodate one bad match.
+  const matchedIndices: number[] = [];
+  const matchedTimes: number[] = [];
+  for (let i = 0; i < words.length; i++) {
+    if (matched[i]) {
+      matchedIndices.push(i);
+      matchedTimes.push(matched[i]!.start);
+    }
+  }
+  if (matchedIndices.length > 1) {
+    const n = matchedTimes.length;
+    const dp = new Array<number>(n).fill(1);
+    const parent = new Array<number>(n).fill(-1);
+    let bestEnd = 0;
+    for (let i = 1; i < n; i++) {
+      for (let j = 0; j < i; j++) {
+        if (matchedTimes[j] <= matchedTimes[i] && dp[j] + 1 > dp[i]) {
+          dp[i] = dp[j] + 1;
+          parent[i] = j;
+        }
+      }
+      if (dp[i] > dp[bestEnd]) bestEnd = i;
+    }
+    const keep = new Set<number>();
+    for (let k = bestEnd; k !== -1; k = parent[k]) {
+      keep.add(matchedIndices[k]);
+    }
+    for (let i = 0; i < words.length; i++) {
+      if (matched[i] && !keep.has(i)) matched[i] = null;
+    }
+  }
+
+  const result: TimedWord[] = [];
+  for (let i = 0; i < words.length; i++) {
+    if (matched[i]) {
+      result.push({ word: words[i], ...matched[i]! });
+      continue;
+    }
+    let prevIdx = i - 1;
+    while (prevIdx >= 0 && !matched[prevIdx]) prevIdx--;
+    let nextIdx = i + 1;
+    while (nextIdx < words.length && !matched[nextIdx]) nextIdx++;
+
+    const prev = prevIdx >= 0 ? matched[prevIdx] : null;
+    const next = nextIdx < words.length ? matched[nextIdx] : null;
+
+    let t: number;
+    if (prev && next) {
+      const ratio = (i - prevIdx) / (nextIdx - prevIdx);
+      t = prev.start + (next.start - prev.start) * ratio;
+    } else if (prev) {
+      t = prev.end;
+    } else if (next) {
+      t = next.start;
+    } else {
+      t = segmentStart + (i / words.length) * duration;
+    }
+    result.push({ word: words[i], start: t, end: t });
+  }
+
+  // Safety net: enforce monotonic non-decreasing (LIS should have ensured this,
+  // but interpolation edge cases could still violate it).
+  for (let i = 1; i < result.length; i++) {
+    if (result[i].start < result[i - 1].start) {
+      result[i] = {
+        ...result[i],
+        start: result[i - 1].start,
+        end: Math.max(result[i].end, result[i - 1].start),
+      };
+    }
+    if (result[i].end < result[i].start) {
+      result[i] = { ...result[i], end: result[i].start };
+    }
+  }
+
+  return result;
 };
