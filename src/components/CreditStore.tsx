@@ -85,7 +85,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
               const response = await backendFetch("/api/verify-purchase", {
                 method: "POST",
                 body: JSON.stringify({
-                  transaction_receipt: purchase.purchaseToken ?? "",
+                  purchase_token: purchase.purchaseToken ?? "",
                   product_id: purchase.productId,
                 }),
               });
@@ -125,7 +125,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
       const response = await backendFetch("/api/verify-purchase", {
         method: "POST",
         body: JSON.stringify({
-          transaction_receipt: "dev-test",
+          purchase_token: "dev-test",
           product_id: productId,
         }),
       });

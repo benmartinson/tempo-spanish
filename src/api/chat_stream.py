@@ -29,6 +29,7 @@ from elevenlabs.client import ElevenLabs
 # Import the transcription router
 from soniox_transcription import router as transcription_router
 from auth import verify_jwt, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+from iap_verification import verify_transaction_jws, ReceiptVerificationError
 
 # Load environment variables
 load_dotenv()
@@ -484,15 +485,22 @@ CREDIT_AMOUNTS = {
 
 
 class VerifyPurchaseRequest(BaseModel):
-    transaction_receipt: str
+    purchase_token: str
     product_id: str
 
 
 @app.post("/api/verify-purchase")
 async def verify_purchase(request: VerifyPurchaseRequest, user_id: str = Depends(verify_jwt)):
     """
-    Verify an Apple IAP receipt and add credits to the user's account.
-    Uses the service role key to bypass RLS for credit additions.
+    Verify an Apple IAP signed transaction (JWS) and add credits to the user's
+    account. Uses the service role key to bypass RLS for credit additions.
+
+    Security:
+      - Validates the JWS signature chain against Apple's root CAs.
+      - Confirms bundleId and productId in the payload match expectations.
+      - Inserts the Apple transactionId into iap_transactions with a unique
+        constraint; a replay of the same JWS returns 409 without granting more
+        credits.
     """
     credits_to_add = CREDIT_AMOUNTS.get(request.product_id)
     if not credits_to_add:
@@ -502,10 +510,21 @@ async def verify_purchase(request: VerifyPurchaseRequest, user_id: str = Depends
         print("SUPABASE_SERVICE_ROLE_KEY is not configured")
         raise HTTPException(status_code=500, detail="Purchase service is not configured")
 
-    # TODO: Verify the transaction_receipt with Apple's App Store Server API
-    # to confirm the purchase is legitimate before adding credits.
-    # For now, we trust the receipt from the client — add Apple verification
-    # before going to production.
+    try:
+        payload = verify_transaction_jws(request.purchase_token)
+    except ReceiptVerificationError as e:
+        print(f"Receipt verification failed for user {user_id}: {e}")
+        raise HTTPException(status_code=403, detail="Invalid receipt")
+
+    if payload.productId != request.product_id:
+        print(
+            f"Product ID mismatch: receipt has {payload.productId}, "
+            f"request claims {request.product_id}"
+        )
+        raise HTTPException(status_code=400, detail="Product mismatch")
+
+    transaction_id = payload.transactionId
+    environment = payload.environment.value if payload.environment else "Unknown"
 
     service_headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
@@ -515,6 +534,33 @@ async def verify_purchase(request: VerifyPurchaseRequest, user_id: str = Depends
 
     try:
         async with httpx.AsyncClient() as client:
+            # Replay protection: insert the transactionId first. If it already
+            # exists, the unique constraint rejects the insert (PostgREST 409).
+            insert_response = await client.post(
+                f"{SUPABASE_URL}/rest/v1/iap_transactions",
+                headers={**service_headers, "Prefer": "return=minimal"},
+                json={
+                    "transaction_id": transaction_id,
+                    "user_id": user_id,
+                    "product_id": request.product_id,
+                    "environment": environment,
+                    "credits_granted": credits_to_add,
+                },
+            )
+
+            if insert_response.status_code == 409:
+                raise HTTPException(
+                    status_code=409, detail="Transaction already processed"
+                )
+            if insert_response.status_code not in (200, 201, 204):
+                print(
+                    f"iap_transactions insert failed: "
+                    f"{insert_response.status_code} - {insert_response.text}"
+                )
+                raise HTTPException(
+                    status_code=500, detail="Failed to record transaction"
+                )
+
             # Fetch current credits
             response = await client.get(
                 f"{SUPABASE_URL}/rest/v1/user_credits",
