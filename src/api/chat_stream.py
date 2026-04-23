@@ -477,7 +477,6 @@ Identify all proper nouns (character names, place names, or any word that requir
 
 
 CREDIT_AMOUNTS = {
-    "tempo_credits_500": 500,
     "tempo_credits_1000": 1000,
     "tempo_credits_5000": 5000,
     "tempo_credits_10000": 10000,
