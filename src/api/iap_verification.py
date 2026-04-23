@@ -36,9 +36,11 @@ def _load_root_certs() -> List[bytes]:
 
 _ROOT_CERTS = _load_root_certs()
 
-# App Apple ID is only required for certain App Store Server Notifications flows;
-# not needed for verifying JWS transactions from client purchases.
-_APP_APPLE_ID = None
+# App Apple ID (numeric, from App Store Connect) is required to construct a
+# Production verifier. Sandbox/TestFlight verification does not need it. Leave
+# unset in deployments that only serve TestFlight; set to enable production.
+_app_apple_id_env = os.getenv("APP_APPLE_ID")
+_APP_APPLE_ID = int(_app_apple_id_env) if _app_apple_id_env else None
 
 _sandbox_verifier = SignedDataVerifier(
     root_certificates=_ROOT_CERTS,
@@ -48,12 +50,16 @@ _sandbox_verifier = SignedDataVerifier(
     app_apple_id=_APP_APPLE_ID,
 )
 
-_production_verifier = SignedDataVerifier(
-    root_certificates=_ROOT_CERTS,
-    enable_online_checks=False,
-    environment=Environment.PRODUCTION,
-    bundle_id=BUNDLE_ID,
-    app_apple_id=_APP_APPLE_ID,
+_production_verifier = (
+    SignedDataVerifier(
+        root_certificates=_ROOT_CERTS,
+        enable_online_checks=False,
+        environment=Environment.PRODUCTION,
+        bundle_id=BUNDLE_ID,
+        app_apple_id=_APP_APPLE_ID,
+    )
+    if _APP_APPLE_ID is not None
+    else None
 )
 
 
@@ -65,17 +71,22 @@ def verify_transaction_jws(signed_jws: str):
     """
     Verify a signed transaction JWS and return the decoded payload.
 
-    Tries sandbox first, then production. Each verifier enforces that the JWS
-    signature chains to Apple's roots AND that the payload's environment/bundleId
-    match what the verifier was configured for — so if both fail, the JWS is
-    either forged, tampered with, or for the wrong app.
+    Tries sandbox first, then production (if APP_APPLE_ID is configured).
+    Each verifier enforces that the JWS signature chains to Apple's roots AND
+    that the payload's environment/bundleId match what the verifier was
+    configured for — so if all fail, the JWS is either forged, tampered with,
+    or for the wrong app.
     """
     errors = []
-    for verifier in (_sandbox_verifier, _production_verifier):
+    verifiers = [_sandbox_verifier]
+    if _production_verifier is not None:
+        verifiers.append(_production_verifier)
+
+    for verifier in verifiers:
         try:
             return verifier.verify_and_decode_signed_transaction(signed_jws)
         except VerificationException as e:
             errors.append(str(e))
     raise ReceiptVerificationError(
-        f"JWS verification failed for both environments: {errors}"
+        f"JWS verification failed: {errors}"
     )
