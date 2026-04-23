@@ -10,10 +10,7 @@ import {
   type RecordingOptions,
 } from "expo-audio";
 import { decode, encode } from "base64-arraybuffer";
-import {
-  TranscriptionResponse,
-  AccuracyResult,
-} from "../types";
+import { TranscriptionResponse, AccuracyResult } from "../types";
 import { backendFetch } from "./backendFetch";
 import { supabase } from "../../lib/supabase";
 import Constants from "expo-constants";
@@ -119,49 +116,6 @@ export const playAudio = async (audioBase64: string) => {
 export const playAudioSequence = async (clips: string[]) => {
   for (const clip of clips) {
     await playAudio(clip);
-  }
-};
-
-export const playAiSpeech = async ({
-  segmentText,
-  videoId,
-  sentenceIndex,
-  supabase,
-}: {
-  segmentText: string;
-  videoId?: number;
-  sentenceIndex?: number;
-  supabase?: any;
-}) => {
-  // Check cache first
-  if (supabase && videoId != null && sentenceIndex != null) {
-    const { data: cached } = await supabase
-      .from("sentence_insights")
-      .select("segment_recording")
-      .eq("video_id", videoId)
-      .eq("sentence_index", sentenceIndex)
-      .maybeSingle();
-
-    if (cached?.segment_recording) {
-      await playAudio(cached.segment_recording);
-      return;
-    }
-  }
-
-  // Generate new TTS
-  const base64 = await generateTTS(segmentText);
-  await playAudio(base64);
-
-  // Save to cache
-  if (supabase && videoId != null && sentenceIndex != null) {
-    await supabase.from("sentence_insights").upsert(
-      {
-        video_id: videoId,
-        sentence_index: sentenceIndex,
-        segment_recording: base64,
-      },
-      { onConflict: "video_id,sentence_index" },
-    );
   }
 };
 

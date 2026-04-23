@@ -1,13 +1,6 @@
 import React, { useState } from "react";
-import {
-  StyleSheet,
-  View,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { playAiSpeech } from "../../helpers/streaming_helpers";
-import { useSupabaseWithClerk } from "../../../utils/supabase";
 
 interface PlayerControlsProps {
   onReplay?: () => void;
@@ -32,22 +25,6 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   sentenceIndex,
   onBeforeAction,
 }) => {
-  const [aiLoading, setAiLoading] = useState(false);
-  const supabase = useSupabaseWithClerk();
-
-  const handleAiSpeak = async () => {
-    if (!segmentText || aiLoading) return;
-    await onBeforeAction?.();
-    setAiLoading(true);
-    try {
-      await playAiSpeech({ segmentText, videoId, sentenceIndex, supabase });
-    } catch (err) {
-      console.error("ElevenLabs TTS error:", err);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
       <TouchableOpacity
