@@ -193,3 +193,8 @@ export const setHasSeenWelcomeModals = (seen: boolean): DataAction => ({
   type: "SET_HAS_SEEN_WELCOME_MODALS",
   payload: seen,
 });
+
+export const setProfileModalOpen = (open: boolean): DataAction => ({
+  type: "SET_PROFILE_MODAL_OPEN",
+  payload: open,
+});

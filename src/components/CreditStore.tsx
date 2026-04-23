@@ -101,7 +101,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
         );
 
         purchaseErrorSub = IAP.purchaseErrorListener((error: any) => {
-          if (error.code !== "E_USER_CANCELLED") {
+          if (error.code !== "user-cancelled") {
             console.error("Purchase error:", error.message);
           }
         });
@@ -145,7 +145,10 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
     setIsLoading(true);
     try {
       await iapModule.requestPurchase({
-        request: { sku: productId },
+        request: {
+          ios: { sku: productId },
+          android: { skus: [productId] },
+        },
         type: "in-app",
       });
     } catch (err) {
@@ -160,22 +163,22 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
       return <Text style={styles.emptyText}>Loading credit packs...</Text>;
     }
 
-    return iapProducts.map((product) => {
-      const pack = CREDIT_PACKS.find((p) => p.id === product.id);
-      const credits = CREDIT_AMOUNTS[product.id] ?? 0;
+    return CREDIT_PACKS.map((pack) => {
+      const product = iapProducts.find((p) => p.id === pack.id);
+      if (!product) return null;
       return (
         <TouchableOpacity
-          key={product.id}
+          key={pack.id}
           style={styles.productRow}
-          onPress={() => handleIAPPurchase(product.id)}
+          onPress={() => handleIAPPurchase(pack.id)}
           disabled={isLoading}
           activeOpacity={0.7}
         >
           <View style={styles.productInfo}>
             <Text style={styles.productCredits}>
-              {credits.toLocaleString()} credits
+              {pack.credits.toLocaleString()} credits
             </Text>
-            <Text style={styles.productHours}>{pack?.hours}</Text>
+            <Text style={styles.productHours}>{pack.hours}</Text>
           </View>
           <Text style={styles.productPrice}>{product.displayPrice}</Text>
         </TouchableOpacity>

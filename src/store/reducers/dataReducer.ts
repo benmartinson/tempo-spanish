@@ -26,6 +26,7 @@ const initialState: RootState = {
   cachedResponses: [],
   userCredits: 0,
   hasSeenWelcomeModals: false,
+  profileModalOpen: false,
 };
 
 const dataReducer = (
@@ -292,6 +293,11 @@ const dataReducer = (
       return {
         ...state,
         hasSeenWelcomeModals: action.payload,
+      };
+    case "SET_PROFILE_MODAL_OPEN":
+      return {
+        ...state,
+        profileModalOpen: action.payload,
       };
     default:
       return state;

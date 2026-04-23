@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,10 @@ import CreditStore from "./CreditStore";
 import TermsOfUseModal from "./TermsOfUseModal";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
 import HelpAndFeedbackModal from "./HelpAndFeedbackModal";
-import { setUserCredits } from "../store/actions/dataActions";
+import {
+  setUserCredits,
+  setProfileModalOpen,
+} from "../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../utils/supabase";
 import { fetchUserCredits } from "../requests";
 
@@ -69,6 +72,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   const [termsVisible, setTermsVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
+
+  useEffect(() => {
+    dispatch(setProfileModalOpen(visible));
+  }, [visible, dispatch]);
 
   const handleSignOut = async () => {
     onClose();

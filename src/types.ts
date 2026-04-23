@@ -94,6 +94,7 @@ export interface RootState {
   cachedResponses: CachedResponse[];
   userCredits: number;
   hasSeenWelcomeModals: boolean;
+  profileModalOpen: boolean;
 }
 
 export type DataActionTypes =
@@ -133,7 +134,8 @@ export type DataActionTypes =
   | "SET_USER_CREDITS"
   | "UPDATE_FOCUS_VOCAB_TRANSLATION"
   | "INCREMENT_FOCUS_VOCAB_REVIEW"
-  | "SET_HAS_SEEN_WELCOME_MODALS";
+  | "SET_HAS_SEEN_WELCOME_MODALS"
+  | "SET_PROFILE_MODAL_OPEN";
 
 export interface DataAction extends Record<string, any> {
   type: DataActionTypes;
