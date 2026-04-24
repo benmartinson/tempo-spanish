@@ -1,7 +1,61 @@
 import OAuthButton from "./OAuthButton";
-import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/clerk-expo";
+import { useNavigation } from "@react-navigation/native";
+import { useDispatch } from "react-redux";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setSignInScreenOpen } from "../store/actions/dataActions";
+import { useSupabaseWithClerk } from "../../utils/supabase";
+import { initializeUserCredits } from "../requests";
+
+const INITIAL_CREDITS_GRANTED_KEY = "initial_credits_granted";
 
 function SignInScreen() {
+  const { isSignedIn } = useAuth();
+  const supabase = useSupabaseWithClerk();
+  const navigation = useNavigation<any>();
+  const dispatch = useDispatch();
+  const [pendingNewUserId, setPendingNewUserId] = useState<string | null>(null);
+  const postSignInProcessedRef = useRef(false);
+
+  useEffect(() => {
+    dispatch(setSignInScreenOpen(true));
+    return () => {
+      dispatch(setSignInScreenOpen(false));
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    if (!supabase) return;
+    if (postSignInProcessedRef.current) return;
+    postSignInProcessedRef.current = true;
+
+    (async () => {
+      try {
+        if (pendingNewUserId) {
+          const alreadyGranted = await AsyncStorage.getItem(
+            INITIAL_CREDITS_GRANTED_KEY,
+          );
+          const defaultCredits = alreadyGranted ? 0 : 100;
+          await initializeUserCredits({
+            supabase,
+            userId: pendingNewUserId,
+            defaultCredits,
+          });
+          if (!alreadyGranted) {
+            await AsyncStorage.setItem(INITIAL_CREDITS_GRANTED_KEY, "true");
+          }
+        }
+      } catch (err) {
+        console.error("Post-signin credit init failed:", err);
+      } finally {
+        navigation.goBack();
+      }
+    })();
+  }, [isSignedIn, supabase, pendingNewUserId, navigation]);
+
   return (
     <View style={{ flex: 1, backgroundColor: "#fff", minHeight: "100%" }}>
       <View style={styles.header}>
@@ -13,10 +67,21 @@ function SignInScreen() {
           Sign in to save your progress and unlock all features
         </Text>
         <View style={styles.buttons}>
-          <OAuthButton strategy="oauth_apple" />
-          <OAuthButton strategy="oauth_google" />
+          <OAuthButton
+            strategy="oauth_apple"
+            onAuthenticated={setPendingNewUserId}
+          />
+          <OAuthButton
+            strategy="oauth_google"
+            onAuthenticated={setPendingNewUserId}
+          />
         </View>
       </View>
+      {isSignedIn && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#5a5680" />
+        </View>
+      )}
     </View>
   );
 }
@@ -64,6 +129,12 @@ const styles = StyleSheet.create({
   buttons: {
     width: "100%",
     gap: 12,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255, 255, 255, 0.85)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 

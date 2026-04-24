@@ -4,13 +4,7 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
-import { useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect } from "react";
-import { useSupabaseWithClerk } from "../../utils/supabase";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { initializeUserCredits } from "../requests";
-
-const INITIAL_CREDITS_GRANTED_KEY = "initial_credits_granted";
 import {
   Platform,
   StyleSheet,
@@ -46,14 +40,17 @@ const providerConfig: Record<
 
 interface Props {
   strategy: OAuthStrategy;
+  onAuthenticated?: (newUserId: string | null) => void;
   children?: React.ReactNode;
 }
 
-export default function OAuthButton({ strategy, children }: Props) {
+export default function OAuthButton({
+  strategy,
+  onAuthenticated,
+  children,
+}: Props) {
   useWarmUpBrowser();
   const { startSSOFlow } = useSSO();
-  const supabase = useSupabaseWithClerk();
-  const navigation = useNavigation<any>();
   const config = providerConfig[strategy];
 
   const onPress = useCallback(async () => {
@@ -67,22 +64,7 @@ export default function OAuthButton({ strategy, children }: Props) {
 
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
-        const newUserId = signUp?.createdUserId;
-        if (newUserId) {
-          const alreadyGranted = await AsyncStorage.getItem(
-            INITIAL_CREDITS_GRANTED_KEY,
-          );
-          const defaultCredits = alreadyGranted ? 0 : 100;
-          await initializeUserCredits({
-            supabase,
-            userId: newUserId,
-            defaultCredits,
-          });
-          if (!alreadyGranted) {
-            await AsyncStorage.setItem(INITIAL_CREDITS_GRANTED_KEY, "true");
-          }
-        }
-        navigation.goBack();
+        onAuthenticated?.(signUp?.createdUserId ?? null);
       }
     } catch (err: any) {
       console.error("Error during SSO flow:", err);
@@ -91,7 +73,7 @@ export default function OAuthButton({ strategy, children }: Props) {
       }
       console.error(JSON.stringify(err, null, 2));
     }
-  }, [startSSOFlow, strategy]);
+  }, [startSSOFlow, strategy, onAuthenticated]);
 
   return (
     <TouchableOpacity onPress={onPress} style={oauthStyles.button} activeOpacity={0.7}>

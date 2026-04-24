@@ -198,3 +198,8 @@ export const setProfileModalOpen = (open: boolean): DataAction => ({
   type: "SET_PROFILE_MODAL_OPEN",
   payload: open,
 });
+
+export const setSignInScreenOpen = (open: boolean): DataAction => ({
+  type: "SET_SIGN_IN_SCREEN_OPEN",
+  payload: open,
+});

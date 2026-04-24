@@ -142,7 +142,13 @@ const MainApp: React.FC = () => {
       });
 
       dispatch(setUserSettings(settings));
-      dispatch(setHasSeenWelcomeModals(hasSeenWelcomeModals));
+      AsyncStorage.getItem("has_seen_welcome_modals").then((seen) => {
+        if (seen === "true") {
+          dispatch(setHasSeenWelcomeModals(true));
+        } else {
+          dispatch(setHasSeenWelcomeModals(hasSeenWelcomeModals));
+        }
+      });
 
       if (currentShadowTab) {
         dispatch(setCurrentShadowTab(currentShadowTab));

@@ -60,6 +60,9 @@ const SelectedVideoPage: React.FC = () => {
   const profileModalOpen = useSelector(
     (state: RootState) => state.profileModalOpen,
   );
+  const signInScreenOpen = useSelector(
+    (state: RootState) => state.signInScreenOpen,
+  );
 
   const [autoShadowDetails, setAutoShadowDetails] =
     useState<AutoShadowDetails | null>(null);
@@ -243,8 +246,10 @@ const SelectedVideoPage: React.FC = () => {
   const userPressedPlayPause = useRef(false);
 
   useEffect(() => {
-    setAutoplay(hasSeenWelcomeModals && !profileModalOpen);
-  }, [hasSeenWelcomeModals, profileModalOpen]);
+    setAutoplay(
+      hasSeenWelcomeModals && !profileModalOpen && !signInScreenOpen,
+    );
+  }, [hasSeenWelcomeModals, profileModalOpen, signInScreenOpen]);
 
   useEffect(() => {
     refreshPlayer();

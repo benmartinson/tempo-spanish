@@ -27,6 +27,7 @@ const initialState: RootState = {
   userCredits: 0,
   hasSeenWelcomeModals: false,
   profileModalOpen: false,
+  signInScreenOpen: false,
 };
 
 const dataReducer = (
@@ -298,6 +299,11 @@ const dataReducer = (
       return {
         ...state,
         profileModalOpen: action.payload,
+      };
+    case "SET_SIGN_IN_SCREEN_OPEN":
+      return {
+        ...state,
+        signInScreenOpen: action.payload,
       };
     default:
       return state;
