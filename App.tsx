@@ -65,6 +65,7 @@ const publishableKey =
 if (!publishableKey) {
   throw new Error("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not set");
 }
+console.log("[Auth] Clerk publishable key prefix:", publishableKey.slice(0, 8));
 
 const Stack = createNativeStackNavigator();
 

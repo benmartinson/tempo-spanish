@@ -109,9 +109,9 @@ const TermsOfUseModal: React.FC<TermsOfUseModalProps> = ({
 
         <Text style={styles.heading}>9. Privacy Policy</Text>
         <Text style={styles.body}>
-          Privacy Policy Your use of the App is also governed by our Privacy
-          Policy [INSERT LINK], which is incorporated into these Terms by
-          reference.
+          Your use of the App is also governed by our Privacy Policy
+          (https://tempospanish.app/privacy), which is incorporated into
+          these Terms by reference.
         </Text>
 
         <Text style={styles.heading}>10. Disclaimer of Warranties</Text>
