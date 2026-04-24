@@ -7,7 +7,10 @@ import * as WebBrowser from "expo-web-browser";
 import { useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect } from "react";
 import { useSupabaseWithClerk } from "../../utils/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeUserCredits } from "../requests";
+
+const INITIAL_CREDITS_GRANTED_KEY = "initial_credits_granted";
 import {
   Platform,
   StyleSheet,
@@ -64,10 +67,20 @@ export default function OAuthButton({ strategy, children }: Props) {
 
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
-        // Initialize credits for new users only
         const newUserId = signUp?.createdUserId;
         if (newUserId) {
-          await initializeUserCredits({ supabase, userId: newUserId });
+          const alreadyGranted = await AsyncStorage.getItem(
+            INITIAL_CREDITS_GRANTED_KEY,
+          );
+          const defaultCredits = alreadyGranted ? 0 : 100;
+          await initializeUserCredits({
+            supabase,
+            userId: newUserId,
+            defaultCredits,
+          });
+          if (!alreadyGranted) {
+            await AsyncStorage.setItem(INITIAL_CREDITS_GRANTED_KEY, "true");
+          }
         }
         navigation.goBack();
       }

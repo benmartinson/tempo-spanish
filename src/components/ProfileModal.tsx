@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useClerk, useUser } from "@clerk/clerk-expo";
@@ -21,6 +22,7 @@ import {
 } from "../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../utils/supabase";
 import { fetchUserCredits } from "../requests";
+import { backendFetch } from "../helpers/backendFetch";
 
 interface ProfileModalProps {
   visible: boolean;
@@ -82,6 +84,38 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
     await signOut();
   };
 
+  const handleCloseAccount = () => {
+    Alert.alert(
+      "Delete account?",
+      "This permanently deletes your account, recordings progress, vocab, and remaining credits. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const response = await backendFetch("/api/delete-account", {
+                method: "POST",
+              });
+              if (!response.ok) {
+                throw new Error(`${response.status} ${await response.text()}`);
+              }
+              onClose();
+              await signOut();
+            } catch (err) {
+              console.error("Delete account error:", err);
+              Alert.alert(
+                "Something went wrong",
+                "Could not delete your account. Please try again.",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const firstName = user?.firstName ?? "";
   const lastName = user?.lastName ?? "";
   const initials =
@@ -129,7 +163,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
               <Text style={styles.buyMoreText}>Buy More</Text>
             </View>
           </TouchableOpacity>
-          <MenuRow label="Close account" onPress={() => {}} isLast />
+          <MenuRow label="Close account" onPress={handleCloseAccount} isLast />
         </View>
 
         <Text style={styles.sectionHeader}>Support</Text>

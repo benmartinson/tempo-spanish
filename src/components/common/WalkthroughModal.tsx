@@ -5,23 +5,23 @@ import Feather from "@expo/vector-icons/Feather";
 const slides = [
   {
     title: "All About Shadowing",
-    body: "You will watch the video in segments, listen to how the words are said, and when ready, press record to start your turn repeating the words aloud. After submitting your attempt, your speech will be processed and you will be given an accuracy score.",
+    body: "You will watch the video in segments, listen to how the words are said, and when ready, press record to start your turn repeating the words aloud.\n\nAfter submitting your attempt, your speech will be processed and you will be given an accuracy score.",
   },
   {
     title: "Recording Speed",
-    body: "Each shadow attempt will play the video while you record, but at a slower speed, which can be adjusted for increased difficulty. The words in the transcript will highlight when they are said in the video so that you can follow along. The recording will stop shortly after the video segment ends.",
+    body: "Each shadow attempt will play the video while you record, but at a slower speed, which can be adjusted for increased difficulty.\n\nThe words in the transcript will highlight when they are said in the video so that you can follow along.\n\nThe recording will stop shortly after the video segment ends.",
   },
   {
     title: "Adjusting Difficulty",
-    body: "You will see tabs below the video with different content, these allow for different ways of approaching the shadowing task, and allow you to control how difficult it is. For example, like hiding every other word in the transcript so that you need to recall what was said in the segment in order to repeat the words aloud.",
+    body: "You will see tabs below the video with different content, these allow for different ways of approaching the shadowing task, and allow you to control how difficult it is.\n\nFor example, like hiding every other word in the transcript so that you need to recall what was said in the segment in order to repeat the words aloud.",
   },
   {
     title: "Best Approach?",
-    body: "You can decide on whatever approach works for you. Whether you most enjoy moving at a high pace through the segments at the easiest difficulty, or repeating each segment until you have it memorized, the most important thing in language learning is consistency and the amount of input and output you consume and perform.",
+    body: "You can decide on whatever approach works for you.\n\nWhether you most enjoy moving at a high pace through the segments at the easiest difficulty, or repeating each segment until you have it memorized, the most important thing in language learning is consistency and the amount of input and output you consume and perform.",
   },
   {
     title: "Credit System",
-    body: "You will recieve 100 credits to start out. Each credit allows for 1 shadowing attempt. To see credit-package pricing and buy more credits visit the profile section by pressing the top-right icon.",
+    body: "You will recieve 100 credits to start out.\n\nEach credit allows for 1 shadowing attempt.\n\nTo see credit-package pricing and buy more credits visit the profile section by pressing the top-right icon.",
   },
 ];
 

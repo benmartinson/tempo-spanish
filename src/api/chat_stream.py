@@ -600,6 +600,113 @@ async def verify_purchase(request: VerifyPurchaseRequest, user_id: str = Depends
         raise HTTPException(status_code=500, detail="Purchase verification failed")
 
 
+CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
+CLERK_API_URL = os.getenv("CLERK_API_URL", "https://api.clerk.com")
+
+# Tables keyed directly by user_id. Order is not significant — none have FKs
+# pointing at each other.
+USER_OWNED_TABLES = [
+    "iap_transactions",
+    "user_known_vocab",
+    "user_ui_state",
+    "user_credits",
+]
+
+# Tables whose rows are owned via a video_views FK. PostgREST can't do
+# subqueries in DELETE, so we first collect video_view ids and then pass
+# them as an `in.(...)` filter.
+VIDEO_VIEW_CHILD_TABLES = [
+    "video_view_focus_vocab",
+    "video_view_focus_sentence",
+]
+
+
+@app.post("/api/delete-account")
+async def delete_account(user_id: str = Depends(verify_jwt)):
+    """
+    Delete all app data for the caller, then delete the Clerk user.
+
+    Order matters: app data first (while the Clerk JWT is still valid isn't
+    relevant here since we use the service role key, but deleting the Clerk
+    user first would leave a small window where the user could still fire
+    requests with a cached token. Cleaning app rows first keeps things tidy.)
+    """
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(status_code=500, detail="Delete is not configured")
+    if not CLERK_SECRET_KEY:
+        raise HTTPException(status_code=500, detail="Delete is not configured")
+
+    service_headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # 1. Fetch video_view ids owned by this user (for cascaded deletion).
+            vv_resp = await client.get(
+                f"{SUPABASE_URL}/rest/v1/video_views",
+                params={"user_id": f"eq.{user_id}", "select": "id"},
+                headers=service_headers,
+            )
+            if vv_resp.status_code != 200:
+                print(f"video_views fetch failed: {vv_resp.status_code} - {vv_resp.text}")
+                raise HTTPException(status_code=500, detail="Failed to delete account")
+            video_view_ids = [row["id"] for row in vv_resp.json()]
+
+            # 2. Delete child rows referencing those video_views.
+            if video_view_ids:
+                in_list = ",".join(str(i) for i in video_view_ids)
+                for table in VIDEO_VIEW_CHILD_TABLES:
+                    resp = await client.delete(
+                        f"{SUPABASE_URL}/rest/v1/{table}",
+                        params={"video_view_id": f"in.({in_list})"},
+                        headers=service_headers,
+                    )
+                    if resp.status_code not in (200, 204):
+                        print(f"{table} delete failed: {resp.status_code} - {resp.text}")
+                        raise HTTPException(status_code=500, detail="Failed to delete account")
+
+            # 3. Delete video_views.
+            vv_del = await client.delete(
+                f"{SUPABASE_URL}/rest/v1/video_views",
+                params={"user_id": f"eq.{user_id}"},
+                headers=service_headers,
+            )
+            if vv_del.status_code not in (200, 204):
+                print(f"video_views delete failed: {vv_del.status_code} - {vv_del.text}")
+                raise HTTPException(status_code=500, detail="Failed to delete account")
+
+            # 4. Delete remaining user-owned tables.
+            for table in USER_OWNED_TABLES:
+                resp = await client.delete(
+                    f"{SUPABASE_URL}/rest/v1/{table}",
+                    params={"user_id": f"eq.{user_id}"},
+                    headers=service_headers,
+                )
+                if resp.status_code not in (200, 204):
+                    print(f"{table} delete failed: {resp.status_code} - {resp.text}")
+                    raise HTTPException(status_code=500, detail="Failed to delete account")
+
+            # 5. Delete the Clerk user. 404 is fine — already gone.
+            clerk_resp = await client.delete(
+                f"{CLERK_API_URL}/v1/users/{user_id}",
+                headers={"Authorization": f"Bearer {CLERK_SECRET_KEY}"},
+            )
+            if clerk_resp.status_code not in (200, 204, 404):
+                print(f"Clerk delete failed: {clerk_resp.status_code} - {clerk_resp.text}")
+                raise HTTPException(status_code=500, detail="Failed to delete account")
+
+        return {"status": "ok"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Delete account error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete account")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
