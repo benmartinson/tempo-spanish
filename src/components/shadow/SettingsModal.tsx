@@ -203,7 +203,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     style={styles.frequencyButton}
                     onPress={() =>
                       setEditedReviewFrequency(
-                        Math.max(2, editedReviewFrequency - 1),
+                        Math.max(1, editedReviewFrequency - 1),
                       )
                     }
                     disabled={editedReviewFrequency <= 1}
@@ -228,7 +228,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </View>
               <Text style={styles.frequencyHint}>
                 Review every {editedReviewFrequency} segments
-                {editedReviewFrequency === 2 && ". Max Frequency."}
               </Text>
             </>
           )}

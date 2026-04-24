@@ -104,7 +104,7 @@ interface ShadowTabProps {
   playerIsPlaying: boolean;
   isLoadingInsights: boolean;
   orderedCharacters: string[];
-  sentenceTranslation: string | null;
+  sentenceTranslation: { index: number; text: string } | null;
   autoShadowDetails?: AutoShadowDetails | null;
   onAutoShadowHandled?: () => void;
   mutePlayer: () => void;
@@ -148,23 +148,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Track when a clip was just started so voice mode doesn't connect prematurely
   const clipJustStartedRef = useRef(false);
-
-  // Jump to a specific segment when returning from review
-  useEffect(() => {
-    if (autoShadowDetails && currentVideo?.sentences && onPlayClip) {
-      const sentence =
-        currentVideo.sentences[autoShadowDetails.backToSegmentId];
-      if (sentence) {
-        clipJustStartedRef.current = true;
-        onPlayClip(sentence.start);
-        setCurrentSentence(sentence.index);
-      }
-      if (autoShadowDetails.isVoiceMode) {
-        setSelectedTab("voice");
-      }
-      onAutoShadowHandled?.();
-    }
-  }, [autoShadowDetails]);
 
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
@@ -454,13 +437,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Cache sentence data for translation review whenever we have both a result and translation
   useEffect(() => {
     if (
-      sentenceTranslation &&
+      sentenceTranslation?.index === currentSentenceIndex &&
+      sentenceTranslation.text &&
       currentSentenceObject &&
       (accuracyResult || previousResults)
     ) {
       sentenceHistoryRef.current[currentSentenceIndex] = {
         text: currentSentenceObject.text,
-        translation: sentenceTranslation,
+        translation: sentenceTranslation.text,
         words: currentSentenceObject.words,
       };
     }
@@ -1314,7 +1298,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                   }}
                 >
                   <TranslateContent
-                    translationText={sentenceTranslation}
+                    translationText={sentenceTranslation?.text ?? null}
                     sentenceText={currentSentenceObject?.text}
                     isLoading={isLoadingInsights}
                     time={time}

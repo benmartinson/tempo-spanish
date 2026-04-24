@@ -16,7 +16,11 @@ export interface UserSettings {
   showReviewMode: boolean;
   reviewFrequency: number;
   autoSelectDifficulty: boolean;
-  autoSelectDifficultyLevel: "moderate" | "challenging" | "difficult" | "hardest";
+  autoSelectDifficultyLevel:
+    | "moderate"
+    | "challenging"
+    | "difficult"
+    | "hardest";
 }
 
 export type VoiceCommand =
@@ -62,7 +66,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   autoSaveRecordings: false,
   showSaveRecordingsModal: true,
   showReviewMode: true,
-  reviewFrequency: 2,
+  reviewFrequency: 3,
   autoSelectDifficulty: false,
   autoSelectDifficultyLevel: "moderate",
 };
@@ -102,7 +106,6 @@ export type DataActionTypes =
   | "SET_CURRENT_CHAT_TYPE"
   | "SET_NEXT_SEGMENT"
   | "REFRESH_VIDEO_PLAYER"
-
   | "SET_ALL_CHANNELS"
   | "SET_ALL_TOPICS"
   | "SET_CHANNEL_TOPICS"
@@ -111,7 +114,6 @@ export type DataActionTypes =
   | "SET_SENTENCE_BY_TIME"
   | "SET_CURRENT_SENTENCE"
   | "SET_FOCUS_VOCAB"
-
   | "SET_USER_KNOWN_VOCAB"
   | "ADD_USER_KNOWN_VOCAB"
   | "SET_USER_VIDEO_VIEWS"
@@ -251,7 +253,6 @@ export interface SegmentWord {
   vocabularyId?: number;
 }
 
-
 export interface Answer {
   answer: string;
   correct: boolean;
@@ -322,7 +323,6 @@ export interface AccuracyResult {
   }[];
   targetSentence?: string;
 }
-
 
 export interface UserUIState {
   current_video: string | null;

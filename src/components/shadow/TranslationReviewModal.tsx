@@ -46,6 +46,10 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
+  useEffect(() => {
+    handleReset();
+  }, [englishTranslation]);
+
   const evaluateWords = (spokenWords: string[]) => {
     const target = targetWords.map((w) => w.word);
     const result = calculateAccuracy(spokenWords, target, []);
@@ -196,7 +200,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
                     onStopRecording={handleSubmitRecording}
                     onTrash={handleTrashRecording}
                     sentenceEnded={false}
-                    maxRecordingDuration={estimatedDuration + 5}
+                    maxRecordingDuration={estimatedDuration + 10}
                     countdownDuration={0}
                   />
                 ) : (

@@ -102,9 +102,10 @@ const SelectedVideoPage: React.FC = () => {
   const translationLanguage = userSettings.translationLanguage;
   const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(true);
   const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
-  const [sentenceTranslation, setSentenceTranslation] = useState<string | null>(
-    null,
-  );
+  const [sentenceTranslation, setSentenceTranslation] = useState<{
+    index: number;
+    text: string;
+  } | null>(null);
 
   const hintWords = useMemo(() => {
     const sentenceWords = currentSentenceObject?.words || [];
@@ -177,7 +178,10 @@ const SelectedVideoPage: React.FC = () => {
         setOrderedCharacters(ordered);
       }
 
-      setSentenceTranslation(result.translation);
+      setSentenceTranslation({
+        index: currentSentenceIndex,
+        text: result.translation,
+      });
     } catch (err) {
       console.error("Failed to load translation insights:", err);
     } finally {
