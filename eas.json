@@ -22,7 +22,8 @@
       "env": {
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGVtcG9zcGFuaXNoLmFwcCQ",
         "EXPO_PUBLIC_SUPABASE_URL": "https://ryvxgijarhorqwznmmfl.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5dnhnaWphcmhvcnF3em5tbWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMjA5NTgsImV4cCI6MjA4NDY5Njk1OH0.VEP-bFKvfjNFOuU81Upq1OgpmHwpKN3ugUHRLuZHvpU"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5dnhnaWphcmhvcnF3em5tbWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMjA5NTgsImV4cCI6MjA4NDY5Njk1OH0.VEP-bFKvfjNFOuU81Upq1OgpmHwpKN3ugUHRLuZHvpU",
+        "EXPO_NO_CAPABILITY_SYNC": "1"
       }
     }
   },
