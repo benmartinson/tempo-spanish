@@ -7,7 +7,7 @@ export default {
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
-    scheme: "tempo",
+    scheme: "tempospanish",
     plugins: ["expo-web-browser", "expo-speech-recognition", "expo-iap"],
     splash: {
       image: "./assets/splash-icon.png",

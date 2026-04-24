@@ -20,8 +20,10 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("EXPO_PUBLIC_SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-# Clerk JWKS endpoint for verifying JWTs
-CLERK_JWKS_URL = os.getenv("CLERK_JWKS_URL", "https://subtle-pangolin-61.clerk.accounts.dev/.well-known/jwks.json")
+# Clerk JWKS endpoint for verifying JWTs. Must be set explicitly per
+# environment (dev instance at *.clerk.accounts.dev, production at
+# clerk.<yourdomain>) — no default so a misconfigured deploy fails loudly.
+CLERK_JWKS_URL = os.environ["CLERK_JWKS_URL"]
 _jwks_client = PyJWKClient(CLERK_JWKS_URL, cache_keys=True)
 
 _bearer_scheme = HTTPBearer(auto_error=False)
