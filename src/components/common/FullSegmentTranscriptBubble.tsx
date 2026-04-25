@@ -114,13 +114,14 @@ const FullSegmentTranscriptBubble: React.FC<
   );
   const [isActive, setIsActive] = useState(false);
 
-  const localTime = useInterpolatedTime(
-    time,
-    playerIsPlaying,
-    playKey,
-    playerSpeed,
-    words?.[0]?.start,
-  );
+  // const localTime = useInterpolatedTime(
+  //   time,
+  //   playerIsPlaying,
+  //   playKey,
+  //   playerSpeed,
+  //   words?.[0]?.start,
+  // );
+  const localTime = time;
 
   // Build a stable identity for the segment (based on timing, not text content)
   // so masking/revealing words doesn't trigger a full reset
@@ -152,12 +153,13 @@ const FullSegmentTranscriptBubble: React.FC<
   }, [words, localTime, mode, currentTargetIndex]);
 
   const segmentStartTime = words?.[0]?.start ?? 0;
-  const { activeChunkStart, activeChunkEnd, displayWordIdx } = useStableChunkIdx({
-    wordCount: words?.length ?? 0,
-    rawWordIdx,
-    isReplay: localTime <= segmentStartTime + 0.5,
-    resetKey: segmentIdentity,
-  });
+  const { activeChunkStart, activeChunkEnd, displayWordIdx } =
+    useStableChunkIdx({
+      wordCount: words?.length ?? 0,
+      rawWordIdx,
+      isReplay: localTime <= segmentStartTime + 0.5,
+      resetKey: segmentIdentity,
+    });
 
   const currentWordIndex = displayWordIdx;
 

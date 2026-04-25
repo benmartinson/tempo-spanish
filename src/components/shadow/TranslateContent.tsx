@@ -38,12 +38,13 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   isRecording = false,
 }) => {
   const userSettings = useSelector((state: RootState) => state.userSettings);
-  const localTime = useInterpolatedTime(
-    time,
-    playerIsPlaying,
-    playKey,
-    playerSpeed,
-  );
+  // const localTime = useInterpolatedTime(
+  //   time,
+  //   playerIsPlaying,
+  //   playKey,
+  //   playerSpeed,
+  // );
+  const localTime = time;
 
   const displayText = translationText
     ? addEllipsis(removeSpecialPunctuation(translationText), sentenceText)
