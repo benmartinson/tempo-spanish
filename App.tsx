@@ -241,22 +241,8 @@ const AppNavigator: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const [clerkKey, setClerkKey] = useState(0);
-
-  useEffect(() => {
-    const {
-      setClerkRefreshHandler,
-    } = require("./src/helpers/clerkRefresh") as typeof import("./src/helpers/clerkRefresh");
-    setClerkRefreshHandler(() => setClerkKey((k) => k + 1));
-    return () => setClerkRefreshHandler(null);
-  }, []);
-
   return (
-    <ClerkProvider
-      key={clerkKey}
-      tokenCache={tokenCache}
-      publishableKey={publishableKey}
-    >
+    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <Provider store={store}>
         <NavigationContainer>
           <AppNavigator />

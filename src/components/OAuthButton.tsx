@@ -1,4 +1,4 @@
-import { useSSO, useClerk } from "@clerk/clerk-expo";
+import { useSSO } from "@clerk/clerk-expo";
 import { OAuthStrategy } from "@clerk/types";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -6,7 +6,6 @@ import * as AuthSession from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect } from "react";
-import { triggerClerkRefresh } from "../helpers/clerkRefresh";
 import {
   Platform,
   StyleSheet,
@@ -53,7 +52,6 @@ export default function OAuthButton({
 }: Props) {
   useWarmUpBrowser();
   const { startSSOFlow } = useSSO();
-  const { signOut } = useClerk();
   const config = providerConfig[strategy];
 
   const onPress = useCallback(async () => {
@@ -77,33 +75,20 @@ export default function OAuthButton({
       // wrapper like "api_response_error" that masks the actual cause.
       const code = err?.errors?.[0]?.code ?? err?.code;
 
-      // Certain errors leave Clerk's tokenCache in a broken state where
-      // every subsequent tap fails with the same error. Flush it so the
-      // user can retry successfully. signOut() is safe to call even when
-      // there's no active session.
+      // For some Clerk error states, the cached JWT in SecureStore can keep
+      // poisoning subsequent requests. Delete it so the next app launch
+      // starts from a clean cache. (This won't unstick the current session
+      // if the SDK has the bad client cached in memory — a force-quit/reopen
+      // is required for that.)
       if (code === "signed_out" || code === "session_exists") {
-        console.error("[Auth] Recovery: signOut + clear tokenCache");
-        try {
-          await signOut();
-        } catch (signOutErr) {
-          console.error("signOut during recovery failed:", signOutErr);
-        }
-        // signOut() doesn't always clear the cached client JWT in SecureStore.
-        // Force-delete it so the next attempt starts with a fresh client.
         try {
           await SecureStore.deleteItemAsync("__clerk_client_jwt");
-          console.error("[Auth] Recovery: deleted __clerk_client_jwt");
         } catch (deleteErr) {
           console.error(
             "Token cache delete during recovery failed:",
             deleteErr,
           );
         }
-        // signOut + SecureStore delete leave the Clerk SDK with the bad client
-        // still cached in memory. Force the provider to remount so the SDK
-        // re-initializes from the now-empty cache.
-        triggerClerkRefresh();
-        console.error("[Auth] Recovery: triggered Clerk provider refresh");
       }
 
       // Ignore user cancelling the in-app browser — not an error worth surfacing.
@@ -111,7 +96,7 @@ export default function OAuthButton({
         onError?.();
       }
     }
-  }, [startSSOFlow, strategy, onAuthenticated, onError, signOut]);
+  }, [startSSOFlow, strategy, onAuthenticated, onError]);
 
   return (
     <TouchableOpacity
