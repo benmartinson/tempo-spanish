@@ -6,6 +6,7 @@ import * as AuthSession from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect } from "react";
+import { triggerClerkRefresh } from "../helpers/clerkRefresh";
 import {
   Platform,
   StyleSheet,
@@ -98,6 +99,11 @@ export default function OAuthButton({
             deleteErr,
           );
         }
+        // signOut + SecureStore delete leave the Clerk SDK with the bad client
+        // still cached in memory. Force the provider to remount so the SDK
+        // re-initializes from the now-empty cache.
+        triggerClerkRefresh();
+        console.error("[Auth] Recovery: triggered Clerk provider refresh");
       }
 
       // Ignore user cancelling the in-app browser — not an error worth surfacing.
