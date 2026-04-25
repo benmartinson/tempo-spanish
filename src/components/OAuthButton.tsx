@@ -3,6 +3,7 @@ import { OAuthStrategy } from "@clerk/types";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as AuthSession from "expo-auth-session";
+import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect } from "react";
 import {
@@ -80,10 +81,19 @@ export default function OAuthButton({
       // user can retry successfully. signOut() is safe to call even when
       // there's no active session.
       if (code === "signed_out" || code === "session_exists") {
+        console.log("[Auth] Recovery: signOut + clear tokenCache");
         try {
           await signOut();
         } catch (signOutErr) {
           console.error("signOut during recovery failed:", signOutErr);
+        }
+        // signOut() doesn't always clear the cached client JWT in SecureStore.
+        // Force-delete it so the next attempt starts with a fresh client.
+        try {
+          await SecureStore.deleteItemAsync("__clerk_client_jwt");
+          console.log("[Auth] Recovery: deleted __clerk_client_jwt");
+        } catch (deleteErr) {
+          console.error("Token cache delete during recovery failed:", deleteErr);
         }
       }
 
