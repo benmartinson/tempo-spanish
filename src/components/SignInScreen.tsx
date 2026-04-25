@@ -1,6 +1,7 @@
 import OAuthButton from "./OAuthButton";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-expo";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
@@ -17,7 +18,18 @@ function SignInScreen() {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
   const [pendingNewUserId, setPendingNewUserId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const postSignInProcessedRef = useRef(false);
+
+  useEffect(() => {
+    if (!errorMessage) return;
+    const timer = setTimeout(() => setErrorMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [errorMessage]);
+
+  const handleAuthError = useCallback(() => {
+    setErrorMessage("Something went wrong");
+  }, []);
 
   useEffect(() => {
     dispatch(setSignInScreenOpen(true));
@@ -66,14 +78,22 @@ function SignInScreen() {
         <Text style={styles.subtitle}>
           Sign in to save your progress and unlock all features
         </Text>
+        {errorMessage && (
+          <View style={styles.errorBanner}>
+            <MaterialIcons name="error-outline" size={18} color="#c0392b" />
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        )}
         <View style={styles.buttons}>
           <OAuthButton
             strategy="oauth_apple"
             onAuthenticated={setPendingNewUserId}
+            onError={handleAuthError}
           />
           <OAuthButton
             strategy="oauth_google"
             onAuthenticated={setPendingNewUserId}
+            onError={handleAuthError}
           />
         </View>
       </View>
@@ -135,6 +155,21 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.85)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fdecea",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    width: "100%",
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#c0392b",
+    fontWeight: "500",
   },
 });
 

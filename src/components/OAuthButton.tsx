@@ -1,4 +1,4 @@
-import { useSSO } from "@clerk/clerk-expo";
+import { useSSO, useClerk } from "@clerk/clerk-expo";
 import { OAuthStrategy } from "@clerk/types";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -24,39 +24,39 @@ export const useWarmUpBrowser = () => {
 };
 WebBrowser.maybeCompleteAuthSession();
 
-const providerConfig: Record<
-  string,
-  { icon: React.ReactNode; label: string }
-> = {
-  oauth_google: {
-    icon: <AntDesign name="google" size={20} color="#4285F4" />,
-    label: "Continue with Google",
-  },
-  oauth_apple: {
-    icon: <FontAwesome name="apple" size={22} color="#000000" />,
-    label: "Continue with Apple",
-  },
-};
+const providerConfig: Record<string, { icon: React.ReactNode; label: string }> =
+  {
+    oauth_google: {
+      icon: <AntDesign name="google" size={20} color="#4285F4" />,
+      label: "Continue with Google",
+    },
+    oauth_apple: {
+      icon: <FontAwesome name="apple" size={22} color="#000000" />,
+      label: "Continue with Apple",
+    },
+  };
 
 interface Props {
   strategy: OAuthStrategy;
   onAuthenticated?: (newUserId: string | null) => void;
+  onError?: () => void;
   children?: React.ReactNode;
 }
 
 export default function OAuthButton({
   strategy,
   onAuthenticated,
+  onError,
   children,
 }: Props) {
   useWarmUpBrowser();
   const { startSSOFlow } = useSSO();
+  const { signOut } = useClerk();
   const config = providerConfig[strategy];
 
   const onPress = useCallback(async () => {
     try {
       const redirectUrl = AuthSession.makeRedirectUri();
-      console.log("Redirect URI:", redirectUrl);
       const { createdSessionId, setActive, signUp } = await startSSOFlow({
         strategy,
         redirectUrl,
@@ -71,12 +71,35 @@ export default function OAuthButton({
       if (err?.clerkError) {
         console.error("Clerk errors:", JSON.stringify(err.errors, null, 2));
       }
-      console.error(JSON.stringify(err, null, 2));
+      // Prefer the specific inner error code — the top-level code is a generic
+      // wrapper like "api_response_error" that masks the actual cause.
+      const code = err?.errors?.[0]?.code ?? err?.code;
+
+      // Certain errors leave Clerk's tokenCache in a broken state where
+      // every subsequent tap fails with the same error. Flush it so the
+      // user can retry successfully. signOut() is safe to call even when
+      // there's no active session.
+      if (code === "signed_out" || code === "session_exists") {
+        try {
+          await signOut();
+        } catch (signOutErr) {
+          console.error("signOut during recovery failed:", signOutErr);
+        }
+      }
+
+      // Ignore user cancelling the in-app browser — not an error worth surfacing.
+      if (code !== "user_cancelled") {
+        onError?.();
+      }
     }
-  }, [startSSOFlow, strategy, onAuthenticated]);
+  }, [startSSOFlow, strategy, onAuthenticated, onError, signOut]);
 
   return (
-    <TouchableOpacity onPress={onPress} style={oauthStyles.button} activeOpacity={0.7}>
+    <TouchableOpacity
+      onPress={onPress}
+      style={oauthStyles.button}
+      activeOpacity={0.7}
+    >
       {config && <View style={oauthStyles.icon}>{config.icon}</View>}
       <Text style={oauthStyles.buttonText}>
         {children ?? config?.label ?? strategy}
