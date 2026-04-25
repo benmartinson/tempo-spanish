@@ -79,6 +79,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
     dispatch(setProfileModalOpen(visible));
   }, [visible, dispatch]);
 
+  useEffect(() => {
+    if (!visible) return;
+    (async () => {
+      const credits = await fetchUserCredits({ supabase, userId });
+      if (credits != null) dispatch(setUserCredits(credits));
+    })();
+  }, [visible, supabase, userId, dispatch]);
+
   const handleSignOut = async () => {
     onClose();
     await signOut();
@@ -146,11 +154,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
         <View style={styles.card}>
           <TouchableOpacity
             style={[menuStyles.row, menuStyles.border]}
-            onPress={async () => {
-              setCreditStoreVisible(true);
-              const credits = await fetchUserCredits({ supabase, userId });
-              if (credits != null) dispatch(setUserCredits(credits));
-            }}
+            onPress={() => setCreditStoreVisible(true)}
             activeOpacity={0.6}
           >
             <View style={styles.creditsLeft}>

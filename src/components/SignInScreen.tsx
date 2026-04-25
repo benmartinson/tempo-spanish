@@ -1,6 +1,5 @@
 import OAuthButton from "./OAuthButton";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import Constants from "expo-constants";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-expo";
 import { useNavigation } from "@react-navigation/native";
@@ -11,11 +10,6 @@ import { useSupabaseWithClerk } from "../../utils/supabase";
 import { initializeUserCredits } from "../requests";
 
 const INITIAL_CREDITS_GRANTED_KEY = "initial_credits_granted";
-
-// DEBUG: temporary, surfaces which Clerk instance the build is pointing at.
-const CLERK_KEY_PREFIX = (
-  Constants.expoConfig?.extra?.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? ""
-).slice(0, 8);
 
 function SignInScreen() {
   const { isSignedIn } = useAuth();
@@ -72,7 +66,6 @@ function SignInScreen() {
         <Text style={styles.subtitle}>
           Sign in to save your progress and unlock all features
         </Text>
-        <Text style={styles.debug}>build: {CLERK_KEY_PREFIX}</Text>
         <View style={styles.buttons}>
           <OAuthButton
             strategy="oauth_apple"
@@ -136,12 +129,6 @@ const styles = StyleSheet.create({
   buttons: {
     width: "100%",
     gap: 12,
-  },
-  debug: {
-    fontSize: 12,
-    color: "#999",
-    fontFamily: "Menlo",
-    marginBottom: 8,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

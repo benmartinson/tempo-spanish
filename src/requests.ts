@@ -611,7 +611,8 @@ export const persistUserSettings = async ({
   if (settings.autoSelectDifficulty !== undefined)
     updateData.auto_select_difficulty = settings.autoSelectDifficulty;
   if (settings.autoSelectDifficultyLevel !== undefined)
-    updateData.auto_select_difficulty_level = settings.autoSelectDifficultyLevel;
+    updateData.auto_select_difficulty_level =
+      settings.autoSelectDifficultyLevel;
 
   const { error } = await supabase
     .from("user_ui_state")
@@ -799,6 +800,7 @@ export const initializeUserCredits = async ({
     .eq("user_id", userId)
     .maybeSingle();
 
+  console.log({ existing });
   if (existing) return existing.credits;
 
   const { data, error } = await supabase
