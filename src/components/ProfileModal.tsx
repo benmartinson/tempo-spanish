@@ -8,6 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
@@ -90,6 +91,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   const handleSignOut = async () => {
     onClose();
     await signOut();
+    // Clerk's signOut doesn't fully clear the cached JWT in SecureStore.
+    // Force-delete it so the next sign-in starts with a fresh client; without
+    // this, signing back in with the same Google account hits a "signed_out"
+    // 401 because the stale JWT is still being sent.
+    try {
+      await SecureStore.deleteItemAsync("__clerk_client_jwt");
+    } catch (err) {
+      console.error("Token cache clear after signOut failed:", err);
+    }
   };
 
   const handleCloseAccount = () => {
