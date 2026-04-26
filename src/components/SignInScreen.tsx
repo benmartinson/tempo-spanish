@@ -6,7 +6,10 @@ import { useAuth } from "@clerk/clerk-expo";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { setSignInScreenOpen } from "../store/actions/dataActions";
+import {
+  setSignInScreenOpen,
+  setCurrentVideo,
+} from "../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../utils/supabase";
 import { initializeUserCredits } from "../requests";
 
@@ -50,7 +53,7 @@ function SignInScreen() {
           const alreadyGranted = await AsyncStorage.getItem(
             INITIAL_CREDITS_GRANTED_KEY,
           );
-          const defaultCredits = alreadyGranted ? 0 : 100;
+          const defaultCredits = alreadyGranted ? 10 : 30;
           await initializeUserCredits({
             supabase,
             userId: pendingNewUserId,
@@ -60,6 +63,7 @@ function SignInScreen() {
             await AsyncStorage.setItem(INITIAL_CREDITS_GRANTED_KEY, "true");
           }
         }
+        dispatch(setCurrentVideo(null));
       } catch (err) {
         console.error("Post-signin credit init failed:", err);
       } finally {

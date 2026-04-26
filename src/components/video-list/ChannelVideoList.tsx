@@ -1,17 +1,10 @@
 import React from "react";
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-} from "react-native";
-import { Channel, RootState, Video } from "../../types";
+import { StyleSheet, View, TouchableOpacity, ScrollView } from "react-native";
+import { Channel, Video } from "../../types";
 import { Ionicons } from "@expo/vector-icons";
 import VideoCard from "./VideoCard";
 import FilterVideos from "./FilterVideos";
-import { useSelector } from "react-redux";
+import ChannelHeader from "./ChannelHeader";
 
 const ChannelVideoList: React.FC<{
   channel: Channel;
@@ -20,15 +13,6 @@ const ChannelVideoList: React.FC<{
   loadingVideo: boolean;
   onBack: () => void;
 }> = ({ channel, videos, handleWatchPress, loadingVideo, onBack }) => {
-  const allTopics = useSelector((state: RootState) => state.allTopics);
-  const channelTopics = useSelector((state: RootState) => state.channelTopics);
-
-  const topicIds = channelTopics
-    .filter((ct) => ct.channel_id === channel.id)
-    .map((ct) => ct.topic_id);
-  const topicNames = allTopics
-    .filter((t) => topicIds.includes(t.id))
-    .map((t) => t.description);
   return (
     <FilterVideos videos={videos}>
       {({ filteredVideos, filterButton, activeFilterBar }) => (
@@ -39,19 +23,11 @@ const ChannelVideoList: React.FC<{
             </TouchableOpacity>
             {filterButton}
           </View>
-          <View style={styles.channelHeader}>
-            <Image
-              source={{ uri: channel.thumbnail_url }}
-              style={styles.channelThumbnail}
-            />
-            <View style={styles.channelInfo}>
-              <Text style={styles.channelTitle}>{channel.title}</Text>
-              <View style={styles.channelBadges}>
-                {topicNames.length > 0 && <Text>{topicNames.join(", ")}</Text>}
-                <Text>{videos.length} videos</Text>
-              </View>
-            </View>
-          </View>
+          <ChannelHeader
+            channel={channel}
+            videoCount={videos.length}
+            countLabel="videos"
+          />
 
           {activeFilterBar}
 
@@ -92,6 +68,7 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#d0d8f0",
+    marginBottom: 12,
   },
   backButton: {
     flexDirection: "row",
@@ -103,32 +80,6 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 16,
     color: "#5a5680",
-  },
-  channelHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingHorizontal: 16,
-    marginVertical: 8,
-  },
-  channelThumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginRight: 10,
-  },
-  channelInfo: {
-    flex: 1,
-    paddingRight: 8,
-    paddingTop: 8,
-  },
-  channelTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "black",
-  },
-  channelBadges: {
-    marginTop: 4,
-    gap: 2,
   },
   videoList: {
     gap: 16,

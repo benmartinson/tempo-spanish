@@ -3,11 +3,9 @@ import {
   StyleSheet,
   View,
   Text,
-  Image,
   ScrollView,
   Dimensions,
   ActivityIndicator,
-  TouchableOpacity,
 } from "react-native";
 import { RootState, Video } from "../../types";
 import {
@@ -24,6 +22,7 @@ import VideoSectionHeader from "./VideoSectionHeader";
 import { fetchVideoContext, fetchUserVideoViews } from "../../requests";
 import { setUserVideoViews } from "../../store/actions/dataActions";
 import ChannelVideoList from "./ChannelVideoList";
+import ChannelHeader from "./ChannelHeader";
 import FilterVideos from "./FilterVideos";
 import WelcomeModal from "../common/WelcomeModal";
 
@@ -74,10 +73,12 @@ const VideoList: React.FC = () => {
 
   useEffect(() => {
     if (!supabase) return;
-    fetchUserVideoViews({ supabase }).then((videoViews) => {
-      dispatch(setUserVideoViews(videoViews));
-    });
-  }, [supabase, currentVideo]);
+    fetchUserVideoViews({ supabase, userId: userId ?? null }).then(
+      (videoViews) => {
+        dispatch(setUserVideoViews(videoViews));
+      },
+    );
+  }, [supabase, userId, currentVideo]);
   const videoResults = currentSearchResults.reduce(
     (acc, result) => {
       const video = allVideos.find((video) => video.id === result.video_id);
@@ -159,6 +160,8 @@ const VideoList: React.FC = () => {
             new Date(b.watched_at).getTime() - new Date(a.watched_at).getTime(),
         )
     : [];
+
+  console.log({ userVideoViews });
 
   if (selectedChannel) {
     const channelVideos = allVideos
@@ -245,19 +248,24 @@ const VideoList: React.FC = () => {
                 ),
               )
               .sort((a, b) => {
-                if (!userId) return 0;
-                const aViews = (userVideoViews || []).filter((v) =>
-                  filteredVideos.some(
-                    (fv) =>
-                      fv.id === v.video_id && fv.channel_id === a.channel_id,
-                  ),
-                );
-                const bViews = (userVideoViews || []).filter((v) =>
-                  filteredVideos.some(
-                    (fv) =>
-                      fv.id === v.video_id && fv.channel_id === b.channel_id,
-                  ),
-                );
+                const aViews = userId
+                  ? (userVideoViews || []).filter((v) =>
+                      filteredVideos.some(
+                        (fv) =>
+                          fv.id === v.video_id &&
+                          fv.channel_id === a.channel_id,
+                      ),
+                    )
+                  : [];
+                const bViews = userId
+                  ? (userVideoViews || []).filter((v) =>
+                      filteredVideos.some(
+                        (fv) =>
+                          fv.id === v.video_id &&
+                          fv.channel_id === b.channel_id,
+                      ),
+                    )
+                  : [];
                 const aLatest = aViews.length
                   ? Math.max(
                       ...aViews.map((v) => new Date(v.watched_at).getTime()),
@@ -268,7 +276,12 @@ const VideoList: React.FC = () => {
                       ...bViews.map((v) => new Date(v.watched_at).getTime()),
                     )
                   : 0;
-                return bLatest - aLatest;
+                if (aLatest !== bLatest) return bLatest - aLatest;
+                // Tiebreaker: channels with explicit sort_index first (ascending),
+                // then anything without sort_index.
+                const aSort = (a as any).sort_index ?? Number.MAX_SAFE_INTEGER;
+                const bSort = (b as any).sort_index ?? Number.MAX_SAFE_INTEGER;
+                return aSort - bSort;
               });
             return (
               <>
@@ -291,36 +304,13 @@ const VideoList: React.FC = () => {
                     );
                   return (
                     <View key={channel.id} style={styles.channelContainer}>
-                      <TouchableOpacity
-                        style={styles.channelHeader}
+                      <ChannelHeader
+                        channel={channel}
+                        videoCount={channelVideos.length}
                         onPress={() =>
                           dispatch(setSelectedChannelId(channel.channel_id))
                         }
-                      >
-                        <Image
-                          source={{ uri: channel.thumbnail_url }}
-                          style={styles.channelThumbnail}
-                        />
-                        <View style={styles.channelInfo}>
-                          <Text style={styles.channelTitle}>
-                            {channel.title}
-                          </Text>
-                          <View style={styles.channelBadges}>
-                            {(() => {
-                              const topicIds = channelTopics
-                                .filter((ct) => ct.channel_id === channel.id)
-                                .map((ct) => ct.topic_id);
-                              const topicNames = allTopics
-                                .filter((t) => topicIds.includes(t.id))
-                                .map((t) => t.description);
-                              return topicNames.length > 0 ? (
-                                <Text>{topicNames.join(", ")}</Text>
-                              ) : null;
-                            })()}
-                            <Text>{channelVideos.length} videos available</Text>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
+                      />
 
                       <HorizontalVideoScroll
                         videos={channelVideos}
@@ -402,35 +392,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderBottomWidth: 2,
     borderBottomColor: "#d0d8f0",
-  },
-  channelHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-    paddingHorizontal: 16,
-  },
-  channelThumbnail: {
-    width: 100,
-    height: 100,
-    borderRadius: 100,
-    marginRight: 10,
-  },
-  channelTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "black",
-    flexShrink: 1,
-  },
-  channelBadges: {
-    alignItems: "flex-start",
-    marginTop: 6,
-    gap: 4,
-    opacity: 0.65,
-  },
-  channelInfo: {
-    flex: 1,
-    paddingRight: 8,
-    paddingTop: 8,
   },
   searchStatus: {
     paddingVertical: 12,

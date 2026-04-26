@@ -19,17 +19,18 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
   difficulty,
   onDifficultyChange,
 }) => {
+  const safeDifficulty = Number.isFinite(difficulty) ? difficulty : 0;
   const ticks = Array.from({ length: MAX_DIFFICULTY + 1 }, (_, i) => i);
-  const animatedValue = useRef(new Animated.Value(difficulty)).current;
+  const animatedValue = useRef(new Animated.Value(safeDifficulty)).current;
   const [trackWidth, setTrackWidth] = useState(0);
 
   useEffect(() => {
     Animated.timing(animatedValue, {
-      toValue: difficulty,
+      toValue: safeDifficulty,
       duration: 300,
       useNativeDriver: false,
     }).start();
-  }, [difficulty]);
+  }, [safeDifficulty]);
 
   const handleTrackLayout = (e: LayoutChangeEvent) => {
     setTrackWidth(e.nativeEvent.layout.width);

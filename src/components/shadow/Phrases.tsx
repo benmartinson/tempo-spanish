@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { SubSegment, stripPunctuation, cleanPhraseCommas } from "../../helpers/helpers";
+import {
+  SubSegment,
+  stripPunctuation,
+  cleanPhraseCommas,
+} from "../../helpers/helpers";
 import ToggleHeader from "../common/ToggleHeader";
 
 interface PhrasesProps {
@@ -112,7 +116,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginTop: 4,
+    marginTop: 12,
   },
   phrasesList: {
     paddingHorizontal: 20,

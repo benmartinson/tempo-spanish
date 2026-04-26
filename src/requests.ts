@@ -329,14 +329,18 @@ export const fetchUserKnownVocab = async ({
 
 export interface FetchUserVideoViewsParams {
   supabase: any;
+  userId: string | null;
 }
 
 export const fetchUserVideoViews = async ({
   supabase,
+  userId,
 }: FetchUserVideoViewsParams): Promise<VideoView[]> => {
+  if (!userId) return [];
   const { data, error } = await supabase
     .from("video_views")
-    .select("id, video_id, watched_at");
+    .select("id, video_id, watched_at")
+    .eq("user_id", userId);
 
   if (error) console.error(error);
 

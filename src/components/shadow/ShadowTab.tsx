@@ -220,6 +220,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState<boolean>(false);
   const [isRecordingMode, setIsRecordingMode] = useState<boolean>(false);
+  const [streamBannerDismissed, setStreamBannerDismissed] =
+    useState<boolean>(false);
+
+  // Re-show the banner each time the user enters stream mode.
+  useEffect(() => {
+    if (shadowMode === "stream") setStreamBannerDismissed(false);
+  }, [shadowMode]);
   const [sentenceEnded, setSentenceEnded] = useState<boolean>(false);
   const [showNoVocabFoundTooltip, setShowNoVocabFoundTooltip] =
     useState<boolean>(false);
@@ -1264,6 +1271,28 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
               </TouchableOpacity>
             </View>
           )}
+          {shadowMode === "stream" && !streamBannerDismissed && (
+            <View style={styles.streamBanner}>
+              <Text style={styles.streamBannerText}>
+                You are in Stream mode, the video will not stop at the end of
+                segments, switch back to{" "}
+                <Text
+                  style={styles.streamBannerLink}
+                  onPress={() => setShadowMode("shadow")}
+                >
+                  Shadow
+                </Text>{" "}
+                mode to stop video.
+              </Text>
+              <TouchableOpacity
+                onPress={() => setStreamBannerDismissed(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.streamBannerClose}
+              >
+                <Feather name="x" size={16} color="#7a5d00" />
+              </TouchableOpacity>
+            </View>
+          )}
           {
             <ContentTabBar
               hidden={!!(accuracyResult || isProcessing)}
@@ -1845,6 +1874,30 @@ export const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
     lineHeight: 22,
+  },
+  streamBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FEF3C7",
+    borderRadius: 14,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    gap: 10,
+  },
+  streamBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#7a5d00",
+    lineHeight: 20,
+  },
+  streamBannerLink: {
+    fontWeight: "700",
+    textDecorationLine: "underline",
+    color: "#7a5d00",
+  },
+  streamBannerClose: {
+    paddingTop: 2,
   },
 });
 
