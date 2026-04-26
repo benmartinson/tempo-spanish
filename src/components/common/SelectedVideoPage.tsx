@@ -246,9 +246,7 @@ const SelectedVideoPage: React.FC = () => {
   const userPressedPlayPause = useRef(false);
 
   useEffect(() => {
-    setAutoplay(
-      hasSeenWelcomeModals && !profileModalOpen && !signInScreenOpen,
-    );
+    setAutoplay(hasSeenWelcomeModals && !profileModalOpen && !signInScreenOpen);
   }, [hasSeenWelcomeModals, profileModalOpen, signInScreenOpen]);
 
   useEffect(() => {
@@ -582,10 +580,10 @@ const SelectedVideoPage: React.FC = () => {
         />
       </View>
 
-      <WalkthroughModal
+      {/* <WalkthroughModal
         visible={!hasSeenWelcomeModals}
         onComplete={handleWalkthroughComplete}
-      />
+      /> */}
 
       {isConfirmingStartOver && (
         <SlideModal

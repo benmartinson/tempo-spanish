@@ -4,7 +4,7 @@ import Feather from "@expo/vector-icons/Feather";
 
 const slides = [
   {
-    title: "All About Shadowing",
+    title: "Shadowing",
     body: "You will watch the video in segments, listen to how the words are said, and when ready, press record to start your turn repeating the words aloud.\n\nAfter submitting your attempt, your speech will be processed and you will be given an accuracy score.",
   },
   {
