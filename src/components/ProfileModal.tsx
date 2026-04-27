@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
+import CookieManager from "@react-native-cookies/cookies";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
@@ -91,10 +92,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   const handleSignOut = async () => {
     onClose();
     await signOut();
-    // Clerk's signOut doesn't fully clear the cached JWT in SecureStore.
-    // Force-delete it so the next sign-in starts with a fresh client; without
-    // this, signing back in with the same Google account hits a "signed_out"
-    // 401 because the stale JWT is still being sent.
+    // Clerk's OAuth flow on iOS depends on session cookies in the shared
+    // WebKit cookie store, which signOut() doesn't reach. Without clearing
+    // them here, the next Google sign-in attempt sends stale Clerk session
+    // cookies and fails with "signed_out" 401.
+    try {
+      await CookieManager.clearAll();
+    } catch (err) {
+      console.error("Cookie clear after signOut failed:", err);
+    }
     try {
       await SecureStore.deleteItemAsync("__clerk_client_jwt");
     } catch (err) {
