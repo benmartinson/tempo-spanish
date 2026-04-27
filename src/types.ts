@@ -67,8 +67,8 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   showSaveRecordingsModal: true,
   showReviewMode: true,
   reviewFrequency: 3,
-  autoSelectDifficulty: false,
-  autoSelectDifficultyLevel: "moderate",
+  autoSelectDifficulty: true,
+  autoSelectDifficultyLevel: "challenging",
 };
 
 export interface CachedResponse {
