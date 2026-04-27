@@ -68,7 +68,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   const dispatch = useDispatch();
   const { signOut } = useClerk();
   const { user } = useUser();
-  const { userId } = useAuth();
+  const { userId, sessionId } = useAuth();
   const supabase = useSupabaseWithClerk();
   const userCredits = useSelector((state: any) => state.userCredits);
   const [creditStoreVisible, setCreditStoreVisible] = useState(false);
@@ -90,7 +90,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
 
   const handleSignOut = async () => {
     onClose();
-    await signOut();
+    await signOut({ sessionId: sessionId ?? undefined });
     // Clerk's OAuth flow on iOS depends on session cookies in the shared
     // WebKit cookie store, which signOut() doesn't reach. Without clearing
     // them here, the next Google sign-in attempt sends stale Clerk session
@@ -137,7 +137,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
                 throw new Error(`${response.status} ${await response.text()}`);
               }
               onClose();
-              await signOut();
+              await signOut({ sessionId: sessionId ?? undefined });
             } catch (err) {
               console.error("Delete account error:", err);
               Alert.alert(

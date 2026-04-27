@@ -16,7 +16,7 @@ import { initializeUserCredits } from "../requests";
 const INITIAL_CREDITS_GRANTED_KEY = "initial_credits_granted";
 
 function SignInScreen() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const supabase = useSupabaseWithClerk();
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();

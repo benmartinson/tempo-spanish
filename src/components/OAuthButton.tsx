@@ -56,14 +56,30 @@ export default function OAuthButton({
 
   const onPress = useCallback(async () => {
     try {
-      const redirectUrl = AuthSession.makeRedirectUri();
+      const redirectUrl = AuthSession.makeRedirectUri({
+        path: "sso-callback",
+      });
+      const authSessionOptions =
+        Platform.OS === "ios" && strategy === "oauth_google"
+          ? {
+              // Google's account-selector prompt can bounce through a stale
+              // shared ASWebAuthenticationSession after logout and cause Clerk
+              // to reject the follow-up sign-in as "signed_out". Prefer an
+              // isolated auth session for Google on iOS so each login starts
+              // from a clean browser context.
+              preferEphemeralSession: true,
+            }
+          : undefined;
       const { createdSessionId, setActive, signUp } = await startSSOFlow({
         strategy,
         redirectUrl,
+        // Clerk forwards these options to Expo WebBrowser, but the current
+        // type only exposes `showInRecents`.
+        authSessionOptions: authSessionOptions as any,
       });
 
-      if (createdSessionId) {
-        setActive!({ session: createdSessionId });
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
         onAuthenticated?.(signUp?.createdUserId ?? null);
       }
     } catch (err: any) {
