@@ -12,11 +12,20 @@ import { Ionicons } from "@expo/vector-icons";
 
 const DURATION_FILTERS = [
   { label: "All", min: 0, max: Infinity },
-  { label: "< 1 min", min: 0, max: 60 },
-  { label: "1–5 min", min: 60, max: 300 },
-  { label: "5–15 min", min: 300, max: 900 },
-  { label: "15+ min", min: 900, max: Infinity },
+  { label: "< 15 min", min: 0, max: 900 },
+  { label: "15–30 min", min: 900, max: 1800 },
+  { label: "30+ min", min: 1800, max: Infinity },
 ];
+
+const DIFFICULTY_ORDER = ["beginner", "intermediate", "advanced"];
+
+const difficultyRank = (d: string) => {
+  const idx = DIFFICULTY_ORDER.indexOf(d.toLowerCase());
+  return idx === -1 ? DIFFICULTY_ORDER.length : idx;
+};
+
+const titleCase = (s: string) =>
+  s.length === 0 ? s : s[0].toUpperCase() + s.slice(1).toLowerCase();
 
 const FilterVideos: React.FC<{
   videos: Video[];
@@ -41,9 +50,31 @@ const FilterVideos: React.FC<{
   const [searchText, setSearchText] = useState("");
   const [selectedDuration, setSelectedDuration] = useState(0);
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(
+    null,
+  );
   const [draftSearchText, setDraftSearchText] = useState("");
   const [draftDuration, setDraftDuration] = useState(0);
   const [draftTopicId, setDraftTopicId] = useState<number | null>(null);
+  const [draftDifficulty, setDraftDifficulty] = useState<string | null>(null);
+
+  const availableDifficulties = useMemo(() => {
+    if (mode !== "topics" || !channels) return [];
+    const seen = new Set<string>();
+    for (const ch of channels) {
+      if (ch.difficulty) seen.add(ch.difficulty);
+    }
+    return Array.from(seen).sort(
+      (a, b) => difficultyRank(a) - difficultyRank(b),
+    );
+  }, [mode, channels]);
+
+  const channelDifficultyById = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!channels) return map;
+    for (const ch of channels) map.set(ch.channel_id, ch.difficulty);
+    return map;
+  }, [channels]);
 
   const filteredVideos = useMemo(() => {
     return videos.filter((video) => {
@@ -61,6 +92,15 @@ const FilterVideos: React.FC<{
         }
       }
       if (mode === "topics") {
+        if (selectedDifficulty != null) {
+          const chDifficulty = channelDifficultyById.get(video.channel_id);
+          if (
+            !chDifficulty ||
+            chDifficulty.toLowerCase() !== selectedDifficulty.toLowerCase()
+          ) {
+            return false;
+          }
+        }
         if (selectedTopicId == null) return true;
         const matchingChannelDbIds = channelTopics
           ?.filter((ct) => ct.topic_id === selectedTopicId)
@@ -81,20 +121,24 @@ const FilterVideos: React.FC<{
     searchText,
     selectedDuration,
     selectedTopicId,
+    selectedDifficulty,
     mode,
     channelTopics,
     channels,
+    channelDifficultyById,
   ]);
 
   const hasActiveFilters =
     searchText !== "" ||
     (mode === "duration" && selectedDuration !== 0) ||
-    (mode === "topics" && selectedTopicId != null);
+    (mode === "topics" &&
+      (selectedTopicId != null || selectedDifficulty != null));
 
   const openFilter = () => {
     setDraftSearchText(searchText);
     setDraftDuration(selectedDuration);
     setDraftTopicId(selectedTopicId);
+    setDraftDifficulty(selectedDifficulty);
     setFilterVisible(true);
   };
 
@@ -102,6 +146,7 @@ const FilterVideos: React.FC<{
     setSearchText(draftSearchText);
     setSelectedDuration(draftDuration);
     setSelectedTopicId(draftTopicId);
+    setSelectedDifficulty(draftDifficulty);
     setFilterVisible(false);
   };
 
@@ -109,6 +154,7 @@ const FilterVideos: React.FC<{
     setSearchText("");
     setSelectedDuration(0);
     setSelectedTopicId(null);
+    setSelectedDifficulty(null);
   };
 
   const filterDescriptions: string[] = [];
@@ -120,6 +166,9 @@ const FilterVideos: React.FC<{
       (t) => t.id === selectedTopicId,
     )?.description;
     if (topicName) filterDescriptions.push(topicName);
+  }
+  if (mode === "topics" && selectedDifficulty != null) {
+    filterDescriptions.push(titleCase(selectedDifficulty));
   }
 
   const filterButton = (
@@ -170,7 +219,11 @@ const FilterVideos: React.FC<{
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.filterLabel}>Search by name or channel</Text>
+            <Text style={styles.filterLabel}>
+              {mode === "topics"
+                ? "Search by name or channel"
+                : "Search by name"}
+            </Text>
             <TextInput
               style={styles.searchInput}
               placeholder="Search videos..."
@@ -247,6 +300,55 @@ const FilterVideos: React.FC<{
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                {availableDifficulties.length > 0 && (
+                  <>
+                    <Text
+                      style={[styles.filterLabel, styles.filterLabelSpacer]}
+                    >
+                      Difficulty
+                    </Text>
+                    <View style={styles.durationOptions}>
+                      <TouchableOpacity
+                        style={[
+                          styles.durationChip,
+                          draftDifficulty == null && styles.durationChipActive,
+                        ]}
+                        onPress={() => setDraftDifficulty(null)}
+                      >
+                        <Text
+                          style={[
+                            styles.durationChipText,
+                            draftDifficulty == null &&
+                              styles.durationChipTextActive,
+                          ]}
+                        >
+                          All
+                        </Text>
+                      </TouchableOpacity>
+                      {availableDifficulties.map((d) => (
+                        <TouchableOpacity
+                          key={d}
+                          style={[
+                            styles.durationChip,
+                            draftDifficulty === d && styles.durationChipActive,
+                          ]}
+                          onPress={() => setDraftDifficulty(d)}
+                        >
+                          <Text
+                            style={[
+                              styles.durationChipText,
+                              draftDifficulty === d &&
+                                styles.durationChipTextActive,
+                            ]}
+                          >
+                            {titleCase(d)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
               </>
             )}
 
@@ -312,6 +414,9 @@ const styles = StyleSheet.create({
     color: "#555",
     marginBottom: 8,
   },
+  filterLabelSpacer: {
+    marginTop: 16,
+  },
   searchInput: {
     borderWidth: 1,
     borderColor: "#ddd",
@@ -327,7 +432,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   durationChip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: "#f0f0f0",
