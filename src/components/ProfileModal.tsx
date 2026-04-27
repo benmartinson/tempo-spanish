@@ -102,7 +102,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
       const CookieManager =
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("@react-native-cookies/cookies").default;
-      await CookieManager.clearAll();
+      // useWebKit=true targets WKWebsiteDataStore, which is what
+      // ASWebAuthenticationSession (the iOS API powering Clerk's OAuth
+      // browser flow) reads from. The default NSHTTPCookieStorage is a
+      // separate store that doesn't affect the OAuth flow.
+      await CookieManager.clearAll(true);
+      // Belt and suspenders: clear NSHTTPCookieStorage too.
+      await CookieManager.clearAll(false);
     } catch (err) {
       console.warn("Cookie clear skipped (Expo Go or unavailable):", err);
     }
