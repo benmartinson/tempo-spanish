@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
-import CookieManager from "@react-native-cookies/cookies";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
@@ -96,10 +95,16 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
     // WebKit cookie store, which signOut() doesn't reach. Without clearing
     // them here, the next Google sign-in attempt sends stale Clerk session
     // cookies and fails with "signed_out" 401.
+    //
+    // @react-native-cookies/cookies is a native module that doesn't exist in
+    // Expo Go — dynamic require so this no-ops gracefully when running there.
     try {
+      const CookieManager =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require("@react-native-cookies/cookies").default;
       await CookieManager.clearAll();
     } catch (err) {
-      console.error("Cookie clear after signOut failed:", err);
+      console.warn("Cookie clear skipped (Expo Go or unavailable):", err);
     }
     try {
       await SecureStore.deleteItemAsync("__clerk_client_jwt");
