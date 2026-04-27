@@ -67,7 +67,7 @@ export default function OAuthButton({
               // to reject the follow-up sign-in as "signed_out". Prefer an
               // isolated auth session for Google on iOS so each login starts
               // from a clean browser context.
-              preferEphemeralSession: true,
+              preferEphemeralSession: false,
             }
           : undefined;
       const { createdSessionId, setActive, signUp } = await startSSOFlow({
