@@ -3,121 +3,759 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tempo Spanish</title>
+    <title>Tempo Spanish — Learn Spanish by Shadowing Native Speakers</title>
+    <meta
+      name="description"
+      content="Tempo Spanish helps you build real Spanish fluency by shadowing native speakers in YouTube videos, with instant accuracy feedback and adjustable difficulty."
+    />
     <style>
       :root {
         --bg: #f5f5f7;
+        --bg-dark: #1a1a2e;
         --card: #ffffff;
         --text: #1a1a2e;
+        --text-soft: #3d3a52;
         --muted: #8e8e93;
         --accent: #5a5680;
+        --accent-2: #4a69bd;
+        --accent-soft: #f0f4ff;
+        --green: #34c759;
+        --orange: #f97316;
         --border: #ebebef;
+        --radius-lg: 22px;
+        --radius-md: 14px;
       }
-      * { box-sizing: border-box; }
-      html, body {
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
         margin: 0;
         padding: 0;
         background: var(--bg);
         color: var(--text);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        line-height: 1.5;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        line-height: 1.55;
         -webkit-font-smoothing: antialiased;
       }
-      main {
-        max-width: 720px;
+      a {
+        color: inherit;
+      }
+      img {
+        display: block;
+        max-width: 100%;
+      }
+
+      /* ---------- Top nav ---------- */
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(245, 245, 247, 0.85);
+        backdrop-filter: saturate(180%) blur(18px);
+        -webkit-backdrop-filter: saturate(180%) blur(18px);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-inner {
+        max-width: 1120px;
         margin: 0 auto;
-        padding: 48px 24px 80px;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
       }
-      header {
-        text-align: center;
-        margin-bottom: 48px;
-      }
-      h1 {
-        font-size: 40px;
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         font-weight: 700;
-        margin: 0 0 8px;
-        letter-spacing: -0.5px;
-      }
-      .tagline {
-        font-size: 18px;
-        color: var(--muted);
-        margin: 0;
-      }
-      .card {
-        background: var(--card);
-        border-radius: 14px;
-        padding: 28px;
-        margin-bottom: 16px;
-      }
-      .card h2 {
-        font-size: 20px;
-        margin: 0 0 12px;
-        font-weight: 600;
-      }
-      .card p {
-        margin: 0 0 12px;
+        font-size: 17px;
+        letter-spacing: -0.2px;
+        text-decoration: none;
         color: var(--text);
       }
-      .card p:last-child {
-        margin-bottom: 0;
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: block;
+        object-fit: cover;
       }
-      .links {
+      .nav-links {
         display: flex;
-        gap: 24px;
-        justify-content: center;
-        margin-top: 32px;
-        flex-wrap: wrap;
+        gap: 22px;
       }
-      .links a {
-        color: var(--accent);
+      .nav-links a {
+        color: var(--text-soft);
         text-decoration: none;
+        font-size: 14px;
         font-weight: 500;
       }
-      .links a:hover {
-        text-decoration: underline;
+      .nav-links a:hover {
+        color: var(--accent-2);
       }
+
+      /* ---------- Hero ---------- */
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 72px 24px 48px;
+      }
+      .hero-bg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background:
+          radial-gradient(
+            60% 60% at 80% 0%,
+            rgba(74, 105, 189, 0.18),
+            transparent 70%
+          ),
+          radial-gradient(
+            60% 60% at 10% 30%,
+            rgba(52, 199, 89, 0.14),
+            transparent 65%
+          ),
+          radial-gradient(
+            80% 60% at 50% 110%,
+            rgba(61, 58, 82, 0.18),
+            transparent 70%
+          );
+        pointer-events: none;
+      }
+      .hero-inner {
+        position: relative;
+        z-index: 1;
+        max-width: 1120px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 48px;
+        align-items: center;
+      }
+      .eyebrow {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-2);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        margin-bottom: 18px;
+      }
+      .hero h1 {
+        font-size: clamp(36px, 5.5vw, 60px);
+        line-height: 1.05;
+        letter-spacing: -1px;
+        margin: 0 0 18px;
+        font-weight: 800;
+      }
+      .hero h1 .grad {
+        background: linear-gradient(
+          135deg,
+          #3d3a52 0%,
+          #4a69bd 60%,
+          #34c759 100%
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .hero p.lede {
+        font-size: 18px;
+        color: var(--text-soft);
+        max-width: 520px;
+        margin: 0 0 28px;
+      }
+      .cta-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 22px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 15px;
+        text-decoration: none;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .btn-primary {
+        background: var(--bg-dark);
+        color: #fff;
+        box-shadow: 0 8px 20px rgba(26, 26, 46, 0.18);
+      }
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 26px rgba(26, 26, 46, 0.24);
+      }
+      .btn-secondary {
+        background: #fff;
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover {
+        transform: translateY(-1px);
+      }
+
+      .social-proof {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 28px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .dots {
+        display: inline-flex;
+        gap: 4px;
+      }
+      .dots span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent-2);
+        opacity: 0.55;
+      }
+
+      /* ---------- Phone frame ---------- */
+      .phone {
+        position: relative;
+        width: 100%;
+        max-width: 320px;
+        margin: 0 auto;
+        border-radius: 44px;
+        padding: 10px;
+        background: linear-gradient(160deg, #1a1a2e, #3d3a52);
+        box-shadow:
+          0 30px 60px -20px rgba(26, 26, 46, 0.45),
+          0 12px 24px -10px rgba(26, 26, 46, 0.25),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+      }
+      .phone::before {
+        content: "";
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 110px;
+        height: 28px;
+        background: #0b0b14;
+        border-radius: 16px;
+        z-index: 2;
+      }
+      .phone-screen {
+        width: 100%;
+        aspect-ratio: 9 / 19.5;
+        padding-top: 4px;
+        border-radius: 36px;
+        overflow: hidden;
+        background: #f5f5f7;
+        position: relative;
+      }
+      .phone-screen img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top;
+      }
+
+      .hero-phone-stage {
+        position: relative;
+        display: grid;
+        place-items: center;
+      }
+      .hero-phone-stage .phone {
+        transform: rotate(-3deg);
+      }
+      .hero-phone-stage .phone-secondary {
+        position: absolute;
+        right: -18%;
+        bottom: -8%;
+        width: 70%;
+        max-width: 210px;
+        transform: rotate(8deg);
+        opacity: 0.95;
+      }
+      .hero-phone-stage .phone-secondary {
+        padding: 6px;
+        border-radius: 30px;
+      }
+      .hero-phone-stage .phone-secondary .phone-screen {
+        border-radius: 24px;
+        padding-top: 8px;
+      }
+      .hero-phone-stage .phone-secondary::before {
+        width: 70px;
+        height: 18px;
+        top: 16px;
+        border-radius: 10px;
+      }
+
+      /* ---------- Section base ---------- */
+      .section {
+        padding: 88px 24px;
+      }
+      .section-inner {
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+      .section-eyebrow {
+        text-align: center;
+        color: var(--accent-2);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin: 0 0 12px;
+      }
+      .section-title {
+        text-align: center;
+        font-size: clamp(28px, 3.2vw, 40px);
+        line-height: 1.15;
+        letter-spacing: -0.5px;
+        margin: 0 auto 14px;
+        max-width: 720px;
+        font-weight: 700;
+      }
+      .section-sub {
+        text-align: center;
+        color: var(--text-soft);
+        max-width: 600px;
+        margin: 0 auto 56px;
+        font-size: 17px;
+      }
+
+      /* ---------- Feature row (alternating) ---------- */
+      .feature {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 64px;
+        align-items: center;
+        padding: 56px 0;
+      }
+      .feature + .feature {
+        border-top: 1px solid var(--border);
+      }
+      .feature.reverse .feature-copy {
+        order: 2;
+      }
+      .feature-copy h3 {
+        font-size: clamp(24px, 2.6vw, 32px);
+        line-height: 1.2;
+        letter-spacing: -0.4px;
+        margin: 0 0 16px;
+        font-weight: 700;
+      }
+      .feature-copy p {
+        font-size: 16.5px;
+        color: var(--text-soft);
+        margin: 0 0 14px;
+      }
+      .feature-tag {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+      .tag-blue {
+        background: var(--accent-soft);
+        color: var(--accent-2);
+      }
+      .tag-green {
+        background: rgba(52, 199, 89, 0.12);
+        color: #1f8e3d;
+      }
+      .tag-orange {
+        background: rgba(249, 115, 22, 0.12);
+        color: #c2570f;
+      }
+      .tag-violet {
+        background: rgba(61, 58, 82, 0.1);
+        color: #3d3a52;
+      }
+      .tag-pink {
+        background: rgba(232, 62, 140, 0.12);
+        color: #c01e6d;
+      }
+
+      .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 18px 0 0;
+      }
+      .feature-list li {
+        position: relative;
+        padding-left: 26px;
+        margin-bottom: 10px;
+        color: var(--text-soft);
+        font-size: 15.5px;
+      }
+      .feature-list li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4a69bd, #34c759);
+      }
+
+      .feature-stage {
+        display: grid;
+        place-items: center;
+      }
+
+      /* ---------- CTA band ---------- */
+      .cta-band {
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #3d3a52 60%,
+          #4a69bd 130%
+        );
+        color: #fff;
+        border-radius: var(--radius-lg);
+        padding: 56px 40px;
+        text-align: center;
+        margin: 24px auto;
+        max-width: 1120px;
+        box-shadow: 0 30px 70px -30px rgba(26, 26, 46, 0.5);
+      }
+      .cta-band h2 {
+        font-size: clamp(26px, 3vw, 36px);
+        margin: 0 0 14px;
+        letter-spacing: -0.4px;
+      }
+      .cta-band p {
+        max-width: 540px;
+        margin: 0 auto 28px;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 16.5px;
+      }
+      .cta-band .btn-primary {
+        background: #fff;
+        color: var(--text);
+      }
+      .cta-band .btn-secondary {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+
+      /* ---------- Footer ---------- */
       footer {
+        padding: 36px 24px 56px;
         text-align: center;
         color: var(--muted);
         font-size: 13px;
-        margin-top: 48px;
+      }
+      footer .links {
+        display: flex;
+        gap: 22px;
+        justify-content: center;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+      footer .links a {
+        color: var(--text-soft);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      footer .links a:hover {
+        color: var(--accent-2);
+      }
+
+      /* ---------- Responsive ---------- */
+      @media (max-width: 880px) {
+        .hero {
+          padding: 56px 20px 32px;
+        }
+        .hero-inner {
+          grid-template-columns: 1fr;
+          gap: 40px;
+        }
+        .hero-phone-stage .phone-secondary {
+          display: none;
+        }
+        .hero-phone-stage .phone {
+          transform: none;
+        }
+        .social-proof {
+          display: none;
+        }
+        .feature {
+          grid-template-columns: 1fr;
+          gap: 32px;
+          padding: 40px 0;
+        }
+        .feature.reverse .feature-copy {
+          order: 0;
+        }
+        .section {
+          padding: 64px 20px;
+        }
+        .section-sub {
+          margin-bottom: 36px;
+        }
+        .nav-links {
+          display: none;
+        }
+        .cta-band {
+          padding: 40px 24px;
+          margin: 16px;
+        }
       }
     </style>
   </head>
   <body>
-    <main>
-      <header>
-        <h1>Tempo Spanish</h1>
-        <p class="tagline">Learn Spanish by shadowing native speakers.</p>
-      </header>
+    <nav class="nav">
+      <div class="nav-inner">
+        <a class="brand" href="/">
+          <img class="brand-mark" src="assets/icon.png" alt="" />
+          Tempo Spanish
+        </a>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#how">Request Access</a>
+          <a href="mailto:tempo.spanish@gmail.com">Contact</a>
+        </div>
+      </div>
+    </nav>
 
-      <section class="card">
-        <h2>What is Tempo?</h2>
-        <p>
-          Tempo is a mobile app for learning Spanish through shadowing —
-          repeating aloud what a native speaker says, sentence by sentence,
-          with immediate feedback on your accuracy.
-        </p>
-        <p>
-          Practice with real YouTube videos, adjust difficulty to hide words
-          or add hints, and build fluency at your own pace.
-        </p>
-      </section>
+    <section class="hero">
+      <div class="hero-bg"></div>
+      <div class="hero-inner">
+        <div>
+          <span class="eyebrow">Now in early access</span>
+          <h1>
+            Speak Spanish like<br />
+            <span class="grad">a Spanish-Speaker.</span>
+          </h1>
+          <p class="lede">
+            Tempo turns real YouTube videos into bite-sized speaking practice.
+            Repeat what native speakers say, get instant accuracy feedback, and
+            build fluency at your own pace.
+          </p>
+          <div class="social-proof">
+            <span class="dots"><span></span><span></span><span></span></span>
+            Built for learners who want to speak, not just understand.
+          </div>
+        </div>
 
-      <section class="card">
-        <h2>Contact</h2>
-        <p>
-          Support and feedback:
-          <a href="mailto:tempo.spanish@gmail.com">tempo.spanish@gmail.com</a>
-        </p>
-      </section>
+        <div class="hero-phone-stage">
+          <div class="phone">
+            <div class="phone-screen">
+              <img
+                src="assets/IMG_023F08027B19-1.jpeg"
+                alt="Tempo accuracy feedback screen showing 87% accuracy"
+              />
+            </div>
+          </div>
+          <div class="phone phone-secondary">
+            <div class="phone-screen">
+              <img
+                src="assets/IMG_3B2971D10E86-1.jpeg"
+                alt="Tempo channel browser screen"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-      <nav class="links">
+    <section class="section" id="features">
+      <div class="section-inner">
+        <p class="section-eyebrow">Why Tempo</p>
+        <h2 class="section-title">A different kind of language app.</h2>
+        <p class="section-sub">
+          No streaks to guilt-trip you. No cartoon owls. Just real video, real
+          speakers, and real practice — the way you'd actually learn if you
+          lived there.
+        </p>
+
+        <div class="feature">
+          <div class="feature-copy">
+            <span class="feature-tag tag-blue">Real content</span>
+            <h3>Learn from creators you'd actually watch.</h3>
+            <p>
+              Browse 100's of videos from curated YouTube channels organized by
+              topic and difficulty. Stories, history, film reviews, current
+              events, vlogs — pick what interests you and start practicing.
+            </p>
+            <ul class="feature-list">
+              <li>Beginner, intermediate, and advanced channels</li>
+              <li>New videos added daily</li>
+              <li>Request your favorite channel be added</li>
+            </ul>
+          </div>
+          <div class="feature-stage">
+            <div class="phone">
+              <div class="phone-screen">
+                <img
+                  src="assets/IMG_D41240FB9785-1.jpeg"
+                  alt="Channel list with difficulty badges"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature reverse">
+          <div class="feature-copy">
+            <span class="feature-tag tag-violet">Practice by Shadowing</span>
+            <h3>Repeat after them — out loud.</h3>
+            <p>
+              Tempo plays each segment, then hands the mic to you. Speak along,
+              submit your take, and learn from your mistakes. Your tongue
+              becomes familiar with the sounds and rhythms of the language.
+            </p>
+            <ul class="feature-list">
+              <li>The video will play along while you speak</li>
+              <li>Words will highlight as you go to keep the pace</li>
+              <li>One-tap re-record on every segment</li>
+            </ul>
+          </div>
+          <div class="feature-stage">
+            <div class="phone">
+              <div class="phone-screen">
+                <img
+                  src="assets/IMG_0FDCBB0DEC4B-1.jpeg"
+                  alt="Recording in progress on a video segment"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature">
+          <div class="feature-copy">
+            <span class="feature-tag tag-orange">Adaptive difficulty</span>
+            <h3>Hide as much — or as little — as you need.</h3>
+            <p>
+              Hint slider lets you mask words on the transcript, from a gentle
+              nudge to full memorization. Tempo auto-adjusts based on the
+              segment difficulty so it's always just hard enough.
+            </p>
+            <ul class="feature-list">
+              <li>Auto-select hints per segment difficulty</li>
+              <li>Per-segment override whenever you want</li>
+              <li>Develop better vocabulary recall over time</li>
+            </ul>
+          </div>
+          <div class="feature-stage">
+            <div class="phone">
+              <div class="phone-screen">
+                <img
+                  src="assets/IMG_A0D79015A85E-1.jpeg"
+                  alt="Transcript with hint slider"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature reverse">
+          <div class="feature-copy">
+            <span class="feature-tag tag-green">Instant feedback</span>
+            <h3>Know exactly where you tripped up.</h3>
+            <p>
+              After submitting your attempt Tempo scores your accuracy and
+              highlights the words you missed, swapped, or mumbled. It's the
+              feedback loop that makes shadowing actually work.
+            </p>
+            <ul class="feature-list">
+              <li>Word-level diff against the target sentence</li>
+              <li>Identify which words you struggled to pronounce correctly</li>
+              <li>Replay your own recording to compare</li>
+            </ul>
+          </div>
+          <div class="feature-stage">
+            <div class="phone">
+              <div class="phone-screen">
+                <img
+                  src="assets/IMG_4389CF52176A-1.jpeg"
+                  alt="Accuracy feedback screen"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature">
+          <div class="feature-copy">
+            <span class="feature-tag tag-pink">Voice control</span>
+            <h3>Hands-free practice</h3>
+            <p>
+              Tempo listens. Say "repeat" to hear it again, "slower" to drop the
+              playback speed, or "record" to start practicing — without ever
+              touching the screen.
+            </p>
+            <ul class="feature-list">
+              <li>
+                Voice-trigger every action: play, pause, repeat, record, submit
+              </li>
+              <li>
+                Just your earbuds — your phone never has to leave your pocket
+              </li>
+              <li>Practice while walking the dog, on a hike, or in the car</li>
+            </ul>
+          </div>
+          <div class="feature-stage">
+            <div class="phone">
+              <div class="phone-screen">
+                <img
+                  src="assets/IMG_BBF1F3AC406C-1.jpeg"
+                  alt="Voice control on a video segment"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="how" style="padding-top: 0">
+      <div class="cta-band">
+        <h2>Ready to get Started?</h2>
+        <p>
+          Tempo Spanish is rolling out in early access. Drop us a note and we'll
+          send you a link as soon as your spot opens up.
+        </p>
+        <div class="cta-row" style="justify-content: center">
+          <a
+            class="btn btn-primary"
+            href="mailto:tempo.spanish@gmail.com?subject=Tempo%20early%20access"
+          >
+            Request access
+          </a>
+          <a class="btn btn-secondary" href="mailto:tempo.spanish@gmail.com">
+            Contact us
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="links">
         <a href="/privacy">Privacy Policy</a>
         <a href="/terms">Terms of Service</a>
-      </nav>
-
-      <footer>&copy; Tempo Spanish</footer>
-    </main>
+        <a href="mailto:tempo.spanish@gmail.com">Contact</a>
+      </div>
+      &copy; Tempo Spanish
+    </footer>
   </body>
 </html>
