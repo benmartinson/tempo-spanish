@@ -794,6 +794,17 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     playedEndWarningRef.current = false;
   }, [currentSentenceIndex]);
 
+  // Auto-stop a voice-initiated recording after 5s of silence
+  useEffect(() => {
+    if (
+      passedSilenceThreshold &&
+      selectedTab === "voice" &&
+      voiceInitiatedRecordRef.current
+    ) {
+      handleSubmitRecording();
+    }
+  }, [passedSilenceThreshold]);
+
   useEffect(() => {
     if (
       !isTransitioningRef.current &&
