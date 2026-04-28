@@ -17,7 +17,12 @@ const DURATION_FILTERS = [
   { label: "30+ min", min: 1800, max: Infinity },
 ];
 
-const DIFFICULTY_ORDER = ["beginner", "intermediate", "advanced"];
+const DIFFICULTY_ORDER = [
+  "beginner",
+  "lower intermediate",
+  "upper intermediate",
+  "advanced",
+];
 
 const difficultyRank = (d: string) => {
   const idx = DIFFICULTY_ORDER.indexOf(d.toLowerCase());
@@ -25,7 +30,10 @@ const difficultyRank = (d: string) => {
 };
 
 const titleCase = (s: string) =>
-  s.length === 0 ? s : s[0].toUpperCase() + s.slice(1).toLowerCase();
+  s
+    .split(/\s+/)
+    .map((w) => (w.length === 0 ? w : w[0].toUpperCase() + w.slice(1).toLowerCase()))
+    .join(" ");
 
 const FilterVideos: React.FC<{
   videos: Video[];

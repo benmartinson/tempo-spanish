@@ -17,7 +17,7 @@ import {
 } from "../../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
-import { vocabFormatWord, stripPhraseComma } from "../../helpers/helpers";
+import { vocabFormatWord, getDisplayWord } from "../../helpers/helpers";
 import { saveFocusVocabTranslation } from "../../requests";
 import { useInterpolatedTime } from "../../hooks/useInterpolatedTime";
 import { useStableChunkIdx } from "../../hooks/useStableChunkIdx";
@@ -194,15 +194,6 @@ const FullSegmentTranscriptBubble: React.FC<
     });
   };
 
-  const wordEndsWithSpecialCase = (word: string) => {
-    return (
-      word.endsWith(",.") ||
-      word.endsWith(".,") ||
-      word.endsWith("?,") ||
-      word.endsWith("!,")
-    );
-  };
-
   // Show blank when not active (before first word or after words change)
   if (!isActive) {
     return (
@@ -248,25 +239,7 @@ const FullSegmentTranscriptBubble: React.FC<
           const isBlurred = blurredIndices?.has(index);
           const wordStyle = getWordStyle();
           const isActive = wordStyle === styles.activeWord;
-          const nextWord = words[index + 1]?.word;
-          let displayWord = wordEndsWithSpecialCase(word.word)
-            ? word.word.slice(0, -1)
-            : stripPhraseComma(word.word, nextWord);
-          const prevWord = words[index - 1]?.word?.trim();
-          const afterSentenceStart =
-            index === 0 || prevWord?.endsWith(".") || prevWord?.endsWith(".,");
-          if (!afterSentenceStart && displayWord === "Y") displayWord = "y";
-
-          if (
-            index === 0 &&
-            displayWord[0] &&
-            displayWord[0] !== displayWord[0].toUpperCase()
-          ) {
-            displayWord = "..." + displayWord;
-          }
-          if (index === words.length - 1 && displayWord.endsWith(",")) {
-            displayWord = displayWord.slice(0, -1) + "...";
-          }
+          const displayWord = getDisplayWord(words, index);
 
           return (
             <Pressable

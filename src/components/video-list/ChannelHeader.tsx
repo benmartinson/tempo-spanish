@@ -13,7 +13,9 @@ const difficultyColor = (difficulty: string): string => {
   switch (difficulty.toLowerCase()) {
     case "beginner":
       return "#3b82f6"; // blue
-    case "intermediate":
+    case "lower intermediate":
+      return "#eab308"; // yellow
+    case "upper intermediate":
       return "#f97316"; // orange
     case "advanced":
       return "#ef4444"; // red

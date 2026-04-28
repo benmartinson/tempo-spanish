@@ -1,4 +1,8 @@
-import { findClosestWord, splitSegmentsIntoSentences } from "./helpers";
+import {
+  computeBaseMaskedIndices,
+  findClosestWord,
+  splitSegmentsIntoSentences,
+} from "./helpers";
 
 describe("splitSegmentsIntoSentences", () => {
   it("splits a segment with mixed punctuation into sentences", () => {
@@ -215,6 +219,95 @@ describe("splitSegmentsIntoSentences", () => {
       "y lo que encuentra después de examinar estas avalanchas de números en pantalla es alarmante., El peor.",
       "Michael Burry concluye que el sistema y todo el mercado inmobiliario está al borde del colapso.",
     ]);
+  });
+});
+
+describe("computeBaseMaskedIndices", () => {
+  // "Y otro problema con la titulitis es que tambien devalua la educacion.
+  //  El aprendizaje se convierte en una carrera por el diploma."
+  // Indices:
+  //  0:Y       1:otro       2:problema    3:con    4:la       5:titulitis
+  //  6:es      7:que        8:tambien     9:devalua 10:la     11:educacion.
+  //  12:El     13:aprendizaje 14:se       15:convierte 16:en  17:una
+  //  18:carrera 19:por      20:el         21:diploma.
+  const text =
+    "Y otro problema con la titulitis es que tambien devalua la educacion. El aprendizaje se convierte en una carrera por el diploma.";
+  const words = text.split(/\s+/).map((w, i) => ({
+    word: w,
+    start: i,
+    end: i + 1,
+    frequency: 0,
+  }));
+
+  const indicesAt = (difficulty) =>
+    [...computeBaseMaskedIndices(words, difficulty)].sort((a, b) => a - b);
+
+  it("masks nothing at difficulty 0", () => {
+    expect(indicesAt(0)).toEqual([]);
+  });
+
+  it("masks easy words (prepositions/pronouns) at difficulty 1", () => {
+    expect(indicesAt(1)).toEqual([0, 1, 3, 4, 7, 10, 12, 14, 16, 17, 19, 20]);
+  });
+
+  it("masks all easy words plus 1/3 of the rest at difficulty 2", () => {
+    // 12 easy words + ceil(10/3) = 4 evenly-spaced rest words
+    expect(indicesAt(2)).toEqual([
+      0, 1, 2, 3, 4, 6, 7, 10, 11, 12, 14, 15, 16, 17, 19, 20,
+    ]);
+  });
+
+  it("masks all easy words plus 2/3 of the rest at difficulty 3", () => {
+    // 12 easy words + ceil(20/3) = 7 evenly-spaced rest words
+    expect(indicesAt(3)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20,
+    ]);
+    expect(indicesAt(3).length).toBeGreaterThan(indicesAt(2).length);
+  });
+
+  it("masks every word at difficulty 4", () => {
+    expect(indicesAt(4)).toEqual(words.map((_, i) => i));
+  });
+
+  describe("with one non-easy word", () => {
+    // "Yo lo veo." → Yo (pronoun), lo (pronoun), veo. (rest)
+    const wordsOne = "Yo lo veo.".split(/\s+/).map((w, i) => ({
+      word: w,
+      start: i,
+      end: i + 1,
+      frequency: 0,
+    }));
+    const at = (d) =>
+      [...computeBaseMaskedIndices(wordsOne, d)].sort((a, b) => a - b);
+
+    it("masks the same set at difficulties 2, 3, and 4", () => {
+      const all = [0, 1, 2];
+      expect(at(1)).toEqual([0, 1]);
+      expect(at(2)).toEqual(all);
+      expect(at(3)).toEqual(all);
+      expect(at(4)).toEqual(all);
+    });
+  });
+
+  describe("with two non-easy words", () => {
+    // "Yo lo veo el carro." → Yo, lo, veo, el, carro.
+    // easy: 0 (Yo), 1 (lo), 3 (el); rest: 2 (veo), 4 (carro.)
+    const wordsTwo = "Yo lo veo el carro.".split(/\s+/).map((w, i) => ({
+      word: w,
+      start: i,
+      end: i + 1,
+      frequency: 0,
+    }));
+    const at = (d) =>
+      [...computeBaseMaskedIndices(wordsTwo, d)].sort((a, b) => a - b);
+
+    it("masks one rest word at difficulty 2 and both at difficulties 3 and 4", () => {
+      expect(at(1)).toEqual([0, 1, 3]);
+      expect(at(2)).toEqual([0, 1, 2, 3]);
+      const all = [0, 1, 2, 3, 4];
+      expect(at(3)).toEqual(all);
+      expect(at(4)).toEqual(all);
+    });
   });
 });
 

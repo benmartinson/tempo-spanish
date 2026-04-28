@@ -2,6 +2,8 @@ import {
   ABBREVIATIONS,
   COMMON_SPLIT_WORDS,
   SPANISH_NUMBER_WORDS,
+  SPANISH_PREPOSITIONS,
+  SPANISH_PRONOUNS,
 } from "../constants";
 import {
   Segment,
@@ -415,11 +417,107 @@ export const cleanPhraseCommas = (text: string): string => {
   return words.map((w, i) => stripPhraseComma(w, words[i + 1])).join(" ");
 };
 
+const wordEndsWithSpecialCase = (word: string) =>
+  word.endsWith(",.") ||
+  word.endsWith(".,") ||
+  word.endsWith("?,") ||
+  word.endsWith("!,");
+
+/**
+ * Format a single word from a sentence for display: strips dangling
+ * punctuation pairs, downcases stray "Y" mid-sentence, and converts a
+ * leading lowercase / trailing comma into ellipses to signal that the
+ * sentence continues outside the visible segment.
+ */
+export const getDisplayWord = (
+  words: SegmentWord[],
+  index: number,
+): string => {
+  const word = words[index];
+  const nextWord = words[index + 1]?.word;
+  let displayWord = wordEndsWithSpecialCase(word.word)
+    ? word.word.slice(0, -1)
+    : stripPhraseComma(word.word, nextWord);
+
+  const prevWord = words[index - 1]?.word?.trim();
+  const afterSentenceStart =
+    index === 0 || prevWord?.endsWith(".") || prevWord?.endsWith(".,");
+  if (!afterSentenceStart && displayWord === "Y") displayWord = "y";
+
+  if (
+    index === 0 &&
+    displayWord[0] &&
+    displayWord[0] !== displayWord[0].toUpperCase()
+  ) {
+    displayWord = "..." + displayWord;
+  }
+  if (index === words.length - 1 && displayWord.endsWith(",")) {
+    displayWord = displayWord.slice(0, -1) + "...";
+  }
+  return displayWord;
+};
+
 export type DifficultyLevel =
   | "moderate"
   | "challenging"
   | "difficult"
   | "hardest";
+
+/**
+ * Decide which word indices in a sentence should start out masked, given
+ * the active difficulty (0–4). Difficulty 0 masks nothing, 4 masks every
+ * word. In between, easy filler words (prepositions/pronouns) are masked
+ * first; harder difficulties reach a target masked-word percentage by
+ * adding evenly-spaced content words on top.
+ */
+export const computeBaseMaskedIndices = (
+  words: SegmentWord[] | undefined,
+  difficulty: number,
+): Set<number> => {
+  const masked = new Set<number>();
+  if (difficulty === 0 || !words) return masked;
+  if (difficulty === 4) {
+    words.forEach((_, i) => masked.add(i));
+    return masked;
+  }
+  const easyWords = new Set([...SPANISH_PREPOSITIONS, ...SPANISH_PRONOUNS]);
+  const easyIndices: number[] = [];
+  const restIndices: number[] = [];
+  words.forEach((word, i) => {
+    const normalized = word.word
+      .trim()
+      .toLowerCase()
+      .replace(/[,.!?]$/, "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (easyWords.has(normalized)) {
+      easyIndices.push(i);
+    } else {
+      restIndices.push(i);
+    }
+  });
+  // Case 1: only easy words, but skip if previous two are already masked.
+  easyIndices.forEach((i) => {
+    if (difficulty === 1 && masked.has(i - 1) && masked.has(i - 2)) return;
+    masked.add(i);
+  });
+  if (difficulty >= 2) {
+    // Mask a fraction of the non-easy words on top of all easy words.
+    // Level 2 covers 1/3 of the rest, level 3 covers 2/3, level 4 covers all.
+    // Ceiling rounding makes the edge cases line up: 1 rest → L2=L3=L4,
+    // 2 rest → L3=L4, 3+ rest → all four levels are distinct.
+    const remaining = restIndices.length;
+    const count =
+      difficulty === 2
+        ? Math.ceil(remaining / 3)
+        : Math.ceil((2 * remaining) / 3);
+    for (let j = 0; j < count; j++) {
+      const idx = Math.floor((j * restIndices.length) / count);
+      masked.add(restIndices[idx]);
+    }
+  }
+  return masked;
+};
 
 export const getAutoHintDifficulty = (
   charCount: number,

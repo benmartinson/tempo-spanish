@@ -10,7 +10,10 @@
     "test": "jest"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ]
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.29",
