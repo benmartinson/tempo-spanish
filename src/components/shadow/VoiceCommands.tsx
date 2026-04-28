@@ -29,6 +29,8 @@ interface VoiceCommandsProps {
   /** When set, only these commands are shown initially with a "Show More" expander */
   priorityCommands?: VoiceCommand[];
   onCommandPress?: (command: VoiceCommand) => void;
+  /** When set, voice commands are disabled and this message is displayed instead. */
+  disabledMessage?: string;
 }
 
 const VoiceCommands: React.FC<VoiceCommandsProps> = ({
@@ -43,6 +45,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
   commands,
   priorityCommands,
   onCommandPress,
+  disabledMessage,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -56,6 +59,14 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
       setExpanded(true);
     }
   }, [activeCommand]);
+
+  if (disabledMessage) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.statusText}>{disabledMessage}</Text>
+      </View>
+    );
+  }
 
   if (permissionDenied) {
     return (

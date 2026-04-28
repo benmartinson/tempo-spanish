@@ -717,6 +717,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   useEffect(() => {
     if (
       selectedTab === "voice" &&
+      shadowMode !== "stream" &&
       !playerIsPlaying &&
       !clipJustStartedRef.current &&
       !isSpeakingResponse &&
@@ -733,6 +734,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   }, [
     selectedTab,
+    shadowMode,
     playerIsPlaying,
     isSpeakingResponse,
     isRecordingMode,
@@ -1376,90 +1378,51 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
                       permissionDenied={voicePermissionDenied}
                       onActivate={startListening}
                       onCommandPress={handleCommandPress}
-                      commands={
+                      disabledMessage={
                         shadowMode === "stream"
-                          ? [
-                              {
-                                command: "repeat" as const,
-                                label: "Repeat",
-                                description: "Replay the clip",
-                              },
-                              {
-                                command: "slow" as const,
-                                label: "Slowdown",
-                                description: "Replay the clip in slow mode",
-                              },
-                              {
-                                command: "next" as const,
-                                label: "Next",
-                                description: "Go to next segment",
-                              },
-                              {
-                                command: "previous" as const,
-                                label: "Previous",
-                                description: "Go to previous segment",
-                              },
-                              {
-                                command: "two_back" as const,
-                                label: "Two Back",
-                                description: "Go back 2 segments",
-                              },
-                              {
-                                command: "three_back" as const,
-                                label: "Three Back",
-                                description: "Go back 3 segments",
-                              },
-                              {
-                                command: "five_back" as const,
-                                label: "Five Back",
-                                description: "Go back 5 segments",
-                              },
-                            ]
-                          : [
-                              {
-                                command: "record" as const,
-                                label: "Record",
-                                description: "Start recording",
-                              },
-                              {
-                                command: "repeat" as const,
-                                label: "Repeat",
-                                description: "Replay the clip",
-                              },
-                              {
-                                command: "slow" as const,
-                                label: "Slowdown",
-                                description: "Replay the clip in slow mode",
-                              },
-                              {
-                                command: "next" as const,
-                                label: "Next",
-                                description: "Go to next segment",
-                              },
-                              {
-                                command: "previous" as const,
-                                label: "Previous",
-                                description: "Go to previous segment",
-                              },
-                              ...[
-                                "First Phrase",
-                                "Second Phrase",
-                                "Third Phrase",
-                              ]
-                                .slice(0, subSegments.length)
-                                .map((label, i) => ({
-                                  command: (
-                                    [
-                                      "first_phrase",
-                                      "second_phrase",
-                                      "third_phrase",
-                                    ] as const
-                                  )[i],
-                                  label,
-                                  description: `Replay phrase ${i + 1}`,
-                                })),
-                            ]
+                          ? "Voice mode disabled while streaming"
+                          : undefined
                       }
+                      commands={[
+                        {
+                          command: "record" as const,
+                          label: "Record",
+                          description: "Start recording",
+                        },
+                        {
+                          command: "repeat" as const,
+                          label: "Repeat",
+                          description: "Replay the clip",
+                        },
+                        {
+                          command: "slow" as const,
+                          label: "Slowdown",
+                          description: "Replay the clip in slow mode",
+                        },
+                        {
+                          command: "next" as const,
+                          label: "Next",
+                          description: "Go to next segment",
+                        },
+                        {
+                          command: "previous" as const,
+                          label: "Previous",
+                          description: "Go to previous segment",
+                        },
+                        ...["First Phrase", "Second Phrase", "Third Phrase"]
+                          .slice(0, subSegments.length)
+                          .map((label, i) => ({
+                            command: (
+                              [
+                                "first_phrase",
+                                "second_phrase",
+                                "third_phrase",
+                              ] as const
+                            )[i],
+                            label,
+                            description: `Replay phrase ${i + 1}`,
+                          })),
+                      ]}
                     />
                   )}
                 </ScrollView>
