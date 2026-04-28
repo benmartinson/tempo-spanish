@@ -161,8 +161,6 @@ const VideoList: React.FC = () => {
         )
     : [];
 
-  console.log({ userVideoViews });
-
   if (selectedChannel) {
     const channelVideos = allVideos
       .filter((video) => video.channel_id === selectedChannel.channel_id)

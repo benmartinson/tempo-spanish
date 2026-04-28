@@ -182,6 +182,9 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
             }
           }}
           userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+          onContentProcessDidTerminate={() => {
+            webViewRef.current?.reload();
+          }}
           onShouldStartLoadWithRequest={(request) => {
             if (request.url.includes("youtube.com/watch")) {
               Linking.openURL(request.url);
