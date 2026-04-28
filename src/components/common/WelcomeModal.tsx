@@ -1,4 +1,5 @@
 import React from "react";
+import { Provider, useDispatch, useSelector } from "react-redux";
 import {
   View,
   Text,
@@ -7,6 +8,8 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
+import { setHasSeenWelcomeModals } from "../../store/actions/dataActions";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface WelcomeModalProps {
   visible: boolean;
@@ -14,6 +17,15 @@ interface WelcomeModalProps {
 }
 
 const WelcomeModal: React.FC<WelcomeModalProps> = ({ visible, onClose }) => {
+  const dispatch = useDispatch();
+
+  const handleClose = async () => {
+    dispatch(setHasSeenWelcomeModals(true));
+    await AsyncStorage.setItem("has_seen_welcome_modals", "true");
+    console.log("closing");
+    onClose();
+  };
+
   return (
     <Modal
       visible={visible}
@@ -39,7 +51,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ visible, onClose }) => {
                 spanish-speaking Youtube channels, and choose a video that
                 interests you.
               </Text>
-              <TouchableOpacity style={styles.button} onPress={onClose}>
+              <TouchableOpacity style={styles.button} onPress={handleClose}>
                 <Text style={styles.buttonText}>Get Started</Text>
               </TouchableOpacity>
             </View>

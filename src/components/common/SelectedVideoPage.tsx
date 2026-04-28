@@ -96,10 +96,10 @@ const SelectedVideoPage: React.FC = () => {
 
   // Translation insights state (shared across tabs)
   const supabase = useSupabaseWithClerk();
-  const handleWalkthroughComplete = useCallback(async () => {
-    dispatch(setHasSeenWelcomeModals(true));
-    await AsyncStorage.setItem("has_seen_welcome_modals", "true");
-  }, [dispatch]);
+  // const handleWalkthroughComplete = useCallback(async () => {
+  //   dispatch(setHasSeenWelcomeModals(true));
+  //   await AsyncStorage.setItem("has_seen_welcome_modals", "true");
+  // }, [dispatch]);
 
   const userSettings = useSelector((state: RootState) => state.userSettings);
   const translationLanguage = userSettings.translationLanguage;
