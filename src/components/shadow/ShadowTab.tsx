@@ -148,6 +148,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   // Track when a clip was just started so voice mode doesn't connect prematurely
   const clipJustStartedRef = useRef(false);
+  const [awaitingFirstPlayback, setAwaitingFirstPlayback] = useState(true);
+  const playerIsPlayingRef = useRef(playerIsPlaying);
 
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
@@ -706,18 +708,30 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     commandHandlersRef.current[command]?.();
   }, []);
 
-  // Clear the clip-just-started flag once the player actually starts playing
   useEffect(() => {
+    playerIsPlayingRef.current = playerIsPlaying;
     if (playerIsPlaying) {
       clipJustStartedRef.current = false;
+      const t = setTimeout(() => setAwaitingFirstPlayback(false), 600);
+      return () => clearTimeout(t);
     }
   }, [playerIsPlaying]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active" && !playerIsPlayingRef.current) {
+        setAwaitingFirstPlayback(true);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Start listening when on voice tab and nothing is playing
   useEffect(() => {
     if (
       selectedTab === "voice" &&
       shadowMode !== "stream" &&
+      !awaitingFirstPlayback &&
       !playerIsPlaying &&
       !clipJustStartedRef.current &&
       !isSpeakingResponse &&
@@ -726,7 +740,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       !isProcessing &&
       !accuracyResult
     ) {
-      startListening();
+      setTimeout(() => {
+        if (!playerIsPlayingRef.current) {
+          startListening();
+        }
+      }, 3000);
     } else {
       if (isListening) {
         stopListening();
@@ -735,6 +753,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }, [
     selectedTab,
     shadowMode,
+    awaitingFirstPlayback,
     playerIsPlaying,
     isSpeakingResponse,
     isRecordingMode,
@@ -963,7 +982,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     pausePlayer();
     mutePlayer();
 
-    if (recordSpeed > 0) {
+    if (recordSpeed > 0 && selectedTab !== "voice") {
       setPlayerSpeed(recordSpeed);
     }
     setIsRecordingMode(true);
@@ -975,7 +994,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const handleActualStartRecording = async () => {
     if (selectedTab === "voice") playDing();
     await startRecording();
-    if (recordSpeed > 0) {
+    if (recordSpeed > 0 && selectedTab !== "voice") {
       playSentence();
     }
     setTimeout(() => {
