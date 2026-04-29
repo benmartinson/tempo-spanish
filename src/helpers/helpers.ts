@@ -92,7 +92,7 @@ export const stripDiacritics = (text: string) =>
   text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 export const stripPunctuation = (word: string) => {
-  return word.replace(/[.,\/#!$%\^&\*\?;:{}=\-\"\'_`~()]/g, "");
+  return word.replace(/[.,\/#!$%\^&\*\?;:{}=\"\'_`~()]/g, "");
 };
 
 export const normalizeWord = (word: string) =>
@@ -135,12 +135,35 @@ export const splitTranslationIntoSentences = (
   return translation.split(/[.!?]/).map((s) => s.trim());
 };
 
+// Merge tokens like " Wall" + " -E" into a single " Wall-E" word so a hyphenated
+// proper noun isn't split across two SegmentWords. The transcript occasionally
+// emits these as separate tokens; we treat any word whose trimmed form starts
+// with "-" as a continuation of the prior word.
+const mergeDashContinuations = (words: SegmentWord[]): SegmentWord[] => {
+  const result: SegmentWord[] = [];
+  for (const w of words) {
+    const prev = result[result.length - 1];
+    if (prev && w.word.trim().startsWith("-")) {
+      result[result.length - 1] = {
+        ...prev,
+        word: prev.word + w.word.trim(),
+        end: w.end,
+      };
+    } else {
+      result.push(w);
+    }
+  }
+  return result;
+};
+
 export const splitSegmentsIntoSentences = (segments: Segment[]): Sentence[] => {
   const allSentences: Sentence[] = [];
   let sentenceIndex = 0;
   for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
     const segment = segments[segmentIndex];
-    const sentenceWordGroups = splitIntoSentences(segment.words);
+    const sentenceWordGroups = splitIntoSentences(
+      mergeDashContinuations(segment.words),
+    );
     for (let i = 0; i < sentenceWordGroups.length; i++) {
       const words = sentenceWordGroups[i];
       if (words.length === 0) continue;
