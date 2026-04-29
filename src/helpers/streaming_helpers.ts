@@ -62,7 +62,7 @@ const playSoundEffect = (source: number, options?: { volume?: number }) => {
   });
 };
 
-export const playDing = () => playSoundEffect(dingSource);
+export const playDing = () => playSoundEffect(dingSource, { volume: 0.5 });
 export const playDingStop = () => playSoundEffect(dingStopSource);
 export const playDingWarning = () =>
   playSoundEffect(warningBeepSource, { volume: 0.75 });

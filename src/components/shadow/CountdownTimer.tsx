@@ -15,7 +15,6 @@ interface CountdownTimerProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   onTrash?: () => void;
-  sentenceEnded: boolean;
   bufferDuration?: number;
   countdownDuration?: number;
   maxRecordingDuration?: number;
@@ -25,7 +24,6 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   onStartRecording,
   onStopRecording,
   onTrash,
-  sentenceEnded,
   bufferDuration = 5,
   countdownDuration = 0,
   maxRecordingDuration = 60,
@@ -39,7 +37,8 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   const hasStartedRecording = useRef(false);
   const hasStoppedRecording = useRef(false);
   const remainingSeconds = maxRecordingDuration - elapsedSeconds;
-  const showTimeWarning = phase === "recording" && remainingSeconds <= 5;
+  const showTimeWarning = phase === "buffer";
+  const warningSeconds = Math.max(0, Math.ceil(bufferCountdown));
 
   // Pulse animation for recording indicator
   useEffect(() => {
@@ -63,15 +62,14 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     }
   }, [phase, pulseAnim]);
 
+  // When the recording duration runs out, drop into the buffer phase so the
+  // user gets the visible 5s warning before we actually submit.
   useEffect(() => {
     if (remainingSeconds <= 0 && phase === "recording") {
-      if (!hasStoppedRecording.current) {
-        hasStoppedRecording.current = true;
-        setPhase("complete");
-        onStopRecording();
-      }
+      setPhase("buffer");
+      setBufferCountdown(bufferDuration);
     }
-  }, [remainingSeconds]);
+  }, [remainingSeconds, phase, bufferDuration]);
 
   // Track elapsed recording time
   useEffect(() => {
@@ -105,21 +103,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     return () => clearTimeout(timer);
   }, [countdown, phase, onStartRecording]);
 
-  // Transition to buffer phase when sentence ends
   useEffect(() => {
-    if (phase === "recording" && sentenceEnded) {
-      console.log("set buffer");
-      setPhase("buffer");
-      setBufferCountdown(bufferDuration);
-    }
-  }, [sentenceEnded, phase, bufferDuration]);
-
-  useEffect(() => {
-    console.log({
-      phase,
-      bufferCountdown,
-      current: hasStoppedRecording.current,
-    });
     if (phase !== "buffer") return;
 
     if (bufferCountdown <= 0) {
@@ -148,10 +132,15 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
             style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]}
           />
           <Text style={styles.recordingText}>Recording</Text>
-          {showTimeWarning && Math.ceil(remainingSeconds) > 0 && (
-            <Text style={styles.timeWarningText}>
-              {Math.ceil(remainingSeconds)}s
-            </Text>
+          {showTimeWarning && warningSeconds > 0 && (
+            <Animated.View
+              style={[
+                styles.timeWarningBadge,
+                { transform: [{ scale: pulseAnim }] },
+              ]}
+            >
+              <Text style={styles.timeWarningText}>{warningSeconds}s</Text>
+            </Animated.View>
           )}
         </View>
         <View style={styles.buttonRow}>
@@ -282,11 +271,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#fff",
   },
+  timeWarningBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
   timeWarningText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "800",
     color: "#ff4757",
-    marginLeft: 4,
+    letterSpacing: 0.5,
   },
 });
 

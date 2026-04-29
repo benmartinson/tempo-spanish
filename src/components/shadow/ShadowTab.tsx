@@ -256,12 +256,23 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     text: string;
     translation: string;
     words: SegmentWord[];
+    start: number;
+    end: number;
   } | null>(null);
   const reviewVocabWordRef = useRef<string | null>(null);
   const [reviewTranslationSentenceIndex, setReviewTranslationSentenceIndex] =
     useState<number | null>(null);
   const sentenceHistoryRef = useRef<
-    Record<number, { text: string; translation: string; words: SegmentWord[] }>
+    Record<
+      number,
+      {
+        start: number;
+        end: number;
+        text: string;
+        translation: string;
+        words: SegmentWord[];
+      }
+    >
   >({});
   const latestShadowedSentenceRef = useRef<number>(-1);
 
@@ -455,6 +466,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         text: currentSentenceObject.text,
         translation: sentenceTranslation.text,
         words: currentSentenceObject.words,
+        start: currentSentenceObject.start,
+        end: currentSentenceObject.end,
       };
     }
   }, [
@@ -929,11 +942,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
 
     markSentenceReviewed(reviewSentenceIndex);
-    setReviewTranslationSentence({
-      text: historySentence.text,
-      translation: historySentence.translation,
-      words: historySentence.words,
-    });
+    setReviewTranslationSentence(historySentence);
     setReviewType("translation");
     pausePlayer();
     return true;
@@ -1126,11 +1135,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setAccuracyResult(previousResults);
   };
 
-  const getBufferDuration = (recordSpeed: number) => {
-    if (recordSpeed <= 0.35) return 2;
-    if (recordSpeed <= 0.6) return 3;
-    if (recordSpeed <= 0.75) return 4;
-    return 5;
+  const getSegmentDuration = (start, end, recordSpeed: number) => {
+    return (end - start) / recordSpeed;
   };
 
   const handlePlayPhrase = (start, end, phraseIndex?: number) => {
@@ -1250,12 +1256,16 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             <CountdownTimer
               onStartRecording={handleActualStartRecording}
               onStopRecording={handleSubmitRecording}
-              sentenceEnded={sentenceEnded}
-              bufferDuration={getBufferDuration(recordSpeed)}
+              bufferDuration={3}
               onTrash={() => {
                 handleTrashRecording(true);
                 handleResetAnswer();
               }}
+              maxRecordingDuration={getSegmentDuration(
+                currentSentenceObject.start,
+                currentSentenceObject.end,
+                recordSpeed,
+              )}
             />
           </View>
         )}
@@ -1537,6 +1547,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         </TooltipModal>
       )}
       <TranslationReviewModal
+        segmentDuration={
+          reviewTranslationSentence
+            ? getSegmentDuration(
+                reviewTranslationSentence.start,
+                reviewTranslationSentence.end,
+                recordSpeed,
+              )
+            : 60
+        }
         visible={reviewType === "translation"}
         englishTranslation={reviewTranslationSentence?.translation ?? ""}
         targetText={reviewTranslationSentence?.text ?? ""}

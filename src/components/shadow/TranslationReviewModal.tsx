@@ -23,6 +23,7 @@ import TranslateContent from "./TranslateContent";
 interface TranslationReviewModalProps {
   visible: boolean;
   englishTranslation: string;
+  segmentDuration: number;
   targetText: string;
   targetWords: SegmentWord[];
   targetLanguage: string;
@@ -33,12 +34,14 @@ interface TranslationReviewModalProps {
 const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   visible,
   englishTranslation,
+  segmentDuration,
   targetText,
   targetWords,
   targetLanguage,
   onComplete,
   onClose,
 }) => {
+  console.log({ segmentDuration });
   const [userAnswer, setUserAnswer] = useState("");
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
     null,
@@ -200,8 +203,8 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
                     onStopRecording={handleSubmitRecording}
                     onTrash={handleTrashRecording}
                     sentenceEnded={false}
-                    maxRecordingDuration={estimatedDuration + 10}
-                    countdownDuration={0}
+                    maxRecordingDuration={segmentDuration}
+                    bufferDuration={5}
                   />
                 ) : (
                   <View style={styles.actionsRow}>
