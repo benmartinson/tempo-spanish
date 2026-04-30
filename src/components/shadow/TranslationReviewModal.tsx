@@ -43,7 +43,6 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   onComplete,
   onClose,
 }) => {
-  console.log({ segmentDuration });
   const [userAnswer, setUserAnswer] = useState("");
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
     null,
