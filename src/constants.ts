@@ -1,4 +1,3 @@
-
 export const CHAR_WIDTHS: Record<string, number> = {
   a: 11, //
   b: 12, //
@@ -412,6 +411,8 @@ export const ABBREVIATIONS = new Set([
   "Uds.",
   "Lic.",
   "Ing.",
+  "a.c.",
+  "b.c.",
 ]);
 
 export const COMMON_SPLIT_WORDS = [

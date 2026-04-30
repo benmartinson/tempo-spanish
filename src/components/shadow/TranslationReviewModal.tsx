@@ -26,6 +26,7 @@ interface TranslationReviewModalProps {
   segmentDuration: number;
   targetText: string;
   targetWords: SegmentWord[];
+  properNouns: string[];
   targetLanguage: string;
   onComplete: () => void;
   onClose: () => void;
@@ -37,6 +38,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   segmentDuration,
   targetText,
   targetWords,
+  properNouns,
   targetLanguage,
   onComplete,
   onClose,
@@ -55,7 +57,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
 
   const evaluateWords = (spokenWords: string[]) => {
     const target = targetWords.map((w) => w.word);
-    const result = calculateAccuracy(spokenWords, target, []);
+    const result = calculateAccuracy(spokenWords, target, properNouns);
     setAccuracyResult({
       ...result,
       targetSentence: capitalize(targetText),
@@ -202,7 +204,6 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
                     onStartRecording={() => {}}
                     onStopRecording={handleSubmitRecording}
                     onTrash={handleTrashRecording}
-                    sentenceEnded={false}
                     maxRecordingDuration={segmentDuration}
                     bufferDuration={5}
                   />

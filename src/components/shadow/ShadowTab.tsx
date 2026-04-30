@@ -256,6 +256,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     text: string;
     translation: string;
     words: SegmentWord[];
+    properNouns: string[];
     start: number;
     end: number;
   } | null>(null);
@@ -271,6 +272,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         text: string;
         translation: string;
         words: SegmentWord[];
+        properNouns: string[];
       }
     >
   >({});
@@ -466,6 +468,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         text: currentSentenceObject.text,
         translation: sentenceTranslation.text,
         words: currentSentenceObject.words,
+        properNouns: orderedCharacters,
         start: currentSentenceObject.start,
         end: currentSentenceObject.end,
       };
@@ -475,6 +478,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     currentSentenceIndex,
     accuracyResult,
     previousResults,
+    orderedCharacters,
   ]);
 
   useEffect(() => {
@@ -1560,6 +1564,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         englishTranslation={reviewTranslationSentence?.translation ?? ""}
         targetText={reviewTranslationSentence?.text ?? ""}
         targetWords={reviewTranslationSentence?.words ?? []}
+        properNouns={reviewTranslationSentence?.properNouns ?? []}
         targetLanguage={userSettings.targetLanguage}
         onComplete={proceedAfterReview}
         onClose={proceedAfterReview}
