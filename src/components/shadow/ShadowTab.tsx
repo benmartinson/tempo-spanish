@@ -20,6 +20,7 @@ import {
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import Feather from "@expo/vector-icons/Feather";
+import Foundation from "@expo/vector-icons/Foundation";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import { useAuth } from "@clerk/clerk-expo";
@@ -114,6 +115,7 @@ interface ShadowTabProps {
   shadowMode: "shadow" | "stream";
   setShadowMode: (mode: "shadow" | "stream") => void;
   setAutoplay: (autoplay: boolean) => void;
+  isPlayerFullscreen?: boolean;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -142,8 +144,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   shadowMode,
   setShadowMode,
   setAutoplay,
+  isPlayerFullscreen = false,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
+  const isWebScreen = Platform.OS === "web" && windowWidth >= 850;
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -438,7 +442,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       if (result) {
         const spokenWords = result.spokenWords.split(/\s+/).filter(Boolean);
         const accuracy = calculateAccuracyFromWords(spokenWords);
-        if (selectedTab !== "voice") {
+        if (!isWebScreen && selectedTab !== "voice") {
           setAccuracyResult(accuracy);
         } else {
           setAccuracyResult(null);
@@ -1161,7 +1165,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }
 
   const isMissingPermission = error?.toLowerCase().includes("permission");
-  const isWebScreen = Platform.OS === "web" && windowWidth >= 850;
+  const currentSentenceTranslationText =
+    sentenceTranslation?.index === currentSentenceIndex
+      ? sentenceTranslation.text
+      : null;
   const playerControlsElement = (
     <PlayerControls
       onReplay={() => handlePlaySnippetAgain()}
@@ -1176,6 +1183,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       videoId={parseInt(currentVideo.recordId)}
       sentenceIndex={currentSentenceIndex}
       onBeforeAction={stopListening}
+      containerStyle={isWebScreen ? styles.webPlayerControls : undefined}
     />
   );
   const settingsButtonsElement = (
@@ -1198,7 +1206,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         });
       }}
       onSettingsPress={() => setIsSettingsVisible(true)}
-      showPreviousResults={!!previousResults}
+      showPreviousResults={!isWebScreen && !!previousResults}
       onPreviousResultsPress={handlePreviousResults}
       previousResultsDisabled={isPlayingRecording}
     />
@@ -1220,34 +1228,29 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   };
   const webRecordingControlsElement =
     !accuracyResult && !isProcessing ? (
-      <RecordingControls
-        isRecording={isRecordingMode}
-        onTrash={handleRecordingTrashPress}
-        onMic={handleRecordingMicPress}
-        disabled={!hasPermission || isProcessing}
-        showContainer={false}
-      />
+      <View style={styles.webRecordingControlsRow}>
+        {!!previousResults && (
+          <TouchableOpacity
+            style={styles.webPreviousResultsButton}
+            onPress={handlePreviousResults}
+            disabled={isPlayingRecording}
+          >
+            <Foundation
+              name="clipboard-notes"
+              size={30}
+              color={isPlayingRecording ? "#9aa4ba" : "#4a69bd"}
+            />
+          </TouchableOpacity>
+        )}
+        <RecordingControls
+          isRecording={isRecordingMode}
+          onTrash={handleRecordingTrashPress}
+          onMic={handleRecordingMicPress}
+          disabled={!hasPermission || isProcessing}
+          showContainer={false}
+        />
+      </View>
     ) : null;
-  const memorizeContentElement = (
-    <MemorizeContent
-      time={time}
-      playKey={playKey}
-      playerSpeed={playerSpeed}
-      currentSentence={currentSentenceObject!}
-      playerIsPlaying={playerIsPlaying}
-      isRecording={isRecording}
-      localDifficulty={localDifficulty}
-      onLocalDifficultyChange={setLocalDifficulty}
-      playWordSnippet={handlePlaySnippetAgain}
-      vocabCache={vocabCache}
-      onVocabCacheUpdate={handleVocabCacheUpdate}
-      layout={isWebScreen ? "webPlayer" : "default"}
-      webPlayerControls={isWebScreen ? playerControlsElement : undefined}
-      webRecordingControls={
-        isWebScreen ? webRecordingControlsElement : undefined
-      }
-    />
-  );
   const sentenceNavElement = (
     <NavSwitcher
       onPrev={() => handleShadowPreviousSentence()}
@@ -1258,6 +1261,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       onPlayClip={onPlayClip}
       videoId={currentVideo.videoId}
       recordId={currentVideo.recordId}
+      style={isWebScreen ? styles.webPanelSentenceNavSwitcher : undefined}
+      showSearchIcon={!isWebScreen}
     >
       <Text style={styles.segmentNavText}>
         Segment {currentSentenceIndex + 1} of {currentVideo.sentences.length}
@@ -1322,6 +1327,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           handleNextSentence={handleShadowNextSentence}
           handleRetry={handleRetry}
           properNouns={orderedCharacters}
+          variant={isWebScreen ? "webPanel" : "default"}
         />
         {nextSentenceCountdown > 0 && (
           <View style={styles.nextSentenceCountdownRefContainer}>
@@ -1351,6 +1357,33 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         </TouchableOpacity>
       </View>
     ) : null;
+  const memorizeContentElement = (
+    <MemorizeContent
+      time={time}
+      playKey={playKey}
+      playerSpeed={playerSpeed}
+      currentSentence={currentSentenceObject!}
+      playerIsPlaying={playerIsPlaying}
+      isRecording={isRecording}
+      localDifficulty={localDifficulty}
+      onLocalDifficultyChange={setLocalDifficulty}
+      playWordSnippet={handlePlaySnippetAgain}
+      vocabCache={vocabCache}
+      onVocabCacheUpdate={handleVocabCacheUpdate}
+      layout={isWebScreen ? "webPlayer" : "default"}
+      webPlayerControls={isWebScreen ? playerControlsElement : undefined}
+      webRecordingControls={
+        isWebScreen ? webRecordingControlsElement : undefined
+      }
+      webSentenceNav={isWebScreen ? sentenceNavElement : undefined}
+      webStatusContent={isWebScreen ? statusContentElement : undefined}
+      webPlayRecordingButton={
+        isWebScreen ? playRecordingButtonElement : undefined
+      }
+      translationText={isWebScreen ? currentSentenceTranslationText : null}
+      isLoadingTranslation={isWebScreen ? isLoadingInsights : false}
+    />
+  );
   const streamBannerElement =
     shadowMode === "stream" && !streamBannerDismissed ? (
       <View style={styles.streamBanner}>
@@ -1396,7 +1429,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           }}
         >
           <TranslateContent
-            translationText={sentenceTranslation?.text ?? null}
+            translationText={currentSentenceTranslationText}
             sentenceText={currentSentenceObject?.text}
             isLoading={isLoadingInsights}
             time={time}
@@ -1613,6 +1646,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     overlays: overlaysElement,
     isRecordingMode,
     showPracticeContent: !accuracyResult && !isProcessing,
+    isPlayerFullscreen,
   };
 
   return isWebScreen ? (
@@ -1658,6 +1692,35 @@ export const styles = StyleSheet.create({
     right: 64,
     zIndex: 60,
     alignItems: "center",
+  },
+  webFullscreenShadowRoot: {
+    backgroundColor: "transparent",
+  },
+  webPlayerControls: {
+    alignSelf: "flex-start",
+  },
+  webRecordingControlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 24,
+  },
+  webPreviousResultsButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(74,105,189,0.18)",
+  },
+  webPanelSentenceNavSwitcher: {
+    width: "100%",
+    backgroundColor: "#f7f9ff",
+    borderBottomWidth: 0,
+    paddingTop: 6,
+    paddingBottom: 2,
   },
   webStatusOverlay: {
     position: "fixed" as any,

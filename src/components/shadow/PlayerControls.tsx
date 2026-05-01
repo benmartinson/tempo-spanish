@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TouchableOpacity } from "react-native";
+import {
+  StyleProp,
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  ViewStyle,
+} from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface PlayerControlsProps {
@@ -12,6 +18,7 @@ interface PlayerControlsProps {
   videoId?: number;
   sentenceIndex?: number;
   onBeforeAction?: () => Promise<void>;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -24,9 +31,10 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   videoId,
   sentenceIndex,
   onBeforeAction,
+  containerStyle,
 }) => {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       <TouchableOpacity
         style={[styles.button, styles.buttonLeft]}
         onPress={onReplay}

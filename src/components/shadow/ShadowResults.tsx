@@ -1,7 +1,17 @@
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+} from "react-native";
 import { AccuracyResult } from "../../types";
 import { MaterialIcons } from "@expo/vector-icons";
-import { normalizeWord, removeSpecialPunctuation, stripPhraseComma } from "../../helpers/helpers";
+import {
+  normalizeWord,
+  removeSpecialPunctuation,
+  stripPhraseComma,
+} from "../../helpers/helpers";
 import AccuracyCircle from "../common/AccuracyCircle";
 
 interface ShadowResultsProps {
@@ -15,6 +25,7 @@ interface ShadowResultsProps {
   hideRetry?: boolean;
   alwaysShowNext?: boolean;
   nextButtonLabel?: string;
+  variant?: "default" | "webPanel";
 }
 
 const ShadowResults: React.FC<ShadowResultsProps> = ({
@@ -26,6 +37,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   targetLabel = "Target: ",
   hideRetry = false,
   nextButtonLabel = "Next Segment",
+  variant = "default",
 }) => {
   const handleNextPress = () => {
     handleNextSentence();
@@ -120,7 +132,12 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   };
 
   return (
-    <View style={styles.resultsContainer}>
+    <View
+      style={[
+        styles.resultsContainer,
+        variant === "webPanel" && styles.webPanelResultsContainer,
+      ]}
+    >
       <AccuracyCircle percentage={accuracyResult.percentage} />
       <View style={styles.spokenSentenceContainer}>
         <Text style={styles.spokenSentenceText}>
@@ -261,6 +278,11 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: Dimensions.get("window").width > 600 ? 48 : 16,
     paddingHorizontal: 16,
+  },
+  webPanelResultsContainer: {
+    width: "100%",
+    marginTop: 8,
+    paddingHorizontal: 0,
   },
   tooltipTitle: {
     color: "#fff",

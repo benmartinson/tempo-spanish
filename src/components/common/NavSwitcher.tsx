@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  StyleProp,
+  StyleSheet,
+  TouchableOpacity,
+  ViewStyle,
+} from "react-native";
 import { ContextSegment, Sentence } from "../../types";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Feather from "@expo/vector-icons/Feather";
@@ -18,6 +24,8 @@ type NavSwitcherProps = {
   videoId?: string;
   recordId?: string;
   hasSearch?: boolean;
+  style?: StyleProp<ViewStyle>;
+  showSearchIcon?: boolean;
 };
 
 const NavSwitcher: React.FC<NavSwitcherProps> = ({
@@ -31,6 +39,8 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
   videoId = "",
   recordId,
   hasSearch = true,
+  style,
+  showSearchIcon = true,
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [nextAvailableShadow, setNextAvailableShadow] = useState<number | null>(
@@ -81,7 +91,7 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
   };
 
   return (
-    <View style={styles.navHeader}>
+    <View style={[styles.navHeader, style]}>
       <View style={[styles.navButtonGroup, styles.navButtonGroupLeft]}>
         {showJumpButton && !jumpIsForward && (
           <TouchableOpacity style={styles.navButton} onPress={handleJump}>
@@ -109,13 +119,17 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
           onPress={() => setIsSearchOpen(true)}
           style={styles.navCenter}
         >
-          <View style={styles.hiddenSearchIconContainer}>
-            <MaterialIcons name="search" size={24} color="#333" />
-          </View>
+          {showSearchIcon && (
+            <View style={styles.hiddenSearchIconContainer}>
+              <MaterialIcons name="search" size={24} color="#333" />
+            </View>
+          )}
           {children}
-          <View style={styles.searchIconContainer}>
-            <MaterialIcons name="search" size={24} color="#333" />
-          </View>
+          {showSearchIcon && (
+            <View style={styles.searchIconContainer}>
+              <MaterialIcons name="search" size={24} color="#333" />
+            </View>
+          )}
         </TouchableOpacity>
       ) : (
         <View style={styles.navCenter}>{children}</View>

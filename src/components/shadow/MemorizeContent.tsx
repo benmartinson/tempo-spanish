@@ -5,13 +5,15 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { StyleSheet, ScrollView, View } from "react-native";
+import { StyleSheet, ScrollView, View, Pressable, Text } from "react-native";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
 import { RootState, Sentence, SegmentWord, VocabCacheEntry } from "../../types";
 import FullSegmentTranscriptBubble from "../common/FullSegmentTranscriptBubble";
 import DifficultySlider from "../common/DifficultySlider";
 import DraggableWebPanel from "../common/DraggableWebPanel";
+import TranslateContent from "./TranslateContent";
 import { setMemorizeDifficulty } from "../../store/actions/dataActions";
 import { persistMemorizeDifficulty } from "../../requests";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
@@ -35,6 +37,11 @@ interface MemorizeContentProps {
   layout?: "default" | "webPlayer";
   webPlayerControls?: ReactNode;
   webRecordingControls?: ReactNode;
+  webSentenceNav?: ReactNode;
+  webStatusContent?: ReactNode;
+  webPlayRecordingButton?: ReactNode;
+  translationText?: string | null;
+  isLoadingTranslation?: boolean;
 }
 
 const MemorizeContent: React.FC<MemorizeContentProps> = ({
@@ -52,6 +59,11 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   layout = "default",
   webPlayerControls,
   webRecordingControls,
+  webSentenceNav,
+  webStatusContent,
+  webPlayRecordingButton,
+  translationText = null,
+  isLoadingTranslation = false,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -99,6 +111,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   );
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
   const [hintLevels, setHintLevels] = useState<Record<number, number>>({});
+  const [translationRevealed, setTranslationRevealed] = useState(false);
 
   // Compute which words would be masked (ignoring reveals) — stable per difficulty/segment
   const baseMaskedIndices = useMemo(
@@ -129,6 +142,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     setRevealedWords(new Set());
     setHintLevels({});
     setManualOverride(null);
+    setTranslationRevealed(false);
   }, [currentSentence.index]);
 
   useEffect(() => {
@@ -151,6 +165,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
       vocabCache={vocabCache}
       onVocabCacheUpdate={onVocabCacheUpdate}
       attachedTop={layout === "webPlayer"}
+      squareEdges={layout === "webPlayer"}
       onWordPress={(index) => {
         if (isRecording) {
           // During recording: progressive hint reveal
@@ -184,8 +199,60 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
         setDifficulty(d);
         setRevealedWords(new Set());
       }}
+      variant={layout === "webPlayer" ? "compact" : "default"}
     />
   );
+
+  const shouldShowTranslationSection =
+    isLoadingTranslation || !!translationText;
+  const webTranslationSection =
+    layout === "webPlayer" && shouldShowTranslationSection ? (
+      <View style={styles.webTranslationContainer}>
+        {!translationRevealed ? (
+          <Pressable
+            style={[
+              styles.webTranslationDisclosure,
+              styles.webTranslationDisclosureCollapsed,
+            ]}
+            onPress={() => setTranslationRevealed(true)}
+          >
+            <View style={styles.webTranslationDisclosureAction}>
+              <Text style={styles.webTranslationDisclosureText}>
+                translation
+              </Text>
+              <MaterialIcons name="visibility" size={18} color="gray" />
+            </View>
+          </Pressable>
+        ) : (
+          <View style={styles.webTranslationContent}>
+            <TranslateContent
+              translationText={translationText}
+              sentenceText={currentSentence.text}
+              isLoading={isLoadingTranslation}
+              time={time}
+              playerIsPlaying={playerIsPlaying}
+              segmentStart={currentSentence.start}
+              segmentEnd={currentSentence.end}
+              playKey={playKey}
+              isRecording={isRecording}
+              playerSpeed={playerSpeed}
+              variant="webPanel"
+            />
+            <Pressable
+              style={styles.webTranslationCollapseButton}
+              onPress={() => setTranslationRevealed(false)}
+              hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+            >
+              <MaterialIcons
+                name="keyboard-arrow-up"
+                size={20}
+                color="#647089"
+              />
+            </Pressable>
+          </View>
+        )}
+      </View>
+    ) : null;
 
   if (layout === "webPlayer") {
     return (
@@ -193,17 +260,46 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
         <DraggableWebPanel
           initialTop={380}
           width={620}
-          dragHandle={<View style={styles.webPanelDragStrip} />}
-        >
-          <View style={styles.webPanelHeader}>
-            <View style={styles.webPanelHeaderLeft}>{webPlayerControls}</View>
-            <View style={styles.webPanelHeaderRight}>
-              {webRecordingControls}
+          dragHandle={
+            <View style={styles.webPanelDragHandle}>
+              <View style={styles.webPanelDragRail} />
             </View>
+          }
+        >
+          <View style={styles.webPanelShell}>
+            {webSentenceNav && (
+              <View style={styles.webPanelSentenceNav}>{webSentenceNav}</View>
+            )}
+            {webStatusContent && (
+              <View style={styles.webPanelStatusContent}>
+                {webStatusContent}
+                {webPlayRecordingButton}
+              </View>
+            )}
+            {!webStatusContent && (
+              <>
+                <View style={styles.webPanelHeader}>
+                  <View style={styles.webPanelHeaderLeft}>
+                    {webPlayerControls}
+                  </View>
+                  <View style={styles.webPanelHeaderRight}>
+                    {webRecordingControls}
+                  </View>
+                </View>
+                {transcriptBubble}
+                <View style={styles.webPanelDifficultyRow}>
+                  <View style={styles.webPanelAccent} />
+                  <View style={styles.webPanelDifficulty}>
+                    {difficultySlider}
+                  </View>
+                </View>
+                <View style={styles.webTranscriptBody}>
+                  {webTranslationSection}
+                </View>
+              </>
+            )}
           </View>
-          {transcriptBubble}
         </DraggableWebPanel>
-        <View style={styles.webSliderSlot}>{difficultySlider}</View>
       </View>
     );
   }
@@ -224,35 +320,146 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
   },
-  webPanelDragStrip: {
-    height: 8,
+  webPanelDragHandle: {
     marginHorizontal: 16,
-    backgroundColor: "#f0f4ff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
+    backgroundColor: "#f7f9ff",
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: "rgba(74, 105, 189, 0.22)",
+    alignItems: "center",
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+  },
+  webPanelDragRail: {
+    width: 54,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(74, 105, 189, 0.34)",
+  },
+  webPanelShell: {
+    position: "relative",
+    marginHorizontal: 16,
+    backgroundColor: "#eef4ff",
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.22)",
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 6,
+    overflow: "hidden",
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
   },
   webPanelHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
-    marginHorizontal: 16,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#f0f4ff",
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: "#f7f9ff",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(74, 105, 189, 0.28)",
+    borderBottomColor: "rgba(74, 105, 189, 0.2)",
+  },
+  webPanelSentenceNav: {
+    width: "100%",
   },
   webPanelHeaderLeft: {
     flex: 1,
     alignItems: "flex-start",
+    minWidth: 0,
   },
   webPanelHeaderRight: {
     flex: 1,
     alignItems: "flex-end",
+    minWidth: 0,
   },
-  webSliderSlot: {
-    width: "100%",
+  webPanelDifficultyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  webPanelAccent: {
+    width: 4,
+    alignSelf: "stretch",
+    borderRadius: 999,
+    backgroundColor: "#4ade80",
+  },
+  webPanelDifficulty: {
+    flex: 1,
+    minWidth: 0,
+  },
+  webTranscriptBody: {
+    backgroundColor: "#f0f4ff",
+    paddingBottom: 14,
+  },
+  webTranslationContainer: {
+    marginHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 105, 189, 0.16)",
+    backgroundColor: "#f0f4ff",
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 6,
+    overflow: "hidden",
+  },
+  webTranslationDisclosure: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingHorizontal: 0,
+    paddingTop: 8,
+  },
+  webTranslationDisclosureAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    opacity: 0.5,
+  },
+  webTranslationDisclosureCollapsed: {
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 6,
+  },
+  webTranslationDisclosureText: {
+    color: "#647089",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  webTranslationContent: {
+    minHeight: 64,
+  },
+  webTranslationCollapseButton: {
+    alignSelf: "center",
+    width: 30,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -2,
+    marginBottom: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.14)",
+  },
+  webPanelStatusContent: {
+    backgroundColor: "#f0f4ff",
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 18,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 6,
   },
 });
 

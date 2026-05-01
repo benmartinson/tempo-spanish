@@ -17,4 +17,5 @@ export interface ShadowTabLayoutProps {
   overlays: ReactNode;
   isRecordingMode: boolean;
   showPracticeContent: boolean;
+  isPlayerFullscreen?: boolean;
 }

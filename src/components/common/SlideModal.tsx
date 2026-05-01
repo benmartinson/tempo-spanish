@@ -5,6 +5,8 @@ import {
   SafeAreaView,
   View,
   Text,
+  TouchableOpacity,
+  Platform,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 
@@ -14,6 +16,32 @@ const SlideModal: React.FC<{
   children: React.ReactNode;
   title: string;
 }> = ({ visible, onRequestClose, children, title }) => {
+  if (Platform.OS === "web") {
+    return (
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={onRequestClose}
+      >
+        <View style={styles.webOverlay}>
+          <View style={styles.webCard}>
+            <View style={styles.webHeader}>
+              <Text style={styles.webTitle}>{title}</Text>
+              <TouchableOpacity
+                style={styles.webCloseButton}
+                onPress={onRequestClose}
+              >
+                <Feather name="x" size={18} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.webContent}>{children}</View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       visible={visible}
@@ -72,6 +100,53 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     color: "#1a1a2e",
+  },
+  webOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  webCard: {
+    width: "min(92vw, 640px)" as any,
+    maxHeight: "86vh" as any,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    elevation: 12,
+  },
+  webHeader: {
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e0e0e4",
+    paddingHorizontal: 56,
+  },
+  webTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1a1a2e",
+    textAlign: "center",
+  },
+  webCloseButton: {
+    position: "absolute",
+    top: 11,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#f0f0f2",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  webContent: {
+    maxHeight: "calc(86vh - 54px)" as any,
   },
 });
 

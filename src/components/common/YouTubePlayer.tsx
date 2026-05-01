@@ -35,6 +35,7 @@ interface YouTubePlayerProps {
   playbackSpeed?: number;
   startTime?: number;
   onPlayingStateChange?: (isPlaying: boolean) => void;
+  webFillContainer?: boolean;
 }
 
 const isWeb = Platform.OS === "web";
@@ -46,6 +47,7 @@ const getWebPlayerHtml = ({
   start,
   end,
   playbackSpeed,
+  fillContainer,
 }: {
   videoId: string;
   autoplay: boolean;
@@ -53,6 +55,7 @@ const getWebPlayerHtml = ({
   start: number;
   end?: number;
   playbackSpeed: number;
+  fillContainer: boolean;
 }) => {
   const config = JSON.stringify({
     videoId,
@@ -61,6 +64,7 @@ const getWebPlayerHtml = ({
     start,
     end,
     playbackSpeed,
+    fillContainer,
   }).replace(/</g, "\\u003c");
 
   return `<!doctype html>
@@ -81,10 +85,13 @@ const getWebPlayerHtml = ({
         justify-content: center;
       }
       #playerShell {
-        width: min(100%, 850px);
-        max-height: 100%;
-        aspect-ratio: 16 / 9;
+        width: 100%;
+        height: 100%;
         background: #000;
+      }
+      body.fullBleed #playerShell {
+        width: 100%;
+        height: 100%;
       }
       #player,
       #player iframe {
@@ -122,6 +129,12 @@ const getWebPlayerHtml = ({
         }, 100);
       }
 
+      function setFullBleed(enabled) {
+        document.body.classList.toggle("fullBleed", !!enabled);
+      }
+
+      setFullBleed(config.fillContainer);
+
       window.onYouTubeIframeAPIReady = function () {
         player = new YT.Player("player", {
           width: "100%",
@@ -130,6 +143,7 @@ const getWebPlayerHtml = ({
           playerVars: {
             autoplay: config.autoplay ? 1 : 0,
             controls: 1,
+            fs: 0,
             playsinline: 1,
             rel: 0,
             modestbranding: 1,
@@ -154,11 +168,15 @@ const getWebPlayerHtml = ({
       };
 
       function handleCommand(rawCommand) {
-        if (!player) return;
         const command = typeof rawCommand === "string" ? rawCommand : rawCommand?.command;
         if (!command) return;
 
         try {
+          if (command.startsWith("SET_FULL_BLEED:")) {
+            setFullBleed(command.slice(16) === "true");
+            return;
+          }
+          if (!player) return;
           if (command === "PLAY") player.playVideo();
           else if (command === "PAUSE") player.pauseVideo();
           else if (command === "MUTE") player.mute();
@@ -201,6 +219,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       playbackSpeed = 1,
       startTime,
       onPlayingStateChange,
+      webFillContainer = false,
     } = props;
     const webViewRef = useRef<WebView>(null);
     const webFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -390,8 +409,9 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
           start: clip?.start ?? startTime ?? 0,
           end: clip?.end,
           playbackSpeed,
+          fillContainer: webFillContainer,
         }),
-      [refreshKey],
+      [refreshKey, webFillContainer],
     );
 
     if (isWeb) {
@@ -399,7 +419,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
         <View style={styles.container}>
           {React.createElement("iframe", {
             ref: webFrameRef,
-            key: `${refreshKey}`,
+            key: `${refreshKey}-${webFillContainer ? "full" : "stage"}`,
             srcDoc: webPlayerHtml,
             style: styles.webFrame,
             allow:

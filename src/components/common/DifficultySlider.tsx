@@ -5,19 +5,26 @@ import {
   StyleSheet,
   Animated,
   LayoutChangeEvent,
+  StyleProp,
+  ViewStyle,
 } from "react-native";
 import { useRef, useEffect, useState } from "react";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 const MAX_DIFFICULTY = 4;
 
 interface DifficultySliderProps {
   difficulty: number;
   onDifficultyChange: (d: number) => void;
+  variant?: "default" | "compact";
+  style?: StyleProp<ViewStyle>;
 }
 
 const DifficultySlider: React.FC<DifficultySliderProps> = ({
   difficulty,
   onDifficultyChange,
+  variant = "default",
+  style,
 }) => {
   const safeDifficulty = Number.isFinite(difficulty) ? difficulty : 0;
   const ticks = Array.from({ length: MAX_DIFFICULTY + 1 }, (_, i) => i);
@@ -47,8 +54,69 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
           outputRange: ["0%", "100%"],
         });
 
+  if (variant === "compact") {
+    return (
+      <View style={[styles.compactContainer, style]}>
+        <Text style={styles.compactLabel}>Hints</Text>
+        <TouchableOpacity
+          style={[
+            styles.compactStepButton,
+            difficulty === 0 && styles.compactStepButtonDisabled,
+          ]}
+          onPress={() => onDifficultyChange(Math.max(0, difficulty - 1))}
+          disabled={difficulty === 0}
+          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+        >
+          <MaterialIcons
+            name="remove"
+            size={14}
+            color={difficulty === 0 ? "#9aa4ba" : "#32405f"}
+          />
+        </TouchableOpacity>
+        <View style={styles.compactTrack}>
+          {ticks.map((i) => {
+            const isActive = i === safeDifficulty;
+            return (
+              <TouchableOpacity
+                key={i}
+                style={styles.compactTickHitArea}
+                onPress={() => onDifficultyChange(i)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              >
+                <View
+                  style={[
+                    styles.compactTick,
+                    i < safeDifficulty && styles.compactTickFilled,
+                    isActive && styles.compactTickActive,
+                  ]}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <TouchableOpacity
+          style={[
+            styles.compactStepButton,
+            difficulty === MAX_DIFFICULTY && styles.compactStepButtonDisabled,
+          ]}
+          onPress={() =>
+            onDifficultyChange(Math.min(MAX_DIFFICULTY, difficulty + 1))
+          }
+          disabled={difficulty === MAX_DIFFICULTY}
+          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+        >
+          <MaterialIcons
+            name="add"
+            size={14}
+            color={difficulty === MAX_DIFFICULTY ? "#9aa4ba" : "#32405f"}
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <TouchableOpacity
         onPress={() => onDifficultyChange(Math.max(0, difficulty - 1))}
         disabled={difficulty === 0}
@@ -147,6 +215,61 @@ const styles = StyleSheet.create({
     backgroundColor: "#3d3a52",
     borderRadius: 2,
     top: 2,
+  },
+  compactContainer: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(74,105,189,0.2)",
+  },
+  compactLabel: {
+    color: "#32405f",
+    fontSize: 11,
+    fontWeight: "700",
+    flexShrink: 0,
+  },
+  compactStepButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(74,105,189,0.18)",
+  },
+  compactStepButtonDisabled: {
+    opacity: 0.45,
+  },
+  compactTrack: {
+    flex: 1,
+    minWidth: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4,
+  },
+  compactTickHitArea: {
+    flex: 1,
+    paddingVertical: 7,
+  },
+  compactTick: {
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: "rgba(50,64,95,0.18)",
+  },
+  compactTickFilled: {
+    backgroundColor: "rgba(74,105,189,0.38)",
+  },
+  compactTickActive: {
+    height: 8,
+    backgroundColor: "#4a69bd",
   },
 });
 

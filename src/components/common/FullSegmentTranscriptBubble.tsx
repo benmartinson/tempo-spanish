@@ -41,6 +41,7 @@ interface FullSegmentTranscriptBubbleProps {
   vocabCache?: VocabCacheEntry[];
   onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
   attachedTop?: boolean;
+  squareEdges?: boolean;
 }
 
 const LINE_HEIGHT = 28;
@@ -67,6 +68,7 @@ const FullSegmentTranscriptBubble: React.FC<
   vocabCache,
   onVocabCacheUpdate,
   attachedTop = false,
+  squareEdges = false,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -199,14 +201,26 @@ const FullSegmentTranscriptBubble: React.FC<
   // Show blank when not active (before first word or after words change)
   if (!isActive) {
     return (
-      <View style={[styles.bubble, attachedTop && styles.attachedTopBubble]}>
+      <View
+        style={[
+          styles.bubble,
+          attachedTop && styles.attachedTopBubble,
+          squareEdges && styles.squareEdgesBubble,
+        ]}
+      >
         <View style={styles.scrollView} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.bubble, attachedTop && styles.attachedTopBubble]}>
+    <View
+      style={[
+        styles.bubble,
+        attachedTop && styles.attachedTopBubble,
+        squareEdges && styles.squareEdgesBubble,
+      ]}
+    >
       <ScrollView
         ref={scrollViewRef}
         style={showFullText ? styles.fullTextScrollView : styles.scrollView}
@@ -333,6 +347,13 @@ const styles = StyleSheet.create({
   attachedTopBubble: {
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
+  },
+  squareEdgesBubble: {
+    borderRadius: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   scrollView: {
     height: VISIBLE_HEIGHT, // Exactly 3 lines

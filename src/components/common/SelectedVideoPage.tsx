@@ -40,6 +40,7 @@ import SlideModal from "./SlideModal";
 import WalkthroughModal from "./WalkthroughModal";
 import { setHasSeenWelcomeModals } from "../../store/actions/dataActions";
 import { SPANISH_PREPOSITIONS, SPANISH_PRONOUNS } from "../../constants";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 if (
   Platform.OS === "android" &&
@@ -49,7 +50,7 @@ if (
 }
 
 const SelectedVideoPage: React.FC = () => {
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
@@ -68,6 +69,8 @@ const SelectedVideoPage: React.FC = () => {
   const [autoShadowDetails, setAutoShadowDetails] =
     useState<AutoShadowDetails | null>(null);
   const [playerMuted, setPlayerMuted] = useState(false);
+  const [isAppFullscreen, setIsAppFullscreen] = useState(false);
+  const isWebScreen = Platform.OS === "web" && windowWidth >= 850;
 
   // Refresh player when app returns from background
   useEffect(() => {
@@ -78,6 +81,52 @@ const SelectedVideoPage: React.FC = () => {
     });
     return () => subscription.remove();
   }, [dispatch]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const handleFullscreenChange = () => {
+      setIsAppFullscreen(
+        document.fullscreenElement?.id === "selected-video-fullscreen-root",
+      );
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  const handleToggleAppFullscreen = useCallback(async () => {
+    if (Platform.OS !== "web") return;
+
+    const fullscreenDocument = document as Document & {
+      webkitExitFullscreen?: () => Promise<void>;
+    };
+    const fullscreenRoot = document.getElementById(
+      "selected-video-fullscreen-root",
+    ) as
+      | (HTMLElement & { webkitRequestFullscreen?: () => Promise<void> })
+      | null;
+
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else {
+          await fullscreenDocument.webkitExitFullscreen?.();
+        }
+      } else if (fullscreenRoot) {
+        if (fullscreenRoot.requestFullscreen) {
+          await fullscreenRoot.requestFullscreen();
+        } else {
+          await fullscreenRoot.webkitRequestFullscreen?.();
+        }
+      }
+    } catch (err) {
+      console.warn("Could not toggle fullscreen", err);
+    }
+  }, []);
 
   const [time, setTime] = useState<number>(0);
   const [playKey, setPlayKey] = useState(0);
@@ -110,6 +159,7 @@ const SelectedVideoPage: React.FC = () => {
     index: number;
     text: string;
   } | null>(null);
+  const insightsRequestRef = useRef(0);
 
   const hintWords = useMemo(() => {
     const sentenceWords = currentSentenceObject?.words || [];
@@ -161,6 +211,11 @@ const SelectedVideoPage: React.FC = () => {
       return;
     }
 
+    const requestId = insightsRequestRef.current + 1;
+    insightsRequestRef.current = requestId;
+    const requestedSentenceIndex = currentSentenceIndex;
+    const requestedSentenceText = currentSentenceObject.text;
+
     setIsLoadingInsights(true);
     setOrderedCharacters([]);
     setSentenceTranslation(null);
@@ -168,28 +223,33 @@ const SelectedVideoPage: React.FC = () => {
     try {
       const result = await loadSentenceInsights({
         supabase,
-        sentenceText: currentSentenceObject.text,
+        sentenceText: requestedSentenceText,
         videoRecordId: currentVideo.recordId,
-        sentenceIndex: currentSentenceIndex,
+        sentenceIndex: requestedSentenceIndex,
         translationLanguage,
       });
+
+      if (insightsRequestRef.current !== requestId) return;
 
       if (result.properNouns.length > 0) {
         const ordered = orderCharactersByAppearance(
           result.properNouns,
-          currentSentenceObject.text,
+          requestedSentenceText,
         );
         setOrderedCharacters(ordered);
       }
 
       setSentenceTranslation({
-        index: currentSentenceIndex,
+        index: requestedSentenceIndex,
         text: result.translation,
       });
     } catch (err) {
+      if (insightsRequestRef.current !== requestId) return;
       console.error("Failed to load translation insights:", err);
     } finally {
-      setIsLoadingInsights(false);
+      if (insightsRequestRef.current === requestId) {
+        setIsLoadingInsights(false);
+      }
     }
   }, [
     currentSentenceObject?.text,
@@ -207,7 +267,11 @@ const SelectedVideoPage: React.FC = () => {
       return;
     }
     loadTranslationInsights();
-  }, [currentSentenceIndex, userSettings.translationLanguage]);
+  }, [
+    currentSentenceIndex,
+    userSettings.translationLanguage,
+    loadTranslationInsights,
+  ]);
 
   const getEndPadding = useCallback(
     (sentenceIndex: number) => {
@@ -522,19 +586,25 @@ const SelectedVideoPage: React.FC = () => {
     (currentSentenceObject?.start ?? 0) - getStartPadding(currentSentenceIndex);
   const endTime =
     (currentSentenceObject?.end ?? 0) + getEndPadding(currentSentenceIndex);
-  const playerHeight =
-    Platform.OS === "web" && windowWidth >= 850
-      ? 480
-      : windowWidth > 600
-        ? Math.round((windowWidth * 9) / 16)
-        : 230;
+  const playerHeight = isWebScreen
+    ? Math.max(520, Math.round(windowHeight * 0.74))
+    : windowWidth > 600
+      ? Math.round((windowWidth * 9) / 16)
+      : 230;
 
   return (
-    <View style={styles.container}>
+    <View
+      nativeID="selected-video-fullscreen-root"
+      style={[
+        styles.container,
+        isWebScreen && isAppFullscreen && styles.webFullscreenContainer,
+      ]}
+    >
       <View
         style={[
           styles.videoContainer,
           { height: playerHeight },
+          isWebScreen && isAppFullscreen && styles.webFullscreenVideoContainer,
           !showVideo && { height: 0, marginTop: 0 },
         ]}
       >
@@ -555,9 +625,29 @@ const SelectedVideoPage: React.FC = () => {
           playbackSpeed={playerSpeed}
           startTime={startTimeForPlayer}
           onPlayingStateChange={handlePlayingStateChange}
+          webFillContainer={isWebScreen && isAppFullscreen}
         />
+        {isWebScreen && showVideo && (
+          <TouchableOpacity
+            style={styles.webFullscreenButton}
+            onPress={handleToggleAppFullscreen}
+            activeOpacity={0.82}
+          >
+            <MaterialIcons
+              name={isAppFullscreen ? "fullscreen-exit" : "fullscreen"}
+              size={22}
+              color="#ffffff"
+            />
+          </TouchableOpacity>
+        )}
       </View>
-      <View style={styles.shadowContainer}>
+      <View
+        pointerEvents={isWebScreen && isAppFullscreen ? "box-none" : "auto"}
+        style={[
+          styles.shadowContainer,
+          isWebScreen && isAppFullscreen && styles.webFullscreenShadowContainer,
+        ]}
+      >
         <ShadowTab
           time={time}
           playKey={playKey}
@@ -586,6 +676,7 @@ const SelectedVideoPage: React.FC = () => {
           shadowMode={shadowMode}
           setShadowMode={setShadowMode}
           setAutoplay={setAutoplay}
+          isPlayerFullscreen={isWebScreen && isAppFullscreen}
         />
       </View>
 
@@ -631,6 +722,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "white",
   },
+  webFullscreenContainer: {
+    backgroundColor: "#000",
+    width: "100%",
+    height: "100%",
+  },
   buttonContainer: {
     flexDirection: "row",
     gap: 12,
@@ -674,8 +770,39 @@ const styles = StyleSheet.create({
     marginTop: 0,
     overflow: "hidden",
   },
+  webFullscreenVideoContainer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    height: "100%" as any,
+    zIndex: 1,
+  },
+  webFullscreenButton: {
+    position: "absolute",
+    right: 14,
+    bottom: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.58)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.24)",
+    zIndex: 80,
+  },
   shadowContainer: {
     flex: 1,
+  },
+  webFullscreenShadowContainer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 40,
   },
   showVideoButton: {
     alignSelf: "flex-start",

@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { useWindowDimensions } from "react-native";
 
@@ -38,6 +39,7 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
     [initialTop, panelWidth, windowWidth],
   );
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const [panelHeight, setPanelHeight] = useState(0);
   const positionRef = useRef(defaultPosition);
   const dragStartRef = useRef(defaultPosition);
   const pointerStartRef = useRef({ x: 0, y: 0 });
@@ -55,6 +57,11 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
     });
   }, []);
 
+  const getMaxY = useCallback(() => {
+    if (!panelHeight) return Math.max(0, windowHeight - 60);
+    return Math.max(0, windowHeight - panelHeight - 8);
+  }, [panelHeight, windowHeight]);
+
   useEffect(() => {
     applyPosition(defaultPosition);
   }, [applyPosition, defaultPosition]);
@@ -62,9 +69,24 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   useEffect(() => {
     applyPosition({
       x: clamp(positionRef.current.x, 0, Math.max(0, windowWidth - panelWidth)),
-      y: clamp(positionRef.current.y, 0, Math.max(0, windowHeight - 60)),
+      y: clamp(positionRef.current.y, 0, getMaxY()),
     });
-  }, [applyPosition, panelWidth, windowHeight, windowWidth]);
+  }, [applyPosition, getMaxY, panelHeight, panelWidth, windowWidth]);
+
+  useEffect(() => {
+    if (!panelRef.current) return;
+
+    const updateHeight = () => {
+      if (!panelRef.current) return;
+      setPanelHeight(panelRef.current.getBoundingClientRect().height);
+    };
+
+    updateHeight();
+    const resizeObserver = new ResizeObserver(updateHeight);
+    resizeObserver.observe(panelRef.current);
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -111,7 +133,7 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
               moveEvent.clientY -
               pointerStartRef.current.y,
             0,
-            Math.max(0, windowHeight - 60),
+            getMaxY(),
           ),
         });
       };
@@ -137,7 +159,7 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
       dragShield.addEventListener("pointerup", handlePointerUp);
       dragShield.addEventListener("pointercancel", handlePointerUp);
     },
-    [applyPosition, panelWidth, windowHeight, windowWidth, zIndex],
+    [applyPosition, getMaxY, panelWidth, windowWidth, zIndex],
   );
 
   return React.createElement(

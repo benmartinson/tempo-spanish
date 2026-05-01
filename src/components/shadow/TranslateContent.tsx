@@ -23,6 +23,7 @@ interface TranslateContentProps {
   playKey?: number;
   playerSpeed?: number;
   isRecording?: boolean;
+  variant?: "default" | "webPanel";
 }
 
 const TranslateContent: React.FC<TranslateContentProps> = ({
@@ -36,6 +37,7 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   playKey,
   playerSpeed = 1,
   isRecording = false,
+  variant = "default",
 }) => {
   const userSettings = useSelector((state: RootState) => state.userSettings);
   // const localTime = useInterpolatedTime(
@@ -74,7 +76,12 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={[
+          styles.loadingContainer,
+          variant === "webPanel" && styles.webPanelLoadingContainer,
+        ]}
+      >
         <ActivityIndicator size="small" color="#4a69bd" />
         <Text style={styles.loadingText}>Loading translation...</Text>
       </View>
@@ -84,7 +91,12 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   if (!translationText) return null;
 
   return (
-    <View style={styles.questionBubble}>
+    <View
+      style={[
+        styles.questionBubble,
+        variant === "webPanel" && styles.webPanelQuestionBubble,
+      ]}
+    >
       {/* <Text style={styles.questionLabel}>{label}</Text> */}
       <Text style={styles.questionText}>
         {words.map((word, index) => {
@@ -113,6 +125,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignSelf: "flex-start" as const,
   },
+  webPanelQuestionBubble: {
+    width: "auto",
+    alignSelf: "stretch" as const,
+    marginHorizontal: 0,
+    marginBottom: 0,
+    borderRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 105, 189, 0.14)",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
   questionLabel: {
     fontSize: 11,
     fontWeight: "700",
@@ -134,6 +159,14 @@ const styles = StyleSheet.create({
     justifyContent: "center" as const,
     alignItems: "center" as const,
     gap: 8,
+  },
+  webPanelLoadingContainer: {
+    minHeight: 58,
+    flexDirection: "row",
+    marginHorizontal: 0,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 105, 189, 0.14)",
+    backgroundColor: "#f0f4ff",
   },
   loadingText: {
     fontSize: 14,
