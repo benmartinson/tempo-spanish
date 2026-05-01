@@ -40,6 +40,7 @@ interface FullSegmentTranscriptBubbleProps {
   revealCounts?: Record<number, number>;
   vocabCache?: VocabCacheEntry[];
   onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
+  attachedTop?: boolean;
 }
 
 const LINE_HEIGHT = 28;
@@ -65,6 +66,7 @@ const FullSegmentTranscriptBubble: React.FC<
   revealCounts,
   vocabCache,
   onVocabCacheUpdate,
+  attachedTop = false,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -197,14 +199,14 @@ const FullSegmentTranscriptBubble: React.FC<
   // Show blank when not active (before first word or after words change)
   if (!isActive) {
     return (
-      <View style={styles.bubble}>
+      <View style={[styles.bubble, attachedTop && styles.attachedTopBubble]}>
         <View style={styles.scrollView} />
       </View>
     );
   }
 
   return (
-    <View style={styles.bubble}>
+    <View style={[styles.bubble, attachedTop && styles.attachedTopBubble]}>
       <ScrollView
         ref={scrollViewRef}
         style={showFullText ? styles.fullTextScrollView : styles.scrollView}
@@ -327,6 +329,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderBottomLeftRadius: 4,
     padding: 16,
+  },
+  attachedTopBubble: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   scrollView: {
     height: VISIBLE_HEIGHT, // Exactly 3 lines

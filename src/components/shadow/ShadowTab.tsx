@@ -514,16 +514,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       setError(null);
       setIsProcessing(true);
 
-      // Copy recording to a stable path so it survives temp file cleanup
-      const stableUri = `${FileSystem.cacheDirectory}shadow_recording_${currentSentenceIndex}_${Date.now()}.wav`;
-      try {
-        await FileSystem.copyAsync({ from: uri, to: stableUri });
-      } catch {
-        console.warn("Could not copy recording, using original URI");
+      let safeUri = uri;
+      if (Platform.OS !== "web") {
+        // Copy recording to a stable path so it survives temp file cleanup.
+        const stableUri = `${FileSystem.cacheDirectory}shadow_recording_${currentSentenceIndex}_${Date.now()}.wav`;
+        try {
+          await FileSystem.copyAsync({ from: uri, to: stableUri });
+          safeUri = (await FileSystem.getInfoAsync(stableUri)).exists
+            ? stableUri
+            : uri;
+        } catch {
+          console.warn("Could not copy recording, using original URI");
+        }
       }
-      const safeUri = (await FileSystem.getInfoAsync(stableUri)).exists
-        ? stableUri
-        : uri;
 
       try {
         const transcriptionResult = await sendAudioForTranscription(
@@ -1200,6 +1203,31 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       previousResultsDisabled={isPlayingRecording}
     />
   );
+  const handleRecordingTrashPress = () => {
+    handleTrashRecording(true);
+    handleResetAnswer();
+  };
+  const handleRecordingMicPress = () => {
+    if (shadowMode === "stream") {
+      setShowStreamRecordingTooltip(true);
+      return;
+    }
+    if (isRecordingMode) {
+      handleSubmitRecording();
+    } else {
+      handleEnterRecordingMode();
+    }
+  };
+  const webRecordingControlsElement =
+    !accuracyResult && !isProcessing ? (
+      <RecordingControls
+        isRecording={isRecordingMode}
+        onTrash={handleRecordingTrashPress}
+        onMic={handleRecordingMicPress}
+        disabled={!hasPermission || isProcessing}
+        showContainer={false}
+      />
+    ) : null;
   const memorizeContentElement = (
     <MemorizeContent
       time={time}
@@ -1214,6 +1242,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       vocabCache={vocabCache}
       onVocabCacheUpdate={handleVocabCacheUpdate}
       layout={isWebScreen ? "webPlayer" : "default"}
+      webPlayerControls={isWebScreen ? playerControlsElement : undefined}
+      webRecordingControls={
+        isWebScreen ? webRecordingControlsElement : undefined
+      }
     />
   );
   const sentenceNavElement = (
@@ -1464,21 +1496,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     !accuracyResult && !isProcessing ? (
       <RecordingControls
         isRecording={isRecordingMode}
-        onTrash={() => {
-          handleTrashRecording(true);
-          handleResetAnswer();
-        }}
-        onMic={() => {
-          if (shadowMode === "stream") {
-            setShowStreamRecordingTooltip(true);
-            return;
-          }
-          if (isRecordingMode) {
-            handleSubmitRecording();
-          } else {
-            handleEnterRecordingMode();
-          }
-        }}
+        onTrash={handleRecordingTrashPress}
+        onMic={handleRecordingMicPress}
         disabled={!hasPermission || isProcessing}
       />
     ) : null;
@@ -1639,6 +1658,24 @@ export const styles = StyleSheet.create({
     right: 64,
     zIndex: 60,
     alignItems: "center",
+  },
+  webStatusOverlay: {
+    position: "fixed" as any,
+    top: 52,
+    left: 0,
+    right: 0,
+    height: 480,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 40,
+  },
+  webStatusOverlayContent: {
+    width: "min(100%, 850px)" as any,
+    height: "100%",
+    backgroundColor: "white",
+    justifyContent: "center",
+    overflow: "hidden",
   },
   countdownTimer: {
     marginHorizontal: 16,

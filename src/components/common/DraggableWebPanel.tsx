@@ -11,6 +11,7 @@ interface DraggableWebPanelProps {
   children: ReactNode;
   initialTop: number;
   width: number;
+  dragHandle?: ReactNode;
   maxWidthRatio?: number;
   zIndex?: number;
 }
@@ -23,6 +24,7 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   children,
   initialTop,
   width,
+  dragHandle,
   maxWidthRatio = 0.8,
   zIndex = 50,
 }) => {
@@ -151,19 +153,31 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
         willChange: "transform",
       },
     },
-    React.createElement("div", {
-      onPointerDown: handlePointerDown,
-      style: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 22,
-        zIndex: 1,
-        cursor: "move",
-        touchAction: "none",
-      },
-    }),
+    dragHandle
+      ? React.createElement(
+          "div",
+          {
+            onPointerDown: handlePointerDown,
+            style: {
+              cursor: "move",
+              touchAction: "none",
+            },
+          },
+          dragHandle,
+        )
+      : React.createElement("div", {
+          onPointerDown: handlePointerDown,
+          style: {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 22,
+            zIndex: 1,
+            cursor: "move",
+            touchAction: "none",
+          },
+        }),
     children,
   );
 };

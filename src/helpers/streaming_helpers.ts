@@ -14,6 +14,7 @@ import { TranscriptionResponse, AccuracyResult } from "../types";
 import { backendFetch } from "./backendFetch";
 import { supabase } from "../../lib/supabase";
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 
 // Backend URLs - all configured in app.config.js
 const config = Constants.expoConfig?.extra;
@@ -650,18 +651,27 @@ export const sendAudioForTranscription = async (
   targetLanguage: string = "es",
 ): Promise<TranscriptionResponse> => {
   try {
-    // Read the audio file as base64
-    const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
-      encoding: "base64",
-    });
-
     // Create form data for the request
     const formData = new FormData();
-    formData.append("file", {
-      uri: audioUri,
-      type: "audio/wav",
-      name: "recording.wav",
-    } as any);
+    if (Platform.OS === "web") {
+      const audioResponse = await fetch(audioUri);
+      const audioBlob = await audioResponse.blob();
+      const filename = "recording.wav";
+      const fileType = audioBlob.type || "audio/wav";
+      const BrowserFile = (globalThis as any).File;
+      const file =
+        typeof BrowserFile === "function"
+          ? new BrowserFile([audioBlob], filename, { type: fileType })
+          : audioBlob;
+
+      formData.append("file", file as any, filename);
+    } else {
+      formData.append("file", {
+        uri: audioUri,
+        type: "audio/wav",
+        name: "recording.wav",
+      } as any);
+    }
 
     console.log(`Sending audio for transcription: ${audioUri}`);
 

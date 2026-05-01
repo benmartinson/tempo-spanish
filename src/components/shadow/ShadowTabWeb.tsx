@@ -10,30 +10,32 @@ const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
   playRecordingButton,
   streamBanner,
   memorizeContent,
-  playerControls,
   settingsButtons,
   sentenceNav,
   overlays,
-  isRecordingMode,
   showPracticeContent,
 }) => {
   return (
     <>
       <View style={styles.container}>
         <View style={styles.webSettingsButtonsOverlay}>{settingsButtons}</View>
+        {statusContent && (
+          <View style={styles.webStatusOverlay}>
+            <View style={styles.webStatusOverlayContent}>
+              {statusContent}
+              {playRecordingButton}
+            </View>
+          </View>
+        )}
         {errorBanner}
         {countdownTimer}
         <View style={styles.transcriptContainer}>
-          {statusContent}
-          {playRecordingButton}
           {streamBanner}
           {showPracticeContent && (
             <View style={styles.webPracticeLayout}>
               <View style={styles.webPracticeSide} />
               <View style={styles.webMemorizeColumn}>{memorizeContent}</View>
-              <View style={styles.webControlsColumn}>
-                {!isRecordingMode && playerControls}
-              </View>
+              <View style={styles.webControlsColumn} />
             </View>
           )}
         </View>

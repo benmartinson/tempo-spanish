@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { StyleSheet, ScrollView, View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
@@ -27,6 +33,8 @@ interface MemorizeContentProps {
   vocabCache?: VocabCacheEntry[];
   onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
   layout?: "default" | "webPlayer";
+  webPlayerControls?: ReactNode;
+  webRecordingControls?: ReactNode;
 }
 
 const MemorizeContent: React.FC<MemorizeContentProps> = ({
@@ -42,6 +50,8 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   vocabCache,
   onVocabCacheUpdate,
   layout = "default",
+  webPlayerControls,
+  webRecordingControls,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -140,6 +150,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
       revealCounts={revealCounts}
       vocabCache={vocabCache}
       onVocabCacheUpdate={onVocabCacheUpdate}
+      attachedTop={layout === "webPlayer"}
       onWordPress={(index) => {
         if (isRecording) {
           // During recording: progressive hint reveal
@@ -179,7 +190,17 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   if (layout === "webPlayer") {
     return (
       <View style={styles.webContainer}>
-        <DraggableWebPanel initialTop={380} width={620}>
+        <DraggableWebPanel
+          initialTop={380}
+          width={620}
+          dragHandle={<View style={styles.webPanelDragStrip} />}
+        >
+          <View style={styles.webPanelHeader}>
+            <View style={styles.webPanelHeaderLeft}>{webPlayerControls}</View>
+            <View style={styles.webPanelHeaderRight}>
+              {webRecordingControls}
+            </View>
+          </View>
           {transcriptBubble}
         </DraggableWebPanel>
         <View style={styles.webSliderSlot}>{difficultySlider}</View>
@@ -202,6 +223,33 @@ const styles = StyleSheet.create({
   webContainer: {
     flex: 1,
     width: "100%",
+  },
+  webPanelDragStrip: {
+    height: 8,
+    marginHorizontal: 16,
+    backgroundColor: "#f0f4ff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  webPanelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+    marginHorizontal: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#f0f4ff",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74, 105, 189, 0.28)",
+  },
+  webPanelHeaderLeft: {
+    flex: 1,
+    alignItems: "flex-start",
+  },
+  webPanelHeaderRight: {
+    flex: 1,
+    alignItems: "flex-end",
   },
   webSliderSlot: {
     width: "100%",
