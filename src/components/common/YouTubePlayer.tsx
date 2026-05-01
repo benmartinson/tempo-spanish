@@ -3,6 +3,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
   useEffect,
+  useMemo,
 } from "react";
 import { StyleSheet, View, Text, Linking, Platform } from "react-native";
 import { WebView } from "react-native-webview";
@@ -13,7 +14,7 @@ export interface YouTubePlayerHandle {
   play: () => void;
   seekTo: (time: number) => void;
   seekAndPlay: (time: number) => void;
-  setClip: (start: number, end: number) => void;
+  setClip: (start: number, end?: number) => void;
   setSpeed: (speed: number) => void;
   mute: () => void;
   unMute: () => void;
@@ -36,6 +37,157 @@ interface YouTubePlayerProps {
   onPlayingStateChange?: (isPlaying: boolean) => void;
 }
 
+const isWeb = Platform.OS === "web";
+
+const getWebPlayerHtml = ({
+  videoId,
+  autoplay,
+  muted,
+  start,
+  end,
+  playbackSpeed,
+}: {
+  videoId: string;
+  autoplay: boolean;
+  muted: boolean;
+  start: number;
+  end?: number;
+  playbackSpeed: number;
+}) => {
+  const config = JSON.stringify({
+    videoId,
+    autoplay,
+    muted,
+    start,
+    end,
+    playbackSpeed,
+  }).replace(/</g, "\\u003c");
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #playerShell {
+        width: min(100%, 850px);
+        max-height: 100%;
+        aspect-ratio: 16 / 9;
+        background: #000;
+      }
+      #player,
+      #player iframe {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="playerShell">
+      <div id="player"></div>
+    </div>
+    <script>
+      const config = ${config};
+      let player;
+      let clipStart = Number(config.start) || 0;
+      let clipEnd = Number.isFinite(Number(config.end)) ? Number(config.end) : null;
+      let clipEnabled = clipEnd !== null;
+      let reporter = null;
+
+      function postToApp(message) {
+        window.parent.postMessage(JSON.stringify(message), "*");
+      }
+
+      function startReporter() {
+        if (reporter) window.clearInterval(reporter);
+        reporter = window.setInterval(function () {
+          if (!player || typeof player.getCurrentTime !== "function") return;
+          const time = player.getCurrentTime();
+          postToApp({ type: "YT_TIME", time });
+          if (clipEnabled && clipEnd !== null && time >= clipEnd) {
+            player.pauseVideo();
+          }
+        }, 100);
+      }
+
+      window.onYouTubeIframeAPIReady = function () {
+        player = new YT.Player("player", {
+          width: "100%",
+          height: "100%",
+          videoId: config.videoId,
+          playerVars: {
+            autoplay: config.autoplay ? 1 : 0,
+            controls: 1,
+            playsinline: 1,
+            rel: 0,
+            modestbranding: 1,
+            start: Math.max(0, Math.floor(clipStart)),
+          },
+          events: {
+            onReady: function () {
+              try {
+                player.setPlaybackRate(Number(config.playbackSpeed) || 1);
+                if (config.muted) player.mute();
+                if (clipStart > 0) player.seekTo(clipStart, true);
+                if (config.autoplay) player.playVideo();
+              } catch (error) {}
+              postToApp({ type: "YT_READY" });
+              startReporter();
+            },
+            onError: function (event) {
+              postToApp({ type: "YT_ERROR", code: event.data });
+            },
+          },
+        });
+      };
+
+      function handleCommand(rawCommand) {
+        if (!player) return;
+        const command = typeof rawCommand === "string" ? rawCommand : rawCommand?.command;
+        if (!command) return;
+
+        try {
+          if (command === "PLAY") player.playVideo();
+          else if (command === "PAUSE") player.pauseVideo();
+          else if (command === "MUTE") player.mute();
+          else if (command === "UNMUTE") player.unMute();
+          else if (command === "DISABLE_CLIP") clipEnabled = false;
+          else if (command.startsWith("SEEK:")) player.seekTo(Number(command.slice(5)), true);
+          else if (command.startsWith("SEEK_AND_PLAY:")) {
+            player.seekTo(Number(command.slice(14)), true);
+            player.playVideo();
+          } else if (command.startsWith("SET_SPEED:")) {
+            player.setPlaybackRate(Number(command.slice(10)) || 1);
+          } else if (command.startsWith("SET_CLIP:")) {
+            const nextClip = JSON.parse(command.slice(9));
+            clipStart = Number(nextClip.start) || 0;
+            clipEnd = Number.isFinite(Number(nextClip.end)) ? Number(nextClip.end) : null;
+            clipEnabled = clipEnd !== null;
+          }
+        } catch (error) {}
+      }
+
+      window.addEventListener("message", function (event) {
+        handleCommand(event.data);
+      });
+    </script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+  </body>
+</html>`;
+};
+
 const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
   (props, ref) => {
     const {
@@ -51,10 +203,37 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       onPlayingStateChange,
     } = props;
     const webViewRef = useRef<WebView>(null);
+    const webFrameRef = useRef<HTMLIFrameElement | null>(null);
     const lastTimeRef = useRef<number>(-1);
     const playingRef = useRef<boolean>(false);
     const staleTimerRef = useRef<NodeJS.Timeout | null>(null);
     const mountedRef = useRef<boolean>(true);
+
+    const handleTimeMessage = (time: number) => {
+      setTime(time);
+
+      // Detect playing state from time advancing
+      const timeChanged = time !== lastTimeRef.current;
+      lastTimeRef.current = time;
+
+      if (timeChanged && !playingRef.current) {
+        playingRef.current = true;
+        if (mountedRef.current) onPlayingStateChange?.(true);
+      }
+
+      // Reset stale timer; if no new time update arrives, player is paused.
+      if (staleTimerRef.current) clearTimeout(staleTimerRef.current);
+      staleTimerRef.current = setTimeout(() => {
+        if (playingRef.current && mountedRef.current) {
+          playingRef.current = false;
+          onPlayingStateChange?.(false);
+        }
+      }, 300);
+    };
+
+    const postWebCommand = (command: string) => {
+      webFrameRef.current?.contentWindow?.postMessage(command, "*");
+    };
 
     useEffect(() => {
       return () => {
@@ -63,49 +242,108 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       };
     }, []);
 
+    useEffect(() => {
+      if (!isWeb || typeof window === "undefined") return;
+
+      const handleWebMessage = (event: MessageEvent) => {
+        if (event.source !== webFrameRef.current?.contentWindow) return;
+
+        try {
+          const msg =
+            typeof event.data === "string"
+              ? JSON.parse(event.data)
+              : event.data;
+          if (msg.type === "YT_TIME") {
+            handleTimeMessage(msg.time);
+          }
+        } catch {
+          // Ignore messages from browser extensions or nested YouTube frames.
+        }
+      };
+
+      window.addEventListener("message", handleWebMessage);
+      return () => window.removeEventListener("message", handleWebMessage);
+    }, [setTime, onPlayingStateChange]);
+
     useImperativeHandle(ref, () => ({
       pause: () => {
+        if (isWeb) {
+          postWebCommand("PAUSE");
+          return;
+        }
         webViewRef.current?.injectJavaScript(
           `try { if(typeof player !== 'undefined') player.pauseVideo(); } catch(e) {} true;`,
         );
       },
       play: () => {
+        if (isWeb) {
+          postWebCommand("PLAY");
+          return;
+        }
         webViewRef.current?.injectJavaScript(
           `try { if(typeof player !== 'undefined') player.playVideo(); } catch(e) {} true;`,
         );
       },
       seekTo: (time: number) => {
+        if (isWeb) {
+          postWebCommand(`SEEK:${time}`);
+          return;
+        }
         webViewRef.current?.injectJavaScript(
           `try { if(typeof player !== 'undefined') player.seekTo(${time}, true); } catch(e) {} true;`,
         );
       },
       seekAndPlay: (time: number) => {
+        if (isWeb) {
+          postWebCommand(`SEEK_AND_PLAY:${time}`);
+          return;
+        }
         webViewRef.current?.injectJavaScript(
           `window.postMessage("SEEK_AND_PLAY:${time}", "*"); true;`,
         );
       },
       disableClipEnforcement: () => {
+        if (isWeb) {
+          postWebCommand("DISABLE_CLIP");
+          return;
+        }
         webViewRef.current?.injectJavaScript(
           `window.postMessage("DISABLE_CLIP", "*"); true;`,
         );
       },
-      setClip: (start: number, end: number) => {
+      setClip: (start: number, end?: number) => {
+        if (isWeb) {
+          postWebCommand(`SET_CLIP:${JSON.stringify({ start, end })}`);
+          return;
+        }
         const payload = JSON.stringify({ start, end }).replace(/"/g, '\\"');
         webViewRef.current?.injectJavaScript(
           `window.postMessage("SET_CLIP:${payload}", "*"); true;`,
         );
       },
       setSpeed: (speed: number) => {
+        if (isWeb) {
+          postWebCommand(`SET_SPEED:${speed}`);
+          return;
+        }
         webViewRef.current?.injectJavaScript(
           `window.postMessage("SET_SPEED:${speed}", "*"); true;`,
         );
       },
       mute: () => {
+        if (isWeb) {
+          postWebCommand("MUTE");
+          return;
+        }
         webViewRef.current?.injectJavaScript(
           `try { if(typeof player !== 'undefined') player.mute(); } catch(e) {} true;`,
         );
       },
       unMute: () => {
+        if (isWeb) {
+          postWebCommand("UNMUTE");
+          return;
+        }
         webViewRef.current?.injectJavaScript(
           `try { if(typeof player !== 'undefined') player.unMute(); } catch(e) {} true;`,
         );
@@ -117,17 +355,17 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
         Platform.OS === "ios"
           ? "https://yt-relay.vercel.app"
           : "http://192.168.1.100:3000";
-      const params = new URLSearchParams({
-        v: videoId,
-        autoplay: autoplay ? "1" : "0",
-        muted: muted ? "1" : "0",
-        start: clip?.start
-          ? clip.start.toString()
-          : (startTime?.toString() ?? "0"),
-        end: clip?.end ? clip.end.toString() : undefined,
-        controls: "1",
-        speed: playbackSpeed.toString(),
-      });
+      const params = new URLSearchParams();
+      params.set("v", videoId);
+      params.set("autoplay", autoplay ? "1" : "0");
+      params.set("muted", muted ? "1" : "0");
+      params.set(
+        "start",
+        clip?.start ? clip.start.toString() : (startTime?.toString() ?? "0"),
+      );
+      if (clip?.end) params.set("end", clip.end.toString());
+      params.set("controls", "1");
+      params.set("speed", playbackSpeed.toString());
       return `${baseUrl}?${params.toString()}`;
     };
 
@@ -141,6 +379,41 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
     if (prevRefreshKeyRef.current !== refreshKey) {
       sourceUriRef.current = getVideoUrl();
       prevRefreshKeyRef.current = refreshKey;
+    }
+
+    const webPlayerHtml = useMemo(
+      () =>
+        getWebPlayerHtml({
+          videoId,
+          autoplay,
+          muted,
+          start: clip?.start ?? startTime ?? 0,
+          end: clip?.end,
+          playbackSpeed,
+        }),
+      [refreshKey],
+    );
+
+    if (isWeb) {
+      return (
+        <View style={styles.container}>
+          {React.createElement("iframe", {
+            ref: webFrameRef,
+            key: `${refreshKey}`,
+            srcDoc: webPlayerHtml,
+            style: styles.webFrame,
+            allow:
+              "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen",
+            allowFullScreen: true,
+            title: "YouTube video player",
+          })}
+          {videoText && (
+            <View style={styles.videoTextContainer}>
+              <Text style={styles.videoText}>{videoText}</Text>
+            </View>
+          )}
+        </View>
+      );
     }
 
     return (
@@ -158,27 +431,13 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
           sharedCookiesEnabled={true}
           thirdPartyCookiesEnabled={true}
           onMessage={(e) => {
-            const msg = JSON.parse(e.nativeEvent.data);
-            if (msg.type === "YT_TIME") {
-              setTime(msg.time);
-
-              // Detect playing state from time advancing
-              const timeChanged = msg.time !== lastTimeRef.current;
-              lastTimeRef.current = msg.time;
-
-              if (timeChanged && !playingRef.current) {
-                playingRef.current = true;
-                if (mountedRef.current) onPlayingStateChange?.(true);
+            try {
+              const msg = JSON.parse(e.nativeEvent.data);
+              if (msg.type === "YT_TIME") {
+                handleTimeMessage(msg.time);
               }
-
-              // Reset stale timer — if no new time update arrives, player is paused
-              if (staleTimerRef.current) clearTimeout(staleTimerRef.current);
-              staleTimerRef.current = setTimeout(() => {
-                if (playingRef.current && mountedRef.current) {
-                  playingRef.current = false;
-                  onPlayingStateChange?.(false);
-                }
-              }, 300);
+            } catch {
+              // Ignore non-JSON messages from the embedded page.
             }
           }}
           userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
@@ -238,6 +497,12 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
+    backgroundColor: "#000",
+  },
+  webFrame: {
+    borderWidth: 0,
+    width: "100%",
+    height: "100%",
     backgroundColor: "#000",
   },
 });

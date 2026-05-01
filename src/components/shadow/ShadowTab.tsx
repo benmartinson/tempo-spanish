@@ -15,6 +15,8 @@ import {
   Keyboard,
   Linking,
   AppState,
+  Platform,
+  useWindowDimensions,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import Feather from "@expo/vector-icons/Feather";
@@ -42,7 +44,6 @@ import {
 } from "../../helpers/streaming_helpers";
 import { AccuracyResult, CachedResponse } from "../../types";
 import SettingsModal from "./SettingsModal";
-import SpeedDial from "./SpeedDial";
 import CountdownTimer from "./CountdownTimer";
 import { capitalize, hasUnnaturalSpeechTiming } from "../../helpers/helpers";
 import ShadowResults from "./ShadowResults";
@@ -51,7 +52,6 @@ import NavSwitcher from "../common/NavSwitcher";
 import ContentTabBar from "../common/ContentTabBar";
 import { useNavigation } from "@react-navigation/native";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import Foundation from "@expo/vector-icons/Foundation";
 import WalkthroughModal from "../common/WalkthroughModal";
 import {
   persistUserSettings,
@@ -84,7 +84,9 @@ import NoCreditsModal from "../common/NoCreditsModal";
 import SignInPromptModal from "../common/SignInPromptModal";
 import MemorizeContent from "./MemorizeContent";
 import TranslateContent from "./TranslateContent";
-import ModeSwitcher from "./ModeSwitcher";
+import ShadowSettingsButtons from "./ShadowSettingsButtons";
+import ShadowTabMobile from "./ShadowTabMobile";
+import ShadowTabWeb from "./ShadowTabWeb";
 
 interface ShadowTabProps {
   time: number;
@@ -141,6 +143,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   setShadowMode,
   setAutoplay,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
@@ -1155,349 +1158,332 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   }
 
   const isMissingPermission = error?.toLowerCase().includes("permission");
-
-  return (
-    <>
-      <View style={styles.container}>
-        {error && (
-          <View style={styles.errorContainer}>
-            <View style={styles.errorContent}>
-              <Text style={styles.errorText}>{error}</Text>
-              {isMissingPermission && (
-                <TouchableOpacity
-                  style={styles.grantPermissionButton}
-                  onPress={() => Linking.openSettings()}
-                >
-                  <Text style={styles.grantPermissionText}>
-                    Grant Permission
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            {!isMissingPermission && (
-              <TouchableOpacity onPress={() => setError(null)}>
-                <MaterialIcons name="close" size={20} color="black" />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* Sentence Navigation */}
-        <NavSwitcher
-          onPrev={() => handleShadowPreviousSentence()}
-          onNext={handleShadowNextSentence}
-          currentIndex={currentSentenceIndex}
-          totalItems={currentVideo.sentences.length}
-          sentences={currentVideo.sentences}
-          onPlayClip={onPlayClip}
-          videoId={currentVideo.videoId}
-          recordId={currentVideo.recordId}
-        >
-          <Text style={styles.segmentNavText}>
-            Segment {currentSentenceIndex + 1} of{" "}
-            {currentVideo.sentences.length}
-          </Text>
-        </NavSwitcher>
-        {!isRecordingMode && !accuracyResult && !isProcessing && (
-          <View style={styles.recordButtonContainer}>
-            <PlayerControls
-              onReplay={() => handlePlaySnippetAgain()}
-              onReplaySlow={handlePlaySnippetSlow}
-              onPlayPause={handlePlayPause}
-              isPlaying={playerIsPlaying}
-              playDisabled={
-                sentenceEnded &&
-                time >= (currentSentenceObject?.words?.at(-1)?.start ?? 0)
-              }
-              segmentText={currentSentenceObject?.text}
-              videoId={parseInt(currentVideo.recordId)}
-              sentenceIndex={currentSentenceIndex}
-              onBeforeAction={stopListening}
-            />
-            <View style={styles.settingsButtonContainer}>
-              {previousResults && (
-                <TouchableOpacity
-                  style={styles.previousResultsButtonInner}
-                  onPress={handlePreviousResults}
-                  disabled={isPlayingRecording}
-                >
-                  <Foundation
-                    name="clipboard-notes"
-                    size={32}
-                    color="#4a69bd"
-                  />
-                </TouchableOpacity>
-              )}
-              <ModeSwitcher
-                mode={shadowMode}
-                onModeChange={setShadowMode}
-                onHelpSelect={() => setShowWalkthrough(true)}
-              />
-              <SpeedDial
-                speed={recordSpeed}
-                onSpeedChange={(s) => {
-                  setRecordSpeed(s);
-                  const updated = {
-                    ...userSettings,
-                    playbackSpeedDuringRecording: s,
-                  };
-                  dispatch(setUserSettings(updated));
-                  persistUserSettings({
-                    supabase,
-                    userId,
-                    settings: updated,
-                  });
-                }}
-              />
-              <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
-                <Feather name="settings" size={30} color="#222222" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        {isRecordingMode && (
-          <View style={styles.countdownTimer}>
-            <CountdownTimer
-              onStartRecording={handleActualStartRecording}
-              onStopRecording={handleSubmitRecording}
-              bufferDuration={3}
-              onTrash={() => {
-                handleTrashRecording(true);
-                handleResetAnswer();
-              }}
-              maxRecordingDuration={getSegmentDuration(
-                currentSentenceObject.start,
-                currentSentenceObject.end,
-                recordSpeed,
-              )}
-            />
-          </View>
-        )}
-        <View style={styles.transcriptContainer}>
-          {/* Recording button or processing indicator */}
-          {isProcessing ? (
-            <View style={styles.processingContainer}>
-              <ActivityIndicator size="large" color="#4ade80" />
-              <Text style={styles.processingText}>Analyzing...</Text>
-            </View>
-          ) : (
-            accuracyResult && (
-              <>
-                <ShadowResults
-                  accuracyResult={accuracyResult}
-                  handleNextSentence={handleShadowNextSentence}
-                  handleRetry={handleRetry}
-                  properNouns={orderedCharacters}
-                />
-                {nextSentenceCountdown > 0 && (
-                  <View style={styles.nextSentenceCountdownRefContainer}>
-                    <Text style={styles.nextSentenceCountdownRefText}>
-                      {nextSentenceCountdown}
-                    </Text>
-                  </View>
-                )}
-              </>
-            )
-          )}
-          {/* Play user recording button - shown when a local recording exists */}
-          {!isRecordingMode && !isProcessing && accuracyResult && audioUri && (
-            <View style={styles.playRecordingContainer}>
-              <TouchableOpacity
-                style={styles.playRecordingButton}
-                onPress={handlePlayUserRecording}
-              >
-                <MaterialIcons
-                  name={isPlayingRecording ? "stop" : "play-arrow"}
-                  size={20}
-                  color="#4a69bd"
-                />
-                <Text style={styles.playRecordingButtonText}>
-                  {isPlayingRecording ? "Stop" : "Play Recording"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {shadowMode === "stream" && !streamBannerDismissed && (
-            <View style={styles.streamBanner}>
-              <Text style={styles.streamBannerText}>
-                You are in Stream mode, the video will not stop at the end of
-                segments, switch back to{" "}
-                <Text
-                  style={styles.streamBannerLink}
-                  onPress={() => setShadowMode("shadow")}
-                >
-                  Shadow
-                </Text>{" "}
-                mode to stop video.
-              </Text>
-              <TouchableOpacity
-                onPress={() => setStreamBannerDismissed(true)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={styles.streamBannerClose}
-              >
-                <Feather name="x" size={16} color="#7a5d00" />
-              </TouchableOpacity>
-            </View>
-          )}
-          {
-            <ContentTabBar
-              hidden={!!(accuracyResult || isProcessing)}
-              tabs={[
-                { key: "memorize", label: "Transcript" },
-                { key: "insights", label: "Insights" },
-                { key: "translate", label: "Translated" },
-                { key: "voice", label: "Voice" },
-              ]}
-              selectedTab={selectedTab}
-              onSelectTab={(key) => setSelectedTab(key as ContentTab)}
-            >
-              {selectedTab === "memorize" ? (
-                <MemorizeContent
-                  time={time}
-                  playKey={playKey}
-                  playerSpeed={playerSpeed}
-                  currentSentence={currentSentenceObject!}
-                  playerIsPlaying={playerIsPlaying}
-                  isRecording={isRecording}
-                  localDifficulty={localDifficulty}
-                  onLocalDifficultyChange={setLocalDifficulty}
-                  playWordSnippet={handlePlaySnippetAgain}
-                  vocabCache={vocabCache}
-                  onVocabCacheUpdate={handleVocabCacheUpdate}
-                />
-              ) : selectedTab === "translate" ? (
-                <View
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingTop: 12,
-                  }}
-                >
-                  <TranslateContent
-                    translationText={sentenceTranslation?.text ?? null}
-                    sentenceText={currentSentenceObject?.text}
-                    isLoading={isLoadingInsights}
-                    time={time}
-                    playerIsPlaying={playerIsPlaying}
-                    segmentStart={currentSentenceObject?.start}
-                    segmentEnd={currentSentenceObject?.end}
-                    playKey={playKey}
-                    isRecording={isRecording}
-                    playerSpeed={playerSpeed}
-                  />
-                </View>
-              ) : (
-                <ScrollView
-                  style={styles.transcriptContainer}
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {selectedTab === "insights" ? (
-                    <Insights
-                      isLoading={isLoadingInsights}
-                      characters={orderedCharacters}
-                      sentenceText={currentSentenceObject?.text ?? ""}
-                      subSegments={subSegments}
-                      hintWords={hintWords}
-                      handlePlayWordSnippet={handlePlaySnippetAgain}
-                      isPlayingWordSnippet={isPlayingWordSnippet}
-                      showWordsHints={showWordsHints}
-                      showCharacters={showCharacters}
-                      showPhrases={showPhrases}
-                      onReplaySentence={() => handlePlaySnippetAgain()}
-                      onPlayClip={handlePlayPhrase}
-                      playerIsPlaying={playerIsPlaying && !isReplayingPhrase}
-                      replayingPhraseIndex={replayingPhraseIndex}
-                      playbackTime={time}
-                      isRecordingMode={isRecordingMode}
-                      vocabCache={vocabCache}
-                      onVocabCacheUpdate={handleVocabCacheUpdate}
-                    />
-                  ) : (
-                    <VoiceCommands
-                      isListening={isListening}
-                      isClipPlaying={playerIsPlaying || isSpeakingResponse}
-                      isRecording={isRecordingMode}
-                      activeCommand={activeCommand}
-                      hasError={voiceCommandError}
-                      timedOut={voiceCommandTimedOut}
-                      permissionDenied={voicePermissionDenied}
-                      onActivate={startListening}
-                      onCommandPress={handleCommandPress}
-                      disabledMessage={
-                        shadowMode === "stream"
-                          ? "Voice mode disabled while streaming"
-                          : undefined
-                      }
-                      commands={[
-                        {
-                          command: "record" as const,
-                          label: "Record",
-                          description: "Start recording",
-                        },
-                        {
-                          command: "repeat" as const,
-                          label: "Repeat",
-                          description: "Replay the clip",
-                        },
-                        {
-                          command: "slow" as const,
-                          label: "Slowdown",
-                          description: "Replay the clip in slow mode",
-                        },
-                        {
-                          command: "next" as const,
-                          label: "Next",
-                          description: "Go to next segment",
-                        },
-                        {
-                          command: "previous" as const,
-                          label: "Previous",
-                          description: "Go to previous segment",
-                        },
-                        ...["First Phrase", "Second Phrase", "Third Phrase"]
-                          .slice(0, subSegments.length)
-                          .map((label, i) => ({
-                            command: (
-                              [
-                                "first_phrase",
-                                "second_phrase",
-                                "third_phrase",
-                              ] as const
-                            )[i],
-                            label,
-                            description: `Replay phrase ${i + 1}`,
-                          })),
-                      ]}
-                    />
-                  )}
-                </ScrollView>
-              )}
-            </ContentTabBar>
-          }
-        </View>
-
-        {/* Input Area - always visible when not in recording mode or showing results */}
-        {!accuracyResult && !isProcessing && (
-          <RecordingControls
-            isRecording={isRecordingMode}
-            onTrash={() => {
-              handleTrashRecording(true);
-              handleResetAnswer();
-            }}
-            onMic={() => {
-              if (shadowMode === "stream") {
-                setShowStreamRecordingTooltip(true);
-                return;
-              }
-              if (isRecordingMode) {
-                handleSubmitRecording();
-              } else {
-                handleEnterRecordingMode();
-              }
-            }}
-            disabled={!hasPermission || isProcessing}
-          />
+  const isWebScreen = Platform.OS === "web" && windowWidth >= 850;
+  const playerControlsElement = (
+    <PlayerControls
+      onReplay={() => handlePlaySnippetAgain()}
+      onReplaySlow={handlePlaySnippetSlow}
+      onPlayPause={handlePlayPause}
+      isPlaying={playerIsPlaying}
+      playDisabled={
+        sentenceEnded &&
+        time >= (currentSentenceObject?.words?.at(-1)?.start ?? 0)
+      }
+      segmentText={currentSentenceObject?.text}
+      videoId={parseInt(currentVideo.recordId)}
+      sentenceIndex={currentSentenceIndex}
+      onBeforeAction={stopListening}
+    />
+  );
+  const settingsButtonsElement = (
+    <ShadowSettingsButtons
+      mode={shadowMode}
+      onModeChange={setShadowMode}
+      onHelpSelect={() => setShowWalkthrough(true)}
+      speed={recordSpeed}
+      onSpeedChange={(s) => {
+        setRecordSpeed(s);
+        const updated = {
+          ...userSettings,
+          playbackSpeedDuringRecording: s,
+        };
+        dispatch(setUserSettings(updated));
+        persistUserSettings({
+          supabase,
+          userId,
+          settings: updated,
+        });
+      }}
+      onSettingsPress={() => setIsSettingsVisible(true)}
+      showPreviousResults={!!previousResults}
+      onPreviousResultsPress={handlePreviousResults}
+      previousResultsDisabled={isPlayingRecording}
+    />
+  );
+  const memorizeContentElement = (
+    <MemorizeContent
+      time={time}
+      playKey={playKey}
+      playerSpeed={playerSpeed}
+      currentSentence={currentSentenceObject!}
+      playerIsPlaying={playerIsPlaying}
+      isRecording={isRecording}
+      localDifficulty={localDifficulty}
+      onLocalDifficultyChange={setLocalDifficulty}
+      playWordSnippet={handlePlaySnippetAgain}
+      vocabCache={vocabCache}
+      onVocabCacheUpdate={handleVocabCacheUpdate}
+      layout={isWebScreen ? "webPlayer" : "default"}
+    />
+  );
+  const sentenceNavElement = (
+    <NavSwitcher
+      onPrev={() => handleShadowPreviousSentence()}
+      onNext={handleShadowNextSentence}
+      currentIndex={currentSentenceIndex}
+      totalItems={currentVideo.sentences.length}
+      sentences={currentVideo.sentences}
+      onPlayClip={onPlayClip}
+      videoId={currentVideo.videoId}
+      recordId={currentVideo.recordId}
+    >
+      <Text style={styles.segmentNavText}>
+        Segment {currentSentenceIndex + 1} of {currentVideo.sentences.length}
+      </Text>
+    </NavSwitcher>
+  );
+  const errorBannerElement = error ? (
+    <View style={styles.errorContainer}>
+      <View style={styles.errorContent}>
+        <Text style={styles.errorText}>{error}</Text>
+        {isMissingPermission && (
+          <TouchableOpacity
+            style={styles.grantPermissionButton}
+            onPress={() => Linking.openSettings()}
+          >
+            <Text style={styles.grantPermissionText}>Grant Permission</Text>
+          </TouchableOpacity>
         )}
       </View>
+      {!isMissingPermission && (
+        <TouchableOpacity onPress={() => setError(null)}>
+          <MaterialIcons name="close" size={20} color="black" />
+        </TouchableOpacity>
+      )}
+    </View>
+  ) : null;
+  const mobileControlsElement =
+    !isRecordingMode && !accuracyResult && !isProcessing ? (
+      <View style={styles.recordButtonContainer}>
+        {playerControlsElement}
+        {settingsButtonsElement}
+      </View>
+    ) : null;
+  const countdownTimerElement = isRecordingMode ? (
+    <View style={styles.countdownTimer}>
+      <CountdownTimer
+        onStartRecording={handleActualStartRecording}
+        onStopRecording={handleSubmitRecording}
+        bufferDuration={3}
+        onTrash={() => {
+          handleTrashRecording(true);
+          handleResetAnswer();
+        }}
+        maxRecordingDuration={getSegmentDuration(
+          currentSentenceObject.start,
+          currentSentenceObject.end,
+          recordSpeed,
+        )}
+      />
+    </View>
+  ) : null;
+  const statusContentElement = isProcessing ? (
+    <View style={styles.processingContainer}>
+      <ActivityIndicator size="large" color="#4ade80" />
+      <Text style={styles.processingText}>Analyzing...</Text>
+    </View>
+  ) : (
+    accuracyResult && (
+      <>
+        <ShadowResults
+          accuracyResult={accuracyResult}
+          handleNextSentence={handleShadowNextSentence}
+          handleRetry={handleRetry}
+          properNouns={orderedCharacters}
+        />
+        {nextSentenceCountdown > 0 && (
+          <View style={styles.nextSentenceCountdownRefContainer}>
+            <Text style={styles.nextSentenceCountdownRefText}>
+              {nextSentenceCountdown}
+            </Text>
+          </View>
+        )}
+      </>
+    )
+  );
+  const playRecordingButtonElement =
+    !isRecordingMode && !isProcessing && accuracyResult && audioUri ? (
+      <View style={styles.playRecordingContainer}>
+        <TouchableOpacity
+          style={styles.playRecordingButton}
+          onPress={handlePlayUserRecording}
+        >
+          <MaterialIcons
+            name={isPlayingRecording ? "stop" : "play-arrow"}
+            size={20}
+            color="#4a69bd"
+          />
+          <Text style={styles.playRecordingButtonText}>
+            {isPlayingRecording ? "Stop" : "Play Recording"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    ) : null;
+  const streamBannerElement =
+    shadowMode === "stream" && !streamBannerDismissed ? (
+      <View style={styles.streamBanner}>
+        <Text style={styles.streamBannerText}>
+          You are in Stream mode, the video will not stop at the end of
+          segments, switch back to{" "}
+          <Text
+            style={styles.streamBannerLink}
+            onPress={() => setShadowMode("shadow")}
+          >
+            Shadow
+          </Text>{" "}
+          mode to stop video.
+        </Text>
+        <TouchableOpacity
+          onPress={() => setStreamBannerDismissed(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={styles.streamBannerClose}
+        >
+          <Feather name="x" size={16} color="#7a5d00" />
+        </TouchableOpacity>
+      </View>
+    ) : null;
+  const contentTabsElement = (
+    <ContentTabBar
+      hidden={!!(accuracyResult || isProcessing)}
+      tabs={[
+        { key: "memorize", label: "Transcript" },
+        { key: "insights", label: "Insights" },
+        { key: "translate", label: "Translated" },
+        { key: "voice", label: "Voice" },
+      ]}
+      selectedTab={selectedTab}
+      onSelectTab={(key) => setSelectedTab(key as ContentTab)}
+    >
+      {selectedTab === "memorize" ? (
+        memorizeContentElement
+      ) : selectedTab === "translate" ? (
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 12,
+          }}
+        >
+          <TranslateContent
+            translationText={sentenceTranslation?.text ?? null}
+            sentenceText={currentSentenceObject?.text}
+            isLoading={isLoadingInsights}
+            time={time}
+            playerIsPlaying={playerIsPlaying}
+            segmentStart={currentSentenceObject?.start}
+            segmentEnd={currentSentenceObject?.end}
+            playKey={playKey}
+            isRecording={isRecording}
+            playerSpeed={playerSpeed}
+          />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.transcriptContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          {selectedTab === "insights" ? (
+            <Insights
+              isLoading={isLoadingInsights}
+              characters={orderedCharacters}
+              sentenceText={currentSentenceObject?.text ?? ""}
+              subSegments={subSegments}
+              hintWords={hintWords}
+              handlePlayWordSnippet={handlePlaySnippetAgain}
+              isPlayingWordSnippet={isPlayingWordSnippet}
+              showWordsHints={showWordsHints}
+              showCharacters={showCharacters}
+              showPhrases={showPhrases}
+              onReplaySentence={() => handlePlaySnippetAgain()}
+              onPlayClip={handlePlayPhrase}
+              playerIsPlaying={playerIsPlaying && !isReplayingPhrase}
+              replayingPhraseIndex={replayingPhraseIndex}
+              playbackTime={time}
+              isRecordingMode={isRecordingMode}
+              vocabCache={vocabCache}
+              onVocabCacheUpdate={handleVocabCacheUpdate}
+            />
+          ) : (
+            <VoiceCommands
+              isListening={isListening}
+              isClipPlaying={playerIsPlaying || isSpeakingResponse}
+              isRecording={isRecordingMode}
+              activeCommand={activeCommand}
+              hasError={voiceCommandError}
+              timedOut={voiceCommandTimedOut}
+              permissionDenied={voicePermissionDenied}
+              onActivate={startListening}
+              onCommandPress={handleCommandPress}
+              disabledMessage={
+                shadowMode === "stream"
+                  ? "Voice mode disabled while streaming"
+                  : undefined
+              }
+              commands={[
+                {
+                  command: "record" as const,
+                  label: "Record",
+                  description: "Start recording",
+                },
+                {
+                  command: "repeat" as const,
+                  label: "Repeat",
+                  description: "Replay the clip",
+                },
+                {
+                  command: "slow" as const,
+                  label: "Slowdown",
+                  description: "Replay the clip in slow mode",
+                },
+                {
+                  command: "next" as const,
+                  label: "Next",
+                  description: "Go to next segment",
+                },
+                {
+                  command: "previous" as const,
+                  label: "Previous",
+                  description: "Go to previous segment",
+                },
+                ...["First Phrase", "Second Phrase", "Third Phrase"]
+                  .slice(0, subSegments.length)
+                  .map((label, i) => ({
+                    command: (
+                      ["first_phrase", "second_phrase", "third_phrase"] as const
+                    )[i],
+                    label,
+                    description: `Replay phrase ${i + 1}`,
+                  })),
+              ]}
+            />
+          )}
+        </ScrollView>
+      )}
+    </ContentTabBar>
+  );
+  const recordingControlsElement =
+    !accuracyResult && !isProcessing ? (
+      <RecordingControls
+        isRecording={isRecordingMode}
+        onTrash={() => {
+          handleTrashRecording(true);
+          handleResetAnswer();
+        }}
+        onMic={() => {
+          if (shadowMode === "stream") {
+            setShowStreamRecordingTooltip(true);
+            return;
+          }
+          if (isRecordingMode) {
+            handleSubmitRecording();
+          } else {
+            handleEnterRecordingMode();
+          }
+        }}
+        disabled={!hasPermission || isProcessing}
+      />
+    ) : null;
+  const overlaysElement = (
+    <>
       {isSettingsVisible && (
         <SettingsModal
           visible={isSettingsVisible}
@@ -1569,14 +1555,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         onComplete={proceedAfterReview}
         onClose={proceedAfterReview}
       />
-
-      {/* No Credits Modal */}
       <NoCreditsModal
         visible={showNoCreditsModal}
         onClose={() => setShowNoCreditsModal(false)}
       />
-
-      {/* Sign In Prompt Modal */}
       <SignInPromptModal
         visible={showSignInModal}
         onClose={() => {
@@ -1588,13 +1570,36 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           setShowSignInModal(false);
         }}
       />
-
       <WalkthroughModal
         visible={showWalkthrough}
         onComplete={() => setShowWalkthrough(false)}
         closeable
       />
     </>
+  );
+  const layoutProps = {
+    styles,
+    errorBanner: errorBannerElement,
+    mobileControls: mobileControlsElement,
+    countdownTimer: countdownTimerElement,
+    statusContent: statusContentElement,
+    playRecordingButton: playRecordingButtonElement,
+    streamBanner: streamBannerElement,
+    contentTabs: contentTabsElement,
+    recordingControls: recordingControlsElement,
+    sentenceNav: sentenceNavElement,
+    memorizeContent: memorizeContentElement,
+    playerControls: playerControlsElement,
+    settingsButtons: settingsButtonsElement,
+    overlays: overlaysElement,
+    isRecordingMode,
+    showPracticeContent: !accuracyResult && !isProcessing,
+  };
+
+  return isWebScreen ? (
+    <ShadowTabWeb {...layoutProps} />
+  ) : (
+    <ShadowTabMobile {...layoutProps} />
   );
 };
 
@@ -1605,6 +1610,35 @@ export const styles = StyleSheet.create({
   },
   transcriptContainer: {
     flex: 1,
+  },
+  webPracticeLayout: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 24,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+  },
+  webPracticeSide: {
+    flex: 1,
+    minWidth: 0,
+  },
+  webMemorizeColumn: {
+    flex: 2,
+    minWidth: 0,
+  },
+  webControlsColumn: {
+    flex: 1,
+    minWidth: 260,
+    alignItems: "center",
+    gap: 12,
+  },
+  webSettingsButtonsOverlay: {
+    position: "fixed" as any,
+    top: 6,
+    right: 64,
+    zIndex: 60,
+    alignItems: "center",
   },
   countdownTimer: {
     marginHorizontal: 16,
@@ -1638,12 +1672,6 @@ export const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     fontSize: 14,
-  },
-  settingsButtonContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
   },
   recordSpeedBubble: {
     paddingHorizontal: 8,
@@ -1836,14 +1864,6 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     marginTop: 4,
-  },
-  previousResultsButtonInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 2,
-    paddingVertical: 12,
-    borderRadius: 24,
   },
   previousResultsText: {
     color: "#4a69bd",

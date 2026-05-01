@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Dimensions,
+  Platform,
+  useWindowDimensions,
 } from "react-native";
 import { RootState } from "../../types";
 import { useDispatch, useSelector } from "react-redux";
@@ -26,6 +28,7 @@ import VideoInsights from "./VideoInsights";
 import ProfileModal from "../ProfileModal";
 
 const NavTabBanner: React.FC = () => {
+  const { width } = useWindowDimensions();
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
   const { userId, isSignedIn } = useAuth();
@@ -39,6 +42,8 @@ const NavTabBanner: React.FC = () => {
   if (!currentVideo) {
     return null;
   }
+
+  const isWebScreen = Platform.OS === "web" && width >= 850;
 
   const handleBackPress = async () => {
     if (supabase && currentVideo?.videoViewId) {
@@ -63,12 +68,12 @@ const NavTabBanner: React.FC = () => {
 
   return (
     <>
-      <View style={styles.container}>
+      <View style={[styles.container, isWebScreen && styles.webContainer]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <MaterialIcons name="arrow-back" size={22} color="#666" />
         </TouchableOpacity>
 
-        <View style={styles.centerArea}>
+        <View style={[styles.centerArea, isWebScreen && styles.webCenterArea]}>
           <TouchableOpacity
             style={styles.tabSelector}
             onPress={() => setInsightsOpen(!insightsOpen)}
@@ -126,6 +131,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "white",
   },
+  webContainer: {
+    marginTop: 0,
+  },
   backButton: {
     width: 36,
     height: 36,
@@ -138,6 +146,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     marginTop: Dimensions.get("window").height > 850 ? 12 : 0,
+  },
+  webCenterArea: {
+    marginTop: 0,
   },
   tabSelector: {
     flexDirection: "row",

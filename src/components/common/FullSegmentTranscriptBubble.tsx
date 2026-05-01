@@ -322,7 +322,7 @@ const FullSegmentTranscriptBubble: React.FC<
 const styles = StyleSheet.create({
   bubble: {
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 0,
     backgroundColor: "#f0f4ff",
     borderRadius: 16,
     borderBottomLeftRadius: 4,

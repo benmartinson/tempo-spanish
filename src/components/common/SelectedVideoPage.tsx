@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   Text,
   AppState,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
@@ -49,6 +49,7 @@ if (
 }
 
 const SelectedVideoPage: React.FC = () => {
+  const { width: windowWidth } = useWindowDimensions();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const videoRefreshKey = useSelector(
     (state: RootState) => state.videoRefreshKey,
@@ -521,11 +522,19 @@ const SelectedVideoPage: React.FC = () => {
     (currentSentenceObject?.start ?? 0) - getStartPadding(currentSentenceIndex);
   const endTime =
     (currentSentenceObject?.end ?? 0) + getEndPadding(currentSentenceIndex);
+  const playerHeight =
+    Platform.OS === "web" && windowWidth >= 850
+      ? 480
+      : windowWidth > 600
+        ? Math.round((windowWidth * 9) / 16)
+        : 230;
+
   return (
     <View style={styles.container}>
       <View
         style={[
           styles.videoContainer,
+          { height: playerHeight },
           !showVideo && { height: 0, marginTop: 0 },
         ]}
       >
@@ -548,7 +557,7 @@ const SelectedVideoPage: React.FC = () => {
           onPlayingStateChange={handlePlayingStateChange}
         />
       </View>
-      <View style={{ display: "flex", flex: 1 }}>
+      <View style={styles.shadowContainer}>
         <ShadowTab
           time={time}
           playKey={playKey}
@@ -660,14 +669,13 @@ const styles = StyleSheet.create({
     margin: 12,
   },
   videoContainer: {
-    height:
-      Dimensions.get("window").width > 600
-        ? Math.round((Dimensions.get("window").width * 9) / 16)
-        : 230,
     backgroundColor: "#000",
     position: "relative",
     marginTop: 0,
     overflow: "hidden",
+  },
+  shadowContainer: {
+    flex: 1,
   },
   showVideoButton: {
     alignSelf: "flex-start",

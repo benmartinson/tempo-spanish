@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, ScrollView } from "react-native";
+import { StyleSheet, ScrollView, View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
 import { RootState, Sentence, SegmentWord, VocabCacheEntry } from "../../types";
 import FullSegmentTranscriptBubble from "../common/FullSegmentTranscriptBubble";
 import DifficultySlider from "../common/DifficultySlider";
+import DraggableWebPanel from "../common/DraggableWebPanel";
 import { setMemorizeDifficulty } from "../../store/actions/dataActions";
 import { persistMemorizeDifficulty } from "../../requests";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
@@ -25,6 +26,7 @@ interface MemorizeContentProps {
   playWordSnippet?: (word: SegmentWord, isSlow?: boolean) => void;
   vocabCache?: VocabCacheEntry[];
   onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
+  layout?: "default" | "webPlayer";
 }
 
 const MemorizeContent: React.FC<MemorizeContentProps> = ({
@@ -39,6 +41,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   playWordSnippet,
   vocabCache,
   onVocabCacheUpdate,
+  layout = "default",
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -123,36 +126,28 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     setHintLevels({});
   }, [isRecording]);
 
-  return (
-    <ScrollView style={styles.container}>
-      <FullSegmentTranscriptBubble
-        words={currentSentence.words || []}
-        blurredIndices={maskedIndices}
-        time={time}
-        playKey={playKey}
-        playerSpeed={playerSpeed}
-        playerIsPlaying={playerIsPlaying}
-        showFullText
-        disableGuessModal={isRecording}
-        playWordSnippet={playWordSnippet}
-        revealCounts={revealCounts}
-        vocabCache={vocabCache}
-        onVocabCacheUpdate={onVocabCacheUpdate}
-        onWordPress={(index) => {
-          if (isRecording) {
-            // During recording: progressive hint reveal
-            const currentLevel = hintLevels[index] ?? 0;
-            const wordText = currentSentence.words?.[index]?.word?.trim() ?? "";
-            const skipHint = /^\d/.test(wordText) || wordText.length <= 1;
-            if (currentLevel === 0 && !skipHint) {
-              setHintLevels((prev) => ({ ...prev, [index]: 1 }));
-            } else {
-              setRevealedWords((prev) => {
-                const next = new Set(prev);
-                next.add(index);
-                return next;
-              });
-            }
+  const transcriptBubble = (
+    <FullSegmentTranscriptBubble
+      words={currentSentence.words || []}
+      blurredIndices={maskedIndices}
+      time={time}
+      playKey={playKey}
+      playerSpeed={playerSpeed}
+      playerIsPlaying={playerIsPlaying}
+      showFullText
+      disableGuessModal={isRecording}
+      playWordSnippet={playWordSnippet}
+      revealCounts={revealCounts}
+      vocabCache={vocabCache}
+      onVocabCacheUpdate={onVocabCacheUpdate}
+      onWordPress={(index) => {
+        if (isRecording) {
+          // During recording: progressive hint reveal
+          const currentLevel = hintLevels[index] ?? 0;
+          const wordText = currentSentence.words?.[index]?.word?.trim() ?? "";
+          const skipHint = /^\d/.test(wordText) || wordText.length <= 1;
+          if (currentLevel === 0 && !skipHint) {
+            setHintLevels((prev) => ({ ...prev, [index]: 1 }));
           } else {
             setRevealedWords((prev) => {
               const next = new Set(prev);
@@ -160,16 +155,42 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
               return next;
             });
           }
-        }}
-      />
+        } else {
+          setRevealedWords((prev) => {
+            const next = new Set(prev);
+            next.add(index);
+            return next;
+          });
+        }
+      }}
+    />
+  );
 
-      <DifficultySlider
-        difficulty={difficulty}
-        onDifficultyChange={(d) => {
-          setDifficulty(d);
-          setRevealedWords(new Set());
-        }}
-      />
+  const difficultySlider = (
+    <DifficultySlider
+      difficulty={difficulty}
+      onDifficultyChange={(d) => {
+        setDifficulty(d);
+        setRevealedWords(new Set());
+      }}
+    />
+  );
+
+  if (layout === "webPlayer") {
+    return (
+      <View style={styles.webContainer}>
+        <DraggableWebPanel initialTop={380} width={620}>
+          {transcriptBubble}
+        </DraggableWebPanel>
+        <View style={styles.webSliderSlot}>{difficultySlider}</View>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      {transcriptBubble}
+      {difficultySlider}
     </ScrollView>
   );
 };
@@ -177,6 +198,13 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  webContainer: {
+    flex: 1,
+    width: "100%",
+  },
+  webSliderSlot: {
+    width: "100%",
   },
 });
 
