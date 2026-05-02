@@ -13,6 +13,9 @@ interface DraggableWebPanelProps {
   initialTop: number;
   width: number;
   dragHandle?: ReactNode;
+  minWidth?: number;
+  resizeHandleInset?: number;
+  onWidthChange?: (width: number) => void;
   maxWidthRatio?: number;
   zIndex?: number;
 }
@@ -26,11 +29,18 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   initialTop,
   width,
   dragHandle,
+  minWidth = 300,
+  resizeHandleInset = 0,
+  onWidthChange,
   maxWidthRatio = 0.8,
   zIndex = 50,
 }) => {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const panelWidth = Math.min(width, windowWidth * maxWidthRatio);
+  const maxPanelWidth = Math.max(minWidth, windowWidth);
+  const initialPanelWidth = Math.min(width, windowWidth * maxWidthRatio);
+  const [panelWidth, setPanelWidth] = useState(() =>
+    clamp(initialPanelWidth, minWidth, maxPanelWidth),
+  );
   const defaultPosition = useMemo(
     () => ({
       x: Math.max(0, (windowWidth - panelWidth) / 2),
@@ -43,9 +53,15 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   const positionRef = useRef(defaultPosition);
   const dragStartRef = useRef(defaultPosition);
   const pointerStartRef = useRef({ x: 0, y: 0 });
+  const resizeStartRef = useRef({
+    x: defaultPosition.x,
+    pointerX: 0,
+    width: panelWidth,
+  });
   const frameRef = useRef<number | null>(null);
-  const dragShieldRef = useRef<HTMLDivElement | null>(null);
+  const interactionShieldRef = useRef<HTMLDivElement | null>(null);
   const previousUserSelectRef = useRef<string>("");
+  const didSetInitialPositionRef = useRef(false);
 
   const applyPosition = useCallback((position: { x: number; y: number }) => {
     positionRef.current = position;
@@ -63,6 +79,8 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   }, [panelHeight, windowHeight]);
 
   useEffect(() => {
+    if (didSetInitialPositionRef.current) return;
+    didSetInitialPositionRef.current = true;
     applyPosition(defaultPosition);
   }, [applyPosition, defaultPosition]);
 
@@ -72,6 +90,16 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
       y: clamp(positionRef.current.y, 0, getMaxY()),
     });
   }, [applyPosition, getMaxY, panelHeight, panelWidth, windowWidth]);
+
+  useEffect(() => {
+    setPanelWidth((currentWidth) =>
+      clamp(currentWidth, minWidth, maxPanelWidth),
+    );
+  }, [maxPanelWidth, minWidth]);
+
+  useEffect(() => {
+    onWidthChange?.(panelWidth);
+  }, [onWidthChange, panelWidth]);
 
   useEffect(() => {
     if (!panelRef.current) return;
@@ -93,10 +121,41 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
       if (frameRef.current !== null) {
         window.cancelAnimationFrame(frameRef.current);
       }
-      dragShieldRef.current?.remove();
-      dragShieldRef.current = null;
+      interactionShieldRef.current?.remove();
+      interactionShieldRef.current = null;
     };
   }, []);
+
+  const createInteractionShield = useCallback(
+    (cursor: string) => {
+      previousUserSelectRef.current = document.body.style.userSelect;
+      document.body.style.userSelect = "none";
+
+      const interactionShield = document.createElement("div");
+      interactionShield.style.position = "fixed";
+      interactionShield.style.inset = "0";
+      interactionShield.style.zIndex = String(zIndex - 1);
+      interactionShield.style.cursor = cursor;
+      interactionShield.style.touchAction = "none";
+      interactionShield.style.background = "transparent";
+      document.body.appendChild(interactionShield);
+      interactionShieldRef.current = interactionShield;
+
+      return interactionShield;
+    },
+    [zIndex],
+  );
+
+  const clearInteractionShield = useCallback(
+    (interactionShield: HTMLDivElement) => {
+      interactionShield.remove();
+      if (interactionShieldRef.current === interactionShield) {
+        interactionShieldRef.current = null;
+      }
+      document.body.style.userSelect = previousUserSelectRef.current;
+    },
+    [],
+  );
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -105,18 +164,7 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
       event.currentTarget.setPointerCapture?.(event.pointerId);
       dragStartRef.current = positionRef.current;
       pointerStartRef.current = { x: event.clientX, y: event.clientY };
-      previousUserSelectRef.current = document.body.style.userSelect;
-      document.body.style.userSelect = "none";
-
-      const dragShield = document.createElement("div");
-      dragShield.style.position = "fixed";
-      dragShield.style.inset = "0";
-      dragShield.style.zIndex = String(zIndex - 1);
-      dragShield.style.cursor = "move";
-      dragShield.style.touchAction = "none";
-      dragShield.style.background = "transparent";
-      document.body.appendChild(dragShield);
-      dragShieldRef.current = dragShield;
+      const dragShield = createInteractionShield("move");
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
         moveEvent.preventDefault();
@@ -145,11 +193,7 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
         dragShield.removeEventListener("pointermove", handlePointerMove);
         dragShield.removeEventListener("pointerup", handlePointerUp);
         dragShield.removeEventListener("pointercancel", handlePointerUp);
-        dragShield.remove();
-        if (dragShieldRef.current === dragShield) {
-          dragShieldRef.current = null;
-        }
-        document.body.style.userSelect = previousUserSelectRef.current;
+        clearInteractionShield(dragShield);
       };
 
       window.addEventListener("pointermove", handlePointerMove);
@@ -159,7 +203,83 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
       dragShield.addEventListener("pointerup", handlePointerUp);
       dragShield.addEventListener("pointercancel", handlePointerUp);
     },
-    [applyPosition, getMaxY, panelWidth, windowWidth, zIndex],
+    [
+      applyPosition,
+      clearInteractionShield,
+      createInteractionShield,
+      getMaxY,
+      panelWidth,
+      windowWidth,
+    ],
+  );
+
+  const handleResizePointerDown = useCallback(
+    (edge: "left" | "right") => (event: React.PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+
+      resizeStartRef.current = {
+        x: positionRef.current.x,
+        pointerX: event.clientX,
+        width: panelWidth,
+      };
+
+      const resizeShield = createInteractionShield("ew-resize");
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        moveEvent.preventDefault();
+
+        const deltaX = moveEvent.clientX - resizeStartRef.current.pointerX;
+        const startX = resizeStartRef.current.x;
+        const startWidth = resizeStartRef.current.width;
+
+        if (edge === "right") {
+          const nextWidth = clamp(
+            startWidth + deltaX,
+            minWidth,
+            windowWidth - startX,
+          );
+          setPanelWidth(nextWidth);
+          return;
+        }
+
+        const startRight = startX + startWidth;
+        const nextWidth = clamp(startWidth - deltaX, minWidth, startRight);
+        const nextX = startRight - nextWidth;
+        setPanelWidth(nextWidth);
+        applyPosition({
+          x: nextX,
+          y: clamp(positionRef.current.y, 0, getMaxY()),
+        });
+      };
+
+      const handlePointerUp = () => {
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+        window.removeEventListener("pointercancel", handlePointerUp);
+        resizeShield.removeEventListener("pointermove", handlePointerMove);
+        resizeShield.removeEventListener("pointerup", handlePointerUp);
+        resizeShield.removeEventListener("pointercancel", handlePointerUp);
+        clearInteractionShield(resizeShield);
+      };
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
+      window.addEventListener("pointercancel", handlePointerUp);
+      resizeShield.addEventListener("pointermove", handlePointerMove);
+      resizeShield.addEventListener("pointerup", handlePointerUp);
+      resizeShield.addEventListener("pointercancel", handlePointerUp);
+    },
+    [
+      applyPosition,
+      clearInteractionShield,
+      createInteractionShield,
+      getMaxY,
+      minWidth,
+      panelWidth,
+      windowWidth,
+    ],
   );
 
   return React.createElement(
@@ -172,9 +292,36 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
         top: 0,
         width: panelWidth,
         zIndex,
+        boxSizing: "border-box",
         willChange: "transform",
       },
     },
+    React.createElement("div", {
+      onPointerDown: handleResizePointerDown("left"),
+      style: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: resizeHandleInset - 4,
+        width: 8,
+        zIndex: 3,
+        cursor: "ew-resize",
+        touchAction: "none",
+      },
+    }),
+    React.createElement("div", {
+      onPointerDown: handleResizePointerDown("right"),
+      style: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        right: resizeHandleInset - 4,
+        width: 8,
+        zIndex: 3,
+        cursor: "ew-resize",
+        touchAction: "none",
+      },
+    }),
     dragHandle
       ? React.createElement(
           "div",

@@ -1093,6 +1093,36 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     }
   };
 
+  useEffect(() => {
+    if (!isWebScreen || typeof document === "undefined") return;
+
+    const handleSpacebarPlayPause = (event: KeyboardEvent) => {
+      if (event.code !== "Space" && event.key !== " ") return;
+
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      if (
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        tagName === "button" ||
+        tagName === "a" ||
+        !!target?.closest?.('[role="button"], [role="textbox"]') ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      handlePlayPause();
+    };
+
+    document.addEventListener("keydown", handleSpacebarPlayPause);
+    return () => {
+      document.removeEventListener("keydown", handleSpacebarPlayPause);
+    };
+  }, [handlePlayPause, isWebScreen]);
+
   const stopRecordingPlayback = useCallback(async () => {
     await stopAudio();
     setIsPlayingRecording(false);
@@ -1701,9 +1731,11 @@ export const styles = StyleSheet.create({
   },
   webRecordingControlsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: 24,
+    gap: 12,
+    maxWidth: "100%",
   },
   webPreviousResultsButton: {
     width: 42,

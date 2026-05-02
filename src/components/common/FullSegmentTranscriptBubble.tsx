@@ -42,6 +42,8 @@ interface FullSegmentTranscriptBubbleProps {
   onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
   attachedTop?: boolean;
   squareEdges?: boolean;
+  reviewPresentation?: "modal" | "inline";
+  onInlineReviewWord?: (word: SegmentWord) => void;
 }
 
 const LINE_HEIGHT = 28;
@@ -69,6 +71,8 @@ const FullSegmentTranscriptBubble: React.FC<
   onVocabCacheUpdate,
   attachedTop = false,
   squareEdges = false,
+  reviewPresentation = "modal",
+  onInlineReviewWord,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -102,9 +106,21 @@ const FullSegmentTranscriptBubble: React.FC<
           });
         }
       }
-      setGuessWord(word.word);
+      if (reviewPresentation === "inline") {
+        onInlineReviewWord?.(word);
+      } else {
+        setGuessWord(word.word);
+      }
     },
-    [currentVideo, supabase, userId, dispatch],
+    [
+      currentVideo,
+      supabase,
+      userId,
+      dispatch,
+      reviewPresentation,
+      onInlineReviewWord,
+      isSignedIn,
+    ],
   );
 
   const currentSentenceText = useMemo(
@@ -294,39 +310,44 @@ const FullSegmentTranscriptBubble: React.FC<
           );
         })}
       </ScrollView>
-      <WordModal
-        visible={!!guessWord}
-        onClose={() => setGuessWord(null)}
-        word={guessWord ?? ""}
-        sentenceText={currentSentenceText}
-        onPlaySnippet={
-          playWordSnippet && guessWord
-            ? () => playWordSnippet(words.find((w) => w.word === guessWord)!)
-            : undefined
-        }
-        onPlaySnippetSlow={
-          playWordSnippet && guessWord
-            ? () =>
-                playWordSnippet(words.find((w) => w.word === guessWord)!, true)
-            : undefined
-        }
-        vocabCache={vocabCache}
-        onVocabCacheUpdate={onVocabCacheUpdate}
-        onTranslationFetched={(translation) => {
-          if (guessWord) {
-            const wordKey = vocabFormatWord(guessWord);
-            dispatch(updateFocusVocabTranslation(wordKey, translation));
-            if (supabase && currentVideo?.videoViewId) {
-              saveFocusVocabTranslation({
-                supabase,
-                videoViewId: currentVideo.videoViewId,
-                word: wordKey,
-                translation,
-              });
-            }
+      {reviewPresentation === "modal" && (
+        <WordModal
+          visible={!!guessWord}
+          onClose={() => setGuessWord(null)}
+          word={guessWord ?? ""}
+          sentenceText={currentSentenceText}
+          onPlaySnippet={
+            playWordSnippet && guessWord
+              ? () => playWordSnippet(words.find((w) => w.word === guessWord)!)
+              : undefined
           }
-        }}
-      />
+          onPlaySnippetSlow={
+            playWordSnippet && guessWord
+              ? () =>
+                  playWordSnippet(
+                    words.find((w) => w.word === guessWord)!,
+                    true,
+                  )
+              : undefined
+          }
+          vocabCache={vocabCache}
+          onVocabCacheUpdate={onVocabCacheUpdate}
+          onTranslationFetched={(translation) => {
+            if (guessWord) {
+              const wordKey = vocabFormatWord(guessWord);
+              dispatch(updateFocusVocabTranslation(wordKey, translation));
+              if (supabase && currentVideo?.videoViewId) {
+                saveFocusVocabTranslation({
+                  supabase,
+                  videoViewId: currentVideo.videoViewId,
+                  word: wordKey,
+                  translation,
+                });
+              }
+            }
+          }}
+        />
+      )}
       <SignInPromptModal
         visible={showSignInModal}
         onClose={() => setShowSignInModal(false)}
@@ -349,6 +370,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 0,
   },
   squareEdgesBubble: {
+    marginHorizontal: 0,
     borderRadius: 0,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
@@ -364,6 +386,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     columnGap: 5,
     flexWrap: "wrap",
+    paddingHorizontal: 2,
   },
   fullTextScrollView: {
     height: "auto",

@@ -133,6 +133,20 @@ const getWebPlayerHtml = ({
         document.body.classList.toggle("fullBleed", !!enabled);
       }
 
+      function postPlayingState(isPlaying) {
+        postToApp({ type: "YT_PLAYING_STATE", isPlaying: !!isPlaying });
+      }
+
+      function togglePlayback() {
+        if (!player || typeof player.getPlayerState !== "function") return;
+        const state = player.getPlayerState();
+        if (state === 1 || state === 3) {
+          player.pauseVideo();
+        } else {
+          player.playVideo();
+        }
+      }
+
       setFullBleed(config.fillContainer);
 
       window.onYouTubeIframeAPIReady = function () {
@@ -163,6 +177,10 @@ const getWebPlayerHtml = ({
             onError: function (event) {
               postToApp({ type: "YT_ERROR", code: event.data });
             },
+            onStateChange: function (event) {
+              if (event.data === 1) postPlayingState(true);
+              else if (event.data === 0 || event.data === 2 || event.data === 5) postPlayingState(false);
+            },
           },
         });
       };
@@ -179,6 +197,7 @@ const getWebPlayerHtml = ({
           if (!player) return;
           if (command === "PLAY") player.playVideo();
           else if (command === "PAUSE") player.pauseVideo();
+          else if (command === "TOGGLE_PLAYBACK") togglePlayback();
           else if (command === "MUTE") player.mute();
           else if (command === "UNMUTE") player.unMute();
           else if (command === "DISABLE_CLIP") clipEnabled = false;
@@ -199,6 +218,12 @@ const getWebPlayerHtml = ({
 
       window.addEventListener("message", function (event) {
         handleCommand(event.data);
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.code !== "Space" && event.key !== " ") return;
+        event.preventDefault();
+        togglePlayback();
       });
     </script>
     <script src="https://www.youtube.com/iframe_api"></script>
@@ -274,6 +299,10 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
               : event.data;
           if (msg.type === "YT_TIME") {
             handleTimeMessage(msg.time);
+          } else if (msg.type === "YT_PLAYING_STATE") {
+            playingRef.current = !!msg.isPlaying;
+            if (staleTimerRef.current) clearTimeout(staleTimerRef.current);
+            if (mountedRef.current) onPlayingStateChange?.(!!msg.isPlaying);
           }
         } catch {
           // Ignore messages from browser extensions or nested YouTube frames.

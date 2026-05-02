@@ -84,8 +84,11 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
+    justifyContent: "center",
     alignSelf: "center",
+    maxWidth: "100%",
     borderWidth: 1,
     borderColor: "#d0d8f0",
     borderRadius: 24,

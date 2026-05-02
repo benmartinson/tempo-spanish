@@ -16,6 +16,7 @@ import { VocabCacheEntry } from "../../types";
 interface WordModalProps {
   visible: boolean;
   onClose: () => void;
+  inline?: boolean;
   word?: string;
   words?: string[];
   sentenceText?: string;
@@ -37,6 +38,7 @@ interface WordModalProps {
 const WordModal: React.FC<WordModalProps> = ({
   visible,
   onClose,
+  inline = false,
   word,
   sentenceText,
   sentenceTranslation,
@@ -58,6 +60,8 @@ const WordModal: React.FC<WordModalProps> = ({
   useEffect(() => {
     if (!visible || !word) return;
     setIsHidingTranslation(hideTranslationAtFirst);
+    setTranslation(null);
+    setAlternateMeanings([]);
 
     const cached = vocabCache.find((e) => e.word === word);
     if (cached) {
@@ -105,71 +109,85 @@ const WordModal: React.FC<WordModalProps> = ({
     onClose();
   };
 
+  const content = (
+    <View style={[styles.content, inline && styles.inlineContent]}>
+      {inline && (
+        <TouchableOpacity
+          style={styles.inlineCloseButton}
+          onPress={handleClose}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MaterialIcons name="close" size={18} color="#647089" />
+        </TouchableOpacity>
+      )}
+      <View style={styles.wordRow}>
+        <Text style={styles.vocabWord}>
+          {capitalize(stripPunctuation(word ?? ""))}
+        </Text>
+        {onPlaySnippet && (
+          <TouchableOpacity onPress={onPlaySnippet} style={styles.playButton}>
+            <MaterialIcons name="play-arrow" size={20} color="black" />
+          </TouchableOpacity>
+        )}
+        {onPlaySnippetSlow && (
+          <TouchableOpacity
+            onPress={onPlaySnippetSlow}
+            style={styles.playButton}
+          >
+            <MaterialIcons name="slow-motion-video" size={24} color="black" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {isLoading ? (
+        <View style={styles.translationContainer}>
+          <ActivityIndicator size="small" color="#4a69bd" />
+        </View>
+      ) : translation ? (
+        <View style={styles.translationContainer}>
+          <Text style={styles.translationLabel}>Translation in context</Text>
+          <Pressable
+            style={styles.translationTextWrapper}
+            onPress={() => isHidingTranslation && setIsHidingTranslation(false)}
+          >
+            <Text style={styles.translationText}>
+              {capitalize(translation)}
+            </Text>
+            {isHidingTranslation && (
+              <View style={styles.translationOverlay}>
+                <Text style={styles.showTranslationText}>Show translation</Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
+      {!isLoading && alternateMeanings.length > 0 && !isHidingTranslation && (
+        <View style={styles.altMeaningsContainer}>
+          <Text style={styles.altMeaningsLabel}>Other meanings</Text>
+          {alternateMeanings
+            .sort((a, b) => a.length - b.length)
+            .map((meaning, i) => (
+              <Text key={i} style={styles.altMeaningText}>
+                {capitalize(meaning)}
+              </Text>
+            ))}
+        </View>
+      )}
+    </View>
+  );
+
+  if (inline) {
+    if (!visible) return null;
+    return <View style={styles.inlinePanel}>{content}</View>;
+  }
+
   return (
     <SmallSlideModal
       visible={visible}
       onRequestClose={handleClose}
       title={title}
     >
-      <View style={styles.content}>
-        <View style={styles.wordRow}>
-          <Text style={styles.vocabWord}>
-            {capitalize(stripPunctuation(word ?? ""))}
-          </Text>
-          {onPlaySnippet && (
-            <TouchableOpacity onPress={onPlaySnippet} style={styles.playButton}>
-              <MaterialIcons name="play-arrow" size={20} color="black" />
-            </TouchableOpacity>
-          )}
-          {onPlaySnippetSlow && (
-            <TouchableOpacity
-              onPress={onPlaySnippetSlow}
-              style={styles.playButton}
-            >
-              <MaterialIcons name="slow-motion-video" size={24} color="black" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {isLoading ? (
-          <View style={styles.translationContainer}>
-            <ActivityIndicator size="small" color="#4a69bd" />
-          </View>
-        ) : translation ? (
-          <View style={styles.translationContainer}>
-            <Text style={styles.translationLabel}>Translation in context</Text>
-            <Pressable
-              style={styles.translationTextWrapper}
-              onPress={() =>
-                isHidingTranslation && setIsHidingTranslation(false)
-              }
-            >
-              <Text style={styles.translationText}>
-                {capitalize(translation)}
-              </Text>
-              {isHidingTranslation && (
-                <View style={styles.translationOverlay}>
-                  <Text style={styles.showTranslationText}>
-                    Show translation
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          </View>
-        ) : null}
-        {!isLoading && alternateMeanings.length > 0 && !isHidingTranslation && (
-          <View style={styles.altMeaningsContainer}>
-            <Text style={styles.altMeaningsLabel}>Other meanings</Text>
-            {alternateMeanings
-              .sort((a, b) => a.length - b.length)
-              .map((meaning, i) => (
-                <Text key={i} style={styles.altMeaningText}>
-                  {capitalize(meaning)}
-                </Text>
-              ))}
-          </View>
-        )}
-      </View>
+      {content}
     </SmallSlideModal>
   );
 };
@@ -178,6 +196,33 @@ const styles = StyleSheet.create({
   content: {
     padding: 24,
     gap: 20,
+  },
+  inlinePanel: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.58)",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.16)",
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  inlineContent: {
+    position: "relative",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  inlineCloseButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    zIndex: 1,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(240, 244, 255, 0.86)",
   },
   wordRow: {
     flexDirection: "row",

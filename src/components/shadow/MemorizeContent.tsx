@@ -13,13 +13,21 @@ import { RootState, Sentence, SegmentWord, VocabCacheEntry } from "../../types";
 import FullSegmentTranscriptBubble from "../common/FullSegmentTranscriptBubble";
 import DifficultySlider from "../common/DifficultySlider";
 import DraggableWebPanel from "../common/DraggableWebPanel";
+import WordModal from "../common/WordModal";
 import TranslateContent from "./TranslateContent";
-import { setMemorizeDifficulty } from "../../store/actions/dataActions";
-import { persistMemorizeDifficulty } from "../../requests";
+import {
+  setMemorizeDifficulty,
+  updateFocusVocabTranslation,
+} from "../../store/actions/dataActions";
+import {
+  persistMemorizeDifficulty,
+  saveFocusVocabTranslation,
+} from "../../requests";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import {
   computeBaseMaskedIndices,
   getAutoHintDifficulty,
+  vocabFormatWord,
 } from "../../helpers/helpers";
 
 interface MemorizeContentProps {
@@ -69,6 +77,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const userSettings = useSelector((state: RootState) => state.userSettings);
+  const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const savedDifficulty = useSelector(
     (state: RootState) => state.memorizeDifficulty,
   );
@@ -112,6 +121,9 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
   const [hintLevels, setHintLevels] = useState<Record<number, number>>({});
   const [translationRevealed, setTranslationRevealed] = useState(false);
+  const [selectedReviewWord, setSelectedReviewWord] =
+    useState<SegmentWord | null>(null);
+  const [webPanelWidth, setWebPanelWidth] = useState(620);
 
   // Compute which words would be masked (ignoring reveals) — stable per difficulty/segment
   const baseMaskedIndices = useMemo(
@@ -143,11 +155,13 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     setHintLevels({});
     setManualOverride(null);
     setTranslationRevealed(false);
+    setSelectedReviewWord(null);
   }, [currentSentence.index]);
 
   useEffect(() => {
     setRevealedWords(new Set());
     setHintLevels({});
+    setSelectedReviewWord(null);
   }, [isRecording]);
 
   const transcriptBubble = (
@@ -166,6 +180,8 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
       onVocabCacheUpdate={onVocabCacheUpdate}
       attachedTop={layout === "webPlayer"}
       squareEdges={layout === "webPlayer"}
+      reviewPresentation={layout === "webPlayer" ? "inline" : "modal"}
+      onInlineReviewWord={setSelectedReviewWord}
       onWordPress={(index) => {
         if (isRecording) {
           // During recording: progressive hint reveal
@@ -192,6 +208,41 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     />
   );
 
+  const webInlineWordReviewSection =
+    layout === "webPlayer" && selectedReviewWord ? (
+      <WordModal
+        inline
+        visible={!!selectedReviewWord}
+        onClose={() => setSelectedReviewWord(null)}
+        word={selectedReviewWord.word}
+        sentenceText={currentSentence.text}
+        onPlaySnippet={
+          playWordSnippet
+            ? () => playWordSnippet(selectedReviewWord)
+            : undefined
+        }
+        onPlaySnippetSlow={
+          playWordSnippet
+            ? () => playWordSnippet(selectedReviewWord, true)
+            : undefined
+        }
+        vocabCache={vocabCache}
+        onVocabCacheUpdate={onVocabCacheUpdate}
+        onTranslationFetched={(translation) => {
+          const wordKey = vocabFormatWord(selectedReviewWord.word);
+          dispatch(updateFocusVocabTranslation(wordKey, translation));
+          if (supabase && currentVideo?.videoViewId) {
+            saveFocusVocabTranslation({
+              supabase,
+              videoViewId: currentVideo.videoViewId,
+              word: wordKey,
+              translation,
+            });
+          }
+        }}
+      />
+    ) : null;
+
   const difficultySlider = (
     <DifficultySlider
       difficulty={difficulty}
@@ -205,6 +256,8 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
 
   const shouldShowTranslationSection =
     isLoadingTranslation || !!translationText;
+  const shouldUseWidePanelHeader =
+    layout === "webPlayer" && webPanelWidth >= 1000 && !webStatusContent;
   const webTranslationSection =
     layout === "webPlayer" && shouldShowTranslationSection ? (
       <View style={styles.webTranslationContainer}>
@@ -260,6 +313,9 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
         <DraggableWebPanel
           initialTop={380}
           width={620}
+          minWidth={300}
+          resizeHandleInset={16}
+          onWidthChange={setWebPanelWidth}
           dragHandle={
             <View style={styles.webPanelDragHandle}>
               <View style={styles.webPanelDragRail} />
@@ -267,9 +323,19 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
           }
         >
           <View style={styles.webPanelShell}>
-            {webSentenceNav && (
+            {shouldUseWidePanelHeader && webSentenceNav ? (
+              <View style={styles.webPanelWideHeader}>
+                <View style={styles.webPanelWideNav}>{webSentenceNav}</View>
+                <View style={styles.webPanelWidePlayerControls}>
+                  {webPlayerControls}
+                </View>
+                <View style={styles.webPanelWideRecordingControls}>
+                  {webRecordingControls}
+                </View>
+              </View>
+            ) : webSentenceNav ? (
               <View style={styles.webPanelSentenceNav}>{webSentenceNav}</View>
-            )}
+            ) : null}
             {webStatusContent && (
               <View style={styles.webPanelStatusContent}>
                 {webStatusContent}
@@ -278,21 +344,23 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
             )}
             {!webStatusContent && (
               <>
-                <View style={styles.webPanelHeader}>
-                  <View style={styles.webPanelHeaderLeft}>
-                    {webPlayerControls}
+                {!shouldUseWidePanelHeader && (
+                  <View style={styles.webPanelHeader}>
+                    <View style={styles.webPanelHeaderLeft}>
+                      {webPlayerControls}
+                    </View>
+                    <View style={styles.webPanelHeaderRight}>
+                      {webRecordingControls}
+                    </View>
                   </View>
-                  <View style={styles.webPanelHeaderRight}>
-                    {webRecordingControls}
-                  </View>
-                </View>
+                )}
                 {transcriptBubble}
                 <View style={styles.webPanelDifficultyRow}>
-                  <View style={styles.webPanelAccent} />
                   <View style={styles.webPanelDifficulty}>
                     {difficultySlider}
                   </View>
                 </View>
+                {webInlineWordReviewSection}
                 <View style={styles.webTranscriptBody}>
                   {webTranslationSection}
                 </View>
@@ -360,6 +428,7 @@ const styles = StyleSheet.create({
   },
   webPanelHeader: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
@@ -373,19 +442,51 @@ const styles = StyleSheet.create({
   webPanelSentenceNav: {
     width: "100%",
   },
+  webPanelWideHeader: {
+    position: "relative",
+    minHeight: 70,
+    backgroundColor: "#f7f9ff",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74, 105, 189, 0.2)",
+    justifyContent: "center",
+  },
+  webPanelWideNav: {
+    width: "100%",
+    minHeight: 70,
+    justifyContent: "center",
+  },
+  webPanelWidePlayerControls: {
+    position: "absolute",
+    left: 62,
+    top: 6,
+    bottom: 6,
+    zIndex: 2,
+    justifyContent: "center",
+  },
+  webPanelWideRecordingControls: {
+    position: "absolute",
+    right: 62,
+    top: 6,
+    bottom: 6,
+    zIndex: 2,
+    justifyContent: "center",
+  },
   webPanelHeaderLeft: {
     flex: 1,
     alignItems: "flex-start",
     minWidth: 0,
+    maxWidth: "100%",
   },
   webPanelHeaderRight: {
     flex: 1,
     alignItems: "flex-end",
     minWidth: 0,
+    maxWidth: "100%",
   },
   webPanelDifficultyRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 10,
     paddingHorizontal: 14,
     paddingVertical: 9,
@@ -399,6 +500,8 @@ const styles = StyleSheet.create({
   webPanelDifficulty: {
     flex: 1,
     minWidth: 0,
+    maxWidth: 600,
+    alignSelf: "center",
   },
   webTranscriptBody: {
     backgroundColor: "#f0f4ff",

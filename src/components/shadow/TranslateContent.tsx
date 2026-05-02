@@ -98,7 +98,12 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
       ]}
     >
       {/* <Text style={styles.questionLabel}>{label}</Text> */}
-      <Text style={styles.questionText}>
+      <Text
+        style={[
+          styles.questionText,
+          variant === "webPanel" && styles.webPanelQuestionText,
+        ]}
+      >
         {words.map((word, index) => {
           const isActive =
             activeChunkStart >= 0 &&
@@ -150,6 +155,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: "#222",
+  },
+  webPanelQuestionText: {
+    textAlign: "center",
   },
   activeWord: {
     color: "#4CAF50",
