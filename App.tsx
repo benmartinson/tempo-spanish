@@ -1,7 +1,11 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NavigationContainer } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  useNavigation,
+  useRoute,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import SignInScreen from "./src/components/SignInScreen";
 import { Provider, useDispatch, useSelector } from "react-redux";
@@ -19,6 +23,8 @@ import {
   setMemorizeDifficulty,
   setUserCredits,
   setHasSeenWelcomeModals,
+  setSelectedChannelId,
+  addUserVideoView,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import { supabase as rawSupabase } from "./lib/supabase";
@@ -35,7 +41,7 @@ import {
 import { useUIStateSync } from "./src/hooks/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache as clerkTokenCache } from "@clerk/clerk-expo/token-cache";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Platform, View } from "react-native";
 import TopNavBar from "./src/components/TopNavBar";
 import VideoList from "./src/components/video-list/VideoList";
 import NavTabBanner from "./src/components/common/NavTabBanner";
@@ -68,14 +74,62 @@ if (!publishableKey) {
 
 const Stack = createNativeStackNavigator();
 
+const linking: any = {
+  prefixes: [],
+  getStateFromPath(path: string) {
+    const [pathname] = path.split("?");
+    const segments = pathname
+      .split("/")
+      .filter(Boolean)
+      .map((segment) => decodeURIComponent(segment));
+
+    const params: { channelId?: string; videoId?: string } = {};
+    if (segments[0] === "channel" && segments[1]) {
+      params.channelId = segments[1];
+    }
+    if (segments[0] === "video" && segments[1]) {
+      params.videoId = segments[1];
+    }
+
+    return {
+      routes: [{ name: "MainApp", params }],
+    };
+  },
+  getPathFromState(state: any) {
+    const route = state.routes[state.index ?? 0];
+    if (route?.name !== "MainApp") return "";
+
+    const { channelId, videoId } = route.params ?? {};
+    if (videoId) {
+      return `/video/${encodeURIComponent(videoId)}`;
+    }
+    if (channelId) return `/channel/${encodeURIComponent(channelId)}`;
+    return "/";
+  },
+};
+
 // Main app component — serves both authenticated and guest users
 const MainApp: React.FC = () => {
   const dispatch = useDispatch();
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const clerkSupabase = useSupabaseWithClerk();
   const { userId, isSignedIn } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
+  const selectedChannelId = useSelector(
+    (state: RootState) => state.selectedChannelId,
+  );
+  const allVideos = useSelector((state: RootState) => state.allVideos);
+  const allChannels = useSelector((state: RootState) => state.allChannels);
+  const routeChannelId =
+    typeof route.params?.channelId === "string" ? route.params.channelId : null;
+  const routeVideoId =
+    typeof route.params?.videoId === "string" ? route.params.videoId : null;
+  const hasRouteTarget =
+    Platform.OS === "web" && !!(routeChannelId || routeVideoId);
 
   const [isRestoringState, setIsRestoringState] = useState(true);
+  const [isLoadingRouteVideo, setIsLoadingRouteVideo] = useState(false);
 
   // Sync currentSentence changes to the database
   useUIStateSync();
@@ -160,7 +214,7 @@ const MainApp: React.FC = () => {
         dispatch(setMemorizeDifficulty(settings.defaultMemorizeDifficulty));
       }
 
-      if (videoContext) {
+      if (videoContext && !hasRouteTarget) {
         dispatch(setCurrentVideo(videoContext));
       }
 
@@ -177,10 +231,114 @@ const MainApp: React.FC = () => {
     restoreState();
   }, [clerkSupabase, dispatch, userId]);
 
+  useEffect(() => {
+    if (Platform.OS !== "web" || isRestoringState) return;
+
+    if (!routeChannelId && !routeVideoId) {
+      if (currentVideo) dispatch(setCurrentVideo(null));
+      if (selectedChannelId) dispatch(setSelectedChannelId(null));
+      setIsLoadingRouteVideo(false);
+      return;
+    }
+
+    if (routeVideoId) {
+      if (!allVideos.length) return;
+
+      const routeVideo = allVideos.find(
+        (video) => video.video_id === routeVideoId,
+      );
+      if (!routeVideo) return;
+
+      if (selectedChannelId) dispatch(setSelectedChannelId(null));
+      if (
+        currentVideo?.videoId === routeVideoId &&
+        currentVideo?.recordId === routeVideo.id
+      ) {
+        setIsLoadingRouteVideo(false);
+        return;
+      }
+
+      let cancelled = false;
+      setIsLoadingRouteVideo(true);
+      fetchVideoContext({
+        supabase: rawSupabase,
+        videoId: routeVideo.video_id,
+        recordId: routeVideo.id,
+        userId,
+      })
+        .then(({ videoContext, videoView }) => {
+          if (cancelled) return;
+          if (userId && videoView) {
+            dispatch(addUserVideoView(videoView));
+          }
+          dispatch(setCurrentVideo(videoContext));
+        })
+        .catch((error) => {
+          if (!cancelled) console.error("Error loading route video:", error);
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoadingRouteVideo(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (currentVideo) dispatch(setCurrentVideo(null));
+    setIsLoadingRouteVideo(false);
+    if (allChannels.length && selectedChannelId !== routeChannelId) {
+      dispatch(setSelectedChannelId(routeChannelId));
+    }
+  }, [
+    allChannels.length,
+    allVideos,
+    currentVideo,
+    dispatch,
+    isRestoringState,
+    routeChannelId,
+    routeVideoId,
+    selectedChannelId,
+    userId,
+  ]);
+
+  const navigateHome = () => {
+    navigation.navigate({
+      name: "MainApp",
+      params: {},
+      merge: false,
+    });
+  };
+
+  const navigateChannel = (channelId: string) => {
+    navigation.navigate({
+      name: "MainApp",
+      params: { channelId },
+      merge: false,
+    });
+  };
+
+  const navigateVideo = (videoId: string) => {
+    navigation.navigate({
+      name: "MainApp",
+      params: { videoId },
+      merge: false,
+    });
+  };
+
+  const routeVideoIsReady =
+    !routeVideoId || currentVideo?.videoId === routeVideoId;
+  const shouldShowVideoPage =
+    Platform.OS === "web"
+      ? !!routeVideoId && routeVideoIsReady
+      : !!currentVideo;
+
   return (
     <View style={{ flex: 1, backgroundColor: "white" }}>
-      {(!currentVideo || isRestoringState) && <TopNavBar />}
-      {isRestoringState ? (
+      {(!shouldShowVideoPage || isRestoringState || isLoadingRouteVideo) && (
+        <TopNavBar />
+      )}
+      {isRestoringState || isLoadingRouteVideo || !routeVideoIsReady ? (
         <View
           style={{
             flex: 1,
@@ -191,13 +349,18 @@ const MainApp: React.FC = () => {
         >
           <ActivityIndicator size="large" color="#5a5680" />
         </View>
-      ) : currentVideo ? (
+      ) : shouldShowVideoPage ? (
         <>
           <NavTabBanner />
           <SelectedVideoPage />
         </>
       ) : (
-        <VideoList />
+        <VideoList
+          routeChannelId={routeChannelId}
+          onNavigateHome={navigateHome}
+          onNavigateChannel={navigateChannel}
+          onNavigateVideo={navigateVideo}
+        />
       )}
     </View>
   );
@@ -244,7 +407,9 @@ const App: React.FC = () => {
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <Provider store={store}>
-        <NavigationContainer>
+        <NavigationContainer
+          linking={Platform.OS === "web" ? linking : undefined}
+        >
           <AppNavigator />
         </NavigationContainer>
       </Provider>

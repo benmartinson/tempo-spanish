@@ -570,6 +570,11 @@ const SelectedVideoPage: React.FC = () => {
     playerRef.current?.play();
   }, [playerRef]);
 
+  const togglePlayer = useCallback(() => {
+    userPressedPlayPause.current = true;
+    playerRef.current?.togglePlayback();
+  }, [playerRef]);
+
   const mutePlayer = useCallback(() => {
     setPlayerMuted(true);
     playerRef.current?.mute();
@@ -627,7 +632,14 @@ const SelectedVideoPage: React.FC = () => {
           onPlayingStateChange={handlePlayingStateChange}
           webFillContainer={isWebScreen && isAppFullscreen}
         />
-        {isWebScreen && showVideo && (
+        {isWebScreen && isAppFullscreen && showVideo && (
+          <TouchableOpacity
+            style={styles.webFullscreenVideoClickLayer}
+            onPress={togglePlayer}
+            activeOpacity={1}
+          />
+        )}
+        {isWebScreen && showVideo && !isAppFullscreen && (
           <TouchableOpacity
             style={styles.webFullscreenButton}
             onPress={handleToggleAppFullscreen}
@@ -679,6 +691,15 @@ const SelectedVideoPage: React.FC = () => {
           isPlayerFullscreen={isWebScreen && isAppFullscreen}
         />
       </View>
+      {isWebScreen && showVideo && isAppFullscreen && (
+        <TouchableOpacity
+          style={styles.webFullscreenButton}
+          onPress={handleToggleAppFullscreen}
+          activeOpacity={0.82}
+        >
+          <MaterialIcons name="fullscreen-exit" size={22} color="#ffffff" />
+        </TouchableOpacity>
+      )}
 
       {/* <WalkthroughModal
         visible={!hasSeenWelcomeModals}
@@ -792,6 +813,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.24)",
     zIndex: 80,
+  },
+  webFullscreenVideoClickLayer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 20,
+    backgroundColor: "transparent",
   },
   shadowContainer: {
     flex: 1,

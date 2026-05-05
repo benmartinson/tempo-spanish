@@ -1,11 +1,22 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  Platform,
+  useWindowDimensions,
+  Image,
+} from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@clerk/clerk-expo";
 import { useNavigation } from "@react-navigation/native";
+import { useSelector } from "react-redux";
 import LanguageModal from "./settings/LanguageModal";
 import ProfileModal from "./ProfileModal";
+import { RootState } from "../types";
 
 export const getFlagForLanguage = (language: string): string => {
   switch (language) {
@@ -22,8 +33,84 @@ export const getFlagForLanguage = (language: string): string => {
 const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
   const { isSignedIn } = useAuth();
   const navigation = useNavigation<any>();
+  const { width } = useWindowDimensions();
+  const isWebScreen = Platform.OS === "web" && width >= 850;
+  const targetLanguage = useSelector(
+    (state: RootState) => state.userSettings.targetLanguage,
+  );
   const [profileVisible, setProfileVisible] = useState(false);
   const [languageVisible, setLanguageVisible] = useState(false);
+
+  if (isWebScreen) {
+    return (
+      <View style={styles.webContainer}>
+        <View style={styles.webInner}>
+          <View style={styles.webBrand}>
+            <View style={styles.webBrandMark}>
+              <Image
+                source={require("../../assets/icon.png")}
+                style={styles.webBrandIcon}
+              />
+            </View>
+            <View>
+              <Text style={styles.webAppName}>Tempo</Text>
+              <Text style={styles.webAppSubname}>Spanish</Text>
+            </View>
+          </View>
+
+          {!minimal && (
+            <View style={styles.webActions}>
+              <TouchableOpacity
+                style={styles.webFlagButton}
+                onPress={() => setLanguageVisible(true)}
+              >
+                <Text style={styles.webFlagText}>
+                  {getFlagForLanguage(targetLanguage)}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.webAuthButton,
+                  isSignedIn && styles.webAccountButton,
+                ]}
+                onPress={() => {
+                  if (isSignedIn) {
+                    setProfileVisible(true);
+                  } else {
+                    navigation.navigate("SignIn");
+                  }
+                }}
+              >
+                <Ionicons
+                  name={isSignedIn ? "person-circle-outline" : "log-in-outline"}
+                  size={18}
+                  color={isSignedIn ? "#3d3a52" : "#ffffff"}
+                />
+                <Text
+                  style={[
+                    styles.webAuthButtonText,
+                    isSignedIn && styles.webAccountButtonText,
+                  ]}
+                >
+                  {isSignedIn ? "Account" : "Sign in"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <LanguageModal
+            visible={languageVisible}
+            onClose={() => setLanguageVisible(false)}
+          />
+
+          <ProfileModal
+            visible={profileVisible}
+            onClose={() => setProfileVisible(false)}
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -103,6 +190,103 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#5a5680",
+  },
+  webContainer: {
+    marginTop: 0,
+    paddingHorizontal: 32,
+    paddingVertical: 10,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74, 105, 189, 0.18)",
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    zIndex: 20,
+  },
+  webInner: {
+    width: "100%",
+    maxWidth: 1280,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  webBrand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  webBrandMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#3d3a52",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.28)",
+  },
+  webBrandIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+  },
+  webAppName: {
+    color: "#1f2433",
+    fontSize: 19,
+    fontWeight: "800",
+    lineHeight: 20,
+  },
+  webAppSubname: {
+    color: "#6f7890",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 14,
+    textTransform: "uppercase",
+    letterSpacing: 1.6,
+  },
+  webActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  webFlagButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f7f9ff",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.24)",
+  },
+  webFlagText: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  webAuthButton: {
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: "#3d3a52",
+    borderWidth: 1,
+    borderColor: "#3d3a52",
+  },
+  webAccountButton: {
+    backgroundColor: "#f7f9ff",
+    borderColor: "rgba(74, 105, 189, 0.26)",
+  },
+  webAuthButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  webAccountButtonText: {
+    color: "#3d3a52",
   },
 });
 

@@ -4,8 +4,9 @@ import {
   View,
   Text,
   ScrollView,
-  Dimensions,
   ActivityIndicator,
+  Platform,
+  useWindowDimensions,
 } from "react-native";
 import { RootState, Video } from "../../types";
 import {
@@ -26,10 +27,25 @@ import ChannelHeader from "./ChannelHeader";
 import FilterVideos from "./FilterVideos";
 import WelcomeModal from "../common/WelcomeModal";
 
-const VideoList: React.FC = () => {
+interface VideoListProps {
+  routeChannelId?: string | null;
+  onNavigateHome?: () => void;
+  onNavigateChannel?: (channelId: string) => void;
+  onNavigateVideo?: (videoId: string) => void;
+}
+
+const VideoList: React.FC<VideoListProps> = ({
+  routeChannelId = null,
+  onNavigateHome,
+  onNavigateChannel,
+  onNavigateVideo,
+}) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
   const { userId } = useAuth();
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === "web";
+  const isWebScreen = Platform.OS === "web" && width >= 850;
   const [loadingVideo, setLoadingVideo] = useState(false);
   const selectedChannelId = useSelector(
     (state: RootState) => state.selectedChannelId,
@@ -40,8 +56,9 @@ const VideoList: React.FC = () => {
   const isSearching = useSelector((state: RootState) => state.isSearching);
   const hasSearched = useSelector((state: RootState) => state.hasSearched);
   const allChannels = useSelector((state: RootState) => state.allChannels);
+  const effectiveChannelId = isWeb ? routeChannelId : selectedChannelId;
   const selectedChannel =
-    allChannels.find((c) => c.channel_id === selectedChannelId) ?? null;
+    allChannels.find((c) => c.channel_id === effectiveChannelId) ?? null;
   const allTopics = useSelector((state: RootState) => state.allTopics);
   const channelTopics = useSelector((state: RootState) => state.channelTopics);
   const allVideos = useSelector((state: RootState) => state.allVideos);
@@ -102,6 +119,16 @@ const VideoList: React.FC = () => {
     recordId: string,
     clip?: number,
   ) => {
+    if (isWeb && onNavigateVideo) {
+      const selectedVideo = allVideos.find(
+        (video) => video.id === recordId || video.video_id === videoId,
+      );
+      if (selectedVideo) {
+        onNavigateVideo(selectedVideo.video_id);
+      }
+      return;
+    }
+
     setLoadingVideo(true);
     try {
       const { videoContext, videoView } = await fetchVideoContext({
@@ -116,6 +143,7 @@ const VideoList: React.FC = () => {
         dispatch(addUserVideoView(videoView));
       }
       dispatch(setCurrentVideo(videoContext));
+      dispatch(setSelectedChannelId(null));
 
       // Persist video selection to user_ui_state
       if (supabase && userId) {
@@ -139,6 +167,15 @@ const VideoList: React.FC = () => {
 
   const handleDismissWelcome = () => {
     setIsWelcomeModalOpen(false);
+  };
+
+  const handleChannelPress = (channelId: string) => {
+    if (isWeb && onNavigateChannel) {
+      onNavigateChannel(channelId);
+      return;
+    }
+
+    dispatch(setSelectedChannelId(channelId));
   };
 
   const recentlyWatchedVideos = userId
@@ -175,7 +212,13 @@ const VideoList: React.FC = () => {
         videos={channelVideos}
         handleWatchPress={handleWatchPress}
         loadingVideo={loadingVideo}
-        onBack={() => dispatch(setSelectedChannelId(null))}
+        onBack={() => {
+          if (isWeb) {
+            onNavigateHome?.();
+          } else {
+            dispatch(setSelectedChannelId(null));
+          }
+        }}
       />
     );
   }
@@ -195,8 +238,13 @@ const VideoList: React.FC = () => {
     );
   }
   return (
-    <View style={styles.outerContainer}>
-      <ScrollView style={styles.container}>
+    <View
+      style={[styles.outerContainer, isWebScreen && styles.webOuterContainer]}
+    >
+      <ScrollView
+        style={[styles.container, isWebScreen && styles.webContainer]}
+        contentContainerStyle={isWebScreen && styles.webContentContainer}
+      >
         {isSearching && (
           <View style={styles.searchStatus}>
             <ActivityIndicator size="small" color="#999" />
@@ -297,7 +345,9 @@ const VideoList: React.FC = () => {
                     .filter((video) => video.channel_id === channel.channel_id)
                     .sort(
                       (a, b) =>
-                        new Date(b.release_date ?? b.created_at ?? 0).getTime() -
+                        new Date(
+                          b.release_date ?? b.created_at ?? 0,
+                        ).getTime() -
                         new Date(a.release_date ?? a.created_at ?? 0).getTime(),
                     );
                   return (
@@ -305,18 +355,14 @@ const VideoList: React.FC = () => {
                       <ChannelHeader
                         channel={channel}
                         videoCount={channelVideos.length}
-                        onPress={() =>
-                          dispatch(setSelectedChannelId(channel.channel_id))
-                        }
+                        onPress={() => handleChannelPress(channel.channel_id)}
                       />
 
                       <HorizontalVideoScroll
                         videos={channelVideos}
                         handleWatchPress={handleWatchPress}
                         loadingVideo={loadingVideo}
-                        onViewAll={() =>
-                          dispatch(setSelectedChannelId(channel.channel_id))
-                        }
+                        onViewAll={() => handleChannelPress(channel.channel_id)}
                       />
                     </View>
                   );
@@ -334,12 +380,13 @@ const VideoList: React.FC = () => {
   );
 };
 
-const { width: screenWidth } = Dimensions.get("window");
-
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
     backgroundColor: "white",
+  },
+  webOuterContainer: {
+    backgroundColor: "#f6f8fc",
   },
   tabBar: {
     flexDirection: "row",
@@ -375,6 +422,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "white",
     paddingHorizontal: 0,
+  },
+  webContainer: {
+    backgroundColor: "#f6f8fc",
+  },
+  webContentContainer: {
+    width: "100%",
+    maxWidth: 1320,
+    alignSelf: "center",
+    paddingTop: 20,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 32,

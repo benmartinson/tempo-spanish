@@ -12,6 +12,7 @@ import { Sentence } from "../../types";
 export interface YouTubePlayerHandle {
   pause: () => void;
   play: () => void;
+  togglePlayback: () => void;
   seekTo: (time: number) => void;
   seekAndPlay: (time: number) => void;
   setClip: (start: number, end?: number) => void;
@@ -330,6 +331,15 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
         }
         webViewRef.current?.injectJavaScript(
           `try { if(typeof player !== 'undefined') player.playVideo(); } catch(e) {} true;`,
+        );
+      },
+      togglePlayback: () => {
+        if (isWeb) {
+          postWebCommand("TOGGLE_PLAYBACK");
+          return;
+        }
+        webViewRef.current?.injectJavaScript(
+          `try { if(typeof player !== 'undefined') { var state = player.getPlayerState && player.getPlayerState(); if(state === 1 || state === 3) player.pauseVideo(); else player.playVideo(); } } catch(e) {} true;`,
         );
       },
       seekTo: (time: number) => {

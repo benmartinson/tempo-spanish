@@ -44,8 +44,17 @@ const NavTabBanner: React.FC = () => {
   }
 
   const isWebScreen = Platform.OS === "web" && width >= 850;
+  const isWeb = Platform.OS === "web";
 
-  const handleBackPress = async () => {
+  const navigateToMainApp = (params: { channelId?: string } = {}) => {
+    navigation.navigate({
+      name: "MainApp",
+      params,
+      merge: false,
+    });
+  };
+
+  const leaveVideo = async (params: { channelId?: string } = {}) => {
     if (supabase && currentVideo?.videoViewId) {
       saveLastSentenceWatched({
         supabase,
@@ -54,16 +63,28 @@ const NavTabBanner: React.FC = () => {
       });
     }
 
-    dispatch(setCurrentVideo(null));
     persistVideoUnselection({ supabase, userId });
+    if (isWeb) {
+      navigateToMainApp(params);
+      return;
+    }
+
+    dispatch(setCurrentVideo(null));
+    if (params.channelId) {
+      dispatch(setSelectedChannelId(params.channelId));
+    }
+  };
+
+  const handleBackPress = () => {
+    leaveVideo();
   };
 
   const handleSeeAllVideos = async () => {
     setInsightsOpen(false);
-    if (video?.channel_id) {
+    if (!isWeb && video?.channel_id) {
       dispatch(setSelectedChannelId(video.channel_id));
     }
-    await handleBackPress();
+    await leaveVideo(video?.channel_id ? { channelId: video.channel_id } : {});
   };
 
   return (
@@ -133,6 +154,16 @@ const styles = StyleSheet.create({
   },
   webContainer: {
     marginTop: 0,
+    minHeight: 59,
+    paddingHorizontal: 32,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74, 105, 189, 0.18)",
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    zIndex: 20,
   },
   backButton: {
     width: 36,

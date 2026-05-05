@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
   Text,
   Image,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 import { useSelector } from "react-redux";
 import { Channel, RootState } from "../../types";
@@ -22,6 +23,14 @@ const difficultyColor = (difficulty: string): string => {
     default:
       return "#6b7280"; // neutral gray fallback
   }
+};
+
+const webChannelThumbnailStyle: React.CSSProperties = {
+  width: 100,
+  height: 100,
+  borderRadius: 100,
+  marginRight: 10,
+  objectFit: "cover",
 };
 
 interface ChannelHeaderProps {
@@ -42,8 +51,13 @@ const ChannelHeader: React.FC<ChannelHeaderProps> = ({
   onPress,
   countLabel = "videos available",
 }) => {
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const allTopics = useSelector((state: RootState) => state.allTopics);
   const channelTopics = useSelector((state: RootState) => state.channelTopics);
+
+  useEffect(() => {
+    setThumbnailFailed(false);
+  }, [channel.thumbnail_url]);
 
   const topicNames = channelTopics
     .filter((ct) => ct.channel_id === channel.id)
@@ -51,12 +65,28 @@ const ChannelHeader: React.FC<ChannelHeaderProps> = ({
     .map((id) => allTopics.find((t) => t.id === id)?.description)
     .filter(Boolean) as string[];
 
+  const thumbnail =
+    !!channel.thumbnail_url && !thumbnailFailed ? (
+      Platform.OS === "web" ? (
+        React.createElement("img", {
+          src: channel.thumbnail_url,
+          alt: `${channel.title} thumbnail`,
+          referrerPolicy: "no-referrer",
+          style: webChannelThumbnailStyle,
+          onError: () => setThumbnailFailed(true),
+        })
+      ) : (
+        <Image
+          source={{ uri: channel.thumbnail_url }}
+          style={styles.channelThumbnail}
+          onError={() => setThumbnailFailed(true)}
+        />
+      )
+    ) : null;
+
   const content = (
     <>
-      <Image
-        source={{ uri: channel.thumbnail_url }}
-        style={styles.channelThumbnail}
-      />
+      {thumbnail}
       <View style={styles.channelInfo}>
         <Text style={styles.channelTitle}>{channel.title}</Text>
         <View style={styles.channelBadges}>
