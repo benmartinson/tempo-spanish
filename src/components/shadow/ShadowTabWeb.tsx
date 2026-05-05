@@ -5,7 +5,6 @@ import { ShadowTabLayoutProps } from "./ShadowTabLayoutTypes";
 const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
   styles,
   errorBanner,
-  countdownTimer,
   streamBanner,
   memorizeContent,
   settingsButtons,
@@ -26,7 +25,6 @@ const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
           </View>
         )}
         {errorBanner}
-        {countdownTimer}
         <View style={styles.transcriptContainer}>
           {streamBanner}
           <View style={styles.webPracticeLayout}>

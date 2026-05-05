@@ -19,6 +19,7 @@ interface PlayerControlsProps {
   sentenceIndex?: number;
   onBeforeAction?: () => Promise<void>;
   containerStyle?: StyleProp<ViewStyle>;
+  compact?: boolean;
 }
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -32,20 +33,37 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   sentenceIndex,
   onBeforeAction,
   containerStyle,
+  compact = false,
 }) => {
+  const iconSize = compact ? 18 : 24;
+
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View
+      style={[
+        styles.container,
+        compact && styles.containerCompact,
+        containerStyle,
+      ]}
+    >
       <TouchableOpacity
-        style={[styles.button, styles.buttonLeft]}
+        style={[
+          styles.button,
+          compact && styles.buttonCompact,
+          styles.buttonLeft,
+        ]}
         onPress={onReplay}
       >
-        <MaterialIcons name="replay" size={24} color="black" />
+        <MaterialIcons name="replay" size={iconSize} color="black" />
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.button, styles.buttonMiddle]}
+        style={[
+          styles.button,
+          compact && styles.buttonCompact,
+          styles.buttonMiddle,
+        ]}
         onPress={onReplaySlow}
       >
-        <MaterialIcons name="slow-motion-video" size={24} color="black" />
+        <MaterialIcons name="slow-motion-video" size={iconSize} color="black" />
       </TouchableOpacity>
       {/* <TouchableOpacity
         style={[styles.button, styles.buttonRight]}
@@ -65,6 +83,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
       <TouchableOpacity
         style={[
           styles.button,
+          compact && styles.buttonCompact,
           styles.buttonMiddle,
           playDisabled && { opacity: 0.4 },
         ]}
@@ -73,7 +92,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
       >
         <MaterialIcons
           name={isPlaying ? "pause" : "play-arrow"}
-          size={24}
+          size={iconSize}
           color={playDisabled && !isPlaying ? "#ccc" : "black"}
         />
       </TouchableOpacity>
@@ -93,10 +112,17 @@ const styles = StyleSheet.create({
     borderColor: "#d0d8f0",
     borderRadius: 24,
   },
+  containerCompact: {
+    borderRadius: 16,
+  },
   button: {
     alignItems: "center",
     paddingVertical: 16,
     paddingHorizontal: 16,
+  },
+  buttonCompact: {
+    paddingVertical: 7,
+    paddingHorizontal: 10,
   },
   buttonLeft: {
     borderTopLeftRadius: 24,

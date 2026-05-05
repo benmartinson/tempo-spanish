@@ -107,7 +107,7 @@ interface ShadowTabProps {
   playerIsPlaying: boolean;
   isLoadingInsights: boolean;
   orderedCharacters: string[];
-  sentenceTranslation: { index: number; text: string } | null;
+  sentenceTranslation: { index: number; text: string | null } | null;
   autoShadowDetails?: AutoShadowDetails | null;
   onAutoShadowHandled?: () => void;
   mutePlayer: () => void;
@@ -116,6 +116,7 @@ interface ShadowTabProps {
   setShadowMode: (mode: "shadow" | "stream") => void;
   setAutoplay: (autoplay: boolean) => void;
   isPlayerFullscreen?: boolean;
+  onRequestSentenceTranslation?: () => void | Promise<void>;
 }
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -145,6 +146,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   setShadowMode,
   setAutoplay,
   isPlayerFullscreen = false,
+  onRequestSentenceTranslation,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
   const isWebScreen = Platform.OS === "web" && windowWidth >= 850;
@@ -1199,7 +1201,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     sentenceTranslation?.index === currentSentenceIndex
       ? sentenceTranslation.text
       : null;
-  const playerControlsElement = (
+  const renderPlayerControlsElement = (compact = false) => (
     <PlayerControls
       onReplay={() => handlePlaySnippetAgain()}
       onReplaySlow={handlePlaySnippetSlow}
@@ -1214,8 +1216,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       sentenceIndex={currentSentenceIndex}
       onBeforeAction={stopListening}
       containerStyle={isWebScreen ? styles.webPlayerControls : undefined}
+      compact={compact}
     />
   );
+  const playerControlsElement = renderPlayerControlsElement();
+  const webCompactPlayerControlsElement = isWebScreen
+    ? renderPlayerControlsElement(true)
+    : undefined;
   const settingsButtonsElement = (
     <ShadowSettingsButtons
       mode={shadowMode}
@@ -1256,18 +1263,26 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       handleEnterRecordingMode();
     }
   };
-  const webRecordingControlsElement =
+  const renderWebRecordingControlsElement = (compact = false) =>
     !accuracyResult && !isProcessing ? (
-      <View style={styles.webRecordingControlsRow}>
+      <View
+        style={[
+          styles.webRecordingControlsRow,
+          compact && styles.webRecordingControlsRowCompact,
+        ]}
+      >
         {!!previousResults && (
           <TouchableOpacity
-            style={styles.webPreviousResultsButton}
+            style={[
+              styles.webPreviousResultsButton,
+              compact && styles.webPreviousResultsButtonCompact,
+            ]}
             onPress={handlePreviousResults}
             disabled={isPlayingRecording}
           >
             <Foundation
               name="clipboard-notes"
-              size={30}
+              size={compact ? 21 : 30}
               color={isPlayingRecording ? "#9aa4ba" : "#4a69bd"}
             />
           </TouchableOpacity>
@@ -1278,9 +1293,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           onMic={handleRecordingMicPress}
           disabled={!hasPermission || isProcessing}
           showContainer={false}
+          compact={compact}
         />
       </View>
     ) : null;
+  const webRecordingControlsElement = renderWebRecordingControlsElement();
+  const webCompactRecordingControlsElement = isWebScreen
+    ? renderWebRecordingControlsElement(true)
+    : undefined;
   const sentenceNavElement = (
     <NavSwitcher
       onPrev={() => handleShadowPreviousSentence()}
@@ -1293,6 +1313,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       recordId={currentVideo.recordId}
       style={isWebScreen ? styles.webPanelSentenceNavSwitcher : undefined}
       showSearchIcon={!isWebScreen}
+      compact={isWebScreen}
     >
       <Text style={styles.segmentNavText}>
         Segment {currentSentenceIndex + 1} of {currentVideo.sentences.length}
@@ -1332,10 +1353,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         onStartRecording={handleActualStartRecording}
         onStopRecording={handleSubmitRecording}
         bufferDuration={3}
-        onTrash={() => {
-          handleTrashRecording(true);
-          handleResetAnswer();
-        }}
+        onTrash={
+          isWebScreen
+            ? null
+            : () => {
+                handleTrashRecording(true);
+                handleResetAnswer();
+              }
+        }
         maxRecordingDuration={getSegmentDuration(
           currentSentenceObject.start,
           currentSentenceObject.end,
@@ -1405,13 +1430,19 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       webRecordingControls={
         isWebScreen ? webRecordingControlsElement : undefined
       }
+      webWidePlayerControls={webCompactPlayerControlsElement}
+      webWideRecordingControls={webCompactRecordingControlsElement}
       webSentenceNav={isWebScreen ? sentenceNavElement : undefined}
+      webCountdownTimer={isWebScreen ? countdownTimerElement : undefined}
       webStatusContent={isWebScreen ? statusContentElement : undefined}
       webPlayRecordingButton={
         isWebScreen ? playRecordingButtonElement : undefined
       }
       translationText={isWebScreen ? currentSentenceTranslationText : null}
       isLoadingTranslation={isWebScreen ? isLoadingInsights : false}
+      onRequestTranslation={
+        isWebScreen ? onRequestSentenceTranslation : undefined
+      }
     />
   );
   const streamBannerElement =
@@ -1663,7 +1694,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     styles,
     errorBanner: errorBannerElement,
     mobileControls: mobileControlsElement,
-    countdownTimer: countdownTimerElement,
+    countdownTimer: isWebScreen ? null : countdownTimerElement,
     statusContent: statusContentElement,
     playRecordingButton: playRecordingButtonElement,
     streamBanner: streamBannerElement,
@@ -1727,7 +1758,8 @@ export const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   webPlayerControls: {
-    alignSelf: "flex-start",
+    alignSelf: "auto",
+    flexWrap: "nowrap",
   },
   webRecordingControlsRow: {
     flexDirection: "row",
@@ -1736,6 +1768,9 @@ export const styles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 12,
     maxWidth: "100%",
+  },
+  webRecordingControlsRowCompact: {
+    gap: 8,
   },
   webPreviousResultsButton: {
     width: 42,
@@ -1747,12 +1782,17 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(74,105,189,0.18)",
   },
+  webPreviousResultsButtonCompact: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
   webPanelSentenceNavSwitcher: {
     width: "100%",
     backgroundColor: "#f7f9ff",
     borderBottomWidth: 0,
-    paddingTop: 6,
-    paddingBottom: 2,
+    paddingTop: 2,
+    paddingBottom: 0,
   },
   webStatusOverlay: {
     position: "fixed" as any,

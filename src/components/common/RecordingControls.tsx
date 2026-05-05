@@ -9,6 +9,7 @@ interface RecordingControlsProps {
   disabled?: boolean;
   showContainer?: boolean;
   hideTrash?: boolean;
+  compact?: boolean;
 }
 
 const RecordingControls: React.FC<RecordingControlsProps> = ({
@@ -18,13 +19,22 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   disabled = false,
   showContainer = true,
   hideTrash = false,
+  compact = false,
 }) => {
+  const iconSize = compact ? 16 : 22;
+
   return (
-    <View style={showContainer ? styles.inputArea : styles.buttonsOnly}>
+    <View
+      style={[
+        showContainer ? styles.inputArea : styles.buttonsOnly,
+        compact && styles.buttonsCompact,
+      ]}
+    >
       {!hideTrash && (
         <TouchableOpacity
           style={[
             styles.trashButton,
+            compact && styles.controlButtonCompact,
             { backgroundColor: isRecording ? "white" : "#f0f0f0" },
           ]}
           onPress={onTrash}
@@ -32,7 +42,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
         >
           <FontAwesome
             name="trash-o"
-            size={22}
+            size={iconSize}
             color={isRecording ? "red" : "#aaa"}
           />
         </TouchableOpacity>
@@ -40,6 +50,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       <TouchableOpacity
         style={[
           styles.micButton,
+          compact && styles.controlButtonCompact,
           disabled && styles.micButtonDisabled,
           isRecording && styles.sendButton,
         ]}
@@ -49,7 +60,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
       >
         <MaterialIcons
           name={isRecording ? "send" : "mic"}
-          size={22}
+          size={iconSize}
           color={disabled ? "#ccc" : isRecording ? "#fff" : "red"}
         />
       </TouchableOpacity>
@@ -101,6 +112,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 24,
+  },
+  buttonsCompact: {
+    gap: 10,
+  },
+  controlButtonCompact: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
   },
 });
 

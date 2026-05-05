@@ -157,7 +157,7 @@ const SelectedVideoPage: React.FC = () => {
   const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
   const [sentenceTranslation, setSentenceTranslation] = useState<{
     index: number;
-    text: string;
+    text: string | null;
   } | null>(null);
   const insightsRequestRef = useRef(0);
 
@@ -208,6 +208,8 @@ const SelectedVideoPage: React.FC = () => {
   const loadTranslationInsights = useCallback(async () => {
     if (!currentSentenceObject?.text || !supabase || !currentVideo) {
       setOrderedCharacters([]);
+      setSentenceTranslation(null);
+      setIsLoadingInsights(false);
       return;
     }
 
@@ -689,6 +691,7 @@ const SelectedVideoPage: React.FC = () => {
           setShadowMode={setShadowMode}
           setAutoplay={setAutoplay}
           isPlayerFullscreen={isWebScreen && isAppFullscreen}
+          onRequestSentenceTranslation={loadTranslationInsights}
         />
       </View>
       {isWebScreen && showVideo && isAppFullscreen && (

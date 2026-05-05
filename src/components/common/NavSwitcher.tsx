@@ -26,6 +26,7 @@ type NavSwitcherProps = {
   hasSearch?: boolean;
   style?: StyleProp<ViewStyle>;
   showSearchIcon?: boolean;
+  compact?: boolean;
 };
 
 const NavSwitcher: React.FC<NavSwitcherProps> = ({
@@ -41,6 +42,7 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
   hasSearch = true,
   style,
   showSearchIcon = true,
+  compact = false,
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [nextAvailableShadow, setNextAvailableShadow] = useState<number | null>(
@@ -90,17 +92,23 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
     }
   };
 
+  const navIconSize = compact ? 18 : 24;
+
   return (
-    <View style={[styles.navHeader, style]}>
+    <View style={[styles.navHeader, compact && styles.navHeaderCompact, style]}>
       <View style={[styles.navButtonGroup, styles.navButtonGroupLeft]}>
         {showJumpButton && !jumpIsForward && (
-          <TouchableOpacity style={styles.navButton} onPress={handleJump}>
-            <Feather name="chevrons-left" size={24} color="#007AFF" />
+          <TouchableOpacity
+            style={[styles.navButton, compact && styles.navButtonCompact]}
+            onPress={handleJump}
+          >
+            <Feather name="chevrons-left" size={navIconSize} color="#007AFF" />
           </TouchableOpacity>
         )}
         <TouchableOpacity
           style={[
             styles.navButton,
+            compact && styles.navButtonCompact,
             currentIndex === 0 && styles.navButtonDisabled,
           ]}
           onPress={onPrev}
@@ -108,7 +116,7 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
         >
           <MaterialIcons
             name="chevron-left"
-            size={24}
+            size={navIconSize}
             color={currentIndex === 0 ? "#ccc" : "#333"}
           />
         </TouchableOpacity>
@@ -121,13 +129,13 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
         >
           {showSearchIcon && (
             <View style={styles.hiddenSearchIconContainer}>
-              <MaterialIcons name="search" size={24} color="#333" />
+              <MaterialIcons name="search" size={navIconSize} color="#333" />
             </View>
           )}
           {children}
           {showSearchIcon && (
             <View style={styles.searchIconContainer}>
-              <MaterialIcons name="search" size={24} color="#333" />
+              <MaterialIcons name="search" size={navIconSize} color="#333" />
             </View>
           )}
         </TouchableOpacity>
@@ -139,6 +147,7 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
         <TouchableOpacity
           style={[
             styles.navButton,
+            compact && styles.navButtonCompact,
             currentIndex === totalItems - 1 && styles.navButtonDisabled,
           ]}
           onPress={onNext}
@@ -146,13 +155,16 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
         >
           <MaterialIcons
             name="chevron-right"
-            size={24}
+            size={navIconSize}
             color={currentIndex === totalItems - 1 ? "#ccc" : "#333"}
           />
         </TouchableOpacity>
         {showJumpButton && jumpIsForward && (
-          <TouchableOpacity style={styles.navButton} onPress={handleJump}>
-            <Feather name="chevrons-right" size={24} color="#007AFF" />
+          <TouchableOpacity
+            style={[styles.navButton, compact && styles.navButtonCompact]}
+            onPress={handleJump}
+          >
+            <Feather name="chevrons-right" size={navIconSize} color="#007AFF" />
           </TouchableOpacity>
         )}
       </View>
@@ -179,6 +191,9 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eee",
     backgroundColor: "#fafafa",
   },
+  navHeaderCompact: {
+    paddingVertical: 2,
+  },
   hiddenSearchIconContainer: {
     padding: 4,
     opacity: 0,
@@ -190,6 +205,10 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
     backgroundColor: "#f0f0f0",
+  },
+  navButtonCompact: {
+    padding: 3,
+    borderRadius: 6,
   },
   navButtonDisabled: {
     backgroundColor: "#f8f8f8",

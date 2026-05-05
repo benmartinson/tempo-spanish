@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { useWindowDimensions } from "react-native";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 interface DraggableWebPanelProps {
   children: ReactNode;
@@ -23,6 +24,8 @@ interface DraggableWebPanelProps {
 const clamp = (value: number, min: number, max: number) => {
   return Math.max(min, Math.min(value, max));
 };
+
+const BOTTOM_OVERHANG = 100;
 
 const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   children,
@@ -74,8 +77,8 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   }, []);
 
   const getMaxY = useCallback(() => {
-    if (!panelHeight) return Math.max(0, windowHeight - 60);
-    return Math.max(0, windowHeight - panelHeight - 8);
+    if (!panelHeight) return Math.max(0, windowHeight - 60 + BOTTOM_OVERHANG);
+    return Math.max(0, windowHeight - panelHeight - 8 + BOTTOM_OVERHANG);
   }, [panelHeight, windowHeight]);
 
   useEffect(() => {
@@ -282,6 +285,47 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
     ],
   );
 
+  const handleSnapRightMin = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setPanelWidth(minWidth);
+      applyPosition({
+        x: Math.max(0, windowWidth - minWidth),
+        y: clamp(positionRef.current.y, 0, getMaxY()),
+      });
+    },
+    [applyPosition, getMaxY, minWidth, windowWidth],
+  );
+
+  const handleSnapFullBottom = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const applyBottomPosition = () => {
+        const nextPanelHeight =
+          panelRef.current?.getBoundingClientRect().height ?? panelHeight;
+        applyPosition({
+          x: 0,
+          y: Math.max(0, windowHeight - nextPanelHeight - 8 + BOTTOM_OVERHANG),
+        });
+      };
+
+      setPanelWidth(windowWidth);
+      applyPosition({
+        x: 0,
+        y: getMaxY(),
+      });
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          applyBottomPosition();
+        });
+      });
+    },
+    [applyPosition, getMaxY, panelHeight, windowHeight, windowWidth],
+  );
+
   return React.createElement(
     "div",
     {
@@ -322,6 +366,77 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
         touchAction: "none",
       },
     }),
+    React.createElement(
+      "div",
+      {
+        style: {
+          position: "absolute",
+          top: 4,
+          right: 32,
+          zIndex: 4,
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          pointerEvents: "auto",
+        },
+      },
+      React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: handleSnapFullBottom,
+          title: "Expand to full width",
+          style: {
+            width: 14,
+            height: 14,
+            padding: 0,
+            border: 0,
+            background: "transparent",
+            appearance: "none",
+            boxSizing: "border-box",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 0,
+          },
+        },
+        React.createElement(MaterialCommunityIcons, {
+          name: "border-bottom-variant",
+          size: 14,
+          color: "rgba(74, 105, 189, 0.5)",
+          style: { lineHeight: 14 },
+        }),
+      ),
+      React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: handleSnapRightMin,
+          title: "Collapse to right",
+          style: {
+            width: 14,
+            height: 14,
+            padding: 0,
+            border: 0,
+            background: "transparent",
+            appearance: "none",
+            boxSizing: "border-box",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 0,
+          },
+        },
+        React.createElement(MaterialCommunityIcons, {
+          name: "border-right-variant",
+          size: 14,
+          color: "rgba(74, 105, 189, 0.5)",
+          style: { lineHeight: 14 },
+        }),
+      ),
+    ),
     dragHandle
       ? React.createElement(
           "div",

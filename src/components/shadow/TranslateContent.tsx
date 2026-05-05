@@ -88,7 +88,20 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
     );
   }
 
-  if (!translationText) return null;
+  if (!translationText) {
+    return (
+      <View
+        style={[
+          styles.translationUnavailableContainer,
+          variant === "webPanel" && styles.webPanelUnavailableContainer,
+        ]}
+      >
+        <Text style={styles.translationUnavailableText}>
+          Something went wrong fetching translation.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View
@@ -179,6 +192,24 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     color: "#666",
+  },
+  translationUnavailableContainer: {
+    padding: 16,
+    alignItems: "center" as const,
+  },
+  webPanelUnavailableContainer: {
+    minHeight: 58,
+    justifyContent: "center" as const,
+    backgroundColor: "#f0f4ff",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 105, 189, 0.14)",
+  },
+  translationUnavailableText: {
+    color: "#1f2937",
+    fontSize: 14,
+    fontWeight: "600",
+    opacity: 1,
+    textAlign: "center" as const,
   },
 });
 

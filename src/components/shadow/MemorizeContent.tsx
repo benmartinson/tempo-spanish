@@ -45,11 +45,15 @@ interface MemorizeContentProps {
   layout?: "default" | "webPlayer";
   webPlayerControls?: ReactNode;
   webRecordingControls?: ReactNode;
+  webWidePlayerControls?: ReactNode;
+  webWideRecordingControls?: ReactNode;
   webSentenceNav?: ReactNode;
+  webCountdownTimer?: ReactNode;
   webStatusContent?: ReactNode;
   webPlayRecordingButton?: ReactNode;
   translationText?: string | null;
   isLoadingTranslation?: boolean;
+  onRequestTranslation?: () => void | Promise<void>;
 }
 
 const MemorizeContent: React.FC<MemorizeContentProps> = ({
@@ -67,11 +71,15 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   layout = "default",
   webPlayerControls,
   webRecordingControls,
+  webWidePlayerControls,
+  webWideRecordingControls,
   webSentenceNav,
+  webCountdownTimer,
   webStatusContent,
   webPlayRecordingButton,
   translationText = null,
   isLoadingTranslation = false,
+  onRequestTranslation,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -121,6 +129,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
   const [hintLevels, setHintLevels] = useState<Record<number, number>>({});
   const [translationRevealed, setTranslationRevealed] = useState(false);
+  const [isRequestingTranslation, setIsRequestingTranslation] = useState(false);
   const [selectedReviewWord, setSelectedReviewWord] =
     useState<SegmentWord | null>(null);
   const [webPanelWidth, setWebPanelWidth] = useState(620);
@@ -155,6 +164,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     setHintLevels({});
     setManualOverride(null);
     setTranslationRevealed(false);
+    setIsRequestingTranslation(false);
     setSelectedReviewWord(null);
   }, [currentSentence.index]);
 
@@ -254,12 +264,29 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     />
   );
 
-  const shouldShowTranslationSection =
-    isLoadingTranslation || !!translationText;
   const shouldUseWidePanelHeader =
     layout === "webPlayer" && webPanelWidth >= 1000 && !webStatusContent;
+  const shouldStackWebPanelControls = webPanelWidth <= 350;
+  const webPanelHeaderContent = webCountdownTimer ?? webSentenceNav;
+  const handleRevealTranslation = useCallback(async () => {
+    setTranslationRevealed(true);
+    if (!translationText && !isLoadingTranslation && !isRequestingTranslation) {
+      setIsRequestingTranslation(true);
+      try {
+        await onRequestTranslation?.();
+      } finally {
+        setIsRequestingTranslation(false);
+      }
+    }
+  }, [
+    isLoadingTranslation,
+    isRequestingTranslation,
+    onRequestTranslation,
+    translationText,
+  ]);
+
   const webTranslationSection =
-    layout === "webPlayer" && shouldShowTranslationSection ? (
+    layout === "webPlayer" ? (
       <View style={styles.webTranslationContainer}>
         {!translationRevealed ? (
           <Pressable
@@ -267,7 +294,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
               styles.webTranslationDisclosure,
               styles.webTranslationDisclosureCollapsed,
             ]}
-            onPress={() => setTranslationRevealed(true)}
+            onPress={handleRevealTranslation}
           >
             <View style={styles.webTranslationDisclosureAction}>
               <Text style={styles.webTranslationDisclosureText}>
@@ -281,7 +308,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
             <TranslateContent
               translationText={translationText}
               sentenceText={currentSentence.text}
-              isLoading={isLoadingTranslation}
+              isLoading={isLoadingTranslation || isRequestingTranslation}
               time={time}
               playerIsPlaying={playerIsPlaying}
               segmentStart={currentSentence.start}
@@ -323,18 +350,22 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
           }
         >
           <View style={styles.webPanelShell}>
-            {shouldUseWidePanelHeader && webSentenceNav ? (
+            {shouldUseWidePanelHeader && webPanelHeaderContent ? (
               <View style={styles.webPanelWideHeader}>
-                <View style={styles.webPanelWideNav}>{webSentenceNav}</View>
+                <View style={styles.webPanelWideNav}>
+                  {webPanelHeaderContent}
+                </View>
                 <View style={styles.webPanelWidePlayerControls}>
-                  {webPlayerControls}
+                  {webWidePlayerControls ?? webPlayerControls}
                 </View>
                 <View style={styles.webPanelWideRecordingControls}>
-                  {webRecordingControls}
+                  {webWideRecordingControls ?? webRecordingControls}
                 </View>
               </View>
-            ) : webSentenceNav ? (
-              <View style={styles.webPanelSentenceNav}>{webSentenceNav}</View>
+            ) : webPanelHeaderContent ? (
+              <View style={styles.webPanelSentenceNav}>
+                {webPanelHeaderContent}
+              </View>
             ) : null}
             {webStatusContent && (
               <View style={styles.webPanelStatusContent}>
@@ -345,11 +376,29 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
             {!webStatusContent && (
               <>
                 {!shouldUseWidePanelHeader && (
-                  <View style={styles.webPanelHeader}>
-                    <View style={styles.webPanelHeaderLeft}>
+                  <View
+                    style={[
+                      styles.webPanelHeader,
+                      shouldStackWebPanelControls &&
+                        styles.webPanelHeaderStacked,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.webPanelHeaderLeft,
+                        shouldStackWebPanelControls &&
+                          styles.webPanelHeaderStackedRow,
+                      ]}
+                    >
                       {webPlayerControls}
                     </View>
-                    <View style={styles.webPanelHeaderRight}>
+                    <View
+                      style={[
+                        styles.webPanelHeaderRight,
+                        shouldStackWebPanelControls &&
+                          styles.webPanelHeaderStackedRow,
+                      ]}
+                    >
                       {webRecordingControls}
                     </View>
                   </View>
@@ -428,7 +477,7 @@ const styles = StyleSheet.create({
   },
   webPanelHeader: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
@@ -439,12 +488,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(74, 105, 189, 0.2)",
   },
+  webPanelHeaderStacked: {
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: 10,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
   webPanelSentenceNav: {
     width: "100%",
   },
   webPanelWideHeader: {
     position: "relative",
-    minHeight: 70,
+    minHeight: 40,
     backgroundColor: "#f7f9ff",
     borderBottomWidth: 1,
     borderBottomColor: "rgba(74, 105, 189, 0.2)",
@@ -452,22 +508,22 @@ const styles = StyleSheet.create({
   },
   webPanelWideNav: {
     width: "100%",
-    minHeight: 70,
+    minHeight: 40,
     justifyContent: "center",
   },
   webPanelWidePlayerControls: {
     position: "absolute",
     left: 62,
-    top: 6,
-    bottom: 6,
+    top: 4,
+    bottom: 4,
     zIndex: 2,
     justifyContent: "center",
   },
   webPanelWideRecordingControls: {
     position: "absolute",
     right: 62,
-    top: 6,
-    bottom: 6,
+    top: 4,
+    bottom: 4,
     zIndex: 2,
     justifyContent: "center",
   },
@@ -482,6 +538,11 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     minWidth: 0,
     maxWidth: "100%",
+  },
+  webPanelHeaderStackedRow: {
+    width: "100%",
+    alignItems: "center",
+    flex: 0,
   },
   webPanelDifficultyRow: {
     flexDirection: "row",
