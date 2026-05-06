@@ -26,6 +26,7 @@ import ChannelVideoList from "./ChannelVideoList";
 import ChannelHeader from "./ChannelHeader";
 import FilterVideos from "./FilterVideos";
 import WelcomeModal from "../common/WelcomeModal";
+import { isWebScreenWidth } from "../../helpers/helpers";
 
 interface VideoListProps {
   routeChannelId?: string | null;
@@ -45,7 +46,7 @@ const VideoList: React.FC<VideoListProps> = ({
   const { userId } = useAuth();
   const { width } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
-  const isWebScreen = Platform.OS === "web" && width >= 850;
+  const isWebScreen = isWebScreenWidth(width);
   const [loadingVideo, setLoadingVideo] = useState(false);
   const selectedChannelId = useSelector(
     (state: RootState) => state.selectedChannelId,

@@ -20,7 +20,8 @@ from typing import List
 from deep_translator import GoogleTranslator
 from dotenv import load_dotenv
 import httpx
-from fastapi import FastAPI, Depends, HTTPException
+import stripe
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
@@ -41,6 +42,18 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 # ElevenLabs configuration
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY) if ELEVENLABS_API_KEY else None
+
+APP_ENV = os.getenv("APP_ENV", "prod").lower()
+IS_DEV_ENV = APP_ENV == "dev"
+
+STRIPE_SECRET_KEY = (
+    os.getenv("DEV_STRIPE_SECRET_KEY") if IS_DEV_ENV else None
+) or os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = (
+    os.getenv("DEV_STRIPE_WEBHOOK_SECRET") if IS_DEV_ENV else None
+) or os.getenv("STRIPE_WEBHOOK_SECRET")
+if STRIPE_SECRET_KEY:
+    stripe.api_key = STRIPE_SECRET_KEY
 
 
 
@@ -483,10 +496,261 @@ CREDIT_AMOUNTS = {
     "tempo_credits_10000": 10000,
 }
 
+STRIPE_PRODUCTS = {
+    "tempo_credits_1000": {
+        "product_id": (
+            os.getenv("DEV_STRIPE_PRODUCT_TEMPO_CREDITS_1000")
+            if IS_DEV_ENV
+            else None
+        )
+        or ("prod_UT6y66FOIchjjh" if IS_DEV_ENV else "prod_UT5jIC5ggJsCcT"),
+        "unit_amount": 299,
+    },
+    "tempo_credits_5000": {
+        "product_id": (
+            os.getenv("DEV_STRIPE_PRODUCT_TEMPO_CREDITS_5000")
+            if IS_DEV_ENV
+            else None
+        )
+        or ("prod_UT6zGflC3ieXfb" if IS_DEV_ENV else "prod_UT5nHiAxqcDWhW"),
+        "unit_amount": 699,
+    },
+    "tempo_credits_10000": {
+        "product_id": (
+            os.getenv("DEV_STRIPE_PRODUCT_TEMPO_CREDITS_10000")
+            if IS_DEV_ENV
+            else None
+        )
+        or ("prod_UT6zcoeblaerlX" if IS_DEV_ENV else "prod_UT5plFmDQMXUsx"),
+        "unit_amount": 999,
+    },
+}
+
 
 class VerifyPurchaseRequest(BaseModel):
     purchase_token: str
     product_id: str
+
+
+class CreateCheckoutSessionRequest(BaseModel):
+    product_id: str
+    success_url: str
+    cancel_url: str
+
+
+def stripe_object_value(obj, key: str, default=None):
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+
+    try:
+        return obj[key]
+    except (KeyError, TypeError):
+        return default
+
+
+async def fetch_user_credits(user_id: str) -> int | None:
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        print("SUPABASE_SERVICE_ROLE_KEY is not configured")
+        raise HTTPException(status_code=500, detail="Credit service is not configured")
+
+    service_headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{SUPABASE_URL}/rest/v1/user_credits",
+            params={"user_id": f"eq.{user_id}", "select": "credits"},
+            headers=service_headers,
+        )
+
+    if response.status_code != 200:
+        print(f"Credit fetch failed: {response.status_code} - {response.text}")
+        raise HTTPException(status_code=500, detail="Failed to fetch credits")
+
+    rows = response.json()
+    if not rows:
+        return None
+
+    return rows[0]["credits"]
+
+
+@app.get("/api/user-credits")
+async def get_user_credits(user_id: str = Depends(verify_jwt)):
+    credits = await fetch_user_credits(user_id)
+    return {"credits": credits}
+
+
+async def grant_credits_for_transaction(
+    *,
+    transaction_id: str,
+    user_id: str,
+    product_id: str,
+    credits_to_add: int,
+    environment: str,
+) -> int | None:
+    """Record a purchase transaction and add credits once.
+
+    Returns the new balance, or None if the transaction was already processed.
+    """
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        print("SUPABASE_SERVICE_ROLE_KEY is not configured")
+        raise HTTPException(status_code=500, detail="Purchase service is not configured")
+
+    service_headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient() as client:
+        insert_response = await client.post(
+            f"{SUPABASE_URL}/rest/v1/iap_transactions",
+            headers={**service_headers, "Prefer": "return=minimal"},
+            json={
+                "transaction_id": transaction_id,
+                "user_id": user_id,
+                "product_id": product_id,
+                "environment": environment,
+                "credits_granted": credits_to_add,
+            },
+        )
+
+        if insert_response.status_code == 409:
+            return None
+        if insert_response.status_code not in (200, 201, 204):
+            print(
+                f"iap_transactions insert failed: "
+                f"{insert_response.status_code} - {insert_response.text}"
+            )
+            raise HTTPException(status_code=500, detail="Failed to record transaction")
+
+        response = await client.get(
+            f"{SUPABASE_URL}/rest/v1/user_credits",
+            params={"user_id": f"eq.{user_id}", "select": "credits"},
+            headers=service_headers,
+        )
+
+        if response.status_code != 200:
+            print(f"Credit fetch failed: {response.status_code} - {response.text}")
+            raise HTTPException(status_code=500, detail="Failed to verify credits")
+
+        rows = response.json()
+        if not rows:
+            raise HTTPException(status_code=404, detail="User credits not found")
+
+        current_credits = rows[0]["credits"]
+        new_credits = current_credits + credits_to_add
+
+        update_response = await client.patch(
+            f"{SUPABASE_URL}/rest/v1/user_credits",
+            params={"user_id": f"eq.{user_id}"},
+            headers={**service_headers, "Prefer": "return=minimal"},
+            json={"credits": new_credits},
+        )
+
+        if update_response.status_code not in (200, 204):
+            print(f"Credit update failed: {update_response.status_code} - {update_response.text}")
+            raise HTTPException(status_code=500, detail="Failed to add credits")
+
+    return new_credits
+
+
+@app.post("/api/create-checkout-session")
+async def create_checkout_session(
+    request: CreateCheckoutSessionRequest,
+    user_id: str = Depends(verify_jwt),
+):
+    credits_to_add = CREDIT_AMOUNTS.get(request.product_id)
+    stripe_product = STRIPE_PRODUCTS.get(request.product_id)
+
+    if not credits_to_add or not stripe_product:
+        raise HTTPException(status_code=400, detail="Invalid product")
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=500, detail="Stripe is not configured")
+
+    metadata = {
+        "user_id": user_id,
+        "product_id": request.product_id,
+        "credits": str(credits_to_add),
+    }
+
+    try:
+        session = await asyncio.to_thread(
+            stripe.checkout.Session.create,
+            mode="payment",
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product": stripe_product["product_id"],
+                        "unit_amount": stripe_product["unit_amount"],
+                    },
+                    "quantity": 1,
+                }
+            ],
+            success_url=request.success_url,
+            cancel_url=request.cancel_url,
+            client_reference_id=user_id,
+            metadata=metadata,
+            payment_intent_data={"metadata": metadata},
+        )
+        return {"url": session.url}
+    except Exception as e:
+        print(f"Stripe checkout session creation failed: {e}")
+        raise HTTPException(status_code=500, detail="Could not start checkout")
+
+
+@app.post("/api/stripe-webhook")
+async def stripe_webhook(request: Request):
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=500, detail="Stripe webhook is not configured")
+
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload,
+            signature,
+            STRIPE_WEBHOOK_SECRET,
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    if stripe_object_value(event, "type") == "checkout.session.completed":
+        event_data = stripe_object_value(event, "data", {})
+        session = stripe_object_value(event_data, "object", {})
+        payment_status = stripe_object_value(session, "payment_status")
+        session_id = stripe_object_value(session, "id")
+
+        if payment_status != "paid":
+            return {"received": True}
+
+        metadata = stripe_object_value(session, "metadata", {}) or {}
+        user_id = stripe_object_value(metadata, "user_id") or stripe_object_value(
+            session,
+            "client_reference_id",
+        )
+        product_id = stripe_object_value(metadata, "product_id")
+        credits_to_add = CREDIT_AMOUNTS.get(product_id)
+
+        if not session_id or not user_id or not product_id or not credits_to_add:
+            print(f"Stripe checkout session missing metadata: {session_id}")
+            raise HTTPException(status_code=400, detail="Missing checkout metadata")
+
+        await grant_credits_for_transaction(
+            transaction_id=f"stripe:{session_id}",
+            user_id=user_id,
+            product_id=product_id,
+            credits_to_add=credits_to_add,
+            environment="Stripe",
+        )
+
+    return {"received": True}
 
 
 @app.post("/api/verify-purchase")
@@ -526,71 +790,18 @@ async def verify_purchase(request: VerifyPurchaseRequest, user_id: str = Depends
     transaction_id = payload.transactionId
     environment = payload.environment.value if payload.environment else "Unknown"
 
-    service_headers = {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-        "Content-Type": "application/json",
-    }
-
     try:
-        async with httpx.AsyncClient() as client:
-            # Replay protection: insert the transactionId first. If it already
-            # exists, the unique constraint rejects the insert (PostgREST 409).
-            insert_response = await client.post(
-                f"{SUPABASE_URL}/rest/v1/iap_transactions",
-                headers={**service_headers, "Prefer": "return=minimal"},
-                json={
-                    "transaction_id": transaction_id,
-                    "user_id": user_id,
-                    "product_id": request.product_id,
-                    "environment": environment,
-                    "credits_granted": credits_to_add,
-                },
+        new_credits = await grant_credits_for_transaction(
+            transaction_id=transaction_id,
+            user_id=user_id,
+            product_id=request.product_id,
+            credits_to_add=credits_to_add,
+            environment=environment,
+        )
+        if new_credits is None:
+            raise HTTPException(
+                status_code=409, detail="Transaction already processed"
             )
-
-            if insert_response.status_code == 409:
-                raise HTTPException(
-                    status_code=409, detail="Transaction already processed"
-                )
-            if insert_response.status_code not in (200, 201, 204):
-                print(
-                    f"iap_transactions insert failed: "
-                    f"{insert_response.status_code} - {insert_response.text}"
-                )
-                raise HTTPException(
-                    status_code=500, detail="Failed to record transaction"
-                )
-
-            # Fetch current credits
-            response = await client.get(
-                f"{SUPABASE_URL}/rest/v1/user_credits",
-                params={"user_id": f"eq.{user_id}", "select": "credits"},
-                headers=service_headers,
-            )
-
-            if response.status_code != 200:
-                print(f"Credit fetch failed: {response.status_code} - {response.text}")
-                raise HTTPException(status_code=500, detail="Failed to verify credits")
-
-            rows = response.json()
-            if not rows:
-                raise HTTPException(status_code=404, detail="User credits not found")
-
-            current_credits = rows[0]["credits"]
-            new_credits = current_credits + credits_to_add
-
-            # Update credits using service role key (bypasses RLS)
-            update_response = await client.patch(
-                f"{SUPABASE_URL}/rest/v1/user_credits",
-                params={"user_id": f"eq.{user_id}"},
-                headers={**service_headers, "Prefer": "return=minimal"},
-                json={"credits": new_credits},
-            )
-
-            if update_response.status_code not in (200, 204):
-                print(f"Credit update failed: {update_response.status_code} - {update_response.text}")
-                raise HTTPException(status_code=500, detail="Failed to add credits")
-
         return {"credits": new_credits, "status": "complete"}
 
     except HTTPException:

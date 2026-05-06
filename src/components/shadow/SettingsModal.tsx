@@ -34,7 +34,7 @@ const SettingRow: React.FC<{
   onToggle: (val: boolean) => void;
   isLast?: boolean;
 }> = ({ label, value, onToggle, isLast = false }) => (
-  <View style={[rowStyles.row, !isLast && rowStyles.border]}>
+  <View style={[rowStyles.row]}>
     <Text style={rowStyles.label}>{label}</Text>
     <Switch
       value={value}

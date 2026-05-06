@@ -45,7 +45,12 @@ import {
 import { AccuracyResult, CachedResponse } from "../../types";
 import SettingsModal from "./SettingsModal";
 import CountdownTimer from "./CountdownTimer";
-import { capitalize, hasUnnaturalSpeechTiming } from "../../helpers/helpers";
+import {
+  capitalize,
+  computeSubSegments,
+  hasUnnaturalSpeechTiming,
+  isWebScreenWidth,
+} from "../../helpers/helpers";
 import ShadowResults from "./ShadowResults";
 import TooltipModal from "../common/TooltipModal";
 import NavSwitcher from "../common/NavSwitcher";
@@ -68,7 +73,6 @@ import PlayerControls from "./PlayerControls";
 import VoiceCommands from "./VoiceCommands";
 import { useCachedAudio } from "../../hooks/useCachedAudio";
 import { useVoiceCommand } from "../../hooks/useVoiceCommand";
-import { computeSubSegments } from "../../helpers/helpers";
 import {
   setCurrentSentence,
   updateFocusVocabTranslation,
@@ -141,7 +145,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   onRequestSentenceTranslation,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
-  const isWebScreen = Platform.OS === "web" && windowWidth >= 850;
+  const isWebScreen = isWebScreenWidth(windowWidth);
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);

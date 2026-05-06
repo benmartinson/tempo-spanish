@@ -12,7 +12,11 @@ import {
   VideoContext,
   AccuracyResult,
 } from "../types";
+import { Platform } from "react-native";
 import { levenshtein } from "./calculate_accuracy";
+
+export const isWebScreenWidth = (width: number): boolean =>
+  Platform.OS === "web" && width >= 1050;
 
 export const formatTimestamp = (seconds: number): string => {
   const hrs = Math.floor(seconds / 3600);
@@ -452,10 +456,7 @@ const wordEndsWithSpecialCase = (word: string) =>
  * leading lowercase / trailing comma into ellipses to signal that the
  * sentence continues outside the visible segment.
  */
-export const getDisplayWord = (
-  words: SegmentWord[],
-  index: number,
-): string => {
+export const getDisplayWord = (words: SegmentWord[], index: number): string => {
   const word = words[index];
   const nextWord = words[index + 1]?.word;
   let displayWord = wordEndsWithSpecialCase(word.word)

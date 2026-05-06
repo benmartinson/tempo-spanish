@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Platform,
   useWindowDimensions,
   Image,
 } from "react-native";
@@ -17,6 +16,7 @@ import { useSelector } from "react-redux";
 import LanguageModal from "./settings/LanguageModal";
 import ProfileModal from "./ProfileModal";
 import { RootState } from "../types";
+import { isWebScreenWidth } from "../helpers/helpers";
 
 export const getFlagForLanguage = (language: string): string => {
   switch (language) {
@@ -34,7 +34,7 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
   const { isSignedIn } = useAuth();
   const navigation = useNavigation<any>();
   const { width } = useWindowDimensions();
-  const isWebScreen = Platform.OS === "web" && width >= 850;
+  const isWebScreen = isWebScreenWidth(width);
   const targetLanguage = useSelector(
     (state: RootState) => state.userSettings.targetLanguage,
   );

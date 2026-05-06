@@ -46,6 +46,7 @@ import TopNavBar from "./src/components/TopNavBar";
 import VideoList from "./src/components/video-list/VideoList";
 import NavTabBanner from "./src/components/common/NavTabBanner";
 import SelectedVideoPage from "./src/components/common/SelectedVideoPage";
+import CreditStore from "./src/components/CreditStore";
 import Constants from "expo-constants";
 const tokenCache = clerkTokenCache
   ? {
@@ -73,6 +74,12 @@ if (!publishableKey) {
 }
 
 const Stack = createNativeStackNavigator();
+
+const CREDIT_PACK_CREDITS: Record<string, number> = {
+  tempo_credits_1000: 1000,
+  tempo_credits_5000: 5000,
+  tempo_credits_10000: 10000,
+};
 
 const linking: any = {
   prefixes: [],
@@ -130,6 +137,10 @@ const MainApp: React.FC = () => {
 
   const [isRestoringState, setIsRestoringState] = useState(true);
   const [isLoadingRouteVideo, setIsLoadingRouteVideo] = useState(false);
+  const [creditStoreVisible, setCreditStoreVisible] = useState(false);
+  const [checkoutSuccessCredits, setCheckoutSuccessCredits] = useState<
+    number | null
+  >(null);
 
   // Sync currentSentence changes to the database
   useUIStateSync();
@@ -171,6 +182,15 @@ const MainApp: React.FC = () => {
     loadAndCacheTTSResponses({ supabase: clerkSupabase, dispatch }).catch(
       (err) => console.error("Failed to load cached TTS responses:", err),
     );
+
+    const refreshCredits = async () => {
+      const credits = await fetchUserCredits({
+        supabase: clerkSupabase,
+        userId,
+      });
+      dispatch(setUserCredits(credits ?? 0));
+      return credits;
+    };
 
     // Fetch user's known vocabulary
     fetchUserKnownVocab({ supabase: clerkSupabase }).then((vocabIds) => {
@@ -218,18 +238,69 @@ const MainApp: React.FC = () => {
         dispatch(setCurrentVideo(videoContext));
       }
 
-      // Fetch user credits
-      const credits = await fetchUserCredits({
-        supabase: clerkSupabase,
-        userId,
-      });
-      dispatch(setUserCredits(credits ?? 0));
+      await refreshCredits();
 
       setIsRestoringState(false);
     };
 
     restoreState();
   }, [clerkSupabase, dispatch, userId]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || !clerkSupabase || !userId) return;
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    const checkoutStatus = url.searchParams.get("stripe_checkout");
+    if (!checkoutStatus) return;
+
+    const checkoutProductId = url.searchParams.get("stripe_product_id");
+    const purchasedCredits = checkoutProductId
+      ? (CREDIT_PACK_CREDITS[checkoutProductId] ?? null)
+      : null;
+
+    setCheckoutSuccessCredits(
+      checkoutStatus === "success" ? purchasedCredits : null,
+    );
+    setCreditStoreVisible(true);
+
+    url.searchParams.delete("stripe_checkout");
+    url.searchParams.delete("stripe_session_id");
+    url.searchParams.delete("stripe_product_id");
+    window.history.replaceState({}, "", url.toString());
+
+    if (checkoutStatus !== "success") return;
+
+    let cancelled = false;
+    const refreshCreditsAfterCheckout = async () => {
+      for (let attempt = 0; attempt < 5 && !cancelled; attempt++) {
+        const credits = await fetchUserCredits({
+          supabase: clerkSupabase,
+          userId,
+        });
+        if (credits != null) {
+          dispatch(setUserCredits(credits));
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    };
+
+    refreshCreditsAfterCheckout();
+    return () => {
+      cancelled = true;
+    };
+  }, [clerkSupabase, dispatch, userId]);
+
+  useEffect(() => {
+    if (!creditStoreVisible || checkoutSuccessCredits == null) return;
+
+    const timer = setTimeout(() => {
+      setCreditStoreVisible(false);
+      setCheckoutSuccessCredits(null);
+    }, 4500);
+
+    return () => clearTimeout(timer);
+  }, [creditStoreVisible, checkoutSuccessCredits]);
 
   useEffect(() => {
     if (Platform.OS !== "web" || isRestoringState) return;
@@ -362,6 +433,14 @@ const MainApp: React.FC = () => {
           onNavigateVideo={navigateVideo}
         />
       )}
+      <CreditStore
+        visible={creditStoreVisible}
+        onClose={() => {
+          setCreditStoreVisible(false);
+          setCheckoutSuccessCredits(null);
+        }}
+        checkoutSuccessCredits={checkoutSuccessCredits}
+      />
     </View>
   );
 };

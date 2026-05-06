@@ -15,7 +15,8 @@ const SlideModal: React.FC<{
   onRequestClose: () => void;
   children: React.ReactNode;
   title: string;
-}> = ({ visible, onRequestClose, children, title }) => {
+  noBorderRadius: boolean;
+}> = ({ visible, onRequestClose, children, title, noBorderRadius = false }) => {
   if (Platform.OS === "web") {
     return (
       <Modal
@@ -25,7 +26,7 @@ const SlideModal: React.FC<{
         onRequestClose={onRequestClose}
       >
         <View style={styles.webOverlay}>
-          <View style={styles.webCard}>
+          <View style={[styles.webCard, noBorderRadius && styles.noRadius]}>
             <View style={styles.webHeader}>
               <Text style={styles.webTitle}>{title}</Text>
               <TouchableOpacity
@@ -119,6 +120,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 28,
     elevation: 12,
+  },
+  noRadius: {
+    borderRadius: 0,
   },
   webHeader: {
     minHeight: 54,

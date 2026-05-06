@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux";
@@ -19,18 +20,27 @@ const CREDIT_PACKS = [
     credits: 1000,
     price: "$2.99",
     hours: "~4 hours of speaking practice",
+    name: "1,000 Tempo Credits",
+    description:
+      "About 4 hours of speaking practice for shadowing, transcription, and feedback.",
   },
   {
     id: "tempo_credits_5000",
     credits: 5000,
     price: "$6.99",
     hours: "~20 hours of speaking practice",
+    name: "5,000 Tempo Credits",
+    description:
+      "About 20 hours of speaking practice for steady language training.",
   },
   {
     id: "tempo_credits_10000",
     credits: 10000,
     price: "$9.99",
     hours: "~40 hours of speaking practice",
+    name: "10,000 Tempo Credits",
+    description:
+      "About 40 hours of speaking practice for extended language training.",
   },
 ];
 
@@ -46,9 +56,14 @@ interface IAPProduct {
 interface CreditStoreProps {
   visible: boolean;
   onClose: () => void;
+  checkoutSuccessCredits?: number | null;
 }
 
-const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
+const CreditStore: React.FC<CreditStoreProps> = ({
+  visible,
+  onClose,
+  checkoutSuccessCredits,
+}) => {
   const dispatch = useDispatch();
   const userCredits = useSelector((state: RootState) => state.userCredits);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,10 +78,11 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
   // IAP state (only used in real builds)
   const [iapProducts, setIapProducts] = useState<IAPProduct[]>([]);
   const [iapModule, setIapModule] = useState<any>(null);
+  const isWeb = Platform.OS === "web";
 
   // Dynamically load expo-iap only in real builds when modal is visible
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || isWeb) return;
 
     let purchaseUpdateSub: { remove: () => void } | undefined;
     let purchaseErrorSub: { remove: () => void } | undefined;
@@ -145,7 +161,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
       purchaseErrorSub?.remove();
       import("expo-iap").then((IAP) => IAP.endConnection()).catch(() => {});
     };
-  }, [visible]);
+  }, [visible, isWeb]);
 
   const handleIAPPurchase = async (productId: string) => {
     setErrorMessage(null);
@@ -170,14 +186,59 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
     }
   };
 
-  const renderIAPProducts = () => {
+  const getCheckoutReturnUrl = (
+    status: "success" | "cancel",
+    productId: string,
+  ) => {
+    if (typeof window === "undefined") return "";
+    const url = new URL(window.location.href);
+    url.searchParams.set("stripe_checkout", status);
+    url.searchParams.set("stripe_product_id", productId);
+    if (status === "success") {
+      url.searchParams.set("stripe_session_id", "{CHECKOUT_SESSION_ID}");
+    } else {
+      url.searchParams.delete("stripe_session_id");
+    }
+    return url.toString();
+  };
+
+  const handleStripePurchase = async (productId: string) => {
+    setErrorMessage(null);
+    setIsLoading(true);
+    try {
+      const response = await backendFetch("/api/create-checkout-session", {
+        method: "POST",
+        body: JSON.stringify({
+          product_id: productId,
+          success_url: getCheckoutReturnUrl("success", productId),
+          cancel_url: getCheckoutReturnUrl("cancel", productId),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`${response.status} ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      if (!data.url) throw new Error("Checkout URL missing");
+      window.location.assign(data.url);
+    } catch (err) {
+      console.error("Stripe checkout error:", err);
+      setErrorMessage("Could not start checkout");
+      setIsLoading(false);
+    }
+  };
+
+  const renderProducts = () => {
     return CREDIT_PACKS.map((pack) => {
       const product = iapProducts.find((p) => p.id === pack.id);
       return (
         <TouchableOpacity
           key={pack.id}
           style={styles.productRow}
-          onPress={() => handleIAPPurchase(pack.id)}
+          onPress={() =>
+            isWeb ? handleStripePurchase(pack.id) : handleIAPPurchase(pack.id)
+          }
           disabled={isLoading}
           activeOpacity={0.7}
         >
@@ -188,7 +249,7 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
             <Text style={styles.productHours}>{pack.hours}</Text>
           </View>
           <Text style={styles.productPrice}>
-            {product?.displayPrice ?? pack.price}
+            {isWeb ? pack.price : (product?.displayPrice ?? pack.price)}
           </Text>
         </TouchableOpacity>
       );
@@ -196,12 +257,26 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
   };
 
   return (
-    <SlideModal visible={visible} onRequestClose={onClose} title="Buy Credits">
+    <SlideModal
+      noBorderRadius={true}
+      visible={visible}
+      onRequestClose={onClose}
+      title="Buy Credits"
+    >
       <View style={styles.container}>
         <View style={styles.balanceCard}>
           <MaterialIcons name="token" size={32} color="#5a5680" />
           <Text style={styles.balanceLabel}>Current Balance</Text>
           <Text style={styles.balanceValue}>{userCredits} credits</Text>
+          {checkoutSuccessCredits != null && (
+            <View style={styles.successBanner}>
+              <MaterialIcons name="check-circle" size={18} color="#217a4b" />
+              <Text style={styles.successText}>
+                You successfully purchased{" "}
+                {checkoutSuccessCredits.toLocaleString()} credits
+              </Text>
+            </View>
+          )}
         </View>
 
         <Text style={styles.sectionHeader}>Credit Packs</Text>
@@ -213,14 +288,12 @@ const CreditStore: React.FC<CreditStoreProps> = ({ visible, onClose }) => {
           </View>
         )}
 
-        {renderIAPProducts()}
+        {renderProducts()}
 
         {isLoading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color="#4a69bd" />
-            <Text style={styles.loadingText}>
-              Processing purchase...
-            </Text>
+            <Text style={styles.loadingText}>Processing purchase...</Text>
           </View>
         )}
 
@@ -255,6 +328,23 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     color: "#1a1a2e",
+  },
+  successBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#eaf6ef",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+  successText: {
+    fontSize: 14,
+    color: "#217a4b",
+    fontWeight: "600",
+    textAlign: "center",
   },
   sectionHeader: {
     fontSize: 13,

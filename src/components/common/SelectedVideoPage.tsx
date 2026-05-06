@@ -35,7 +35,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import YouTubePlayer, { YouTubePlayerHandle } from "./YouTubePlayer";
 import ShadowTab from "../shadow/ShadowTab";
-import { stripPunctuation } from "../../helpers/helpers";
+import { isWebScreenWidth, stripPunctuation } from "../../helpers/helpers";
 import SlideModal from "./SlideModal";
 import WalkthroughModal from "./WalkthroughModal";
 import { setHasSeenWelcomeModals } from "../../store/actions/dataActions";
@@ -70,7 +70,7 @@ const SelectedVideoPage: React.FC = () => {
     useState<AutoShadowDetails | null>(null);
   const [playerMuted, setPlayerMuted] = useState(false);
   const [isAppFullscreen, setIsAppFullscreen] = useState(false);
-  const isWebScreen = Platform.OS === "web" && windowWidth >= 850;
+  const isWebScreen = isWebScreenWidth(windowWidth);
 
   // Refresh player when app returns from background
   useEffect(() => {

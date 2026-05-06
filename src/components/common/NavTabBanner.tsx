@@ -26,6 +26,7 @@ import {
 } from "../../requests";
 import VideoInsights from "./VideoInsights";
 import ProfileModal from "../ProfileModal";
+import { isWebScreenWidth } from "../../helpers/helpers";
 
 const NavTabBanner: React.FC = () => {
   const { width } = useWindowDimensions();
@@ -45,7 +46,7 @@ const NavTabBanner: React.FC = () => {
     return null;
   }
 
-  const isWebScreen = Platform.OS === "web" && width >= 850;
+  const isWebScreen = isWebScreenWidth(width);
   const isWeb = Platform.OS === "web";
 
   const navigateToMainApp = (params: { channelId?: string } = {}) => {

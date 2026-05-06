@@ -1,10 +1,5 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  Platform,
-  useWindowDimensions,
-} from "react-native";
+import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
+import { isWebScreenWidth } from "../../helpers/helpers";
 
 const VideoSectionHeader: React.FC<{
   title: string;
@@ -13,7 +8,7 @@ const VideoSectionHeader: React.FC<{
   children?: React.ReactNode;
 }> = ({ title, isFirst, removeBorderTop, children }) => {
   const { width } = useWindowDimensions();
-  const isWebScreen = Platform.OS === "web" && width >= 850;
+  const isWebScreen = isWebScreenWidth(width);
 
   return (
     <View
