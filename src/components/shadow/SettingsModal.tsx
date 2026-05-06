@@ -351,7 +351,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </>
         )}
 
-        {/* Insights */}
+        {/* Insights
         {!hideToggles && (
           <>
             <Text style={styles.sectionHeader}>INSIGHTS</Text>
@@ -374,7 +374,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </View>
           </>
-        )}
+        )} */}
       </ScrollView>
     </SlideModal>
   );

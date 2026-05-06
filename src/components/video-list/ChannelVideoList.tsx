@@ -144,7 +144,6 @@ const styles = StyleSheet.create({
   },
   webContentContainer: {
     width: "100%",
-    maxWidth: WEB_MAX_CONTENT_WIDTH,
     alignSelf: "center",
   },
   webListContent: {

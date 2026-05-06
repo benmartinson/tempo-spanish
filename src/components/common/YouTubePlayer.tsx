@@ -88,17 +88,43 @@ const getWebPlayerHtml = ({
       #playerShell {
         width: 100%;
         height: 100%;
+        overflow: hidden;
         background: #000;
+        pointer-events: none;
       }
       body.fullBleed #playerShell {
         width: 100%;
         height: 100%;
       }
-      #player,
-      #player iframe {
-        width: 100%;
-        height: 100%;
+      #player {
+        width: 100% !important;
+        height: 100% !important;
         display: block;
+      }
+      #playerShell iframe {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+      }
+      @media (max-width: 968px) {
+        #player {
+          width: 900% !important;
+          margin-left: -400%;
+        }
+        #playerShell iframe {
+          width: 900% !important;
+          margin-left: -400%;
+        }
+      }
+      @media (min-width: 969px) {
+        #player {
+          width: 300% !important;
+          margin-left: -100%;
+        }
+        #playerShell iframe {
+          width: 300% !important;
+          margin-left: -100%;
+        }
       }
     </style>
   </head>
@@ -157,11 +183,11 @@ const getWebPlayerHtml = ({
           videoId: config.videoId,
           playerVars: {
             autoplay: config.autoplay ? 1 : 0,
-            controls: 1,
+            controls: 0,
+            modestBranding: 0,
             fs: 0,
             playsinline: 1,
             rel: 0,
-            modestbranding: 1,
             start: Math.max(0, Math.floor(clipStart)),
           },
           events: {

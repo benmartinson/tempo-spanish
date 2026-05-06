@@ -32,7 +32,9 @@ const difficultyRank = (d: string) => {
 const titleCase = (s: string) =>
   s
     .split(/\s+/)
-    .map((w) => (w.length === 0 ? w : w[0].toUpperCase() + w.slice(1).toLowerCase()))
+    .map((w) =>
+      w.length === 0 ? w : w[0].toUpperCase() + w.slice(1).toLowerCase(),
+    )
     .join(" ");
 
 const FilterVideos: React.FC<{
@@ -235,6 +237,7 @@ const FilterVideos: React.FC<{
             <TextInput
               style={styles.searchInput}
               placeholder="Search videos..."
+              placeholderTextColor="rgba(0, 0, 0, 0.4)"
               value={draftSearchText}
               onChangeText={setDraftSearchText}
               autoCorrect={false}

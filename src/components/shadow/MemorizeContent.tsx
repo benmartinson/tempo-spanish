@@ -244,19 +244,27 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   const shouldShowTranslationFooter =
     !!onRequestTranslation || !!translationText || isLoadingTranslation;
   const translationFooter = shouldShowTranslationFooter ? (
-    <View style={styles.translationContainer}>
+    <View
+      style={[
+        styles.translationContainer,
+        layout === "webPlayer" && styles.webTranslationContainer,
+      ]}
+    >
       {!translationRevealed ? (
         <Pressable
           style={[
             styles.translationDisclosure,
             styles.translationDisclosureCollapsed,
+            layout === "webPlayer" ? styles.translationDisclosureWeb : "",
           ]}
           onPress={handleRevealTranslation}
         >
-          <View style={styles.translationDisclosureAction}>
-            <Text style={styles.translationDisclosureText}>translation</Text>
-            <MaterialIcons name="visibility" size={16} color="gray" />
-          </View>
+          {(layout !== "webPlayer" || !selectedReviewWord) && (
+            <View style={styles.translationDisclosureAction}>
+              <Text style={styles.translationDisclosureText}>translation</Text>
+              <MaterialIcons name="visibility" size={16} color="gray" />
+            </View>
+          )}
         </Pressable>
       ) : (
         <View style={styles.translationContent}>
@@ -324,7 +332,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
       squareEdges={layout === "webPlayer"}
       reviewPresentation={layout === "webPlayer" ? "inline" : "modal"}
       onInlineReviewWord={setSelectedReviewWord}
-      footerContent={translationFooter}
+      footerContent={layout === "webPlayer" ? null : translationFooter}
       onWordPress={(index) => {
         if (isRecording) {
           // During recording: progressive hint reveal
@@ -426,6 +434,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
                     {difficultySlider}
                   </View>
                 </View>
+                {translationFooter}
                 {webInlineWordReviewSection}
               </>
             )}
@@ -582,12 +591,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f4ff",
     overflow: "hidden",
   },
+  webTranslationContainer: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 105, 189, 0.16)",
+  },
   translationDisclosure: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
     paddingHorizontal: 0,
     minHeight: 22,
+  },
+  translationDisclosureWeb: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   translationDisclosureAction: {
     flexDirection: "row",
