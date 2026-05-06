@@ -14,12 +14,13 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import ModeSwitcher from "./ModeSwitcher";
 import SpeedDial from "./SpeedDial";
 
-type Mode = "shadow" | "stream";
+type Mode = "shadow" | "stream" | "voice";
 type ModeOption = Mode | "help";
 
 const MODE_OPTIONS: { key: ModeOption; label: string }[] = [
   { key: "shadow", label: "Shadow" },
   { key: "stream", label: "Stream" },
+  { key: "voice", label: "Voice" },
   { key: "help", label: "Help" },
 ];
 
@@ -63,6 +64,9 @@ const ShadowSettingsButtons: React.FC<ShadowSettingsButtonsProps> = ({
     }
     if (key === "help") {
       return <Feather name="help-circle" size={size} color={color} />;
+    }
+    if (key === "voice") {
+      return <Feather name="mic" size={size} color={color} />;
     }
     return (
       <MaterialCommunityIcons name="play-speed" size={size} color={color} />

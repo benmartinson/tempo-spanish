@@ -174,50 +174,6 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     setSelectedReviewWord(null);
   }, [isRecording]);
 
-  const transcriptBubble = (
-    <FullSegmentTranscriptBubble
-      words={currentSentence.words || []}
-      blurredIndices={maskedIndices}
-      time={time}
-      playKey={playKey}
-      playerSpeed={playerSpeed}
-      playerIsPlaying={playerIsPlaying}
-      showFullText
-      disableGuessModal={isRecording}
-      playWordSnippet={playWordSnippet}
-      revealCounts={revealCounts}
-      vocabCache={vocabCache}
-      onVocabCacheUpdate={onVocabCacheUpdate}
-      attachedTop={layout === "webPlayer"}
-      squareEdges={layout === "webPlayer"}
-      reviewPresentation={layout === "webPlayer" ? "inline" : "modal"}
-      onInlineReviewWord={setSelectedReviewWord}
-      onWordPress={(index) => {
-        if (isRecording) {
-          // During recording: progressive hint reveal
-          const currentLevel = hintLevels[index] ?? 0;
-          const wordText = currentSentence.words?.[index]?.word?.trim() ?? "";
-          const skipHint = /^\d/.test(wordText) || wordText.length <= 1;
-          if (currentLevel === 0 && !skipHint) {
-            setHintLevels((prev) => ({ ...prev, [index]: 1 }));
-          } else {
-            setRevealedWords((prev) => {
-              const next = new Set(prev);
-              next.add(index);
-              return next;
-            });
-          }
-        } else {
-          setRevealedWords((prev) => {
-            const next = new Set(prev);
-            next.add(index);
-            return next;
-          });
-        }
-      }}
-    />
-  );
-
   const webInlineWordReviewSection =
     layout === "webPlayer" && selectedReviewWord ? (
       <WordModal
@@ -285,41 +241,56 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     translationText,
   ]);
 
-  const webTranslationSection =
-    layout === "webPlayer" ? (
-      <View style={styles.webTranslationContainer}>
-        {!translationRevealed ? (
-          <Pressable
-            style={[
-              styles.webTranslationDisclosure,
-              styles.webTranslationDisclosureCollapsed,
-            ]}
-            onPress={handleRevealTranslation}
-          >
-            <View style={styles.webTranslationDisclosureAction}>
-              <Text style={styles.webTranslationDisclosureText}>
-                translation
-              </Text>
-              <MaterialIcons name="visibility" size={18} color="gray" />
-            </View>
-          </Pressable>
-        ) : (
-          <View style={styles.webTranslationContent}>
-            <TranslateContent
-              translationText={translationText}
-              sentenceText={currentSentence.text}
-              isLoading={isLoadingTranslation || isRequestingTranslation}
-              time={time}
-              playerIsPlaying={playerIsPlaying}
-              segmentStart={currentSentence.start}
-              segmentEnd={currentSentence.end}
-              playKey={playKey}
-              isRecording={isRecording}
-              playerSpeed={playerSpeed}
-              variant="webPanel"
-            />
+  const shouldShowTranslationFooter =
+    !!onRequestTranslation || !!translationText || isLoadingTranslation;
+  const translationFooter = shouldShowTranslationFooter ? (
+    <View style={styles.translationContainer}>
+      {!translationRevealed ? (
+        <Pressable
+          style={[
+            styles.translationDisclosure,
+            styles.translationDisclosureCollapsed,
+          ]}
+          onPress={handleRevealTranslation}
+        >
+          <View style={styles.translationDisclosureAction}>
+            <Text style={styles.translationDisclosureText}>translation</Text>
+            <MaterialIcons name="visibility" size={16} color="gray" />
+          </View>
+        </Pressable>
+      ) : (
+        <View style={styles.translationContent}>
+          <TranslateContent
+            translationText={translationText}
+            sentenceText={currentSentence.text}
+            isLoading={isLoadingTranslation || isRequestingTranslation}
+            time={time}
+            playerIsPlaying={playerIsPlaying}
+            segmentStart={currentSentence.start}
+            segmentEnd={currentSentence.end}
+            playKey={playKey}
+            isRecording={isRecording}
+            playerSpeed={playerSpeed}
+            variant={layout === "webPlayer" ? "webPanel" : "default"}
+            rightAccessory={
+              layout === "webPlayer" ? null : (
+                <Pressable
+                  style={styles.translationInlineCollapseButton}
+                  onPress={() => setTranslationRevealed(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                >
+                  <MaterialIcons
+                    name="visibility-off"
+                    size={16}
+                    color="#647089"
+                  />
+                </Pressable>
+              )
+            }
+          />
+          {layout === "webPlayer" && (
             <Pressable
-              style={styles.webTranslationCollapseButton}
+              style={styles.translationCollapseButton}
               onPress={() => setTranslationRevealed(false)}
               hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
             >
@@ -329,10 +300,56 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
                 color="#647089"
               />
             </Pressable>
-          </View>
-        )}
-      </View>
-    ) : null;
+          )}
+        </View>
+      )}
+    </View>
+  ) : null;
+
+  const transcriptBubble = (
+    <FullSegmentTranscriptBubble
+      words={currentSentence.words || []}
+      blurredIndices={maskedIndices}
+      time={time}
+      playKey={playKey}
+      playerSpeed={playerSpeed}
+      playerIsPlaying={playerIsPlaying}
+      showFullText
+      disableGuessModal={isRecording}
+      playWordSnippet={playWordSnippet}
+      revealCounts={revealCounts}
+      vocabCache={vocabCache}
+      onVocabCacheUpdate={onVocabCacheUpdate}
+      attachedTop={layout === "webPlayer"}
+      squareEdges={layout === "webPlayer"}
+      reviewPresentation={layout === "webPlayer" ? "inline" : "modal"}
+      onInlineReviewWord={setSelectedReviewWord}
+      footerContent={translationFooter}
+      onWordPress={(index) => {
+        if (isRecording) {
+          // During recording: progressive hint reveal
+          const currentLevel = hintLevels[index] ?? 0;
+          const wordText = currentSentence.words?.[index]?.word?.trim() ?? "";
+          const skipHint = /^\d/.test(wordText) || wordText.length <= 1;
+          if (currentLevel === 0 && !skipHint) {
+            setHintLevels((prev) => ({ ...prev, [index]: 1 }));
+          } else {
+            setRevealedWords((prev) => {
+              const next = new Set(prev);
+              next.add(index);
+              return next;
+            });
+          }
+        } else {
+          setRevealedWords((prev) => {
+            const next = new Set(prev);
+            next.add(index);
+            return next;
+          });
+        }
+      }}
+    />
+  );
 
   if (layout === "webPlayer") {
     return (
@@ -410,9 +427,6 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
                   </View>
                 </View>
                 {webInlineWordReviewSection}
-                <View style={styles.webTranscriptBody}>
-                  {webTranslationSection}
-                </View>
               </>
             )}
           </View>
@@ -564,47 +578,49 @@ const styles = StyleSheet.create({
     maxWidth: 600,
     alignSelf: "center",
   },
-  webTranscriptBody: {
+  translationContainer: {
     backgroundColor: "#f0f4ff",
-    paddingBottom: 14,
-  },
-  webTranslationContainer: {
-    marginHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(74, 105, 189, 0.16)",
-    backgroundColor: "#f0f4ff",
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 6,
     overflow: "hidden",
   },
-  webTranslationDisclosure: {
+  translationDisclosure: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
     paddingHorizontal: 0,
-    paddingTop: 8,
+    minHeight: 22,
   },
-  webTranslationDisclosureAction: {
+  translationDisclosureAction: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     opacity: 0.5,
   },
-  webTranslationDisclosureCollapsed: {
+  translationDisclosureCollapsed: {
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 6,
   },
-  webTranslationDisclosureText: {
+  translationDisclosureText: {
     color: "#647089",
-    fontSize: 11,
+    fontSize: 10,
+    lineHeight: 14,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  webTranslationContent: {
-    minHeight: 64,
+  translationContent: {
+    minHeight: 0,
   },
-  webTranslationCollapseButton: {
+  translationInlineCollapseButton: {
+    width: 32,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.68)",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.14)",
+  },
+  translationCollapseButton: {
     alignSelf: "center",
     width: 30,
     height: 20,

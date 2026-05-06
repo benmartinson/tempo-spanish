@@ -7,7 +7,7 @@ const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
   styles,
   errorBanner,
   streamBanner,
-  memorizeContent,
+  contentTabs,
   settingsButtons,
   overlays,
   isPlayerFullscreen = false,
@@ -35,7 +35,7 @@ const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
           {streamBanner}
           <View style={styles.webPracticeLayout}>
             <View style={styles.webPracticeSide} />
-            <View style={styles.webMemorizeColumn}>{memorizeContent}</View>
+            <View style={styles.webMemorizeColumn}>{contentTabs}</View>
             <View style={styles.webControlsColumn} />
           </View>
         </View>

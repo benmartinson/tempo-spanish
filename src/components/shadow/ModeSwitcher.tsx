@@ -12,7 +12,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import Feather from "@expo/vector-icons/Feather";
 
-type Mode = "shadow" | "stream";
+type Mode = "shadow" | "stream" | "voice";
 type OptionKey = Mode | "help";
 
 interface ModeSwitcherProps {
@@ -24,15 +24,20 @@ interface ModeSwitcherProps {
 const OPTIONS: { key: OptionKey; label: string }[] = [
   { key: "shadow", label: "Shadow" },
   { key: "stream", label: "Stream" },
+  { key: "voice", label: "Voice" },
   { key: "help", label: "Help" },
 ];
 
-const DIAL_RADIUS = 70;
+const DIAL_RADIUS = 116;
 const OPTION_SIZE = 48;
 const START_ANGLE = Math.PI;
 const END_ANGLE = Math.PI / 2;
 
-const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ mode, onModeChange, onHelpSelect }) => {
+const ModeSwitcher: React.FC<ModeSwitcherProps> = ({
+  mode,
+  onModeChange,
+  onHelpSelect,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const hoveredIndexRef = useRef<number | null>(null);
@@ -141,6 +146,9 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ mode, onModeChange, onHelpS
     }
     if (key === "help") {
       return <Feather name="help-circle" size={size} color={color} />;
+    }
+    if (key === "voice") {
+      return <Feather name="mic" size={size} color={color} />;
     }
     return (
       <MaterialCommunityIcons name="play-speed" size={size} color={color} />

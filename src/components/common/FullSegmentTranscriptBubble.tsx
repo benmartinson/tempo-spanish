@@ -7,7 +7,14 @@ import {
   Pressable,
 } from "react-native";
 import { RootState, SegmentWord, VocabCacheEntry } from "../../types";
-import { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import {
+  ReactNode,
+  useMemo,
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import WordModal from "./WordModal";
 import SignInPromptModal from "./SignInPromptModal";
 import { useSelector, useDispatch } from "react-redux";
@@ -44,6 +51,7 @@ interface FullSegmentTranscriptBubbleProps {
   squareEdges?: boolean;
   reviewPresentation?: "modal" | "inline";
   onInlineReviewWord?: (word: SegmentWord) => void;
+  footerContent?: ReactNode;
 }
 
 const LINE_HEIGHT = 28;
@@ -73,6 +81,7 @@ const FullSegmentTranscriptBubble: React.FC<
   squareEdges = false,
   reviewPresentation = "modal",
   onInlineReviewWord,
+  footerContent,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -233,6 +242,7 @@ const FullSegmentTranscriptBubble: React.FC<
     <View
       style={[
         styles.bubble,
+        footerContent && styles.bubbleWithFooter,
         attachedTop && styles.attachedTopBubble,
         squareEdges && styles.squareEdgesBubble,
       ]}
@@ -310,6 +320,7 @@ const FullSegmentTranscriptBubble: React.FC<
           );
         })}
       </ScrollView>
+      {footerContent && <View style={styles.footer}>{footerContent}</View>}
       {reviewPresentation === "modal" && (
         <WordModal
           visible={!!guessWord}
@@ -368,6 +379,9 @@ const styles = StyleSheet.create({
   attachedTopBubble: {
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
+  },
+  bubbleWithFooter: {
+    paddingBottom: 6,
   },
   squareEdgesBubble: {
     marginHorizontal: 0,
@@ -446,6 +460,15 @@ const styles = StyleSheet.create({
   },
   tooltipContent: {
     alignItems: "center",
+  },
+  footer: {
+    marginTop: 6,
+    minHeight: 28,
+    paddingTop: 6,
+    paddingBottom: 4,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 105, 189, 0.16)",
+    justifyContent: "center",
   },
 });
 

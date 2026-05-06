@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { ReactNode, useMemo } from "react";
 import { StyleSheet, View, Text, ActivityIndicator } from "react-native";
 import { RootState } from "../../types";
 import { useSelector } from "react-redux";
@@ -24,6 +24,7 @@ interface TranslateContentProps {
   playerSpeed?: number;
   isRecording?: boolean;
   variant?: "default" | "webPanel";
+  rightAccessory?: ReactNode;
 }
 
 const TranslateContent: React.FC<TranslateContentProps> = ({
@@ -38,6 +39,7 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
   playerSpeed = 1,
   isRecording = false,
   variant = "default",
+  rightAccessory,
 }) => {
   const userSettings = useSelector((state: RootState) => state.userSettings);
   // const localTime = useInterpolatedTime(
@@ -108,8 +110,12 @@ const TranslateContent: React.FC<TranslateContentProps> = ({
       style={[
         styles.questionBubble,
         variant === "webPanel" && styles.webPanelQuestionBubble,
+        rightAccessory && styles.questionBubbleWithAccessory,
       ]}
     >
+      {rightAccessory && (
+        <View style={styles.rightAccessory}>{rightAccessory}</View>
+      )}
       {/* <Text style={styles.questionLabel}>{label}</Text> */}
       <Text
         style={[
@@ -142,6 +148,18 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     alignSelf: "flex-start" as const,
+  },
+  questionBubbleWithAccessory: {
+    marginBottom: 0,
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingRight: 48,
+  },
+  rightAccessory: {
+    position: "absolute",
+    top: 8,
+    right: 0,
+    zIndex: 2,
   },
   webPanelQuestionBubble: {
     width: "auto",

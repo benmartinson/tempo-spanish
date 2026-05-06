@@ -357,7 +357,9 @@ const SelectedVideoPage: React.FC = () => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const stallTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startStallTimerRef = useRef<() => void>(() => {});
-  const [shadowMode, setShadowMode] = useState<"shadow" | "stream">("shadow");
+  const [shadowMode, setShadowMode] = useState<"shadow" | "stream" | "voice">(
+    "shadow",
+  );
 
   useEffect(() => {
     if (shadowMode === "stream") {

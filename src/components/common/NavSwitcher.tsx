@@ -127,17 +127,17 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
           onPress={() => setIsSearchOpen(true)}
           style={styles.navCenter}
         >
-          {showSearchIcon && (
+          {/* {showSearchIcon && (
             <View style={styles.hiddenSearchIconContainer}>
               <MaterialIcons name="search" size={navIconSize} color="#333" />
             </View>
-          )}
+          )} */}
           {children}
-          {showSearchIcon && (
+          {/* {showSearchIcon && (
             <View style={styles.searchIconContainer}>
               <MaterialIcons name="search" size={navIconSize} color="#333" />
             </View>
-          )}
+          )} */}
         </TouchableOpacity>
       ) : (
         <View style={styles.navCenter}>{children}</View>
