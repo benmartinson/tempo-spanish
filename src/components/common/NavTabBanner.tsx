@@ -38,6 +38,8 @@ const NavTabBanner: React.FC = () => {
   const video = allVideos.find((v) => v.video_id === currentVideo?.videoId);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
+  const insightsDropdownWidth = Math.min(Math.max(width - 32, 0), 800);
+  const insightsDropdownLeft = (width - insightsDropdownWidth) / 2;
 
   if (!currentVideo) {
     return null;
@@ -134,7 +136,16 @@ const NavTabBanner: React.FC = () => {
           <TouchableWithoutFeedback onPress={() => setInsightsOpen(false)}>
             <View style={styles.insightsOverlay} />
           </TouchableWithoutFeedback>
-          <View style={styles.insightsDropdown}>
+          <View
+            style={[
+              styles.insightsDropdown,
+              {
+                top: isWeb ? 64 : 90,
+                width: insightsDropdownWidth,
+                left: insightsDropdownLeft,
+              },
+            ]}
+          >
             <VideoInsights onSeeAllVideos={handleSeeAllVideos} />
           </View>
         </>
@@ -217,9 +228,6 @@ const styles = StyleSheet.create({
   },
   insightsDropdown: {
     position: "absolute",
-    top: 90,
-    left: 16,
-    right: 16,
     zIndex: 100,
     backgroundColor: "white",
     borderRadius: 12,

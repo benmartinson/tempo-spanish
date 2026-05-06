@@ -75,7 +75,7 @@ const SelectedVideoPage: React.FC = () => {
   // Refresh player when app returns from background
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
+      if (Platform.OS !== "web" && nextState === "active") {
         dispatch(refreshVideoPlayerAction());
       }
     });
@@ -315,10 +315,6 @@ const SelectedVideoPage: React.FC = () => {
   useEffect(() => {
     setAutoplay(hasSeenWelcomeModals && !profileModalOpen && !signInScreenOpen);
   }, [hasSeenWelcomeModals, profileModalOpen, signInScreenOpen]);
-
-  useEffect(() => {
-    refreshPlayer();
-  }, [autoplay]);
 
   const handlePlayingStateChange = useCallback((isPlaying: boolean) => {
     if (playingStateTimerRef.current && !userPressedPlayPause.current) {

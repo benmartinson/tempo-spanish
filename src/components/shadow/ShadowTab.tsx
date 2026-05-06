@@ -159,6 +159,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const clipJustStartedRef = useRef(false);
   const [awaitingFirstPlayback, setAwaitingFirstPlayback] = useState(true);
   const playerIsPlayingRef = useRef(playerIsPlaying);
+  const disableAutoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentSentenceIndex = currentVideo ? currentVideo.currentSentence : 0;
   const currentSentenceObject = currentVideo
@@ -203,7 +204,30 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setLocalDifficulty(userSettings.defaultMemorizeDifficulty);
     setVocabCache([]);
     setError(null);
+    setAutoplay(true);
   }, [currentSentenceIndex]);
+
+  useEffect(() => {
+    if (disableAutoplayTimerRef.current) {
+      clearTimeout(disableAutoplayTimerRef.current);
+      disableAutoplayTimerRef.current = null;
+    }
+
+    if (!playerIsPlaying) return;
+
+    disableAutoplayTimerRef.current = setTimeout(() => {
+      console.log("disable autoplay");
+      setAutoplay(false);
+      disableAutoplayTimerRef.current = null;
+    }, 2000);
+
+    return () => {
+      if (disableAutoplayTimerRef.current) {
+        clearTimeout(disableAutoplayTimerRef.current);
+        disableAutoplayTimerRef.current = null;
+      }
+    };
+  }, [currentSentenceIndex, playerIsPlaying, setAutoplay]);
 
   // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
@@ -213,7 +237,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   // Restore autoplay when returning from SignInScreen
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
-      if (!showSignInModal) {
+      if (!showSignInModal && !isWebScreen) {
+        console.log({ isWebScreen });
         setAutoplay(true);
         dispatch(refreshVideoPlayer());
       }
@@ -805,6 +830,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     return () => {
       isTransitioningRef.current = false;
       clearRecordingTimer();
+      if (disableAutoplayTimerRef.current) {
+        clearTimeout(disableAutoplayTimerRef.current);
+        disableAutoplayTimerRef.current = null;
+      }
       setIsRecordingMode(false);
       setSentenceEnded(false);
       setIsProcessing(false);
@@ -1348,7 +1377,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       </View>
     ) : null;
   const countdownTimerElement = isRecordingMode ? (
-    <View style={styles.countdownTimer}>
+    <View
+      style={[styles.countdownTimer, isWebScreen && styles.webCountdownTimer]}
+    >
       <CountdownTimer
         onStartRecording={handleActualStartRecording}
         onStopRecording={handleSubmitRecording}
@@ -1749,9 +1780,9 @@ export const styles = StyleSheet.create({
   },
   webSettingsButtonsOverlay: {
     position: "fixed" as any,
-    top: 6,
-    right: 64,
-    zIndex: 60,
+    top: 12,
+    right: 82,
+    zIndex: 200,
     alignItems: "center",
   },
   webFullscreenShadowRoot: {
@@ -1815,6 +1846,12 @@ export const styles = StyleSheet.create({
   countdownTimer: {
     marginHorizontal: 16,
     marginVertical: 10,
+  },
+  webCountdownTimer: {
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
+    marginHorizontal: 0,
   },
   instructionContainer: {
     alignItems: "center",

@@ -7,6 +7,7 @@ import {
   Image,
   ViewStyle,
   ImageStyle,
+  StyleProp,
 } from "react-native";
 import { Channel, Video } from "../../types";
 import { formatTimestamp } from "../../helpers/helpers";
@@ -15,8 +16,8 @@ const VideoCard: React.FC<{
   video: Video;
   onPress: () => void;
   disabled?: boolean;
-  style?: ViewStyle;
-  thumbnailStyle?: ImageStyle;
+  style?: StyleProp<ViewStyle>;
+  thumbnailStyle?: StyleProp<ImageStyle>;
   fullWidth?: boolean;
   channel?: Channel;
   onChannelPress?: () => void;

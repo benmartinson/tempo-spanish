@@ -1,5 +1,6 @@
 import React from "react";
 import { View } from "react-native";
+import { createPortal } from "react-dom";
 import { ShadowTabLayoutProps } from "./ShadowTabLayoutTypes";
 
 const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
@@ -11,6 +12,16 @@ const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
   overlays,
   isPlayerFullscreen = false,
 }) => {
+  const settingsButtonsPortal =
+    !isPlayerFullscreen && typeof document !== "undefined"
+      ? createPortal(
+          <View style={styles.webSettingsButtonsOverlay}>
+            {settingsButtons}
+          </View>,
+          document.body,
+        )
+      : null;
+
   return (
     <>
       <View
@@ -19,11 +30,6 @@ const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
           isPlayerFullscreen && styles.webFullscreenShadowRoot,
         ]}
       >
-        {!isPlayerFullscreen && (
-          <View style={styles.webSettingsButtonsOverlay}>
-            {settingsButtons}
-          </View>
-        )}
         {errorBanner}
         <View style={styles.transcriptContainer}>
           {streamBanner}
@@ -34,6 +40,7 @@ const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
           </View>
         </View>
       </View>
+      {settingsButtonsPortal}
       {overlays}
     </>
   );

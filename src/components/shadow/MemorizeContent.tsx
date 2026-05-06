@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   },
   webPanelWidePlayerControls: {
     position: "absolute",
-    left: 62,
+    right: "calc(50% + 130px)" as any,
     top: 4,
     bottom: 4,
     zIndex: 2,
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   },
   webPanelWideRecordingControls: {
     position: "absolute",
-    right: 62,
+    left: "calc(50% + 130px)" as any,
     top: 4,
     bottom: 4,
     zIndex: 2,
