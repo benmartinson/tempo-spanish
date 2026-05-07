@@ -6,6 +6,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Linking,
+  Modal,
+  Platform,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
@@ -24,6 +27,9 @@ import {
 import { useSupabaseWithClerk } from "../../utils/supabase";
 import { fetchUserCredits } from "../requests";
 import { backendFetch } from "../helpers/backendFetch";
+
+const APP_STORE_URL =
+  "https://apps.apple.com/us/app/tempo-spanish/id6763132237";
 
 interface ProfileModalProps {
   visible: boolean;
@@ -75,6 +81,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   const [termsVisible, setTermsVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
 
   useEffect(() => {
     dispatch(setProfileModalOpen(visible));
@@ -119,7 +127,38 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      const response = await backendFetch("/api/delete-account", {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error(`${response.status} ${await response.text()}`);
+      }
+      setDeleteConfirmVisible(false);
+      onClose();
+      await signOut({ sessionId: sessionId ?? undefined });
+    } catch (err) {
+      console.error("Delete account error:", err);
+      if (Platform.OS === "web") {
+        setDeleteConfirmVisible(false);
+        window.alert("Could not delete your account. Please try again.");
+      } else {
+        Alert.alert(
+          "Something went wrong",
+          "Could not delete your account. Please try again.",
+        );
+      }
+    }
+  };
+
   const handleCloseAccount = () => {
+    if (Platform.OS === "web") {
+      setDeleteConfirmed(false);
+      setDeleteConfirmVisible(true);
+      return;
+    }
+
     Alert.alert(
       "Delete account?",
       "This permanently deletes your account, recordings progress, vocab, and remaining credits. This cannot be undone.",
@@ -128,24 +167,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
         {
           text: "Delete",
           style: "destructive",
-          onPress: async () => {
-            try {
-              const response = await backendFetch("/api/delete-account", {
-                method: "POST",
-              });
-              if (!response.ok) {
-                throw new Error(`${response.status} ${await response.text()}`);
-              }
-              onClose();
-              await signOut({ sessionId: sessionId ?? undefined });
-            } catch (err) {
-              console.error("Delete account error:", err);
-              Alert.alert(
-                "Something went wrong",
-                "Could not delete your account. Please try again.",
-              );
-            }
-          },
+          onPress: deleteAccount,
         },
       ],
     );
@@ -211,6 +233,21 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
           />
         </View>
 
+        <Text style={styles.sectionHeader}>Apps</Text>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={menuStyles.row}
+            onPress={() => Linking.openURL(APP_STORE_URL)}
+            activeOpacity={0.6}
+          >
+            <View style={styles.tryMobileLabel}>
+              <Text style={menuStyles.label}>Try Mobile</Text>
+              <MaterialIcons name="phone-iphone" size={18} color="#5a5680" />
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color="#c0c0c4" />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <MaterialIcons name="logout" size={18} color="#ff4d4d" />
           <Text style={styles.signOutText}>Sign Out</Text>
@@ -236,6 +273,67 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
       />
+
+      <Modal
+        visible={deleteConfirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setDeleteConfirmVisible(false);
+          setDeleteConfirmed(false);
+        }}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete account?</Text>
+            <Text style={styles.confirmBody}>
+              This permanently deletes your account, recordings progress, vocab,
+              and <b>remaining credits</b>. This cannot be undone.
+            </Text>
+            <TouchableOpacity
+              style={styles.confirmCheckboxRow}
+              onPress={() => setDeleteConfirmed((confirmed) => !confirmed)}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.confirmCheckbox,
+                  deleteConfirmed && styles.confirmCheckboxChecked,
+                ]}
+              >
+                {deleteConfirmed && (
+                  <MaterialIcons name="check" size={14} color="#ffffff" />
+                )}
+              </View>
+              <Text style={styles.confirmCheckboxText}>
+                I understand the consequences.
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.cancelButton]}
+                onPress={() => {
+                  setDeleteConfirmVisible(false);
+                  setDeleteConfirmed(false);
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.confirmButton,
+                  styles.deleteButton,
+                  !deleteConfirmed && styles.deleteButtonDisabled,
+                ]}
+                onPress={deleteAccount}
+                disabled={!deleteConfirmed}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SlideModal>
   );
 };
@@ -250,22 +348,22 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: "center",
-    paddingVertical: 28,
+    paddingVertical: 16,
     backgroundColor: "#fff",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#ebebef",
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#3d3a52",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 8,
   },
   avatarText: {
-    fontSize: 26,
+    fontSize: 18,
     fontWeight: "700",
     color: "#fff",
   },
@@ -275,7 +373,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   email: {
-    fontSize: 15,
+    fontSize: 13,
     color: "#8e8e93",
     fontWeight: "500",
   },
@@ -309,6 +407,96 @@ const styles = StyleSheet.create({
     color: "#ff4d4d",
     fontSize: 16,
     fontWeight: "600",
+  },
+  tryMobileLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  confirmCard: {
+    width: "min(92vw, 380px)" as any,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 22,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  confirmTitle: {
+    color: "#1a1a2e",
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  confirmBody: {
+    color: "#5f6472",
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  confirmCheckboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 18,
+  },
+  confirmCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: "#c8c8d0",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+  },
+  confirmCheckboxChecked: {
+    backgroundColor: "#3d3a52",
+    borderColor: "#3d3a52",
+  },
+  confirmCheckboxText: {
+    color: "#3d3a52",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  confirmActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 22,
+  },
+  confirmButton: {
+    minHeight: 40,
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  cancelButton: {
+    backgroundColor: "#f0f0f2",
+  },
+  cancelButtonText: {
+    color: "#3d3a52",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  deleteButton: {
+    backgroundColor: "#ff4d4d",
+  },
+  deleteButtonDisabled: {
+    opacity: 0.45,
+  },
+  deleteButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
   },
   creditsLeft: {
     flexDirection: "row",

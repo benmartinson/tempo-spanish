@@ -41,7 +41,7 @@ export default {
       package: "com.benmartinson92.tempo",
     },
     web: {
-      favicon: "./assets/favicon.png",
+      favicon: "./assets/icon.png",
     },
     extra: {
       eas: {

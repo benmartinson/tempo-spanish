@@ -12,6 +12,7 @@ import {
 } from "../store/actions/dataActions";
 import { useSupabaseWithClerk } from "../../utils/supabase";
 import { initializeUserCredits } from "../requests";
+import SlideModal from "./common/SlideModal";
 
 const INITIAL_CREDITS_GRANTED_KEY = "initial_credits_granted";
 
@@ -72,11 +73,12 @@ function SignInScreen() {
     })();
   }, [isSignedIn, supabase, pendingNewUserId, navigation]);
 
+  const handleClose = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff", minHeight: "100%" }}>
-      <View style={styles.header}>
-        <View style={styles.dragIndicator} />
-      </View>
+    <SlideModal visible={true} onRequestClose={handleClose} title="Sign In">
       <View style={styles.content}>
         <Text style={styles.title}>Welcome to Tempo</Text>
         <Text style={styles.subtitle}>
@@ -106,7 +108,7 @@ function SignInScreen() {
           <ActivityIndicator size="large" color="#5a5680" />
         </View>
       )}
-    </View>
+    </SlideModal>
   );
 }
 
@@ -123,18 +125,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   content: {
-    marginTop: 72,
     width: "100%",
-    maxWidth: 420,
     alignSelf: "center",
     backgroundColor: "#ffffff",
     borderRadius: 0,
     padding: 24,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    paddingTop: 32,
+    paddingBottom: 36,
     alignItems: "center",
     gap: 12,
   },

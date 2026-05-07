@@ -475,11 +475,11 @@ const AppNavigator: React.FC = () => {
 
   return (
     <Stack.Navigator id="MainStack" screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainApp" component={MainApp} />
+      <Stack.Screen name="Tempo" component={MainApp} />
       <Stack.Screen
         name="SignIn"
         component={SignInScreen}
-        options={{ presentation: "formSheet" }}
+        options={{ presentation: "transparentModal" }}
       />
     </Stack.Navigator>
   );
