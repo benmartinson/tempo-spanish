@@ -82,33 +82,38 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.leftFlagContainer} />
-      <View style={styles.titleContainer}>
-        <Text style={styles.appName}>Tempo Spanish</Text>
-      </View>
-      {minimal ? (
-        <View style={styles.leftFlagContainer} />
-      ) : (
-        <>
-          <TouchableOpacity
-            style={styles.avatarButton}
-            onPress={() => {
-              if (isSignedIn) {
-                setProfileVisible(true);
-              } else {
-                navigation.navigate("SignIn");
-              }
-            }}
-          >
-            <Ionicons name="person" size={16} color="#5a5680" />
-          </TouchableOpacity>
-
-          <ProfileModal
-            visible={profileVisible}
-            onClose={() => setProfileVisible(false)}
+      <View style={styles.webBrand}>
+        <View style={styles.webBrandMark}>
+          <Image
+            source={require("../../public/try/assets/icon.png")}
+            style={styles.webBrandIcon}
           />
-        </>
-      )}
+        </View>
+        <View style={{ flexDirection: "row" }}>
+          <Text style={styles.mobileAppName}>Tempo</Text>
+          <Text style={styles.mobileAppSubname}>Spanish</Text>
+        </View>
+      </View>
+
+      <>
+        <TouchableOpacity
+          style={styles.avatarButton}
+          onPress={() => {
+            if (isSignedIn) {
+              setProfileVisible(true);
+            } else {
+              navigation.navigate("SignIn");
+            }
+          }}
+        >
+          <Ionicons name="person" size={16} color="#5a5680" />
+        </TouchableOpacity>
+
+        <ProfileModal
+          visible={profileVisible}
+          onClose={() => setProfileVisible(false)}
+        />
+      </>
     </View>
   );
 };
@@ -123,6 +128,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#d0d8f0",
+    justifyContent: "space-between",
   },
   leftFlagContainer: {
     width: 36,
@@ -196,7 +202,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   webAppName: {
-    color: "#1f2433",
+    color: "#343147",
     fontSize: 19,
     fontWeight: "800",
     lineHeight: 20,
@@ -209,6 +215,21 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1.6,
     paddingLeft: 1,
+  },
+  mobileAppName: {
+    color: "#3d3a52",
+    fontSize: 19,
+    fontWeight: "800",
+    lineHeight: 20,
+  },
+  mobileAppSubname: {
+    color: "#6f7890",
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 19,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    paddingLeft: 4,
   },
   webActions: {
     flexDirection: "row",

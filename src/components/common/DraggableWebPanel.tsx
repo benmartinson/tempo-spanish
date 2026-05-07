@@ -11,8 +11,8 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 interface DraggableWebPanelProps {
   children: ReactNode;
-  initialTop: number;
-  width: number;
+  initialTop?: number;
+  width?: number;
   dragHandle?: ReactNode;
   minWidth?: number;
   resizeHandleInset?: number;
@@ -29,10 +29,10 @@ const BOTTOM_OVERHANG = 100;
 
 const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   children,
-  initialTop,
-  width,
   dragHandle,
   minWidth = 360,
+  initialTop = 80,
+  width = minWidth,
   resizeHandleInset = 0,
   onWidthChange,
   maxWidthRatio = 0.8,
@@ -46,7 +46,7 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   );
   const defaultPosition = useMemo(
     () => ({
-      x: Math.max(0, (windowWidth - panelWidth) / 2),
+      x: Math.max(0, windowWidth - panelWidth),
       y: initialTop,
     }),
     [initialTop, panelWidth, windowWidth],

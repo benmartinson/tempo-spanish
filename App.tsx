@@ -492,7 +492,9 @@ const App: React.FC = () => {
         <NavigationContainer
           linking={Platform.OS === "web" ? linking : undefined}
           documentTitle={
-            Platform.OS === "web" ? { formatter: () => "Tempo" } : undefined
+            Platform.OS === "web"
+              ? { formatter: () => "Tempo Spanish" }
+              : undefined
           }
         >
           <AppNavigator />

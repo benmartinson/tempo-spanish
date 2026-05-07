@@ -363,8 +363,6 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
     return (
       <View style={styles.webContainer}>
         <DraggableWebPanel
-          initialTop={380}
-          width={620}
           minWidth={360}
           resizeHandleInset={16}
           onWidthChange={setWebPanelWidth}
