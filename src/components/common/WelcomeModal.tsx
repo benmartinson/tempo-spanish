@@ -22,7 +22,6 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ visible, onClose }) => {
   const handleClose = async () => {
     dispatch(setHasSeenWelcomeModals(true));
     await AsyncStorage.setItem("has_seen_welcome_modals", "true");
-    console.log("closing");
     onClose();
   };
 
@@ -76,6 +75,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "85%",
     gap: 16,
+    maxWidth: 600,
   },
   title: {
     fontSize: 20,

@@ -39,3 +39,4 @@ yarn-error.*
 
 # iOS build output
 ios/
+.vercel

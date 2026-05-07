@@ -1,0 +1,30 @@
+# Local dependencies and generated output
+node_modules
+dist
+web-build
+.expo
+.vercel
+
+# Native app projects and build artifacts
+android
+ios
+Payload
+Payload 2
+*.ipa
+*.apk
+*.aab
+
+# Backend-only files not needed for the Expo web build
+Dockerfile
+src/api
+supabase
+
+# Legacy standalone marketing deployment. Public web pages live in /public.
+marketing-site
+
+# Local editor/system files
+.claude
+.vscode
+.DS_Store
+*.log
+*.tsbuildinfo
