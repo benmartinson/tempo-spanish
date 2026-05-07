@@ -11,8 +11,6 @@ export interface UserSettings {
   saveMemorizeDifficulty: boolean;
   defaultMemorizeDifficulty: number;
   playVideoWhileRecording: boolean;
-  autoSaveRecordings: boolean;
-  showSaveRecordingsModal: boolean;
   showReviewMode: boolean;
   reviewFrequency: number;
   autoSelectDifficulty: boolean;
@@ -63,8 +61,6 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   saveMemorizeDifficulty: false,
   defaultMemorizeDifficulty: 0,
   playVideoWhileRecording: true,
-  autoSaveRecordings: false,
-  showSaveRecordingsModal: true,
   showReviewMode: true,
   reviewFrequency: 3,
   autoSelectDifficulty: true,

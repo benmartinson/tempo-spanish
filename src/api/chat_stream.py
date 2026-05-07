@@ -475,7 +475,7 @@ Identify all proper nouns (character names, place names, or any word that requir
         # Translate the full sentence using Google Translate
         translation = None
         try:
-            translator = GoogleTranslator(source='auto', target=request.language)
+            translator = GoogleTranslator(source='auto', target='es')
             translation = translator.translate(request.text)
         except Exception as translate_err:
             print(f"Error translating sentence: {translate_err}")

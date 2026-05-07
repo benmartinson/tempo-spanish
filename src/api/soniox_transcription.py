@@ -21,8 +21,8 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 SONIOX_API_KEY = os.getenv("SONIOX_API_KEY")
 SONIOX_API_BASE_URL = "https://api.soniox.com"
 
-# TEMP: set to True to test Soniox fallback without hitting Groq rate limit
-FORCE_SONIOX_FALLBACK = False
+# TEMP: set to True to test Soniox fallback without hitting Groq.
+FORCE_SONIOX_FALLBACK = True
 
 import time as _time
 _groq_backoff_until = 0.0
@@ -170,6 +170,11 @@ async def transcribe_audio(file: UploadFile = File(...), language: str = "es", u
 
         global _groq_backoff_until
 
+        if FORCE_SONIOX_FALLBACK:
+            print("FORCE_SONIOX_FALLBACK enabled, using Soniox directly")
+            result = await _transcribe_soniox(audio_data, filename, language)
+            return JSONResponse(result)
+
         # If we're in backoff period, skip Groq entirely
         if _time.time() < _groq_backoff_until:
             remaining = int(_groq_backoff_until - _time.time())
@@ -185,7 +190,6 @@ async def transcribe_audio(file: UploadFile = File(...), language: str = "es", u
             result = client.audio.transcriptions.create(
                 file=(filename, audio_data, file.content_type or "audio/wav"),
                 model="whisper-large-v3-turbo",
-                language=language,
                 temperature=0.0,
                 response_format="verbose_json",
                 timestamp_granularities=["word"],

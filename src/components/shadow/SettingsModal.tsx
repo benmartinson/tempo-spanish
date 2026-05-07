@@ -92,9 +92,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editedShowPhrases, setEditedShowPhrases] = useState(
     userSettings.showPhrases,
   );
-  const [editedAutoSaveRecordings, setEditedAutoSaveRecordings] = useState(
-    userSettings.autoSaveRecordings,
-  );
   const [editedShowReviewMode, setEditedShowReviewMode] = useState(
     userSettings.showReviewMode,
   );
@@ -142,7 +139,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       showPhrases: editedShowPhrases,
       saveMemorizeDifficulty: editedSaveMemorizeDifficulty,
       defaultMemorizeDifficulty: editedDefaultMemorizeDifficulty,
-      autoSaveRecordings: editedAutoSaveRecordings,
       showReviewMode: editedShowReviewMode,
       reviewFrequency: editedReviewFrequency,
       autoSelectDifficulty: editedAutoSelectDifficulty,
@@ -152,7 +148,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     onSaveRef.current(newSettings);
   }, [
     editedRecordSpeed,
-    editedAutoSaveRecordings,
     editedShowReviewMode,
     editedReviewFrequency,
     muteVideoWhenRecording,

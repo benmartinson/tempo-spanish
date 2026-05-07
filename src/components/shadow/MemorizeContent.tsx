@@ -222,7 +222,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
 
   const shouldUseWidePanelHeader =
     layout === "webPlayer" && webPanelWidth >= 1000 && !webStatusContent;
-  const shouldStackWebPanelControls = webPanelWidth <= 350;
+  const shouldStackWebPanelControls = webPanelWidth <= 480;
   const webPanelHeaderContent = webCountdownTimer ?? webSentenceNav;
   const handleRevealTranslation = useCallback(async () => {
     setTranslationRevealed(true);
@@ -365,7 +365,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
         <DraggableWebPanel
           initialTop={380}
           width={620}
-          minWidth={300}
+          minWidth={360}
           resizeHandleInset={16}
           onWidthChange={setWebPanelWidth}
           dragHandle={

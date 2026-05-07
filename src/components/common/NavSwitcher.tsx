@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
   navHeaderCompact: {
-    paddingVertical: 2,
+    paddingVertical: 30,
   },
   hiddenSearchIconContainer: {
     padding: 4,

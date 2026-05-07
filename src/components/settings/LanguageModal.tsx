@@ -1,73 +1,216 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { useAuth } from "@clerk/clerk-expo";
 import { useSelector, useDispatch } from "react-redux";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import SlideModal from "../common/SlideModal";
-import { RootState } from "../../types";
-import { setUserSettings } from "../../store/actions/dataActions";
-import { persistUserSettings, persistVideoUnselection } from "../../requests";
+import { AppLanguage, RootState } from "../../types";
+import {
+  setAllChannels,
+  setAllTopics,
+  setAllVideos,
+  setChannelTopics,
+  setCurrentVideo,
+  setSelectedChannelId,
+  setTargetLanguage,
+  setTranslationLanguage,
+  setUserSettings,
+} from "../../store/actions/dataActions";
+import {
+  fetchAllVideos,
+  persistUserSettings,
+  persistVideoUnselection,
+} from "../../requests";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { setCurrentVideo } from "../../store/actions/dataActions";
+import { supabase as rawSupabase } from "../../../lib/supabase";
 
-const LANGUAGE_OPTIONS = [
-  { code: "en" as const, label: "English", flag: "🇺🇸" },
-  { code: "es" as const, label: "Spanish", flag: "🇲🇽" },
-  { code: "pt" as const, label: "Portuguese", flag: "🇧🇷" },
+type LanguageStats = Record<AppLanguage, { channels: number; videos: number }>;
+
+const LANGUAGE_OPTIONS: {
+  code: AppLanguage;
+  label: string;
+  nativeLabel: string;
+  flag: string;
+}[] = [
+  { code: "es", label: "Spanish", nativeLabel: "Espanol", flag: "🇲🇽" },
+  { code: "en", label: "English", nativeLabel: "English", flag: "🇺🇸" },
+  { code: "pt", label: "Portuguese", nativeLabel: "Portugues", flag: "🇧🇷" },
 ];
+
+const FALLBACK_LANGUAGE_STATS: LanguageStats = {
+  es: { channels: 18, videos: 420 },
+  en: { channels: 8, videos: 160 },
+  pt: { channels: 6, videos: 120 },
+};
 
 const LanguageModal: React.FC<{
   visible: boolean;
   onClose: () => void;
 }> = ({ visible, onClose }) => {
-  const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
-  const [translationDropdownOpen, setTranslationDropdownOpen] = useState(false);
-  const [draftTarget, setDraftTarget] = useState<"en" | "es" | "pt">("es");
-  const [draftTranslation, setDraftTranslation] = useState<"en" | "es" | "pt">(
-    "en",
+  const [draftTarget, setDraftTarget] = useState<AppLanguage>("es");
+  const [draftTranslation, setDraftTranslation] =
+    useState<AppLanguage>("en");
+  const [languageStats, setLanguageStats] = useState<LanguageStats>(
+    FALLBACK_LANGUAGE_STATS,
   );
+  const [isSaving, setIsSaving] = useState(false);
   const { userId } = useAuth();
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
+  const contentSupabase = supabase ?? rawSupabase;
   const userSettings = useSelector((state: RootState) => state.userSettings);
 
-  const onOpen = () => {
+  useEffect(() => {
+    if (!visible) return;
     setDraftTarget(userSettings.targetLanguage);
     setDraftTranslation(userSettings.translationLanguage);
-    setTargetDropdownOpen(false);
-    setTranslationDropdownOpen(false);
-  };
+  }, [visible, userSettings.targetLanguage, userSettings.translationLanguage]);
 
-  React.useEffect(() => {
-    if (visible) onOpen();
-  }, [visible]);
+  useEffect(() => {
+    if (!visible || !contentSupabase) return;
+
+    let cancelled = false;
+    const loadCounts = async () => {
+      const { data: channels, error: channelError } = await contentSupabase
+        .from("channel")
+        .select("channel_id, language");
+      const { data: videos, error: videoError } = await contentSupabase
+        .from("video")
+        .select("channel_id");
+
+      if (cancelled || channelError || videoError) return;
+
+      const nextStats: LanguageStats = {
+        en: { channels: 0, videos: 0 },
+        es: { channels: 0, videos: 0 },
+        pt: { channels: 0, videos: 0 },
+      };
+      const channelLanguage = new Map<string, AppLanguage>();
+
+      (channels ?? []).forEach(
+        (channel: { channel_id: string; language: AppLanguage | null }) => {
+          if (!channel.language || !(channel.language in nextStats)) return;
+          nextStats[channel.language].channels += 1;
+          channelLanguage.set(channel.channel_id, channel.language);
+        },
+      );
+
+      (videos ?? []).forEach((video: { channel_id: string }) => {
+        const language = channelLanguage.get(video.channel_id);
+        if (language) nextStats[language].videos += 1;
+      });
+
+      setLanguageStats(nextStats);
+    };
+
+    loadCounts();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, contentSupabase]);
+
+  const hasChanges = useMemo(
+    () =>
+      draftTarget !== userSettings.targetLanguage ||
+      draftTranslation !== userSettings.translationLanguage,
+    [draftTarget, draftTranslation, userSettings],
+  );
 
   const handleSave = async () => {
+    if (isSaving) return;
+
     const targetChanged = draftTarget !== userSettings.targetLanguage;
     const newSettings = {
       ...userSettings,
       targetLanguage: draftTarget,
       translationLanguage: draftTranslation,
     };
-    if (targetChanged) {
-      await persistVideoUnselection({ supabase, userId: userId ?? null });
-      dispatch(setCurrentVideo(null));
+
+    setIsSaving(true);
+    try {
+      if (targetChanged) {
+        await persistVideoUnselection({ supabase, userId: userId ?? null });
+        dispatch(setCurrentVideo(null));
+        dispatch(setSelectedChannelId(null));
+      }
+
+      dispatch(setUserSettings(newSettings));
+      dispatch(setTargetLanguage(draftTarget));
+      dispatch(setTranslationLanguage(draftTranslation));
+
+      await persistUserSettings({
+        supabase,
+        userId: userId ?? null,
+        settings: {
+          targetLanguage: draftTarget,
+          translationLanguage: draftTranslation,
+        },
+      });
+
+      const { channelData, videoData, topicData, channelTopicData } =
+        await fetchAllVideos({
+          supabase: contentSupabase,
+          targetLanguage: draftTarget,
+        });
+      dispatch(setAllChannels(channelData));
+      dispatch(setAllVideos(videoData));
+      dispatch(setAllTopics(topicData));
+      dispatch(setChannelTopics(channelTopicData));
+
+      onClose();
+    } finally {
+      setIsSaving(false);
     }
-    dispatch(setUserSettings(newSettings));
-    persistUserSettings({
-      supabase,
-      userId: userId ?? null,
-      settings: {
-        targetLanguage: draftTarget,
-        translationLanguage: draftTranslation,
-      },
-    });
-    onClose();
   };
 
-  const getLangOption = (code: "en" | "es" | "pt") =>
-    LANGUAGE_OPTIONS.find((l) => l.code === code)!;
+  const renderLanguageOption = (
+    language: (typeof LANGUAGE_OPTIONS)[number],
+    selected: boolean,
+    onPress: () => void,
+    showStats: boolean,
+  ) => {
+    const stats = languageStats[language.code];
+
+    return (
+      <TouchableOpacity
+        key={language.code}
+        style={[styles.optionCard, selected && styles.optionCardSelected]}
+        onPress={onPress}
+        activeOpacity={0.78}
+      >
+        <View style={styles.optionFlagWrap}>
+          <Text style={styles.optionFlag}>{language.flag}</Text>
+        </View>
+        <View style={styles.optionText}>
+          <Text
+            style={styles.optionLabel}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {language.label}
+            {showStats && (
+              <Text style={styles.optionStats}>
+                {" "}
+                · {stats.videos.toLocaleString()} videos ·{" "}
+                {stats.channels.toLocaleString()} channels
+              </Text>
+            )}
+          </Text>
+        </View>
+        <View style={[styles.checkCircle, selected && styles.checkSelected]}>
+          {selected && <Ionicons name="checkmark" size={16} color="#fff" />}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SlideModal
@@ -75,198 +218,175 @@ const LanguageModal: React.FC<{
       onRequestClose={onClose}
       title="Language Settings"
     >
-      <View style={styles.languageContent}>
-        <Text style={styles.languageSectionTitle}>Target Language</Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => {
-            setTargetDropdownOpen(!targetDropdownOpen);
-            setTranslationDropdownOpen(false);
-          }}
-        >
-          <Text style={styles.dropdownFlag}>
-            {getLangOption(draftTarget).flag}
-          </Text>
-          <Text style={styles.dropdownLabel}>
-            {getLangOption(draftTarget).label}
-          </Text>
-          <Ionicons
-            name={targetDropdownOpen ? "chevron-up" : "chevron-down"}
-            size={20}
-            color="#888"
-          />
-        </TouchableOpacity>
-        {targetDropdownOpen &&
-          LANGUAGE_OPTIONS.map((lang) => (
-            <TouchableOpacity
-              key={`target-${lang.code}`}
-              style={[
-                styles.dropdownItem,
-                draftTarget === lang.code && styles.dropdownItemSelected,
-              ]}
-              onPress={() => {
-                setDraftTarget(lang.code);
-                if (lang.code === draftTranslation) {
-                  const other = LANGUAGE_OPTIONS.find(
-                    (l) => l.code !== lang.code,
-                  );
-                  if (other) setDraftTranslation(other.code);
-                }
-                setTargetDropdownOpen(false);
-              }}
-            >
-              <Text style={styles.languageOptionFlag}>{lang.flag}</Text>
-              <Text style={styles.languageOptionLabel}>{lang.label}</Text>
-              {draftTarget === lang.code && (
-                <Ionicons name="checkmark" size={20} color="#4a90d9" />
-              )}
-            </TouchableOpacity>
-          ))}
-
-        <Text style={[styles.languageSectionTitle, { marginTop: 30 }]}>
-          Translation Language
-        </Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => {
-            setTranslationDropdownOpen(!translationDropdownOpen);
-            setTargetDropdownOpen(false);
-          }}
-        >
-          <Text style={styles.dropdownFlag}>
-            {getLangOption(draftTranslation).flag}
-          </Text>
-          <Text style={styles.dropdownLabel}>
-            {getLangOption(draftTranslation).label}
-          </Text>
-          <Ionicons
-            name={translationDropdownOpen ? "chevron-up" : "chevron-down"}
-            size={20}
-            color="#888"
-          />
-        </TouchableOpacity>
-        {translationDropdownOpen &&
-          LANGUAGE_OPTIONS.filter((lang) => lang.code !== draftTarget).map(
-            (lang) => (
-              <TouchableOpacity
-                key={`translation-${lang.code}`}
-                style={[
-                  styles.dropdownItem,
-                  draftTranslation === lang.code && styles.dropdownItemSelected,
-                ]}
-                onPress={() => {
-                  setDraftTranslation(lang.code);
-                  setTranslationDropdownOpen(false);
-                }}
-              >
-                <Text style={styles.languageOptionFlag}>{lang.flag}</Text>
-                <Text style={styles.languageOptionLabel}>{lang.label}</Text>
-                {draftTranslation === lang.code && (
-                  <Ionicons name="checkmark" size={20} color="#4a90d9" />
-                )}
-              </TouchableOpacity>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.languageContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.sectionTitle}>Practice Language</Text>
+        <View style={styles.optionGroup}>
+          {LANGUAGE_OPTIONS.map((language) =>
+            renderLanguageOption(
+              language,
+              draftTarget === language.code,
+              () => setDraftTarget(language.code),
+              true,
             ),
           )}
+        </View>
+
+        <Text style={styles.sectionTitle}>Translation Language</Text>
+        <View style={styles.optionGroup}>
+          {LANGUAGE_OPTIONS.map((language) =>
+            renderLanguageOption(
+              language,
+              draftTranslation === language.code,
+              () => setDraftTranslation(language.code),
+              false,
+            ),
+          )}
+        </View>
 
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={onClose}
+            disabled={isSaving}
+          >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Save</Text>
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              (!hasChanges || isSaving) && styles.saveButtonDisabled,
+            ]}
+            onPress={handleSave}
+            disabled={!hasChanges || isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </SlideModal>
   );
 };
 
 const styles = StyleSheet.create({
-  languageContent: {
+  scroll: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 30,
+    backgroundColor: "#f6f7fb",
   },
-  languageSectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#888",
+  languageContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6f7485",
     textTransform: "uppercase",
-    marginBottom: 12,
     letterSpacing: 0.5,
+    marginBottom: 8,
+    marginTop: 12,
+    paddingHorizontal: 2,
   },
-  dropdown: {
+  optionGroup: {
+    gap: 7,
+  },
+  optionCard: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: "#f5f5f7",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#d0d8f0",
+    borderColor: "#e2e6ef",
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
   },
-  dropdownFlag: {
-    fontSize: 24,
+  optionCardSelected: {
+    borderColor: "#4a69bd",
+    backgroundColor: "#eef3ff",
+  },
+  optionFlagWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#f3f4f8",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
-  dropdownLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#1a1a2e",
+  optionFlag: {
+    fontSize: 20,
+  },
+  optionText: {
     flex: 1,
+    minWidth: 0,
   },
-  dropdownItem: {
-    flexDirection: "row",
+  optionLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1a1a2e",
+  },
+  optionStats: {
+    fontSize: 12,
+    color: "#8c93a3",
+    fontWeight: "600",
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#cbd3e1",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: "#f5f5f7",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    justifyContent: "center",
+    marginLeft: 10,
   },
-  dropdownItemSelected: {
-    backgroundColor: "#e8f0fe",
+  checkSelected: {
+    backgroundColor: "#4a69bd",
+    borderColor: "#4a69bd",
   },
   buttonRow: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 40,
+    marginTop: 18,
   },
   cancelButton: {
     flex: 1,
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: 10,
+    paddingVertical: 13,
     alignItems: "center",
-    backgroundColor: "#f5f5f7",
-    borderWidth: 1,
-    borderColor: "#d0d8f0",
+    backgroundColor: "#e9ecf3",
   },
   cancelButtonText: {
-    color: "#1a1a2e",
+    color: "#4e5567",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   saveButton: {
     flex: 1,
-    backgroundColor: "#4a90d9",
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: 10,
+    paddingVertical: 13,
     alignItems: "center",
+    backgroundColor: "#4a69bd",
+  },
+  saveButtonDisabled: {
+    opacity: 0.55,
   },
   saveButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
-  },
-  languageOptionFlag: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  languageOptionLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#1a1a2e",
-    flex: 1,
+    fontWeight: "700",
   },
 });
 

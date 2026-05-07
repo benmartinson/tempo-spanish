@@ -167,7 +167,6 @@ export const fetchVocabTranslation = async ({
 
 export interface FetchTranslationInsightsParams {
   text: string;
-  language: string;
 }
 
 export interface TranslationInsightsResult {
@@ -177,11 +176,10 @@ export interface TranslationInsightsResult {
 
 export const fetchTranslationInsights = async ({
   text,
-  language,
 }: FetchTranslationInsightsParams): Promise<TranslationInsightsResult | null> => {
   const response = await backendFetch("/translation-insights", {
     method: "POST",
-    body: JSON.stringify({ text, language }),
+    body: JSON.stringify({ text }),
   });
 
   if (!response.ok) {
@@ -200,7 +198,6 @@ export interface LoadSentenceInsightsParams {
   sentenceText: string;
   videoRecordId: string;
   sentenceIndex: number;
-  translationLanguage: string;
 }
 
 export interface SentenceInsightsResult {
@@ -213,9 +210,8 @@ export const loadSentenceInsights = async ({
   sentenceText,
   videoRecordId,
   sentenceIndex,
-  translationLanguage,
 }: LoadSentenceInsightsParams): Promise<SentenceInsightsResult> => {
-  const translationColumn = `translation_${translationLanguage}`;
+  const translationColumn = `translation_es`;
 
   // Check Supabase cache first
   const { data: cached, error: cacheError } = (await supabase
@@ -239,7 +235,6 @@ export const loadSentenceInsights = async ({
   // Fetch from backend
   const result = await fetchTranslationInsights({
     text: sentenceText,
-    language: translationLanguage,
   });
 
   if (result) {
@@ -391,6 +386,16 @@ export const restoreUserUIState = async ({
       }
       return defaultResult;
     }
+    const autoSelectDifficultyLevels = [
+      "moderate",
+      "challenging",
+      "difficult",
+      "hardest",
+    ] as const;
+    const autoSelectDifficultyLevel =
+      autoSelectDifficultyLevels.find(
+        (level) => level === uiState.auto_select_difficulty_level,
+      ) ?? DEFAULT_USER_SETTINGS.autoSelectDifficultyLevel;
 
     const settings: UserSettings = {
       playbackSpeed:
@@ -428,9 +433,7 @@ export const restoreUserUIState = async ({
       autoSelectDifficulty:
         uiState.auto_select_difficulty ??
         DEFAULT_USER_SETTINGS.autoSelectDifficulty,
-      autoSelectDifficultyLevel:
-        uiState.auto_select_difficulty_level ??
-        DEFAULT_USER_SETTINGS.autoSelectDifficultyLevel,
+      autoSelectDifficultyLevel,
     };
 
     if (uiState?.current_video) {

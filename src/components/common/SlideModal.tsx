@@ -15,7 +15,7 @@ const SlideModal: React.FC<{
   onRequestClose: () => void;
   children: React.ReactNode;
   title: string;
-  noBorderRadius: boolean;
+  noBorderRadius?: boolean;
 }> = ({ visible, onRequestClose, children, title, noBorderRadius = false }) => {
   if (Platform.OS === "web") {
     return (

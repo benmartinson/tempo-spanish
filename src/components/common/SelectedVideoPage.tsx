@@ -152,7 +152,6 @@ const SelectedVideoPage: React.FC = () => {
   // }, [dispatch]);
 
   const userSettings = useSelector((state: RootState) => state.userSettings);
-  const translationLanguage = userSettings.translationLanguage;
   const [isLoadingInsights, setIsLoadingInsights] = useState<boolean>(true);
   const [orderedCharacters, setOrderedCharacters] = useState<string[]>([]);
   const [sentenceTranslation, setSentenceTranslation] = useState<{
@@ -228,7 +227,6 @@ const SelectedVideoPage: React.FC = () => {
         sentenceText: requestedSentenceText,
         videoRecordId: currentVideo.recordId,
         sentenceIndex: requestedSentenceIndex,
-        translationLanguage,
       });
 
       if (insightsRequestRef.current !== requestId) return;
@@ -258,22 +256,14 @@ const SelectedVideoPage: React.FC = () => {
     supabase,
     currentVideo,
     currentSentenceIndex,
-    translationLanguage,
   ]);
 
   useEffect(() => {
-    if (
-      !userSettings.translationLanguage ||
-      (!currentSentenceIndex && currentSentenceIndex !== 0)
-    ) {
+    if (!currentSentenceIndex && currentSentenceIndex !== 0) {
       return;
     }
     loadTranslationInsights();
-  }, [
-    currentSentenceIndex,
-    userSettings.translationLanguage,
-    loadTranslationInsights,
-  ]);
+  }, [currentSentenceIndex, loadTranslationInsights]);
 
   const getEndPadding = useCallback(
     (sentenceIndex: number) => {

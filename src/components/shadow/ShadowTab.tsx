@@ -1697,11 +1697,11 @@ export const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: 12,
+    gap: 24,
     maxWidth: "100%",
   },
   webRecordingControlsRowCompact: {
-    gap: 8,
+    gap: 10,
   },
   webPreviousResultsButton: {
     width: 42,
@@ -1720,10 +1720,11 @@ export const styles = StyleSheet.create({
   },
   webPanelSentenceNavSwitcher: {
     width: "100%",
+    minHeight: 40,
     backgroundColor: "#f7f9ff",
     borderBottomWidth: 0,
-    paddingTop: 2,
-    paddingBottom: 0,
+    paddingTop: 5,
+    paddingBottom: 5,
   },
   webStatusOverlay: {
     position: "fixed" as any,

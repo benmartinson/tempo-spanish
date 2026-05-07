@@ -32,7 +32,7 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
   initialTop,
   width,
   dragHandle,
-  minWidth = 300,
+  minWidth = 360,
   resizeHandleInset = 0,
   onWidthChange,
   maxWidthRatio = 0.8,
