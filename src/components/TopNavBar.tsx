@@ -12,34 +12,15 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "@clerk/clerk-expo";
 import { useNavigation } from "@react-navigation/native";
-import { useSelector } from "react-redux";
-import LanguageModal from "./settings/LanguageModal";
 import ProfileModal from "./ProfileModal";
-import { RootState } from "../types";
 import { isWebScreenWidth } from "../helpers/helpers";
-
-export const getFlagForLanguage = (language: string): string => {
-  switch (language) {
-    case "es":
-      return "🇲🇽";
-    case "pt":
-      return "🇧🇷";
-    case "en":
-    default:
-      return "🇺🇸";
-  }
-};
 
 const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
   const { isSignedIn } = useAuth();
   const navigation = useNavigation<any>();
   const { width } = useWindowDimensions();
   const isWebScreen = isWebScreenWidth(width);
-  const targetLanguage = useSelector(
-    (state: RootState) => state.userSettings.targetLanguage,
-  );
   const [profileVisible, setProfileVisible] = useState(false);
-  const [languageVisible, setLanguageVisible] = useState(false);
 
   if (isWebScreen) {
     return (
@@ -60,14 +41,6 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
 
           {!minimal && (
             <View style={styles.webActions}>
-              <TouchableOpacity
-                style={styles.webFlagButton}
-                onPress={() => setLanguageVisible(true)}
-              >
-                <Text style={styles.webFlagText}>
-                  {getFlagForLanguage(targetLanguage)}
-                </Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.webAuthButton,
@@ -97,11 +70,6 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
               </TouchableOpacity>
             </View>
           )}
-
-          <LanguageModal
-            visible={languageVisible}
-            onClose={() => setLanguageVisible(false)}
-          />
 
           <ProfileModal
             visible={profileVisible}
@@ -134,11 +102,6 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
           >
             <Ionicons name="person" size={16} color="#5a5680" />
           </TouchableOpacity>
-
-          <LanguageModal
-            visible={languageVisible}
-            onClose={() => setLanguageVisible(false)}
-          />
 
           <ProfileModal
             visible={profileVisible}
@@ -245,6 +208,7 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     textTransform: "uppercase",
     letterSpacing: 1.6,
+    paddingLeft: 1,
   },
   webActions: {
     flexDirection: "row",

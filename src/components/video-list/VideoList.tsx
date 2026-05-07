@@ -71,18 +71,15 @@ const VideoList: React.FC<VideoListProps> = ({
     (state: RootState) => state.hasSeenWelcomeModals,
   );
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
-  const targetLanguage = useSelector(
-    (state: RootState) => state.userSettings.targetLanguage,
-  );
 
-  const targetChannelIds = new Set(
+  const spanishChannelIds = new Set(
     (allChannels || [])
-      .filter((channel) => channel.language === targetLanguage)
+      .filter((channel) => channel.language === "es")
       .map((channel) => channel.channel_id),
   );
 
-  const videosForLanguage = allVideos.filter((video) =>
-    targetChannelIds.has(video.channel_id),
+  const spanishVideos = allVideos.filter((video) =>
+    spanishChannelIds.has(video.channel_id),
   );
 
   useEffect(() => {
@@ -180,7 +177,7 @@ const VideoList: React.FC<VideoListProps> = ({
   };
 
   const recentlyWatchedVideos = userId
-    ? videosForLanguage
+    ? spanishVideos
         ?.filter((video) =>
           userVideoViews?.some((videoView) => videoView.video_id === video.id),
         )
@@ -224,7 +221,7 @@ const VideoList: React.FC<VideoListProps> = ({
     );
   }
 
-  if (!videosForLanguage?.length) {
+  if (!spanishVideos?.length) {
     return (
       <View
         style={{
@@ -281,7 +278,7 @@ const VideoList: React.FC<VideoListProps> = ({
         )}
         {/* <VideoSectionHeader title="Recommended" /> */}
         <FilterVideos
-          videos={videosForLanguage}
+          videos={spanishVideos}
           mode="topics"
           topics={allTopics}
           channelTopics={channelTopics}

@@ -410,11 +410,6 @@ export const restoreUserUIState = async ({
       showStartsOffAs:
         uiState.show_starts_off_as ?? DEFAULT_USER_SETTINGS.showStartsOffAs,
       showPhrases: uiState.show_phrases ?? DEFAULT_USER_SETTINGS.showPhrases,
-      targetLanguage:
-        uiState.target_language ?? DEFAULT_USER_SETTINGS.targetLanguage,
-      translationLanguage:
-        uiState.translation_language ??
-        DEFAULT_USER_SETTINGS.translationLanguage,
       estimatedHours:
         uiState.estimated_hours ?? DEFAULT_USER_SETTINGS.estimatedHours,
       saveMemorizeDifficulty:
@@ -599,10 +594,6 @@ export const persistUserSettings = async ({
     updateData.show_starts_off_as = settings.showStartsOffAs;
   if (settings.showPhrases !== undefined)
     updateData.show_phrases = settings.showPhrases;
-  if (settings.targetLanguage !== undefined)
-    updateData.target_language = settings.targetLanguage;
-  if (settings.translationLanguage !== undefined)
-    updateData.translation_language = settings.translationLanguage;
   if (settings.estimatedHours !== undefined)
     updateData.estimated_hours = settings.estimatedHours;
   if (settings.saveMemorizeDifficulty !== undefined)

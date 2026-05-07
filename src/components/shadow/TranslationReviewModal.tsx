@@ -27,7 +27,6 @@ interface TranslationReviewModalProps {
   targetText: string;
   targetWords: SegmentWord[];
   properNouns: string[];
-  targetLanguage: string;
   onComplete: () => void;
   onClose: () => void;
 }
@@ -39,7 +38,6 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   targetText,
   targetWords,
   properNouns,
-  targetLanguage,
   onComplete,
   onClose,
 }) => {
@@ -67,10 +65,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
     onRecordingComplete: async (audioUri: string) => {
       setIsTranscribing(true);
       try {
-        const transcriptionResult = await sendAudioForTranscription(
-          audioUri,
-          targetLanguage,
-        );
+        const transcriptionResult = await sendAudioForTranscription(audioUri);
         const spokenWords = transcriptionResult.transcript
           .split(/\s+/)
           .filter(Boolean);

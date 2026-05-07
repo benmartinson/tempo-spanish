@@ -198,7 +198,10 @@ const MainApp: React.FC = () => {
     });
 
     // Fetch video views
-    fetchUserVideoViews({ supabase: clerkSupabase }).then((videoViews) => {
+    fetchUserVideoViews({
+      supabase: clerkSupabase,
+      userId,
+    }).then((videoViews) => {
       dispatch(setUserVideoViews(videoViews));
     });
 

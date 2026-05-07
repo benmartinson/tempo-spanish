@@ -525,10 +525,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       }
 
       try {
-        const transcriptionResult = await sendAudioForTranscription(
-          safeUri,
-          userSettings.targetLanguage,
-        );
+        const transcriptionResult = await sendAudioForTranscription(safeUri);
         const spokenWords = transcriptionResult.transcript
           .split(/\s+/)
           .filter(Boolean);
@@ -1595,7 +1592,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         targetText={reviewTranslationSentence?.text ?? ""}
         targetWords={reviewTranslationSentence?.words ?? []}
         properNouns={reviewTranslationSentence?.properNouns ?? []}
-        targetLanguage={userSettings.targetLanguage}
         onComplete={proceedAfterReview}
         onClose={proceedAfterReview}
       />

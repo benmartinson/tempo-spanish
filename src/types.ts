@@ -5,8 +5,6 @@ export interface UserSettings {
   showCharacters: boolean;
   showStartsOffAs: boolean;
   showPhrases: boolean;
-  targetLanguage: "en" | "es" | "pt";
-  translationLanguage: "en" | "es" | "pt";
   estimatedHours: number | null;
   saveMemorizeDifficulty: boolean;
   defaultMemorizeDifficulty: number;
@@ -55,8 +53,6 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   showCharacters: true,
   showStartsOffAs: true,
   showPhrases: true,
-  targetLanguage: "es",
-  translationLanguage: "en",
   estimatedHours: null,
   saveMemorizeDifficulty: false,
   defaultMemorizeDifficulty: 0,
@@ -332,8 +328,6 @@ export interface UserUIState {
   show_characters: boolean | null;
   show_starts_off_as: boolean | null;
   show_phrases: boolean | null;
-  target_language: "en" | "es" | "pt" | null;
-  translation_language: "en" | "es" | "pt" | null;
   estimated_hours: number | null;
   current_shadow_tab: "insights" | "memorize" | "translate" | "voice" | null;
   memorize_difficulty: number | null;
