@@ -1434,7 +1434,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   );
   const streamBannerElement =
     shadowMode === "stream" && !streamBannerDismissed ? (
-      <View style={styles.streamBanner}>
+      <View
+        style={[styles.streamBanner, isWebScreen && styles.streamBannerWeb]}
+      >
         <Text style={styles.streamBannerText}>
           You are in Stream mode, the video will not stop at the end of
           segments, switch back to{" "}
@@ -2027,6 +2029,11 @@ export const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     gap: 10,
+  },
+  streamBannerWeb: {
+    marginTop: 16,
+    maxWidth: 830,
+    alignSelf: "center",
   },
   streamBannerText: {
     flex: 1,

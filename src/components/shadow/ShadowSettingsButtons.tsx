@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Platform,
   StyleSheet,
@@ -52,6 +52,14 @@ const ShadowSettingsButtons: React.FC<ShadowSettingsButtonsProps> = ({
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
   const isWeb = Platform.OS === "web";
+  const visibleModeOptions = useMemo(
+    () =>
+      isWeb
+        ? MODE_OPTIONS.filter((option) => option.key !== "voice")
+        : MODE_OPTIONS,
+    [isWeb],
+  );
+  const displayMode = isWeb && mode === "voice" ? "shadow" : mode;
 
   const formatSpeed = (s: number) =>
     s === 0 ? "Off" : `${String(s).replace(/^0/, "")}x`;
@@ -108,12 +116,12 @@ const ShadowSettingsButtons: React.FC<ShadowSettingsButtonsProps> = ({
                 setSpeedMenuOpen(false);
               }}
             >
-              {renderModeIcon(mode, "#647089")}
+              {renderModeIcon(displayMode, "#647089")}
             </TouchableOpacity>
             {modeMenuOpen && (
               <View style={styles.webPopover}>
-                {MODE_OPTIONS.map((option) => {
-                  const isSelected = option.key === mode;
+                {visibleModeOptions.map((option) => {
+                  const isSelected = option.key === displayMode;
                   return (
                     <TouchableOpacity
                       key={option.key}

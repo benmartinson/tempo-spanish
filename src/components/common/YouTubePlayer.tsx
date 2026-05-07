@@ -278,6 +278,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
     const lastTimeRef = useRef<number>(-1);
     const playingRef = useRef<boolean>(false);
     const staleTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const suppressTimePlayingUntilRef = useRef<number>(0);
     const mountedRef = useRef<boolean>(true);
 
     const handleTimeMessage = (time: number) => {
@@ -288,6 +289,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       lastTimeRef.current = time;
 
       if (timeChanged && !playingRef.current) {
+        if (isWeb && Date.now() < suppressTimePlayingUntilRef.current) return;
         playingRef.current = true;
         if (mountedRef.current) onPlayingStateChange?.(true);
       }
@@ -329,6 +331,9 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
           } else if (msg.type === "YT_PLAYING_STATE") {
             playingRef.current = !!msg.isPlaying;
             if (staleTimerRef.current) clearTimeout(staleTimerRef.current);
+            if (!msg.isPlaying) {
+              suppressTimePlayingUntilRef.current = Date.now() + 500;
+            }
             if (mountedRef.current) onPlayingStateChange?.(!!msg.isPlaying);
           }
         } catch {

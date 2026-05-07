@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Animated,
   PanResponder,
+  Platform,
   GestureResponderEvent,
   PanResponderGestureState,
 } from "react-native";
@@ -42,18 +43,27 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const hoveredIndexRef = useRef<number | null>(null);
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const options = useMemo(
+    () =>
+      Platform.OS === "web"
+        ? OPTIONS.filter((option) => option.key !== "voice")
+        : OPTIONS,
+    [],
+  );
+  const displayMode =
+    Platform.OS === "web" && mode === "voice" ? "shadow" : mode;
 
   const positions = useMemo(
     () =>
-      OPTIONS.map((_, i) => {
+      options.map((_, i) => {
         const angle =
-          START_ANGLE + (END_ANGLE - START_ANGLE) * (i / (OPTIONS.length - 1));
+          START_ANGLE + (END_ANGLE - START_ANGLE) * (i / (options.length - 1));
         return {
           x: Math.cos(angle) * DIAL_RADIUS,
           y: -Math.sin(angle) * DIAL_RADIUS,
         };
       }),
-    [],
+    [options],
   );
 
   const animatedTransforms = useMemo(
@@ -94,7 +104,7 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({
     (commit: boolean) => {
       const idx = hoveredIndexRef.current;
       if (commit && idx !== null) {
-        const key = OPTIONS[idx].key;
+        const key = options[idx].key;
         if (key === "help") {
           onHelpSelect?.();
         } else {
@@ -111,7 +121,7 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({
         hoveredIndexRef.current = null;
       });
     },
-    [scaleAnim, onModeChange],
+    [scaleAnim, onModeChange, onHelpSelect, options],
   );
 
   const panResponder = useRef(
@@ -159,9 +169,9 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({
     <View style={styles.container}>
       {isOpen && (
         <View style={styles.optionsContainer} pointerEvents="none">
-          {OPTIONS.map((opt, i) => {
+          {options.map((opt, i) => {
             const isHovered = hoveredIndex === i;
-            const isSelected = opt.key === mode && hoveredIndex === null;
+            const isSelected = opt.key === displayMode && hoveredIndex === null;
             return (
               <Animated.View
                 key={opt.key}
@@ -198,7 +208,9 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({
 
       <View style={styles.bubble} {...panResponder.panHandlers}>
         {renderIcon(
-          hoveredIndex !== null && isOpen ? OPTIONS[hoveredIndex].key : mode,
+          hoveredIndex !== null && isOpen
+            ? options[hoveredIndex].key
+            : displayMode,
           hoveredIndex !== null && isOpen ? "#3d3a52" : "#888",
         )}
       </View>

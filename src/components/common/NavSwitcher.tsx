@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
   },
   navButtonCompact: {
-    padding: 3,
+    padding: 6,
     borderRadius: 6,
   },
   navButtonDisabled: {
