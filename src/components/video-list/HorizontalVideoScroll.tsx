@@ -17,12 +17,14 @@ const HorizontalVideoScroll: React.FC<{
   loadingVideo: boolean;
   showClips?: boolean;
   onViewAll?: () => void;
+  isChannel?: boolean;
 }> = ({
   videos,
   handleWatchPress,
   loadingVideo,
   showClips = false,
   onViewAll,
+  isChannel = true,
 }) => {
   const displayedVideos = videos.slice(0, MAX_VISIBLE);
   const hasMore = videos.length > MAX_VISIBLE;
@@ -37,7 +39,10 @@ const HorizontalVideoScroll: React.FC<{
       ]}
     >
       {displayedVideos.map((video) => (
-        <View key={video.video_id} style={styles.videoItem}>
+        <View
+          key={video.video_id}
+          style={[styles.videoItem, !isChannel && { height: 230 }]}
+        >
           <VideoCard
             video={video}
             onPress={() => handleWatchPress(video.video_id, video.id)}
@@ -47,7 +52,7 @@ const HorizontalVideoScroll: React.FC<{
           <View style={styles.videoClipsContainer}>
             {showClips &&
               video.clips &&
-              video.clips.slice(0, 5).map((clip) => (
+              video.clips.slice(0, 6).map((clip) => (
                 <TouchableOpacity
                   key={clip}
                   onPress={() =>

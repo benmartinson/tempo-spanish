@@ -29,7 +29,7 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
           <View style={styles.webBrand}>
             <View style={styles.webBrandMark}>
               <Image
-                source={require("../../assets/icon.png")}
+                source={require("../../public/try/assets/icon.png")}
                 style={styles.webBrandIcon}
               />
             </View>

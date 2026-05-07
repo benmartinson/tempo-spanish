@@ -180,6 +180,7 @@ export interface Channel {
   thumbnail_url: string;
   difficulty: string;
   language: "en" | "es" | "pt";
+  sort_index?: number;
 }
 
 export interface Topic {

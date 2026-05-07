@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -195,6 +195,33 @@ const VideoList: React.FC<VideoListProps> = ({
             new Date(b.watched_at).getTime() - new Date(a.watched_at).getTime(),
         )
     : [];
+  const channelSortIndexById = useMemo(
+    () =>
+      new Map(
+        (allChannels || []).map((channel) => [
+          channel.channel_id,
+          channel.sort_index ?? Number.MAX_SAFE_INTEGER,
+        ]),
+      ),
+    [allChannels],
+  );
+  const newReleaseVideos = useMemo(
+    () =>
+      [...spanishVideos]
+        .sort((a, b) => {
+          const releaseDiff =
+            new Date(b.release_date ?? 0).getTime() -
+            new Date(a.release_date ?? 0).getTime();
+          if (releaseDiff !== 0) return releaseDiff;
+          return (
+            (channelSortIndexById.get(a.channel_id) ??
+              Number.MAX_SAFE_INTEGER) -
+            (channelSortIndexById.get(b.channel_id) ?? Number.MAX_SAFE_INTEGER)
+          );
+        })
+        .slice(0, 8),
+    [channelSortIndexById, spanishVideos],
+  );
 
   if (selectedChannel) {
     const channelVideos = allVideos
@@ -273,6 +300,21 @@ const VideoList: React.FC<VideoListProps> = ({
               videos={recentlyWatchedVideos}
               handleWatchPress={handleWatchPress}
               loadingVideo={loadingVideo}
+              isChannel={false}
+            />
+          </>
+        )}
+        {newReleaseVideos.length > 0 && (
+          <>
+            <VideoSectionHeader
+              title="New Releases"
+              removeBorderTop={recentlyWatchedVideos.length === 0}
+            />
+            <HorizontalVideoScroll
+              videos={newReleaseVideos}
+              handleWatchPress={handleWatchPress}
+              loadingVideo={loadingVideo}
+              isChannel={false}
             />
           </>
         )}
@@ -332,7 +374,7 @@ const VideoList: React.FC<VideoListProps> = ({
                 <VideoSectionHeader
                   title="All Channels"
                   removeBorderTop={
-                    Boolean(recentlyWatchedVideos?.length) === false
+                    !recentlyWatchedVideos.length && !newReleaseVideos.length
                   }
                 >
                   {filterButton}
@@ -428,7 +470,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 1320,
     alignSelf: "center",
-    paddingTop: 20,
+    paddingTop: 8,
     paddingBottom: 40,
   },
   title: {

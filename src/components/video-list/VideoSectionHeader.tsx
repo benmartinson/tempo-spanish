@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#d0d8f0",
     borderTopWidth: 1,
@@ -60,10 +60,10 @@ const styles = StyleSheet.create({
   },
   webContainer: {
     marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 18,
+    marginTop: 0,
+    marginBottom: 12,
     paddingHorizontal: 4,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderTopWidth: 0,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(74, 105, 189, 0.16)",
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   },
   webTitle: {
     color: "#252b3a",
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "800",
   },
   webActions: {

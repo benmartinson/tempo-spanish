@@ -475,7 +475,7 @@ const AppNavigator: React.FC = () => {
 
   return (
     <Stack.Navigator id="MainStack" screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Tempo" component={MainApp} />
+      <Stack.Screen name="MainApp" component={MainApp} />
       <Stack.Screen
         name="SignIn"
         component={SignInScreen}
@@ -491,6 +491,9 @@ const App: React.FC = () => {
       <Provider store={store}>
         <NavigationContainer
           linking={Platform.OS === "web" ? linking : undefined}
+          documentTitle={
+            Platform.OS === "web" ? { formatter: () => "Tempo" } : undefined
+          }
         >
           <AppNavigator />
         </NavigationContainer>
