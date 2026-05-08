@@ -33,6 +33,8 @@ import { getInitials } from "../helpers/helpers";
 
 const APP_STORE_URL =
   "https://apps.apple.com/us/app/tempo-spanish/id6763132237";
+const SHOW_LANGUAGE_SETTINGS = false;
+const SHOW_CREATOR_SIGNUP = false;
 
 interface ProfileModalProps {
   visible: boolean;
@@ -234,13 +236,24 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
               <Text style={styles.buyMoreText}>Buy More</Text>
             </View>
           </TouchableOpacity>
-          <MenuRow label="Language" onPress={() => setLanguageVisible(true)} />
-          <MenuRow label="Close account" onPress={handleCloseAccount} />
+          {SHOW_LANGUAGE_SETTINGS && (
+            <MenuRow
+              label="Language"
+              onPress={() => setLanguageVisible(true)}
+            />
+          )}
           <MenuRow
-            label="Become a Creator"
-            onPress={handleCreatorSignUpPress}
-            isLast
+            label="Close account"
+            onPress={handleCloseAccount}
+            isLast={!SHOW_CREATOR_SIGNUP}
           />
+          {SHOW_CREATOR_SIGNUP && (
+            <MenuRow
+              label="Become a Creator"
+              onPress={handleCreatorSignUpPress}
+              isLast
+            />
+          )}
         </View>
 
         <Text style={styles.sectionHeader}>Support</Text>
@@ -293,10 +306,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
         onClose={() => setHelpVisible(false)}
       />
 
-      <LanguageModal
-        visible={languageVisible}
-        onClose={() => setLanguageVisible(false)}
-      />
+      {SHOW_LANGUAGE_SETTINGS && (
+        <LanguageModal
+          visible={languageVisible}
+          onClose={() => setLanguageVisible(false)}
+        />
+      )}
 
       <Modal
         visible={deleteConfirmVisible}

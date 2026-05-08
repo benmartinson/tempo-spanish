@@ -40,6 +40,7 @@ export const useRealtimeTranscription =
     const completedItemsRef = useRef<Record<string, string>>({});
     const deltaItemsRef = useRef<Record<string, string>>({});
     const transcriptRef = useRef("");
+    const sessionIdRef = useRef(0);
 
     const isSupported = useMemo(() => {
       if (Platform.OS !== "web") return false;
@@ -84,6 +85,7 @@ export const useRealtimeTranscription =
     }, [setTranscriptValue]);
 
     const closeConnection = useCallback(() => {
+      sessionIdRef.current += 1;
       const dc = dataChannelRef.current;
       if (dc) {
         try {
@@ -108,6 +110,15 @@ export const useRealtimeTranscription =
       }
       mediaStreamRef.current = null;
       setIsConnected(false);
+    }, []);
+
+    const closeLocalConnection = useCallback((pc: any, stream: any) => {
+      try {
+        pc?.close();
+      } catch {}
+      try {
+        stream?.getTracks?.().forEach((track: any) => track.stop());
+      } catch {}
     }, []);
 
     const handleRealtimeEvent = useCallback(
@@ -145,6 +156,7 @@ export const useRealtimeTranscription =
       closeConnection();
       resetRealtimeTranscript();
       const transcriptionLanguage = language || "es";
+      const sessionId = sessionIdRef.current;
 
       try {
         const tokenResponse = await backendFetch(
@@ -163,11 +175,18 @@ export const useRealtimeTranscription =
         }
 
         const session: RealtimeSessionResponse = await tokenResponse.json();
+        if (sessionIdRef.current !== sessionId) return false;
+
         const g = globalThis as any;
         const pc = new g.RTCPeerConnection();
         const stream = await g.navigator.mediaDevices.getUserMedia({
           audio: true,
         });
+
+        if (sessionIdRef.current !== sessionId) {
+          closeLocalConnection(pc, stream);
+          return false;
+        }
 
         peerConnectionRef.current = pc;
         mediaStreamRef.current = stream;
@@ -205,10 +224,20 @@ export const useRealtimeTranscription =
           );
         }
 
+        if (sessionIdRef.current !== sessionId) {
+          closeLocalConnection(pc, stream);
+          return false;
+        }
+
         await pc.setRemoteDescription({
           type: "answer",
           sdp: await sdpResponse.text(),
         });
+
+        if (sessionIdRef.current !== sessionId) {
+          closeLocalConnection(pc, stream);
+          return false;
+        }
 
         return true;
       } catch (err) {
@@ -219,6 +248,7 @@ export const useRealtimeTranscription =
       }
     }, [
       closeConnection,
+      closeLocalConnection,
       handleRealtimeEvent,
       isSupported,
       resetRealtimeTranscript,

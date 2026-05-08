@@ -30,6 +30,7 @@ class RealtimeTranscriptionSessionRequest(BaseModel):
     language: str = "es"
     targetLanguage: str | None = None
     model: str | None = None
+    prompt: str | None = None
 
 
 @router.post("/api/realtime-transcription/session")
@@ -64,6 +65,7 @@ async def create_realtime_transcription_session(
                     "transcription": {
                         "model": model,
                         "language": language,
+                        "prompt": request.prompt or "",
                     },
                 },
             },

@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "Tempo Language",
+    name: "Tempo Spanish",
     slug: "rn-starter",
     version: "1.0.1",
     orientation: "portrait",

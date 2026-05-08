@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useDraggableWebPanelWidth } from "../common/DraggableWebPanel";
 
 type RecordingPhase = "countdown" | "recording" | "buffer" | "complete";
 
@@ -29,6 +30,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   maxRecordingDuration = 60,
 }) => {
   const [phase, setPhase] = useState<RecordingPhase>("countdown");
+  const webPanelWidth = useDraggableWebPanelWidth();
   const [countdown, setCountdown] = useState<number>(countdownDuration);
   const [bufferCountdown, setBufferCountdown] =
     useState<number>(bufferDuration);
@@ -39,6 +41,8 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   const remainingSeconds = maxRecordingDuration - elapsedSeconds;
   const showTimeWarning = phase === "buffer";
   const warningSeconds = Math.max(0, Math.ceil(bufferCountdown));
+  const shouldFillNarrowWebPanel =
+    webPanelWidth !== null && webPanelWidth < 450;
 
   // Pulse animation for recording indicator
   useEffect(() => {
@@ -125,7 +129,12 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   }, [bufferCountdown, phase]);
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        shouldFillNarrowWebPanel && styles.narrowWebPanelContainer,
+      ]}
+    >
       <View style={styles.recordingPhase}>
         <View style={styles.recordingIndicatorRow}>
           <Animated.View
@@ -166,10 +175,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    width: "100%",
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: "#2d2a40",
     borderRadius: 16,
+  },
+  narrowWebPanelContainer: {
+    borderRadius: 0,
   },
   countdownPhase: {
     alignItems: "center",

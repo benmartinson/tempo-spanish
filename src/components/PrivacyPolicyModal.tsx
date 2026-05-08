@@ -25,7 +25,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
         <Text style={styles.updated}>Last Updated: April 14, 2026</Text>
 
         <Text style={styles.body}>
-          Tempo Language ("we," "us," or "our") operates the Tempo Language
+          Tempo Spanish ("we," "us," or "our") operates the Tempo Spanish
           mobile application ("App"). This Privacy Policy explains how we
           collect, use, store, and share your information when you use the App.
           By using the App, you agree to the practices described in this policy.

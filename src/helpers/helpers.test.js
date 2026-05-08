@@ -220,6 +220,82 @@ describe("splitSegmentsIntoSentences", () => {
       "Michael Burry concluye que el sistema y todo el mercado inmobiliario está al borde del colapso.",
     ]);
   });
+
+  it("merges punctuation-split number continuations before sentence splitting", () => {
+    const rawWords = [
+      "Cuesta",
+      "3",
+      ".14",
+      "millones",
+      "y",
+      "1",
+      ",000",
+      "o",
+      "$1",
+      ",000",
+      "personas.",
+    ];
+
+    const words = rawWords.map((w, i) => ({
+      word: ` ${w}`,
+      start: i,
+      end: i + 1,
+      frequency: 0,
+    }));
+
+    const result = splitSegmentsIntoSentences([
+      {
+        segment_id: 1,
+        start: 0,
+        end: rawWords.length,
+        text: rawWords.join(" "),
+        video_id: "1",
+        words,
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe(
+      "Cuesta 3.14 millones y 1,000 o $1,000 personas.",
+    );
+    expect(result[0].words.map((word) => word.word)).toEqual([
+      " Cuesta",
+      " 3.14",
+      " millones",
+      " y",
+      " 1,000",
+      " o",
+      " $1,000",
+      " personas.",
+    ]);
+  });
+
+  it("does not merge comma or period continuations onto non-number words", () => {
+    const rawWords = ["Hola", ",amigo", "termina."];
+    const words = rawWords.map((w, i) => ({
+      word: ` ${w}`,
+      start: i,
+      end: i + 1,
+      frequency: 0,
+    }));
+
+    const result = splitSegmentsIntoSentences([
+      {
+        segment_id: 1,
+        start: 0,
+        end: rawWords.length,
+        text: rawWords.join(" "),
+        video_id: "1",
+        words,
+      },
+    ]);
+
+    expect(result[0].words.map((word) => word.word)).toEqual([
+      " Hola",
+      " ,amigo",
+      " termina.",
+    ]);
+  });
 });
 
 describe("computeBaseMaskedIndices", () => {

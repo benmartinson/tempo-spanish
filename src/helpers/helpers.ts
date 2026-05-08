@@ -145,18 +145,33 @@ export const splitTranslationIntoSentences = (
   return translation.split(/[.!?]/).map((s) => s.trim());
 };
 
+const isNumericToken = (value: string): boolean =>
+  value.trim() !== "" && !isNaN(Number(value.trim().replace(/,/g, "")));
+
 // Merge tokens like " Wall" + " -E" into a single " Wall-E" word so a hyphenated
-// proper noun isn't split across two SegmentWords. The transcript occasionally
-// emits these as separate tokens; we treat any word whose trimmed form starts
-// with "-" as a continuation of the prior word.
+// proper noun isn't split across two SegmentWords. Also merge number tokens like
+// " 3" + " .14" or " 1" + " ,000" so punctuation-split numbers stay intact.
 const mergeDashContinuations = (words: SegmentWord[]): SegmentWord[] => {
   const result: SegmentWord[] = [];
   for (const w of words) {
     const prev = result[result.length - 1];
-    if (prev && w.word.trim().startsWith("-")) {
+    const currentWord = w.word.trim();
+    const prevWord = prev?.word.trim() ?? "";
+    const startsWithContinuationPunctuation = /^[.,-]/.test(currentWord);
+    const currentWithoutFirstChar = currentWord.slice(1);
+    const prevWithoutFirstChar = prevWord.slice(1);
+    const prevIsNumeric =
+      isNumericToken(prevWord) || isNumericToken(prevWithoutFirstChar);
+    const shouldMerge =
+      prev &&
+      startsWithContinuationPunctuation &&
+      (currentWord.startsWith("-") ||
+        (prevIsNumeric && isNumericToken(currentWithoutFirstChar)));
+
+    if (shouldMerge) {
       result[result.length - 1] = {
         ...prev,
-        word: prev.word + w.word.trim(),
+        word: prev.word + currentWord,
         end: w.end,
       };
     } else {

@@ -47,8 +47,10 @@ import VideoList from "./src/components/video-list/VideoList";
 import NavTabBanner from "./src/components/common/NavTabBanner";
 import SelectedVideoPage from "./src/components/common/SelectedVideoPage";
 import CreditStore from "./src/components/CreditStore";
-import CreatorRequestsPage from "./src/components/CreatorRequestsPage";
-import CreatorSignUpPage from "./src/components/CreatorSignUpPage";
+// Creator routes are intentionally hidden for this deploy. Keep the pages in
+// the repo so the feature can be re-enabled without rebuilding it.
+// import CreatorRequestsPage from "./src/components/CreatorRequestsPage";
+// import CreatorSignUpPage from "./src/components/CreatorSignUpPage";
 import Constants from "expo-constants";
 const tokenCache = clerkTokenCache
   ? {
@@ -95,14 +97,15 @@ const linking: any = {
     const params: {
       channelId?: string;
       videoId?: string;
-      creatorRequests?: boolean;
-      creatorSignUp?: boolean;
+      // creatorRequests?: boolean;
+      // creatorSignUp?: boolean;
     } = {};
-    if (segments[0] === "creator" && segments[1] === "requests") {
-      params.creatorRequests = true;
-    } else if (segments[0] === "creator" && segments[1] === "sign_up") {
-      params.creatorSignUp = true;
-    }
+    // Creator routes are hidden for this deploy.
+    // if (segments[0] === "creator" && segments[1] === "requests") {
+    //   params.creatorRequests = true;
+    // } else if (segments[0] === "creator" && segments[1] === "sign_up") {
+    //   params.creatorSignUp = true;
+    // }
     if (segments[0] === "channel" && segments[1]) {
       params.channelId = segments[1];
     }
@@ -118,14 +121,15 @@ const linking: any = {
     const route = state.routes[state.index ?? 0];
     if (route?.name !== "MainApp") return "";
 
-    const { channelId, videoId, creatorRequests, creatorSignUp } =
-      route.params ?? {};
-    if (creatorRequests) {
-      return "/creator/requests";
-    }
-    if (creatorSignUp) {
-      return "/creator/sign_up";
-    }
+    const { channelId, videoId } = route.params ?? {};
+    // Creator routes are hidden for this deploy.
+    // const { creatorRequests, creatorSignUp } = route.params ?? {};
+    // if (creatorRequests) {
+    //   return "/creator/requests";
+    // }
+    // if (creatorSignUp) {
+    //   return "/creator/sign_up";
+    // }
     if (videoId) {
       return `/video/${encodeURIComponent(videoId)}`;
     }
@@ -154,8 +158,11 @@ const MainApp: React.FC = () => {
     typeof route.params?.channelId === "string" ? route.params.channelId : null;
   const routeVideoId =
     typeof route.params?.videoId === "string" ? route.params.videoId : null;
-  const routeCreatorRequests = route.params?.creatorRequests === true;
-  const routeCreatorSignUp = route.params?.creatorSignUp === true;
+  // Creator routes are hidden for this deploy.
+  // const routeCreatorRequests = route.params?.creatorRequests === true;
+  // const routeCreatorSignUp = route.params?.creatorSignUp === true;
+  const routeCreatorRequests = false;
+  const routeCreatorSignUp = false;
   const hasRouteTarget =
     Platform.OS === "web" &&
     !!(
@@ -353,12 +360,13 @@ const MainApp: React.FC = () => {
   useEffect(() => {
     if (Platform.OS !== "web" || isRestoringState) return;
 
-    if (routeCreatorRequests || routeCreatorSignUp) {
-      if (currentVideo) dispatch(setCurrentVideo(null));
-      if (selectedChannelId) dispatch(setSelectedChannelId(null));
-      setIsLoadingRouteVideo(false);
-      return;
-    }
+    // Creator routes are hidden for this deploy.
+    // if (routeCreatorRequests || routeCreatorSignUp) {
+    //   if (currentVideo) dispatch(setCurrentVideo(null));
+    //   if (selectedChannelId) dispatch(setSelectedChannelId(null));
+    //   setIsLoadingRouteVideo(false);
+    //   return;
+    // }
 
     if (!routeChannelId && !routeVideoId) {
       if (currentVideo) dispatch(setCurrentVideo(null));
@@ -460,8 +468,11 @@ const MainApp: React.FC = () => {
     Platform.OS === "web"
       ? !!routeVideoId && routeVideoIsReady
       : !!currentVideo;
-  const shouldShowCreatorRequestsPage = routeCreatorRequests;
-  const shouldShowCreatorSignUpPage = routeCreatorSignUp;
+  // Creator routes are hidden for this deploy.
+  // const shouldShowCreatorRequestsPage = routeCreatorRequests;
+  // const shouldShowCreatorSignUpPage = routeCreatorSignUp;
+  const shouldShowCreatorRequestsPage = false;
+  const shouldShowCreatorSignUpPage = false;
 
   return (
     <View style={{ flex: 1, backgroundColor: "white" }}>
@@ -482,9 +493,11 @@ const MainApp: React.FC = () => {
           <ActivityIndicator size="large" color="#5a5680" />
         </View>
       ) : shouldShowCreatorRequestsPage ? (
-        <CreatorRequestsPage onBack={navigateHome} />
+        null
+        // <CreatorRequestsPage onBack={navigateHome} />
       ) : shouldShowCreatorSignUpPage ? (
-        <CreatorSignUpPage onBack={navigateHome} />
+        null
+        // <CreatorSignUpPage onBack={navigateHome} />
       ) : shouldShowVideoPage ? (
         <>
           <NavTabBanner />
@@ -555,7 +568,7 @@ const App: React.FC = () => {
           linking={Platform.OS === "web" ? linking : undefined}
           documentTitle={
             Platform.OS === "web"
-              ? { formatter: () => "Tempo Language" }
+              ? { formatter: () => "Tempo Spanish" }
               : undefined
           }
         >

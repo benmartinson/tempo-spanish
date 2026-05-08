@@ -14,6 +14,7 @@ import {
   stripPhraseComma,
 } from "../../helpers/helpers";
 import AccuracyCircle from "../common/AccuracyCircle";
+import { useDraggableWebPanelWidth } from "../common/DraggableWebPanel";
 import { playLocalAudio, stopAudio } from "../../helpers/streaming_helpers";
 
 interface ShadowResultsProps {
@@ -54,6 +55,9 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   onPlaybackError,
 }) => {
   const [isPlayingRecording, setIsPlayingRecording] = useState(false);
+  const webPanelWidth = useDraggableWebPanelWidth();
+  const shouldStackPlayRecording =
+    variant === "webPanel" && webPanelWidth !== null && webPanelWidth < 600;
 
   const setRecordingPlaybackState = useCallback(
     (isPlaying: boolean) => {
@@ -203,6 +207,46 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
     );
   };
 
+  const playRecordingButton = !!audioUri && (
+    <TouchableOpacity
+      style={[
+        styles.actionButton,
+        styles.playRecordingButton,
+        shouldStackPlayRecording && styles.playRecordingButtonStacked,
+      ]}
+      onPress={handlePlayUserRecording}
+    >
+      <MaterialIcons
+        name={isPlayingRecording ? "stop" : "play-arrow"}
+        size={20}
+        color="#4a69bd"
+      />
+      <Text style={styles.playRecordingButtonText}>
+        {isPlayingRecording ? "Stop" : "Play Recording"}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const retryButton = !hideRetry && (
+    <TouchableOpacity
+      style={[styles.actionButton, styles.tryAgainButton]}
+      onPress={handleRetry}
+    >
+      <MaterialIcons name="replay" size={20} color="#fff" />
+      <Text style={styles.actionButtonText}>Re-Try</Text>
+    </TouchableOpacity>
+  );
+
+  const nextButton = (
+    <TouchableOpacity
+      style={[styles.actionButton, styles.nextButton]}
+      onPress={handleNextPress}
+    >
+      <Text style={styles.actionButtonText}>{nextButtonLabel}</Text>
+      <MaterialIcons name="arrow-forward" size={20} color="#fff" />
+    </TouchableOpacity>
+  );
+
   return (
     <View
       style={[
@@ -224,42 +268,27 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
         </Text>
       </View>
 
-      <View style={styles.actionButtons}>
-        {!!audioUri && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.playRecordingButton]}
-            onPress={handlePlayUserRecording}
-          >
-            <MaterialIcons
-              name={isPlayingRecording ? "stop" : "play-arrow"}
-              size={20}
-              color="#4a69bd"
-            />
-            <Text style={styles.playRecordingButtonText}>
-              {isPlayingRecording ? "Stop" : "Play Recording"}
-            </Text>
-          </TouchableOpacity>
+      <View
+        style={[
+          styles.actionButtons,
+          shouldStackPlayRecording && styles.actionButtonsStacked,
+        ]}
+      >
+        {shouldStackPlayRecording ? (
+          <>
+            <View style={styles.actionButtonsPrimaryRow}>
+              {retryButton}
+              {nextButton}
+            </View>
+            {playRecordingButton}
+          </>
+        ) : (
+          <>
+            {playRecordingButton}
+            {retryButton}
+            {nextButton}
+          </>
         )}
-
-        {!hideRetry && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.tryAgainButton]}
-            onPress={handleRetry}
-          >
-            <MaterialIcons name="replay" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Re-Try</Text>
-          </TouchableOpacity>
-        )}
-
-        {
-          <TouchableOpacity
-            style={[styles.actionButton, styles.nextButton]}
-            onPress={handleNextPress}
-          >
-            <Text style={styles.actionButtonText}>{nextButtonLabel}</Text>
-            <MaterialIcons name="arrow-forward" size={20} color="#fff" />
-          </TouchableOpacity>
-        }
       </View>
     </View>
   );
@@ -316,7 +345,25 @@ export const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
     gap: 12,
+    width: "100%",
+  },
+  actionButtonsStacked: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  actionButtonsPrimaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 12,
+    width: "100%",
   },
   actionButton: {
     flexDirection: "row",
@@ -344,6 +391,9 @@ export const styles = StyleSheet.create({
     backgroundColor: "#e8f0fe",
     borderWidth: 1,
     borderColor: "#4a69bd",
+  },
+  playRecordingButtonStacked: {
+    alignSelf: "center",
   },
   playRecordingButtonText: {
     color: "#4a69bd",

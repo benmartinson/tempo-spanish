@@ -9,6 +9,11 @@ import React, {
 import { useWindowDimensions } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
+const DraggableWebPanelWidthContext = React.createContext<number | null>(null);
+
+export const useDraggableWebPanelWidth = () =>
+  React.useContext(DraggableWebPanelWidthContext);
+
 interface DraggableWebPanelProps {
   children: ReactNode;
   initialTop?: number;
@@ -462,7 +467,11 @@ const DraggableWebPanel: React.FC<DraggableWebPanelProps> = ({
             touchAction: "none",
           },
         }),
-    children,
+    React.createElement(
+      DraggableWebPanelWidthContext.Provider,
+      { value: panelWidth },
+      children,
+    ),
   );
 };
 

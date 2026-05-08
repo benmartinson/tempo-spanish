@@ -87,6 +87,9 @@ import MemorizeContent from "./MemorizeContent";
 import ShadowSettingsButtons from "./ShadowSettingsButtons";
 import ShadowTabMobile from "./ShadowTabMobile";
 import ShadowTabWeb from "./ShadowTabWeb";
+import { useDraggableWebPanelWidth } from "../common/DraggableWebPanel";
+
+const USE_OPENAI_REALTIME_TRANSCRIPTION = false;
 
 interface ShadowTabProps {
   time: number;
@@ -117,6 +120,25 @@ interface ShadowTabProps {
   isPlayerFullscreen?: boolean;
   onRequestSentenceTranslation?: () => void | Promise<void>;
 }
+
+const WebCountdownTimerContainer: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const webPanelWidth = useDraggableWebPanelWidth();
+  const shouldFillNarrowPanel = webPanelWidth !== null && webPanelWidth < 450;
+
+  return (
+    <View
+      style={[
+        styles.countdownTimer,
+        styles.webCountdownTimer,
+        shouldFillNarrowPanel && styles.webCountdownTimerNarrow,
+      ]}
+    >
+      {children}
+    </View>
+  );
+};
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
   time,
@@ -514,7 +536,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
       try {
         const liveTranscriptText =
-          liveTranscriptionResultRef.current?.trim() || "";
+          USE_OPENAI_REALTIME_TRANSCRIPTION
+            ? liveTranscriptionResultRef.current?.trim() || ""
+            : "";
         const transcriptionResult = liveTranscriptText
           ? {
               transcript: liveTranscriptText,
@@ -526,7 +550,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
             }
           : await sendAudioForTranscription(safeUri, targetLanguage);
 
-        if (liveTranscriptText) {
+        if (USE_OPENAI_REALTIME_TRANSCRIPTION && liveTranscriptText) {
           await chargeRealtimeTranscription();
         }
 
@@ -1017,12 +1041,15 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (isVoiceMode) playDing();
     liveTranscriptionResultRef.current = null;
     resetRealtimeTranscript();
-    if (isRealtimeTranscriptionSupported) {
-      await startRealtimeTranscription(targetLanguage);
-    }
     await startRecording();
     if (recordSpeed > 0 && !isVoiceMode) {
       playSentence();
+    }
+    if (
+      USE_OPENAI_REALTIME_TRANSCRIPTION &&
+      isRealtimeTranscriptionSupported
+    ) {
+      void startRealtimeTranscription(targetLanguage);
     }
     setTimeout(() => {
       isTransitioningRef.current = false;
@@ -1034,7 +1061,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     pausePlayer();
     unMutePlayer();
     setPlayerSpeed(1);
-    if (isRealtimeTranscriptionSupported) {
+    if (
+      USE_OPENAI_REALTIME_TRANSCRIPTION &&
+      isRealtimeTranscriptionSupported
+    ) {
       liveTranscriptionResultRef.current = await stopRealtimeTranscription();
     }
     await stopRecording(false);
@@ -1047,7 +1077,10 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     unMutePlayer();
     setPlayerSpeed(1);
     liveTranscriptionResultRef.current = null;
-    if (isRealtimeTranscriptionSupported) {
+    if (
+      USE_OPENAI_REALTIME_TRANSCRIPTION &&
+      isRealtimeTranscriptionSupported
+    ) {
       await stopRealtimeTranscription();
       resetRealtimeTranscript();
     }
@@ -1175,24 +1208,25 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     sentenceTranslation?.index === currentSentenceIndex
       ? sentenceTranslation.text
       : null;
-  const renderPlayerControlsElement = (compact = false) => (
-    <PlayerControls
-      onReplay={() => handlePlaySnippetAgain()}
-      onReplaySlow={handlePlaySnippetSlow}
-      onPlayPause={handlePlayPause}
-      isPlaying={playerIsPlaying}
-      playDisabled={
-        sentenceEnded &&
-        time >= (currentSentenceObject?.words?.at(-1)?.start ?? 0)
-      }
-      segmentText={currentSentenceObject?.text}
-      videoId={parseInt(currentVideo.recordId)}
-      sentenceIndex={currentSentenceIndex}
-      onBeforeAction={stopListening}
-      containerStyle={isWebScreen ? styles.webPlayerControls : undefined}
-      compact={compact}
-    />
-  );
+  const renderPlayerControlsElement = (compact = false) =>
+    isRecordingMode ? null : (
+      <PlayerControls
+        onReplay={() => handlePlaySnippetAgain()}
+        onReplaySlow={handlePlaySnippetSlow}
+        onPlayPause={handlePlayPause}
+        isPlaying={playerIsPlaying}
+        playDisabled={
+          sentenceEnded &&
+          time >= (currentSentenceObject?.words?.at(-1)?.start ?? 0)
+        }
+        segmentText={currentSentenceObject?.text}
+        videoId={parseInt(currentVideo.recordId)}
+        sentenceIndex={currentSentenceIndex}
+        onBeforeAction={stopListening}
+        containerStyle={isWebScreen ? styles.webPlayerControls : undefined}
+        compact={compact}
+      />
+    );
   const playerControlsElement = renderPlayerControlsElement();
   const webCompactPlayerControlsElement = isWebScreen
     ? renderPlayerControlsElement(true)
@@ -1217,7 +1251,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         });
       }}
       onSettingsPress={() => setIsSettingsVisible(true)}
-      showPreviousResults={!isWebScreen && !!previousResults}
+      showPreviousResults={!isWebScreen && !!previousResults && !isRecordingMode}
       onPreviousResultsPress={handlePreviousResults}
       previousResultsDisabled={isPlayingRecording}
     />
@@ -1245,7 +1279,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           compact && styles.webRecordingControlsRowCompact,
         ]}
       >
-        {!!previousResults && (
+        {!!previousResults && !isRecordingMode && (
           <TouchableOpacity
             style={[
               styles.webPreviousResultsButton,
@@ -1322,28 +1356,38 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       </View>
     ) : null;
   const countdownTimerElement = isRecordingMode ? (
-    <View
-      style={[styles.countdownTimer, isWebScreen && styles.webCountdownTimer]}
-    >
-      <CountdownTimer
-        onStartRecording={handleActualStartRecording}
-        onStopRecording={handleSubmitRecording}
-        bufferDuration={3}
-        onTrash={
-          isWebScreen
-            ? null
-            : () => {
-                handleTrashRecording(true);
-                handleResetAnswer();
-              }
-        }
-        maxRecordingDuration={getSegmentDuration(
-          currentSentenceObject.start,
-          currentSentenceObject.end,
-          recordSpeed,
-        )}
-      />
-    </View>
+    isWebScreen ? (
+      <WebCountdownTimerContainer>
+        <CountdownTimer
+          onStartRecording={handleActualStartRecording}
+          onStopRecording={handleSubmitRecording}
+          bufferDuration={3}
+          onTrash={undefined}
+          maxRecordingDuration={getSegmentDuration(
+            currentSentenceObject.start,
+            currentSentenceObject.end,
+            recordSpeed,
+          )}
+        />
+      </WebCountdownTimerContainer>
+    ) : (
+      <View style={styles.countdownTimer}>
+        <CountdownTimer
+          onStartRecording={handleActualStartRecording}
+          onStopRecording={handleSubmitRecording}
+          bufferDuration={3}
+          onTrash={() => {
+            handleTrashRecording(true);
+            handleResetAnswer();
+          }}
+          maxRecordingDuration={getSegmentDuration(
+            currentSentenceObject.start,
+            currentSentenceObject.end,
+            recordSpeed,
+          )}
+        />
+      </View>
+    )
   ) : null;
   const statusContentElement = isProcessing ? (
     <View style={styles.processingContainer}>
@@ -1399,7 +1443,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       webSentenceNav={isWebScreen ? sentenceNavElement : undefined}
       webCountdownTimer={isWebScreen ? countdownTimerElement : undefined}
       webStatusContent={isWebScreen ? statusContentElement : undefined}
-      webLiveTranscript={isWebScreen && isRecordingMode ? liveTranscript : ""}
+      webLiveTranscript={
+        USE_OPENAI_REALTIME_TRANSCRIPTION && isWebScreen && isRecordingMode
+          ? liveTranscript
+          : ""
+      }
       translationText={currentSentenceTranslationText}
       isLoadingTranslation={isLoadingInsights}
       onRequestTranslation={onRequestSentenceTranslation}
@@ -1723,6 +1771,9 @@ export const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: "center",
     marginHorizontal: 0,
+  },
+  webCountdownTimerNarrow: {
+    maxWidth: "100%",
   },
   instructionContainer: {
     alignItems: "center",

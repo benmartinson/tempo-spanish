@@ -141,6 +141,11 @@ export const fetchVideoContext = async ({
     }
   }
 
+  currentSentence = Math.min(
+    Math.max(Number(currentSentence) || 0, 0),
+    Math.max(sentences.length - 1, 0),
+  );
+
   const videoContext: VideoContext = {
     videoId,
     recordId,
@@ -453,7 +458,7 @@ export const fetchUserVideoViews = async ({
   if (!userId) return [];
   const { data, error } = await supabase
     .from("video_views")
-    .select("id, video_id, watched_at")
+    .select("id, video_id, last_sentence_watched, watched_at")
     .eq("user_id", userId);
 
   if (error) console.error(error);
@@ -585,7 +590,6 @@ export const restoreUserUIState = async ({
         supabase,
         videoId: videoRecord.video_id,
         recordId: uiState.current_video,
-        initialSentence: uiState.current_sentence ?? 0,
         userId,
       });
 

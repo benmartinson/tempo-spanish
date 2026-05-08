@@ -51,8 +51,8 @@ export type VoiceCommand =
   | null;
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
-  targetLanguage: null,
-  translationLanguage: null,
+  targetLanguage: "es",
+  translationLanguage: "en",
   playbackSpeed: 1,
   playbackSpeedDuringRecording: 0.25,
   showWordsHints: true,
@@ -262,6 +262,7 @@ export interface Answer {
 export interface VideoView {
   id: number;
   video_id: string;
+  last_sentence_watched?: number | null;
   watched_at: Date;
 }
 

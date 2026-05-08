@@ -429,7 +429,6 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
                 {transcriptBubble}
                 {!!webLiveTranscriptText && (
                   <View style={styles.webLiveTranscriptContainer}>
-                    <Text style={styles.webLiveTranscriptLabel}>You said</Text>
                     <Text style={styles.webLiveTranscriptText}>
                       {webLiveTranscriptText}
                     </Text>

@@ -19,6 +19,8 @@ import LanguageModal from "./settings/LanguageModal";
 import { getInitials, isWebScreenWidth } from "../helpers/helpers";
 import { LanguageCode, RootState } from "../types";
 
+const SHOW_LANGUAGE_SELECTOR = false;
+
 const languageLabelByCode: Record<LanguageCode, string> = {
   es: "Spanish",
   en: "English",
@@ -63,29 +65,33 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             </View>
             <View>
               <Text style={styles.webAppName}>Tempo</Text>
-              <Text style={styles.webAppSubname}>Language</Text>
+              <Text style={styles.webAppSubname}>Spanish</Text>
             </View>
           </View>
 
           {!minimal && (
             <View style={styles.webActions}>
-              <TouchableOpacity
-                style={styles.webFlagButton}
-                onPress={() => setLanguageVisible(true)}
-                disabled={!targetLanguage}
-                activeOpacity={0.72}
-              >
-                {targetLanguageLabel && targetLanguageFlag ? (
-                  <>
-                    <Text style={styles.webFlagLabel}>
-                      {targetLanguageLabel}
-                    </Text>
-                    <Text style={styles.webFlagText}>{targetLanguageFlag}</Text>
-                  </>
-                ) : (
-                  <ActivityIndicator size="small" color="#3d3a52" />
-                )}
-              </TouchableOpacity>
+              {SHOW_LANGUAGE_SELECTOR && (
+                <TouchableOpacity
+                  style={styles.webFlagButton}
+                  onPress={() => setLanguageVisible(true)}
+                  disabled={!targetLanguage}
+                  activeOpacity={0.72}
+                >
+                  {targetLanguageLabel && targetLanguageFlag ? (
+                    <>
+                      <Text style={styles.webFlagLabel}>
+                        {targetLanguageLabel}
+                      </Text>
+                      <Text style={styles.webFlagText}>
+                        {targetLanguageFlag}
+                      </Text>
+                    </>
+                  ) : (
+                    <ActivityIndicator size="small" color="#3d3a52" />
+                  )}
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={[
@@ -121,10 +127,12 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             visible={profileVisible}
             onClose={() => setProfileVisible(false)}
           />
-          <LanguageModal
-            visible={languageVisible}
-            onClose={() => setLanguageVisible(false)}
-          />
+          {SHOW_LANGUAGE_SELECTOR && (
+            <LanguageModal
+              visible={languageVisible}
+              onClose={() => setLanguageVisible(false)}
+            />
+          )}
         </View>
       </View>
     );
@@ -141,7 +149,7 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
         </View>
         <View style={{ flexDirection: "row" }}>
           <Text style={styles.mobileAppName}>Tempo</Text>
-          <Text style={styles.mobileAppSubname}>Language</Text>
+          <Text style={styles.mobileAppSubname}>Spanish</Text>
         </View>
       </View>
 

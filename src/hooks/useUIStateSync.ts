@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "../types";
 import { useSupabaseWithClerk } from "../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
+import { saveLastSentenceWatched } from "../requests";
 
 /**
  * Hook that syncs currentSentence changes to the user_ui_state table.
@@ -13,10 +14,16 @@ export const useUIStateSync = () => {
   const { userId } = useAuth();
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const currentSentence = currentVideo?.currentSentence;
+  const videoViewId = currentVideo?.videoViewId;
 
   // Use refs to track previous values and debounce timer
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSyncedSentenceRef = useRef<number | undefined>(undefined);
+  const lastSyncedUiRef = useRef<
+    { videoViewId: number | undefined; sentence: number | undefined } | undefined
+  >(undefined);
+  const lastSavedVideoViewRef = useRef<
+    { videoViewId: number | undefined; sentence: number | undefined } | undefined
+  >(undefined);
 
   useEffect(() => {
     // Don't sync if no supabase, no user, or no video selected
@@ -24,8 +31,24 @@ export const useUIStateSync = () => {
       return;
     }
 
+    if (
+      videoViewId &&
+      (lastSavedVideoViewRef.current?.videoViewId !== videoViewId ||
+        lastSavedVideoViewRef.current?.sentence !== currentSentence)
+    ) {
+      lastSavedVideoViewRef.current = { videoViewId, sentence: currentSentence };
+      saveLastSentenceWatched({
+        supabase,
+        videoViewId,
+        currentSentence: currentSentence ?? 0,
+      });
+    }
+
     // Don't sync if sentence hasn't actually changed
-    if (currentSentence === lastSyncedSentenceRef.current) {
+    if (
+      lastSyncedUiRef.current?.videoViewId === videoViewId &&
+      lastSyncedUiRef.current?.sentence === currentSentence
+    ) {
       return;
     }
 
@@ -49,7 +72,7 @@ export const useUIStateSync = () => {
         if (error) {
           console.error("Error persisting current_sentence:", error);
         } else {
-          lastSyncedSentenceRef.current = currentSentence;
+          lastSyncedUiRef.current = { videoViewId, sentence: currentSentence };
         }
       } catch (err) {
         console.error("Error in useUIStateSync:", err);
@@ -62,5 +85,5 @@ export const useUIStateSync = () => {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [supabase, userId, currentSentence, currentVideo]);
+  }, [supabase, userId, currentSentence, currentVideo, videoViewId]);
 };
