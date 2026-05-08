@@ -9,7 +9,6 @@ const ShadowTabMobile: React.FC<ShadowTabLayoutProps> = ({
   mobileControls,
   countdownTimer,
   statusContent,
-  playRecordingButton,
   streamBanner,
   contentTabs,
   recordingControls,
@@ -24,7 +23,6 @@ const ShadowTabMobile: React.FC<ShadowTabLayoutProps> = ({
         {countdownTimer}
         <View style={styles.transcriptContainer}>
           {statusContent}
-          {playRecordingButton}
           {streamBanner}
           {contentTabs}
         </View>

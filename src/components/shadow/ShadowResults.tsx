@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -13,6 +14,7 @@ import {
   stripPhraseComma,
 } from "../../helpers/helpers";
 import AccuracyCircle from "../common/AccuracyCircle";
+import { playLocalAudio, stopAudio } from "../../helpers/streaming_helpers";
 
 interface ShadowResultsProps {
   accuracyResult: AccuracyResult;
@@ -26,6 +28,12 @@ interface ShadowResultsProps {
   alwaysShowNext?: boolean;
   nextButtonLabel?: string;
   variant?: "default" | "webPanel";
+  audioUri?: string | null;
+  playerIsPlaying?: boolean;
+  pausePlayer?: () => void;
+  playSentence?: () => void;
+  onPlaybackStateChange?: (isPlaying: boolean) => void;
+  onPlaybackError?: (message: string) => void;
 }
 
 const ShadowResults: React.FC<ShadowResultsProps> = ({
@@ -38,7 +46,71 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   hideRetry = false,
   nextButtonLabel = "Next Segment",
   variant = "default",
+  audioUri = null,
+  playerIsPlaying = false,
+  pausePlayer,
+  playSentence,
+  onPlaybackStateChange,
+  onPlaybackError,
 }) => {
+  const [isPlayingRecording, setIsPlayingRecording] = useState(false);
+
+  const setRecordingPlaybackState = useCallback(
+    (isPlaying: boolean) => {
+      setIsPlayingRecording(isPlaying);
+      onPlaybackStateChange?.(isPlaying);
+    },
+    [onPlaybackStateChange],
+  );
+
+  const stopRecordingPlayback = useCallback(async () => {
+    await stopAudio();
+    setRecordingPlaybackState(false);
+  }, [setRecordingPlaybackState]);
+
+  const handlePlayUserRecording = useCallback(async () => {
+    if (!audioUri) return;
+
+    if (playerIsPlaying) {
+      pausePlayer?.();
+    }
+
+    if (isPlayingRecording) {
+      await stopRecordingPlayback();
+      return;
+    }
+
+    const wasPlaying = playerIsPlaying;
+    if (wasPlaying) pausePlayer?.();
+
+    setRecordingPlaybackState(true);
+    try {
+      await playLocalAudio(audioUri);
+    } catch (err) {
+      console.error("Failed to play recording:", err);
+      onPlaybackError?.("Failed to play recording");
+    } finally {
+      setRecordingPlaybackState(false);
+      if (wasPlaying) playSentence?.();
+    }
+  }, [
+    audioUri,
+    isPlayingRecording,
+    onPlaybackError,
+    pausePlayer,
+    playerIsPlaying,
+    playSentence,
+    setRecordingPlaybackState,
+    stopRecordingPlayback,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      stopAudio();
+      onPlaybackStateChange?.(false);
+    };
+  }, [onPlaybackStateChange]);
+
   const handleNextPress = () => {
     handleNextSentence();
   };
@@ -153,6 +225,22 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       </View>
 
       <View style={styles.actionButtons}>
+        {!!audioUri && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.playRecordingButton]}
+            onPress={handlePlayUserRecording}
+          >
+            <MaterialIcons
+              name={isPlayingRecording ? "stop" : "play-arrow"}
+              size={20}
+              color="#4a69bd"
+            />
+            <Text style={styles.playRecordingButtonText}>
+              {isPlayingRecording ? "Stop" : "Play Recording"}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {!hideRetry && (
           <TouchableOpacity
             style={[styles.actionButton, styles.tryAgainButton]}
@@ -250,6 +338,17 @@ export const styles = StyleSheet.create({
   },
   tryAgainButton: {
     backgroundColor: "#3d3a52",
+  },
+  playRecordingButton: {
+    justifyContent: "center",
+    backgroundColor: "#e8f0fe",
+    borderWidth: 1,
+    borderColor: "#4a69bd",
+  },
+  playRecordingButtonText: {
+    color: "#4a69bd",
+    fontSize: 14,
+    fontWeight: "500",
   },
   reviewButton: {
     backgroundColor: "#4a69bd",

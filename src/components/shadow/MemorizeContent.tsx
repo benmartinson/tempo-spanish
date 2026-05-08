@@ -50,7 +50,7 @@ interface MemorizeContentProps {
   webSentenceNav?: ReactNode;
   webCountdownTimer?: ReactNode;
   webStatusContent?: ReactNode;
-  webPlayRecordingButton?: ReactNode;
+  webLiveTranscript?: string;
   translationText?: string | null;
   isLoadingTranslation?: boolean;
   onRequestTranslation?: () => void | Promise<void>;
@@ -76,7 +76,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   webSentenceNav,
   webCountdownTimer,
   webStatusContent,
-  webPlayRecordingButton,
+  webLiveTranscript = "",
   translationText = null,
   isLoadingTranslation = false,
   onRequestTranslation,
@@ -358,6 +358,7 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
       }}
     />
   );
+  const webLiveTranscriptText = webLiveTranscript.trim();
 
   if (layout === "webPlayer") {
     return (
@@ -393,7 +394,6 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
             {webStatusContent && (
               <View style={styles.webPanelStatusContent}>
                 {webStatusContent}
-                {webPlayRecordingButton}
               </View>
             )}
             {!webStatusContent && (
@@ -427,6 +427,14 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
                   </View>
                 )}
                 {transcriptBubble}
+                {!!webLiveTranscriptText && (
+                  <View style={styles.webLiveTranscriptContainer}>
+                    <Text style={styles.webLiveTranscriptLabel}>You said</Text>
+                    <Text style={styles.webLiveTranscriptText}>
+                      {webLiveTranscriptText}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.webPanelDifficultyRow}>
                   <View style={styles.webPanelDifficulty}>
                     {difficultySlider}
@@ -584,6 +592,28 @@ const styles = StyleSheet.create({
     minWidth: 0,
     maxWidth: 600,
     alignSelf: "center",
+  },
+  webLiveTranscriptContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "#f8fbff",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 105, 189, 0.14)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74, 105, 189, 0.14)",
+    gap: 3,
+  },
+  webLiveTranscriptLabel: {
+    color: "#647089",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  webLiveTranscriptText: {
+    color: "#1f2937",
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "500",
   },
   translationContainer: {
     backgroundColor: "#f0f4ff",

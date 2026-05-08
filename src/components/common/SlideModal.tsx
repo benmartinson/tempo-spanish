@@ -137,6 +137,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1a1a2e",
     textAlign: "center",
+    opacity: 0.75,
   },
   webCloseButton: {
     position: "absolute",

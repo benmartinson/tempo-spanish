@@ -6,7 +6,6 @@ export interface ShadowTabLayoutProps {
   mobileControls: ReactNode;
   countdownTimer: ReactNode;
   statusContent: ReactNode;
-  playRecordingButton: ReactNode;
   streamBanner: ReactNode;
   contentTabs: ReactNode;
   recordingControls: ReactNode;

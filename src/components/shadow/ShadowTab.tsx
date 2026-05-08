@@ -34,9 +34,10 @@ import {
 } from "../../types";
 import SelectVideoPrompt from "./SelectVideoPrompt";
 import { useRecording } from "../../hooks/useRecording";
+import { useRealtimeTranscription } from "../../hooks/useRealtimeTranscription";
 import {
+  chargeRealtimeTranscription,
   sendAudioForTranscription,
-  playLocalAudio,
   stopAudio,
   playDing,
   playDingStop,
@@ -167,6 +168,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   const recordingExtensionRef = useRef<NodeJS.Timeout | null>(null);
   // Speed control state (internal settings)
   const userSettings = useSelector((state: RootState) => state.userSettings);
+  const targetLanguage = userSettings.targetLanguage ?? "es";
   const userCredits = useSelector((state: RootState) => state.userCredits);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(
     userSettings.playbackSpeed,
@@ -191,28 +193,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     setError(null);
     setAutoplay(true);
   }, [currentSentenceIndex]);
-
-  useEffect(() => {
-    if (disableAutoplayTimerRef.current) {
-      clearTimeout(disableAutoplayTimerRef.current);
-      disableAutoplayTimerRef.current = null;
-    }
-
-    if (!playerIsPlaying) return;
-
-    disableAutoplayTimerRef.current = setTimeout(() => {
-      console.log("disable autoplay");
-      setAutoplay(false);
-      disableAutoplayTimerRef.current = null;
-    }, 2000);
-
-    return () => {
-      if (disableAutoplayTimerRef.current) {
-        clearTimeout(disableAutoplayTimerRef.current);
-        disableAutoplayTimerRef.current = null;
-      }
-    };
-  }, [currentSentenceIndex, playerIsPlaying, setAutoplay]);
 
   // Recording and transcription state
   const [error, setError] = useState<string | null>(null);
@@ -503,6 +483,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   >(async () => {});
   const stopListeningRef = useRef<() => Promise<void>>(async () => {});
   const startListeningRef = useRef<() => void>(() => {});
+  const liveTranscriptionResultRef = useRef<string | null>(null);
+  const {
+    transcript: liveTranscript,
+    isSupported: isRealtimeTranscriptionSupported,
+    startRealtimeTranscription,
+    stopRealtimeTranscription,
+    resetRealtimeTranscript,
+  } = useRealtimeTranscription();
 
   const submitRecording = useCallback(
     async (uri: string) => {
@@ -525,13 +513,23 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       }
 
       try {
-        if (!userSettings.targetLanguage) {
-          throw new Error("Target language has not loaded yet.");
+        const liveTranscriptText =
+          liveTranscriptionResultRef.current?.trim() || "";
+        const transcriptionResult = liveTranscriptText
+          ? {
+              transcript: liveTranscriptText,
+              confidence: 1,
+              words: liveTranscriptText
+                .split(/\s+/)
+                .filter(Boolean)
+                .map((word) => ({ word, confidence: 1 })),
+            }
+          : await sendAudioForTranscription(safeUri, targetLanguage);
+
+        if (liveTranscriptText) {
+          await chargeRealtimeTranscription();
         }
-        const transcriptionResult = await sendAudioForTranscription(
-          safeUri,
-          userSettings.targetLanguage,
-        );
+
         const spokenWords = transcriptionResult.transcript
           .split(/\s+/)
           .filter(Boolean);
@@ -552,12 +550,14 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
 
-        // Backend already deducted 1 credit — update local count
+        // Backend deducted 1 credit — update local count
         dispatch(setUserCredits(userCredits - 1));
       } catch (err) {
         console.error("Transcription error:", err);
         setError("Failed to process audio");
       } finally {
+        liveTranscriptionResultRef.current = null;
+        resetRealtimeTranscript();
         setIsProcessing(false);
       }
     },
@@ -568,6 +568,8 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       currentVideo,
       currentSentenceIndex,
       isVoiceMode,
+      resetRealtimeTranscript,
+      targetLanguage,
     ],
   );
 
@@ -1013,6 +1015,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
 
   const handleActualStartRecording = async () => {
     if (isVoiceMode) playDing();
+    liveTranscriptionResultRef.current = null;
+    resetRealtimeTranscript();
+    if (isRealtimeTranscriptionSupported) {
+      await startRealtimeTranscription(targetLanguage);
+    }
     await startRecording();
     if (recordSpeed > 0 && !isVoiceMode) {
       playSentence();
@@ -1027,6 +1034,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     pausePlayer();
     unMutePlayer();
     setPlayerSpeed(1);
+    if (isRealtimeTranscriptionSupported) {
+      liveTranscriptionResultRef.current = await stopRealtimeTranscription();
+    }
     await stopRecording(false);
     setIsRecordingMode(false);
   };
@@ -1036,6 +1046,11 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     pausePlayer();
     unMutePlayer();
     setPlayerSpeed(1);
+    liveTranscriptionResultRef.current = null;
+    if (isRealtimeTranscriptionSupported) {
+      await stopRealtimeTranscription();
+      resetRealtimeTranscript();
+    }
     await stopRecording(trashed);
     setIsRecordingMode(false);
   };
@@ -1124,40 +1139,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     await stopAudio();
     setIsPlayingRecording(false);
   }, []);
-
-  const handlePlayUserRecording = useCallback(async () => {
-    if (!audioUri) return;
-
-    if (playerIsPlaying) {
-      pausePlayer();
-    }
-
-    if (isPlayingRecording) {
-      await stopRecordingPlayback();
-      return;
-    }
-
-    const wasPlaying = playerIsPlaying;
-    if (wasPlaying) pausePlayer();
-
-    setIsPlayingRecording(true);
-    try {
-      await playLocalAudio(audioUri);
-    } catch (err) {
-      console.error("Failed to play recording:", err);
-      setError("Failed to play recording");
-    } finally {
-      setIsPlayingRecording(false);
-      if (wasPlaying) playSentence();
-    }
-  }, [
-    audioUri,
-    isPlayingRecording,
-    playerIsPlaying,
-    pausePlayer,
-    playSentence,
-    stopRecordingPlayback,
-  ]);
 
   const handleRetry = () => {
     stopRecordingPlayback();
@@ -1378,6 +1359,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
           handleRetry={handleRetry}
           properNouns={orderedCharacters}
           variant={isWebScreen ? "webPanel" : "default"}
+          audioUri={audioUri}
+          playerIsPlaying={playerIsPlaying}
+          pausePlayer={pausePlayer}
+          playSentence={playSentence}
+          onPlaybackStateChange={setIsPlayingRecording}
+          onPlaybackError={setError}
         />
         {nextSentenceCountdown > 0 && (
           <View style={styles.nextSentenceCountdownRefContainer}>
@@ -1389,24 +1376,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       </>
     )
   );
-  const playRecordingButtonElement =
-    !isRecordingMode && !isProcessing && accuracyResult && audioUri ? (
-      <View style={styles.playRecordingContainer}>
-        <TouchableOpacity
-          style={styles.playRecordingButton}
-          onPress={handlePlayUserRecording}
-        >
-          <MaterialIcons
-            name={isPlayingRecording ? "stop" : "play-arrow"}
-            size={20}
-            color="#4a69bd"
-          />
-          <Text style={styles.playRecordingButtonText}>
-            {isPlayingRecording ? "Stop" : "Play Recording"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    ) : null;
   const memorizeContentElement = (
     <MemorizeContent
       time={time}
@@ -1430,9 +1399,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       webSentenceNav={isWebScreen ? sentenceNavElement : undefined}
       webCountdownTimer={isWebScreen ? countdownTimerElement : undefined}
       webStatusContent={isWebScreen ? statusContentElement : undefined}
-      webPlayRecordingButton={
-        isWebScreen ? playRecordingButtonElement : undefined
-      }
+      webLiveTranscript={isWebScreen && isRecordingMode ? liveTranscript : ""}
       translationText={currentSentenceTranslationText}
       isLoadingTranslation={isLoadingInsights}
       onRequestTranslation={onRequestSentenceTranslation}
@@ -1631,7 +1598,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     mobileControls: mobileControlsElement,
     countdownTimer: isWebScreen ? null : countdownTimerElement,
     statusContent: statusContentElement,
-    playRecordingButton: playRecordingButtonElement,
     streamBanner: streamBannerElement,
     contentTabs: contentTabsElement,
     recordingControls: recordingControlsElement,
@@ -1964,14 +1930,6 @@ export const styles = StyleSheet.create({
     borderColor: "#ddd",
     maxHeight: 100,
   },
-  playRecordingContainer: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 16,
-    marginBottom: 8,
-  },
   previousResultsButton: {
     flex: 1,
     flexDirection: "row",
@@ -1980,23 +1938,6 @@ export const styles = StyleSheet.create({
     marginTop: 4,
   },
   previousResultsText: {
-    color: "#4a69bd",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  playRecordingButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: "#e8f0fe",
-    borderWidth: 1,
-    borderColor: "#4a69bd",
-    gap: 8,
-  },
-  playRecordingButtonText: {
     color: "#4a69bd",
     fontSize: 14,
     fontWeight: "500",

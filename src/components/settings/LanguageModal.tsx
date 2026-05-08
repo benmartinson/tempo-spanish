@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,6 +15,8 @@ import { supabase as rawSupabase } from "../../../lib/supabase";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import {
   fetchAllVideos,
+  fetchLanguageContentCounts,
+  LanguageContentCounts,
   persistUserSettings,
   persistVideoUnselection,
 } from "../../requests";
@@ -36,19 +40,11 @@ interface LanguageModalProps {
 const LANGUAGE_OPTIONS: Array<{
   code: LanguageCode;
   label: string;
-  videos: number;
-  channels: number;
 }> = [
-  { code: "es", label: "Spanish", videos: 84, channels: 12 },
-  { code: "en", label: "English", videos: 42, channels: 7 },
-  { code: "pt", label: "Portuguese", videos: 36, channels: 6 },
+  { code: "es", label: "Spanish" },
+  { code: "en", label: "English" },
+  { code: "pt", label: "Portuguese" },
 ];
-
-const languageLabelByCode: Record<LanguageCode, string> = {
-  es: "Spanish",
-  en: "English",
-  pt: "Portuguese",
-};
 
 const DEFAULT_EDIT_TARGET_LANGUAGE: LanguageCode = "es";
 const DEFAULT_EDIT_TRANSLATION_LANGUAGE: LanguageCode = "en";
@@ -64,7 +60,28 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
   const [translationLanguage, setTranslationLanguage] = useState<LanguageCode>(
     userSettings.translationLanguage ?? DEFAULT_EDIT_TRANSLATION_LANGUAGE,
   );
+  const [contentCounts, setContentCounts] = useState<
+    Partial<LanguageContentCounts>
+  >({});
+  const [isLoadingCounts, setIsLoadingCounts] = useState(false);
+  const [nativeDropdownOpen, setNativeDropdownOpen] = useState(false);
+  const [nativeDropdownFrame, setNativeDropdownFrame] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const nativeDropdownButtonRef = React.useRef<View>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const nativeLanguageOptions = useMemo(
+    () => LANGUAGE_OPTIONS.filter((option) => option.code !== targetLanguage),
+    [targetLanguage],
+  );
+
+  const selectedNativeLanguage =
+    nativeLanguageOptions.find((option) => option.code === translationLanguage) ??
+    nativeLanguageOptions[0];
 
   const hasChanges = useMemo(
     () =>
@@ -86,7 +103,45 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
     setTranslationLanguage(
       userSettings.translationLanguage ?? DEFAULT_EDIT_TRANSLATION_LANGUAGE,
     );
+    setNativeDropdownOpen(false);
   }, [visible, userSettings.targetLanguage, userSettings.translationLanguage]);
+
+  React.useEffect(() => {
+    if (!visible) setNativeDropdownOpen(false);
+  }, [visible]);
+
+  React.useEffect(() => {
+    if (
+      translationLanguage === targetLanguage ||
+      !nativeLanguageOptions.some((option) => option.code === translationLanguage)
+    ) {
+      setTranslationLanguage(nativeLanguageOptions[0]?.code ?? "en");
+    }
+  }, [nativeLanguageOptions, targetLanguage, translationLanguage]);
+
+  React.useEffect(() => {
+    if (!visible) return;
+
+    let isCancelled = false;
+    const loadCounts = async () => {
+      setIsLoadingCounts(true);
+      try {
+        const supabase = clerkSupabase ?? rawSupabase;
+        const counts = await fetchLanguageContentCounts({ supabase });
+        if (!isCancelled) setContentCounts(counts);
+      } catch (err) {
+        console.error("Error fetching language content counts:", err);
+      } finally {
+        if (!isCancelled) setIsLoadingCounts(false);
+      }
+    };
+
+    loadCounts();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [visible, clerkSupabase]);
 
   const saveLanguages = async () => {
     if (isSaving) return;
@@ -138,46 +193,58 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
     }
   };
 
+  const openNativeDropdown = () => {
+    if (nativeDropdownOpen) {
+      setNativeDropdownOpen(false);
+      return;
+    }
+
+    nativeDropdownButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setNativeDropdownFrame({ x, y, width, height });
+      setNativeDropdownOpen(true);
+    });
+  };
+
   const renderOption = ({
     code,
     label,
-    videos,
-    channels,
     selected,
     onPress,
     showCounts,
   }: {
     code: LanguageCode;
     label: string;
-    videos: number;
-    channels: number;
     selected: boolean;
     onPress: () => void;
     showCounts: boolean;
-  }) => (
-    <TouchableOpacity
-      key={code}
-      style={[styles.optionRow, selected && styles.optionRowSelected]}
-      onPress={onPress}
-      activeOpacity={0.72}
-    >
-      <View style={styles.optionMain}>
-        <Text
-          style={[styles.optionLabel, selected && styles.optionLabelActive]}
-        >
-          {label}
-        </Text>
-        {showCounts && (
-          <Text style={styles.optionMeta}>
-            {videos} videos, {channels} channels
+  }) => {
+    const counts = contentCounts[code];
+    const countText =
+      counts && !isLoadingCounts
+        ? `${counts.videos} videos, ${counts.channels} channels`
+        : "Loading counts...";
+
+    return (
+      <TouchableOpacity
+        key={code}
+        style={[styles.optionRow, selected && styles.optionRowSelected]}
+        onPress={onPress}
+        activeOpacity={0.72}
+      >
+        <View style={styles.optionMain}>
+          <Text
+            style={[styles.optionLabel, selected && styles.optionLabelActive]}
+          >
+            {label}
           </Text>
-        )}
-      </View>
-      <View style={[styles.radio, selected && styles.radioSelected]}>
-        {selected && <MaterialIcons name="check" size={14} color="#fff" />}
-      </View>
-    </TouchableOpacity>
-  );
+          {showCounts && <Text style={styles.optionMeta}>{countText}</Text>}
+        </View>
+        <View style={[styles.radio, selected && styles.radioSelected]}>
+          {selected && <MaterialIcons name="check" size={14} color="#fff" />}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SlideModal visible={visible} onRequestClose={onClose} title="Language">
@@ -195,16 +262,81 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
         </View>
 
         <Text style={styles.sectionHeader}>Native Language</Text>
-        <View style={styles.card}>
-          {LANGUAGE_OPTIONS.map((option) =>
-            renderOption({
-              ...option,
-              selected: translationLanguage === option.code,
-              onPress: () => setTranslationLanguage(option.code),
-              showCounts: false,
-            }),
-          )}
+        <View style={styles.dropdownCard}>
+          <TouchableOpacity
+            ref={nativeDropdownButtonRef}
+            style={styles.dropdownButton}
+            onPress={openNativeDropdown}
+            activeOpacity={0.72}
+          >
+            <Text style={styles.optionLabel}>
+              {selectedNativeLanguage?.label ?? "Select language"}
+            </Text>
+            <MaterialIcons
+              name={
+                nativeDropdownOpen
+                  ? "keyboard-arrow-up"
+                  : "keyboard-arrow-down"
+              }
+              size={22}
+              color="#3d3a52"
+            />
+          </TouchableOpacity>
         </View>
+
+        <Modal
+          visible={nativeDropdownOpen && !!nativeDropdownFrame}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setNativeDropdownOpen(false)}
+        >
+          <Pressable
+            style={styles.dropdownBackdrop}
+            onPress={() => setNativeDropdownOpen(false)}
+          >
+            {nativeDropdownFrame && (
+              <View
+                style={[
+                  styles.dropdownMenuPortal,
+                  {
+                    top: nativeDropdownFrame.y + nativeDropdownFrame.height + 4,
+                    left: nativeDropdownFrame.x,
+                    width: nativeDropdownFrame.width,
+                  },
+                ]}
+              >
+                {nativeLanguageOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.code}
+                    style={[
+                      styles.dropdownOption,
+                      translationLanguage === option.code &&
+                        styles.dropdownOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setTranslationLanguage(option.code);
+                      setNativeDropdownOpen(false);
+                    }}
+                    activeOpacity={0.72}
+                  >
+                    <Text
+                      style={[
+                        styles.optionLabel,
+                        translationLanguage === option.code &&
+                          styles.optionLabelActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                    {translationLanguage === option.code && (
+                      <MaterialIcons name="check" size={16} color="#3d3a52" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </Pressable>
+        </Modal>
 
         <TouchableOpacity
           style={[
@@ -245,6 +377,48 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 14,
     overflow: "hidden",
+  },
+  dropdownCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+  },
+  dropdownButton: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+  },
+  dropdownBackdrop: {
+    flex: 1,
+  },
+  dropdownMenuPortal: {
+    position: "absolute",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#d8d8df",
+    overflow: "hidden",
+    zIndex: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  dropdownOption: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    borderTopWidth: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#ebebef",
+    borderBottomColor: "#ebebef",
+  },
+  dropdownOptionSelected: {
+    backgroundColor: "#f7f9ff",
   },
   optionRow: {
     minHeight: 46,

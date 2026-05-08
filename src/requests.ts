@@ -307,6 +307,14 @@ export interface FetchAllVideosResult {
   channelTopicData: any[];
 }
 
+export type LanguageContentCounts = Record<
+  LanguageCode,
+  {
+    videos: number;
+    channels: number;
+  }
+>;
+
 export const fetchAllVideos = async ({
   supabase,
   targetLanguage,
@@ -349,6 +357,69 @@ export const fetchAllVideos = async ({
     topicData: topicData ?? [],
     channelTopicData: channelTopicData ?? [],
   };
+};
+
+export const fetchLanguageContentCounts = async ({
+  supabase,
+}: {
+  supabase: any;
+}): Promise<Partial<LanguageContentCounts>> => {
+  const { data: channelData, error: channelError } = await supabase
+    .from("channel")
+    .select("id, channel_id, language");
+  if (channelError) {
+    console.error(channelError);
+    throw new Error("Failed to fetch language channel counts");
+  }
+
+  const counts: Partial<LanguageContentCounts> = {};
+  const channelIdsByLanguage = new Map<LanguageCode, Set<string>>();
+  const languageByChannelId = new Map<string, LanguageCode>();
+
+  for (const channel of channelData ?? []) {
+    const language = normalizeLanguageCode(channel.language, null);
+    if (!language) continue;
+
+    counts[language] = counts[language] ?? { videos: 0, channels: 0 };
+    counts[language]!.channels += 1;
+
+    const channelId = channel.channel_id;
+    if (typeof channelId === "string" && channelId) {
+      if (!channelIdsByLanguage.has(language)) {
+        channelIdsByLanguage.set(language, new Set());
+      }
+      channelIdsByLanguage.get(language)!.add(channelId);
+      languageByChannelId.set(channelId, language);
+    }
+  }
+
+  const allChannelIds = [
+    ...new Set(
+      [...channelIdsByLanguage.values()].flatMap((channelIds) => [
+        ...channelIds,
+      ]),
+    ),
+  ];
+
+  if (allChannelIds.length === 0) return counts;
+
+  const { data: videoData, error: videoError } = await supabase
+    .from("video")
+    .select("channel_id")
+    .in("channel_id", allChannelIds);
+  if (videoError) {
+    console.error(videoError);
+    throw new Error("Failed to fetch language video counts");
+  }
+
+  for (const video of videoData ?? []) {
+    const language = languageByChannelId.get(video.channel_id);
+    if (!language) continue;
+    counts[language] = counts[language] ?? { videos: 0, channels: 0 };
+    counts[language]!.videos += 1;
+  }
+
+  return counts;
 };
 
 export interface FetchUserKnownVocabParams {

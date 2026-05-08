@@ -57,8 +57,8 @@ async def verify_jwt(
     return user_id
 
 
-async def check_credits(user_id: str = Depends(verify_jwt)) -> str:
-    """Verify the user has credits, deduct 1, and return user_id."""
+async def ensure_credits(user_id: str = Depends(verify_jwt)) -> str:
+    """Verify the user has credits and return user_id."""
     if not SUPABASE_SERVICE_ROLE_KEY:
         print("SUPABASE_SERVICE_ROLE_KEY is not configured")
         raise HTTPException(status_code=500, detail="Credit check is not configured")
@@ -71,6 +71,41 @@ async def check_credits(user_id: str = Depends(verify_jwt)) -> str:
     try:
         async with httpx.AsyncClient() as client:
             # Fetch current credits
+            response = await client.get(
+                f"{SUPABASE_URL}/rest/v1/user_credits",
+                params={"user_id": f"eq.{user_id}", "select": "credits"},
+                headers=headers,
+            )
+
+            if response.status_code != 200:
+                print(f"Credit check failed: {response.status_code} - {response.text}")
+                raise HTTPException(status_code=500, detail="Credit check failed")
+
+            rows = response.json()
+            if not rows or rows[0].get("credits", 0) <= 0:
+                raise HTTPException(status_code=403, detail="Insufficient credits")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Credit check error: {e}")
+        raise HTTPException(status_code=500, detail="Credit check failed")
+
+    return user_id
+
+
+async def deduct_credit(user_id: str) -> None:
+    """Deduct 1 credit from the current user."""
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        print("SUPABASE_SERVICE_ROLE_KEY is not configured")
+        raise HTTPException(status_code=500, detail="Credit check is not configured")
+
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{SUPABASE_URL}/rest/v1/user_credits",
                 params={"user_id": f"eq.{user_id}", "select": "credits"},
@@ -97,11 +132,14 @@ async def check_credits(user_id: str = Depends(verify_jwt)) -> str:
             if deduct_response.status_code not in (200, 204):
                 print(f"Credit deduction failed: {deduct_response.status_code} - {deduct_response.text}")
                 raise HTTPException(status_code=500, detail="Credit deduction failed")
-
     except HTTPException:
         raise
     except Exception as e:
         print(f"Credit check error: {e}")
         raise HTTPException(status_code=500, detail="Credit check failed")
 
+
+async def check_credits(user_id: str = Depends(ensure_credits)) -> str:
+    """Verify the user has credits, deduct 1, and return user_id."""
+    await deduct_credit(user_id)
     return user_id

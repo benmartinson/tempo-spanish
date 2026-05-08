@@ -697,3 +697,17 @@ export const sendAudioForTranscription = async (
     throw err;
   }
 };
+
+export const chargeRealtimeTranscription = async (): Promise<void> => {
+  const response = await backendFetch("/api/realtime-transcription/charge", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Realtime transcription charge failed: ${response.status} - ${errorText}`,
+    );
+  }
+};
