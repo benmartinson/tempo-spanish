@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
+import { useSelector } from "react-redux";
 import SlideModal from "../common/SlideModal";
 import ShadowResults from "./ShadowResults";
 import CountdownTimer from "./CountdownTimer";
@@ -16,7 +17,7 @@ import RecordingControls from "../common/RecordingControls";
 import { useRecording } from "../../hooks/useRecording";
 import { calculateAccuracy } from "../../helpers/calculate_accuracy";
 import { sendAudioForTranscription } from "../../helpers/streaming_helpers";
-import { AccuracyResult, SegmentWord } from "../../types";
+import { AccuracyResult, RootState, SegmentWord } from "../../types";
 import { capitalize } from "../../helpers/helpers";
 import TranslateContent from "./TranslateContent";
 
@@ -41,6 +42,9 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   onComplete,
   onClose,
 }) => {
+  const targetLanguage = useSelector(
+    (state: RootState) => state.userSettings.targetLanguage,
+  );
   const [userAnswer, setUserAnswer] = useState("");
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
     null,
@@ -65,7 +69,13 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
     onRecordingComplete: async (audioUri: string) => {
       setIsTranscribing(true);
       try {
-        const transcriptionResult = await sendAudioForTranscription(audioUri);
+        if (!targetLanguage) {
+          throw new Error("Target language has not loaded yet.");
+        }
+        const transcriptionResult = await sendAudioForTranscription(
+          audioUri,
+          targetLanguage,
+        );
         const spokenWords = transcriptionResult.transcript
           .split(/\s+/)
           .filter(Boolean);

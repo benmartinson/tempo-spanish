@@ -65,6 +65,9 @@ const SelectedVideoPage: React.FC = () => {
   const signInScreenOpen = useSelector(
     (state: RootState) => state.signInScreenOpen,
   );
+  const translationLanguage = useSelector(
+    (state: RootState) => state.userSettings.translationLanguage,
+  );
 
   const [autoShadowDetails, setAutoShadowDetails] =
     useState<AutoShadowDetails | null>(null);
@@ -212,6 +215,13 @@ const SelectedVideoPage: React.FC = () => {
       return;
     }
 
+    if (!translationLanguage) {
+      setOrderedCharacters([]);
+      setSentenceTranslation(null);
+      setIsLoadingInsights(true);
+      return;
+    }
+
     const requestId = insightsRequestRef.current + 1;
     insightsRequestRef.current = requestId;
     const requestedSentenceIndex = currentSentenceIndex;
@@ -227,6 +237,7 @@ const SelectedVideoPage: React.FC = () => {
         sentenceText: requestedSentenceText,
         videoRecordId: currentVideo.recordId,
         sentenceIndex: requestedSentenceIndex,
+        translationLanguage,
       });
 
       if (insightsRequestRef.current !== requestId) return;
@@ -256,6 +267,7 @@ const SelectedVideoPage: React.FC = () => {
     supabase,
     currentVideo,
     currentSentenceIndex,
+    translationLanguage,
   ]);
 
   useEffect(() => {

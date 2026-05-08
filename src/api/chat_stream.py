@@ -29,6 +29,7 @@ from elevenlabs.client import ElevenLabs
 
 # Import the transcription router
 from soniox_transcription import router as transcription_router
+from creator import router as creator_router
 from auth import verify_jwt, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 from iap_verification import verify_transaction_jws, ReceiptVerificationError
 
@@ -263,6 +264,7 @@ app.add_middleware(
 
 # Include the transcription router (provides /ws/transcribe endpoint)
 app.include_router(transcription_router)
+app.include_router(creator_router)
 
 
 @app.get("/")
@@ -475,7 +477,7 @@ Identify all proper nouns (character names, place names, or any word that requir
         # Translate the full sentence using Google Translate
         translation = None
         try:
-            translator = GoogleTranslator(source='auto', target='es')
+            translator = GoogleTranslator(source='auto', target=request.language)
             translation = translator.translate(request.text)
         except Exception as translate_err:
             print(f"Error translating sentence: {translate_err}")

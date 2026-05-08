@@ -28,6 +28,12 @@ export const formatTimestamp = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
+export const getInitials = (user) => {
+  const firstName = user?.firstName ?? "";
+  const lastName = user?.lastName ?? "";
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "?";
+};
+
 export const cachedResponses = [
   "You got 100% correct!",
   "You got 99% correct!",

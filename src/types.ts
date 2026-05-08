@@ -1,4 +1,6 @@
 export interface UserSettings {
+  targetLanguage: LanguageCode | null;
+  translationLanguage: LanguageCode | null;
   playbackSpeed: number;
   playbackSpeedDuringRecording: number;
   showWordsHints: boolean;
@@ -18,6 +20,8 @@ export interface UserSettings {
     | "difficult"
     | "hardest";
 }
+
+export type LanguageCode = "es" | "en" | "pt";
 
 export type VoiceCommand =
   | "record"
@@ -47,6 +51,8 @@ export type VoiceCommand =
   | null;
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
+  targetLanguage: null,
+  translationLanguage: null,
   playbackSpeed: 1,
   playbackSpeedDuringRecording: 0.25,
   showWordsHints: true,
@@ -340,6 +346,8 @@ export interface UserUIState {
   has_seen_welcome_modals: boolean | null;
   auto_select_difficulty: boolean | null;
   auto_select_difficulty_level: string | null;
+  target_language: LanguageCode | null;
+  translation_language: LanguageCode | null;
 }
 
 export type ContentTab =

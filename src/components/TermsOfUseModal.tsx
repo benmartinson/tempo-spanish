@@ -21,14 +21,14 @@ const TermsOfUseModal: React.FC<TermsOfUseModalProps> = ({
         <Text style={styles.updated}>Last Updated: April 14, 2026</Text>
 
         <Text style={styles.body}>
-          Welcome to Tempo Spanish. By downloading, accessing, or using the
-          Tempo Spanish mobile application ("App"), you agree to be bound by
+          Welcome to Tempo Language. By downloading, accessing, or using the
+          Tempo Language mobile application ("App"), you agree to be bound by
           these Terms of Use ("Terms"). If you do not agree, do not use the App.
         </Text>
 
         <Text style={styles.heading}>1. Description of Service</Text>
         <Text style={styles.body}>
-          Tempo Spanish is a language learning application that helps users
+          Tempo Language is a language learning application that helps users
           practice Spanish through video shadowing, speech recognition, and
           interactive exercises. The App allows users to listen to native
           speaker video content, record their own speech, and receive feedback
@@ -89,7 +89,7 @@ const TermsOfUseModal: React.FC<TermsOfUseModalProps> = ({
         <Text style={styles.heading}>7. Intellectual Property</Text>
         <Text style={styles.body}>
           All features, and functionality of the App — including but not limited
-          to text, logos, and software — are owned by Tempo Spanish or its
+          to text, logos, and software — are owned by Tempo Language or its
           licensors and are protected by copyright, trademark, and other
           intellectual property laws.{"\n\n"}
           Video content displayed within the App is streamed from YouTube via
@@ -110,8 +110,8 @@ const TermsOfUseModal: React.FC<TermsOfUseModalProps> = ({
         <Text style={styles.heading}>9. Privacy Policy</Text>
         <Text style={styles.body}>
           Your use of the App is also governed by our Privacy Policy
-          (https://tempospanish.app/privacy), which is incorporated into
-          these Terms by reference.
+          (https://tempospanish.app/privacy), which is incorporated into these
+          Terms by reference.
         </Text>
 
         <Text style={styles.heading}>10. Disclaimer of Warranties</Text>
@@ -124,7 +124,7 @@ const TermsOfUseModal: React.FC<TermsOfUseModalProps> = ({
 
         <Text style={styles.heading}>11. Limitation of Liability</Text>
         <Text style={styles.body}>
-          To the maximum extent permitted by law, Tempo Spanish and its owners,
+          To the maximum extent permitted by law, Tempo Language and its owners,
           employees, and affiliates shall not be liable for any indirect,
           incidental, special, consequential, or punitive damages arising from
           your use of the App, including but not limited to loss of data,

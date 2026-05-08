@@ -648,6 +648,7 @@ export const concatenateWavFiles = async (uris: string[]): Promise<string> => {
  */
 export const sendAudioForTranscription = async (
   audioUri: string,
+  language = "es",
 ): Promise<TranscriptionResponse> => {
   try {
     // Create form data for the request
@@ -674,10 +675,13 @@ export const sendAudioForTranscription = async (
 
     console.log(`Sending audio for transcription: ${audioUri}`);
 
-    const response = await backendFetch(`/api/transcribe?language=es`, {
-      method: "POST",
-      body: formData,
-    });
+    const response = await backendFetch(
+      `/api/transcribe?language=${encodeURIComponent(language)}`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
 
     if (!response.ok) {
       const errorText = await response.text();

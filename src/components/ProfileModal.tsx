@@ -15,11 +15,13 @@ import * as SecureStore from "expo-secure-store";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-expo";
+import { useNavigation } from "@react-navigation/native";
 import SlideModal from "./common/SlideModal";
 import CreditStore from "./CreditStore";
 import TermsOfUseModal from "./TermsOfUseModal";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
 import HelpAndFeedbackModal from "./HelpAndFeedbackModal";
+import LanguageModal from "./settings/LanguageModal";
 import {
   setUserCredits,
   setProfileModalOpen,
@@ -27,6 +29,7 @@ import {
 import { useSupabaseWithClerk } from "../../utils/supabase";
 import { fetchUserCredits } from "../requests";
 import { backendFetch } from "../helpers/backendFetch";
+import { getInitials } from "../helpers/helpers";
 
 const APP_STORE_URL =
   "https://apps.apple.com/us/app/tempo-spanish/id6763132237";
@@ -56,7 +59,7 @@ const menuStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 15,
+    paddingVertical: 12,
     paddingHorizontal: 16,
   },
   border: {
@@ -75,12 +78,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
   const { signOut } = useClerk();
   const { user } = useUser();
   const { userId, sessionId } = useAuth();
+  const navigation = useNavigation<any>();
   const supabase = useSupabaseWithClerk();
   const userCredits = useSelector((state: any) => state.userCredits);
   const [creditStoreVisible, setCreditStoreVisible] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
+  const [languageVisible, setLanguageVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
 
@@ -173,10 +178,16 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
     );
   };
 
-  const firstName = user?.firstName ?? "";
-  const lastName = user?.lastName ?? "";
-  const initials =
-    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "?";
+  const handleCreatorSignUpPress = () => {
+    onClose();
+    navigation.navigate({
+      name: "MainApp",
+      params: { creatorSignUp: true },
+      merge: false,
+    });
+  };
+
+  const initials = getInitials(user);
 
   return (
     <SlideModal visible={visible} onRequestClose={onClose} title="Profile">
@@ -197,6 +208,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
               </Text>
             </View>
           )}
+          <TouchableOpacity
+            style={styles.headerSignOutButton}
+            onPress={handleSignOut}
+          >
+            <MaterialIcons name="logout" size={15} color="#ff4d4d" />
+            <Text style={styles.headerSignOutText}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionHeader}>Account Settings</Text>
@@ -216,7 +234,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
               <Text style={styles.buyMoreText}>Buy More</Text>
             </View>
           </TouchableOpacity>
-          <MenuRow label="Close account" onPress={handleCloseAccount} isLast />
+          <MenuRow label="Language" onPress={() => setLanguageVisible(true)} />
+          <MenuRow label="Close account" onPress={handleCloseAccount} />
+          <MenuRow
+            label="Become a Creator"
+            onPress={handleCreatorSignUpPress}
+            isLast
+          />
         </View>
 
         <Text style={styles.sectionHeader}>Support</Text>
@@ -247,11 +271,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
             <MaterialIcons name="chevron-right" size={22} color="#c0c0c4" />
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <MaterialIcons name="logout" size={18} color="#ff4d4d" />
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       <CreditStore
@@ -272,6 +291,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) => {
       <HelpAndFeedbackModal
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
+      />
+
+      <LanguageModal
+        visible={languageVisible}
+        onClose={() => setLanguageVisible(false)}
       />
 
       <Modal
@@ -348,7 +372,7 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 12,
     backgroundColor: "#fff",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#ebebef",
@@ -377,6 +401,21 @@ const styles = StyleSheet.create({
     color: "#8e8e93",
     fontWeight: "500",
   },
+  headerSignOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: "#fff1f1",
+  },
+  headerSignOutText: {
+    color: "#ff4d4d",
+    fontSize: 13,
+    fontWeight: "700",
+  },
   sectionHeader: {
     fontSize: 13,
     fontWeight: "600",
@@ -391,22 +430,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     backgroundColor: "#fff",
     borderRadius: 14,
-  },
-  signOutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 32,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: "#fff",
-  },
-  signOutText: {
-    color: "#ff4d4d",
-    fontSize: 16,
-    fontWeight: "600",
   },
   tryMobileLabel: {
     flexDirection: "row",

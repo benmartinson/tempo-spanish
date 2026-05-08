@@ -47,6 +47,8 @@ import VideoList from "./src/components/video-list/VideoList";
 import NavTabBanner from "./src/components/common/NavTabBanner";
 import SelectedVideoPage from "./src/components/common/SelectedVideoPage";
 import CreditStore from "./src/components/CreditStore";
+import CreatorRequestsPage from "./src/components/CreatorRequestsPage";
+import CreatorSignUpPage from "./src/components/CreatorSignUpPage";
 import Constants from "expo-constants";
 const tokenCache = clerkTokenCache
   ? {
@@ -90,7 +92,17 @@ const linking: any = {
       .filter(Boolean)
       .map((segment) => decodeURIComponent(segment));
 
-    const params: { channelId?: string; videoId?: string } = {};
+    const params: {
+      channelId?: string;
+      videoId?: string;
+      creatorRequests?: boolean;
+      creatorSignUp?: boolean;
+    } = {};
+    if (segments[0] === "creator" && segments[1] === "requests") {
+      params.creatorRequests = true;
+    } else if (segments[0] === "creator" && segments[1] === "sign_up") {
+      params.creatorSignUp = true;
+    }
     if (segments[0] === "channel" && segments[1]) {
       params.channelId = segments[1];
     }
@@ -106,7 +118,14 @@ const linking: any = {
     const route = state.routes[state.index ?? 0];
     if (route?.name !== "MainApp") return "";
 
-    const { channelId, videoId } = route.params ?? {};
+    const { channelId, videoId, creatorRequests, creatorSignUp } =
+      route.params ?? {};
+    if (creatorRequests) {
+      return "/creator/requests";
+    }
+    if (creatorSignUp) {
+      return "/creator/sign_up";
+    }
     if (videoId) {
       return `/video/${encodeURIComponent(videoId)}`;
     }
@@ -128,12 +147,23 @@ const MainApp: React.FC = () => {
   );
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const allChannels = useSelector((state: RootState) => state.allChannels);
+  const targetLanguage = useSelector(
+    (state: RootState) => state.userSettings.targetLanguage,
+  );
   const routeChannelId =
     typeof route.params?.channelId === "string" ? route.params.channelId : null;
   const routeVideoId =
     typeof route.params?.videoId === "string" ? route.params.videoId : null;
+  const routeCreatorRequests = route.params?.creatorRequests === true;
+  const routeCreatorSignUp = route.params?.creatorSignUp === true;
   const hasRouteTarget =
-    Platform.OS === "web" && !!(routeChannelId || routeVideoId);
+    Platform.OS === "web" &&
+    !!(
+      routeChannelId ||
+      routeVideoId ||
+      routeCreatorRequests ||
+      routeCreatorSignUp
+    );
 
   const [isRestoringState, setIsRestoringState] = useState(true);
   const [isLoadingRouteVideo, setIsLoadingRouteVideo] = useState(false);
@@ -150,15 +180,30 @@ const MainApp: React.FC = () => {
 
   // Public data — fetch once client is ready
   useEffect(() => {
-    fetchAllVideos({ supabase: publicSupabase }).then(
+    if (clerkSupabase && userId && isRestoringState) return;
+    if (!targetLanguage) return;
+
+    let cancelled = false;
+    fetchAllVideos({ supabase: publicSupabase, targetLanguage }).then(
       ({ channelData, videoData, topicData, channelTopicData }) => {
+        if (cancelled) return;
         dispatch(setAllChannels(channelData));
         dispatch(setAllVideos(videoData));
         dispatch(setAllTopics(topicData));
         dispatch(setChannelTopics(channelTopicData));
       },
     );
-  }, [publicSupabase]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    clerkSupabase,
+    dispatch,
+    isRestoringState,
+    publicSupabase,
+    targetLanguage,
+    userId,
+  ]);
 
   // User-specific data — only when signed in
   useEffect(() => {
@@ -308,6 +353,13 @@ const MainApp: React.FC = () => {
   useEffect(() => {
     if (Platform.OS !== "web" || isRestoringState) return;
 
+    if (routeCreatorRequests || routeCreatorSignUp) {
+      if (currentVideo) dispatch(setCurrentVideo(null));
+      if (selectedChannelId) dispatch(setSelectedChannelId(null));
+      setIsLoadingRouteVideo(false);
+      return;
+    }
+
     if (!routeChannelId && !routeVideoId) {
       if (currentVideo) dispatch(setCurrentVideo(null));
       if (selectedChannelId) dispatch(setSelectedChannelId(null));
@@ -371,6 +423,8 @@ const MainApp: React.FC = () => {
     dispatch,
     isRestoringState,
     routeChannelId,
+    routeCreatorRequests,
+    routeCreatorSignUp,
     routeVideoId,
     selectedChannelId,
     userId,
@@ -406,12 +460,16 @@ const MainApp: React.FC = () => {
     Platform.OS === "web"
       ? !!routeVideoId && routeVideoIsReady
       : !!currentVideo;
+  const shouldShowCreatorRequestsPage = routeCreatorRequests;
+  const shouldShowCreatorSignUpPage = routeCreatorSignUp;
 
   return (
     <View style={{ flex: 1, backgroundColor: "white" }}>
-      {(!shouldShowVideoPage || isRestoringState || isLoadingRouteVideo) && (
-        <TopNavBar />
-      )}
+      {(!shouldShowVideoPage ||
+        shouldShowCreatorRequestsPage ||
+        shouldShowCreatorSignUpPage ||
+        isRestoringState ||
+        isLoadingRouteVideo) && <TopNavBar />}
       {isRestoringState || isLoadingRouteVideo || !routeVideoIsReady ? (
         <View
           style={{
@@ -423,6 +481,10 @@ const MainApp: React.FC = () => {
         >
           <ActivityIndicator size="large" color="#5a5680" />
         </View>
+      ) : shouldShowCreatorRequestsPage ? (
+        <CreatorRequestsPage onBack={navigateHome} />
+      ) : shouldShowCreatorSignUpPage ? (
+        <CreatorSignUpPage onBack={navigateHome} />
       ) : shouldShowVideoPage ? (
         <>
           <NavTabBanner />
@@ -493,7 +555,7 @@ const App: React.FC = () => {
           linking={Platform.OS === "web" ? linking : undefined}
           documentTitle={
             Platform.OS === "web"
-              ? { formatter: () => "Tempo Spanish" }
+              ? { formatter: () => "Tempo Language" }
               : undefined
           }
         >

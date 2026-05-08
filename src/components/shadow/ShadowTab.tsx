@@ -525,7 +525,13 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       }
 
       try {
-        const transcriptionResult = await sendAudioForTranscription(safeUri);
+        if (!userSettings.targetLanguage) {
+          throw new Error("Target language has not loaded yet.");
+        }
+        const transcriptionResult = await sendAudioForTranscription(
+          safeUri,
+          userSettings.targetLanguage,
+        );
         const spokenWords = transcriptionResult.transcript
           .split(/\s+/)
           .filter(Boolean);

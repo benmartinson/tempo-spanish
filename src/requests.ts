@@ -9,11 +9,32 @@ import {
   VideoView,
   UserUIState,
   UserSettings,
+  LanguageCode,
   DEFAULT_USER_SETTINGS,
   ContentTab,
 } from "./types";
 import { cachedResponses, splitSegmentsIntoSentences } from "./helpers/helpers";
 import { setCachedResponses } from "./store/actions/dataActions";
+
+const normalizeLanguageCode = (
+  value: unknown,
+  fallback: LanguageCode | null,
+): LanguageCode | null => {
+  if (typeof value !== "string") return fallback;
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "es" || normalized === "spanish") return "es";
+  if (normalized === "en" || normalized === "english") return "en";
+  if (
+    normalized === "pt" ||
+    normalized === "portuguese" ||
+    normalized === "português"
+  ) {
+    return "pt";
+  }
+
+  return fallback;
+};
 
 export interface FetchVideoContextParams {
   supabase: any;
@@ -167,6 +188,7 @@ export const fetchVocabTranslation = async ({
 
 export interface FetchTranslationInsightsParams {
   text: string;
+  translationLanguage: LanguageCode;
 }
 
 export interface TranslationInsightsResult {
@@ -176,10 +198,11 @@ export interface TranslationInsightsResult {
 
 export const fetchTranslationInsights = async ({
   text,
+  translationLanguage,
 }: FetchTranslationInsightsParams): Promise<TranslationInsightsResult | null> => {
   const response = await backendFetch("/translation-insights", {
     method: "POST",
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, language: translationLanguage }),
   });
 
   if (!response.ok) {
@@ -198,6 +221,7 @@ export interface LoadSentenceInsightsParams {
   sentenceText: string;
   videoRecordId: string;
   sentenceIndex: number;
+  translationLanguage: LanguageCode;
 }
 
 export interface SentenceInsightsResult {
@@ -210,18 +234,23 @@ export const loadSentenceInsights = async ({
   sentenceText,
   videoRecordId,
   sentenceIndex,
+  translationLanguage,
 }: LoadSentenceInsightsParams): Promise<SentenceInsightsResult> => {
-  const translationColumn = `translation_es`;
+  const translationColumn =
+    translationLanguage === "es" ? "translation_es" : null;
 
   // Check Supabase cache first
-  const { data: cached, error: cacheError } = (await supabase
-    .from("sentence_insights")
-    .select(`proper_nouns, ${translationColumn}`)
-    .eq("video_id", parseInt(videoRecordId))
-    .eq("sentence_index", sentenceIndex)
-    .maybeSingle()) as { data: any; error: any };
+  const { data: cached, error: cacheError } = translationColumn
+    ? ((await supabase
+        .from("sentence_insights")
+        .select(`proper_nouns, ${translationColumn}`)
+        .eq("video_id", parseInt(videoRecordId))
+        .eq("sentence_index", sentenceIndex)
+        .maybeSingle()) as { data: any; error: any })
+    : { data: null, error: null };
 
   if (
+    translationColumn &&
     !cacheError &&
     cached &&
     cached.proper_nouns &&
@@ -235,19 +264,22 @@ export const loadSentenceInsights = async ({
   // Fetch from backend
   const result = await fetchTranslationInsights({
     text: sentenceText,
+    translationLanguage,
   });
 
   if (result) {
     // Save to Supabase for future lookups
-    await supabase.from("sentence_insights").upsert(
-      {
-        video_id: parseInt(videoRecordId),
-        sentence_index: sentenceIndex,
-        proper_nouns: result.properNouns,
-        [translationColumn]: result.translation,
-      },
-      { onConflict: "video_id,sentence_index" },
-    );
+    if (translationColumn) {
+      await supabase.from("sentence_insights").upsert(
+        {
+          video_id: parseInt(videoRecordId),
+          sentence_index: sentenceIndex,
+          proper_nouns: result.properNouns,
+          [translationColumn]: result.translation,
+        },
+        { onConflict: "video_id,sentence_index" },
+      );
+    }
 
     return {
       properNouns: result.properNouns ?? [],
@@ -258,11 +290,14 @@ export const loadSentenceInsights = async ({
   // Return partial cached data if available
   return {
     properNouns: cached?.proper_nouns ?? [],
-    translation: cached?.[translationColumn] ?? null,
+    translation: translationColumn
+      ? (cached?.[translationColumn] ?? null)
+      : null,
   };
 };
 export interface FetchAllVideosParams {
   supabase: any;
+  targetLanguage: LanguageCode;
 }
 
 export interface FetchAllVideosResult {
@@ -274,15 +309,26 @@ export interface FetchAllVideosResult {
 
 export const fetchAllVideos = async ({
   supabase,
+  targetLanguage,
 }: FetchAllVideosParams): Promise<FetchAllVideosResult> => {
   const { data: channelData, error: channelError } = await supabase
     .from("channel")
-    .select("*");
+    .select("*")
+    .eq("language", targetLanguage);
   if (channelError) console.error(channelError);
 
-  const { data: videoData, error: videoError } = await supabase
-    .from("video")
-    .select("*");
+  const channelIds = (channelData ?? []).map(
+    (channel: { channel_id: string }) => channel.channel_id,
+  );
+  const channelRecordIds = (channelData ?? []).map(
+    (channel: { id: string }) => channel.id,
+  );
+
+  const videoQuery = supabase.from("video").select("*");
+  const { data: videoData, error: videoError } =
+    channelIds.length > 0
+      ? await videoQuery.in("channel_id", channelIds)
+      : { data: [], error: null };
   if (videoError) console.error(videoError);
 
   const { data: topicData, error: topicError } = await supabase
@@ -290,9 +336,11 @@ export const fetchAllVideos = async ({
     .select("*");
   if (topicError) console.error(topicError);
 
-  const { data: channelTopicData, error: channelTopicError } = await supabase
-    .from("channel_topic")
-    .select("*");
+  const channelTopicQuery = supabase.from("channel_topic").select("*");
+  const { data: channelTopicData, error: channelTopicError } =
+    channelRecordIds.length > 0
+      ? await channelTopicQuery.in("channel_id", channelRecordIds)
+      : { data: [], error: null };
   if (channelTopicError) console.error(channelTopicError);
 
   return {
@@ -397,7 +445,19 @@ export const restoreUserUIState = async ({
         (level) => level === uiState.auto_select_difficulty_level,
       ) ?? DEFAULT_USER_SETTINGS.autoSelectDifficultyLevel;
 
+    const rawUiState = uiState as UserUIState & {
+      targetLanguage?: unknown;
+      translationLanguage?: unknown;
+    };
     const settings: UserSettings = {
+      targetLanguage: normalizeLanguageCode(
+        rawUiState.target_language ?? rawUiState.targetLanguage,
+        DEFAULT_USER_SETTINGS.targetLanguage,
+      ),
+      translationLanguage: normalizeLanguageCode(
+        rawUiState.translation_language ?? rawUiState.translationLanguage,
+        DEFAULT_USER_SETTINGS.translationLanguage,
+      ),
       playbackSpeed:
         uiState.playback_speed ?? DEFAULT_USER_SETTINGS.playbackSpeed,
       playbackSpeedDuringRecording:
@@ -611,6 +671,10 @@ export const persistUserSettings = async ({
   if (settings.autoSelectDifficultyLevel !== undefined)
     updateData.auto_select_difficulty_level =
       settings.autoSelectDifficultyLevel;
+  if (settings.targetLanguage !== undefined)
+    updateData.target_language = settings.targetLanguage;
+  if (settings.translationLanguage !== undefined)
+    updateData.translation_language = settings.translationLanguage;
 
   const { error } = await supabase
     .from("user_ui_state")

@@ -36,7 +36,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ visible, onClose }) => {
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
             <View style={styles.card}>
-              <Text style={styles.title}>Welcome to Tempo Spanish</Text>
+              <Text style={styles.title}>Welcome to Tempo Language</Text>
               <Text style={styles.message}>
                 If you're looking for a way to improve your spanish speaking
                 skills, you've come to the right place!

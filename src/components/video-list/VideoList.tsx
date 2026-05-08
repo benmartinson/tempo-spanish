@@ -63,6 +63,9 @@ const VideoList: React.FC<VideoListProps> = ({
   const allTopics = useSelector((state: RootState) => state.allTopics);
   const channelTopics = useSelector((state: RootState) => state.channelTopics);
   const allVideos = useSelector((state: RootState) => state.allVideos);
+  const targetLanguage = useSelector(
+    (state: RootState) => state.userSettings.targetLanguage,
+  );
   const userVideoViews = useSelector(
     (state: RootState) => state.userVideoViews,
   );
@@ -72,14 +75,16 @@ const VideoList: React.FC<VideoListProps> = ({
   );
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
-  const spanishChannelIds = new Set(
-    (allChannels || [])
-      .filter((channel) => channel.language === "es")
-      .map((channel) => channel.channel_id),
+  const targetLanguageChannelIds = new Set(
+    targetLanguage
+      ? (allChannels || [])
+          .filter((channel) => channel.language === targetLanguage)
+          .map((channel) => channel.channel_id)
+      : [],
   );
 
-  const spanishVideos = allVideos.filter((video) =>
-    spanishChannelIds.has(video.channel_id),
+  const targetLanguageVideos = allVideos.filter((video) =>
+    targetLanguageChannelIds.has(video.channel_id),
   );
 
   useEffect(() => {
@@ -177,7 +182,7 @@ const VideoList: React.FC<VideoListProps> = ({
   };
 
   const recentlyWatchedVideos = userId
-    ? spanishVideos
+    ? targetLanguageVideos
         ?.filter((video) =>
           userVideoViews?.some((videoView) => videoView.video_id === video.id),
         )
@@ -207,7 +212,7 @@ const VideoList: React.FC<VideoListProps> = ({
   );
   const newReleaseVideos = useMemo(
     () =>
-      [...spanishVideos]
+      [...targetLanguageVideos]
         .sort((a, b) => {
           const releaseDiff =
             new Date(b.release_date ?? 0).getTime() -
@@ -220,7 +225,7 @@ const VideoList: React.FC<VideoListProps> = ({
           );
         })
         .slice(0, 8),
-    [channelSortIndexById, spanishVideos],
+    [channelSortIndexById, targetLanguageVideos],
   );
 
   if (selectedChannel) {
@@ -248,7 +253,7 @@ const VideoList: React.FC<VideoListProps> = ({
     );
   }
 
-  if (!spanishVideos?.length) {
+  if (!targetLanguageVideos?.length) {
     return (
       <View
         style={{
@@ -320,7 +325,7 @@ const VideoList: React.FC<VideoListProps> = ({
         )}
         {/* <VideoSectionHeader title="Recommended" /> */}
         <FilterVideos
-          videos={spanishVideos}
+          videos={targetLanguageVideos}
           mode="topics"
           topics={allTopics}
           channelTopics={channelTopics}

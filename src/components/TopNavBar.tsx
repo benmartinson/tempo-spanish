@@ -7,20 +7,48 @@ import {
   Dimensions,
   useWindowDimensions,
   Image,
+  ActivityIndicator,
 } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useNavigation } from "@react-navigation/native";
+import { useSelector } from "react-redux";
 import ProfileModal from "./ProfileModal";
-import { isWebScreenWidth } from "../helpers/helpers";
+import LanguageModal from "./settings/LanguageModal";
+import { getInitials, isWebScreenWidth } from "../helpers/helpers";
+import { LanguageCode, RootState } from "../types";
+
+const languageLabelByCode: Record<LanguageCode, string> = {
+  es: "Spanish",
+  en: "English",
+  pt: "Portuguese",
+};
+
+const languageFlagByCode: Record<LanguageCode, string> = {
+  es: "🇪🇸",
+  en: "🇺🇸",
+  pt: "🇧🇷",
+};
 
 const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
   const { isSignedIn } = useAuth();
+  const { user } = useUser();
+  const initials = getInitials(user);
   const navigation = useNavigation<any>();
   const { width } = useWindowDimensions();
   const isWebScreen = isWebScreenWidth(width);
   const [profileVisible, setProfileVisible] = useState(false);
+  const [languageVisible, setLanguageVisible] = useState(false);
+  const targetLanguage = useSelector(
+    (state: RootState) => state.userSettings.targetLanguage,
+  );
+  const targetLanguageLabel = targetLanguage
+    ? languageLabelByCode[targetLanguage]
+    : null;
+  const targetLanguageFlag = targetLanguage
+    ? languageFlagByCode[targetLanguage]
+    : null;
 
   if (isWebScreen) {
     return (
@@ -35,12 +63,30 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             </View>
             <View>
               <Text style={styles.webAppName}>Tempo</Text>
-              <Text style={styles.webAppSubname}>Spanish</Text>
+              <Text style={styles.webAppSubname}>Language</Text>
             </View>
           </View>
 
           {!minimal && (
             <View style={styles.webActions}>
+              <TouchableOpacity
+                style={styles.webFlagButton}
+                onPress={() => setLanguageVisible(true)}
+                disabled={!targetLanguage}
+                activeOpacity={0.72}
+              >
+                {targetLanguageLabel && targetLanguageFlag ? (
+                  <>
+                    <Text style={styles.webFlagLabel}>
+                      {targetLanguageLabel}
+                    </Text>
+                    <Text style={styles.webFlagText}>{targetLanguageFlag}</Text>
+                  </>
+                ) : (
+                  <ActivityIndicator size="small" color="#3d3a52" />
+                )}
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={[
                   styles.webAuthButton,
@@ -65,7 +111,7 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
                     isSignedIn && styles.webAccountButtonText,
                   ]}
                 >
-                  {isSignedIn ? "Account" : "Sign in"}
+                  {isSignedIn ? initials.toUpperCase() : "Sign in"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -74,6 +120,10 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
           <ProfileModal
             visible={profileVisible}
             onClose={() => setProfileVisible(false)}
+          />
+          <LanguageModal
+            visible={languageVisible}
+            onClose={() => setLanguageVisible(false)}
           />
         </View>
       </View>
@@ -91,7 +141,7 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
         </View>
         <View style={{ flexDirection: "row" }}>
           <Text style={styles.mobileAppName}>Tempo</Text>
-          <Text style={styles.mobileAppSubname}>Spanish</Text>
+          <Text style={styles.mobileAppSubname}>Language</Text>
         </View>
       </View>
 
@@ -215,6 +265,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1.6,
     paddingLeft: 1,
+    opacity: 0.7,
   },
   mobileAppName: {
     color: "#3d3a52",
@@ -237,24 +288,31 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   webFlagButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    minHeight: 38,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 13,
+    borderRadius: 999,
     justifyContent: "center",
     backgroundColor: "#f7f9ff",
     borderWidth: 1,
     borderColor: "rgba(74, 105, 189, 0.24)",
   },
+  webFlagLabel: {
+    color: "#3d3a52",
+    fontSize: 14,
+    fontWeight: "800",
+  },
   webFlagText: {
-    fontSize: 20,
+    fontSize: 18,
     lineHeight: 24,
   },
   webAuthButton: {
     minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 4,
     paddingHorizontal: 16,
     borderRadius: 999,
     backgroundColor: "#3d3a52",
