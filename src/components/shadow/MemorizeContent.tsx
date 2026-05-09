@@ -30,6 +30,9 @@ import {
   vocabFormatWord,
 } from "../../helpers/helpers";
 
+const WEB_PANEL_STACKED_CONTROLS_BREAKPOINT = 480;
+const WEB_PANEL_WIDE_HEADER_BREAKPOINT = 1000;
+
 interface MemorizeContentProps {
   time: number;
   playKey?: number;
@@ -221,9 +224,14 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   );
 
   const shouldUseWidePanelHeader =
-    layout === "webPlayer" && webPanelWidth >= 1000 && !webStatusContent;
-  const shouldStackWebPanelControls = webPanelWidth <= 480;
-  const webPanelHeaderContent = webCountdownTimer ?? webSentenceNav;
+    layout === "webPlayer" &&
+    webPanelWidth >= WEB_PANEL_WIDE_HEADER_BREAKPOINT &&
+    !webStatusContent;
+  const shouldStackWebPanelControls =
+    webPanelWidth <= WEB_PANEL_STACKED_CONTROLS_BREAKPOINT;
+  const webPanelHeaderContent = shouldUseWidePanelHeader
+    ? webSentenceNav
+    : (webCountdownTimer ?? webSentenceNav);
   const handleRevealTranslation = useCallback(async () => {
     setTranslationRevealed(true);
     if (!translationText && !isLoadingTranslation && !isRequestingTranslation) {
@@ -379,6 +387,14 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
                 <View style={styles.webPanelWideNav}>
                   {webPanelHeaderContent}
                 </View>
+                {webCountdownTimer && (
+                  <View
+                    pointerEvents="box-none"
+                    style={styles.webPanelWideCountdownOverlay}
+                  >
+                    {webCountdownTimer}
+                  </View>
+                )}
                 <View style={styles.webPanelWidePlayerControls}>
                   {webWidePlayerControls ?? webPlayerControls}
                 </View>
@@ -537,6 +553,16 @@ const styles = StyleSheet.create({
   webPanelWideNav: {
     width: "100%",
     minHeight: 40,
+    justifyContent: "center",
+  },
+  webPanelWideCountdownOverlay: {
+    position: "absolute",
+    top: 4,
+    bottom: 4,
+    left: 0,
+    right: 0,
+    zIndex: 3,
+    alignItems: "center",
     justifyContent: "center",
   },
   webPanelWidePlayerControls: {

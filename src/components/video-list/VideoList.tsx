@@ -20,12 +20,15 @@ import { supabase as rawSupabase } from "../../../lib/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import HorizontalVideoScroll from "./HorizontalVideoScroll";
 import VideoSectionHeader from "./VideoSectionHeader";
-import { fetchVideoContext, fetchUserVideoViews } from "../../requests";
+import {
+  fetchVideoContext,
+  fetchUserVideoViews,
+  persistVideoSelection,
+} from "../../requests";
 import { setUserVideoViews } from "../../store/actions/dataActions";
 import ChannelVideoList from "./ChannelVideoList";
 import ChannelHeader from "./ChannelHeader";
 import FilterVideos from "./FilterVideos";
-import WelcomeModal from "../common/WelcomeModal";
 import { isWebScreenWidth } from "../../helpers/helpers";
 
 interface VideoListProps {
@@ -70,10 +73,6 @@ const VideoList: React.FC<VideoListProps> = ({
     (state: RootState) => state.userVideoViews,
   );
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
-  const hasSeenWelcomeModals = useSelector(
-    (state: RootState) => state.hasSeenWelcomeModals,
-  );
-  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
   const targetLanguageChannelIds = new Set(
     targetLanguage
@@ -86,10 +85,6 @@ const VideoList: React.FC<VideoListProps> = ({
   const targetLanguageVideos = allVideos.filter((video) =>
     targetLanguageChannelIds.has(video.channel_id),
   );
-
-  useEffect(() => {
-    setIsWelcomeModalOpen(!hasSeenWelcomeModals);
-  }, [hasSeenWelcomeModals]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -148,28 +143,17 @@ const VideoList: React.FC<VideoListProps> = ({
       dispatch(setCurrentVideo(videoContext));
       dispatch(setSelectedChannelId(null));
 
-      // Persist video selection to user_ui_state
-      if (supabase && userId) {
-        const { error } = await supabase.from("user_ui_state").upsert(
-          {
-            user_id: userId,
-            current_video: recordId,
-            current_sentence: videoContext.currentSentence,
-            updated_at: new Date(),
-          },
-          { onConflict: "user_id" },
-        );
-        if (error) console.error("Error persisting video selection:", error);
-      }
+      await persistVideoSelection({
+        supabase,
+        userId,
+        recordId,
+        currentSentence: videoContext.currentSentence,
+      });
     } catch (error) {
       console.error("Error loading video:", error);
     } finally {
       setLoadingVideo(false);
     }
-  };
-
-  const handleDismissWelcome = () => {
-    setIsWelcomeModalOpen(false);
   };
 
   const handleChannelPress = (channelId: string) => {
@@ -417,10 +401,6 @@ const VideoList: React.FC<VideoListProps> = ({
           }}
         </FilterVideos>
       </ScrollView>
-      <WelcomeModal
-        visible={isWelcomeModalOpen}
-        onClose={handleDismissWelcome}
-      />
     </View>
   );
 };

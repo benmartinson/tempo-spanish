@@ -153,6 +153,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   const handleTrashRecording = () => {
     stopRecording(true);
   };
+  console.log({ englishTranslation });
 
   return (
     <SlideModal

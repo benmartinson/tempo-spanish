@@ -477,7 +477,6 @@ export interface RestoreUserUIStateResult {
   currentShadowTab: ContentTab;
   memorizeDifficulty: number | null;
   settings: UserSettings;
-  hasSeenWelcomeModals: boolean;
 }
 
 export const restoreUserUIState = async ({
@@ -489,7 +488,6 @@ export const restoreUserUIState = async ({
     currentShadowTab: null,
     memorizeDifficulty: null,
     settings: DEFAULT_USER_SETTINGS,
-    hasSeenWelcomeModals: false,
   };
 
   if (!userId) {
@@ -582,7 +580,6 @@ export const restoreUserUIState = async ({
           settings,
           currentShadowTab: uiState?.current_shadow_tab ?? null,
           memorizeDifficulty: uiState?.memorize_difficulty ?? null,
-          hasSeenWelcomeModals: uiState?.has_seen_welcome_modals ?? false,
         };
       }
 
@@ -598,7 +595,6 @@ export const restoreUserUIState = async ({
         currentShadowTab: uiState.current_shadow_tab ?? null,
         memorizeDifficulty: uiState.memorize_difficulty ?? null,
         settings,
-        hasSeenWelcomeModals: uiState.has_seen_welcome_modals ?? false,
       };
     }
 
@@ -607,7 +603,6 @@ export const restoreUserUIState = async ({
       currentShadowTab: uiState?.current_shadow_tab ?? null,
       memorizeDifficulty: uiState?.memorize_difficulty ?? null,
       settings,
-      hasSeenWelcomeModals: uiState?.has_seen_welcome_modals ?? false,
     };
   } catch (err) {
     console.error("Error restoring user UI state:", err);
@@ -653,6 +648,32 @@ export const persistVideoUnselection = async ({
   );
 
   if (error) console.error("Error persisting video unselection:", error);
+};
+
+export const persistVideoSelection = async ({
+  supabase,
+  userId,
+  recordId,
+  currentSentence,
+}: {
+  supabase: any;
+  userId: string | null;
+  recordId: string;
+  currentSentence: number;
+}): Promise<void> => {
+  if (!supabase || !userId) return;
+
+  const { error } = await supabase.from("user_ui_state").upsert(
+    {
+      user_id: userId,
+      current_video: recordId,
+      current_sentence: currentSentence,
+      updated_at: new Date(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) console.error("Error persisting video selection:", error);
 };
 
 export const persistMemorizeDifficulty = async ({

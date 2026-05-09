@@ -36,14 +36,9 @@ const SignInPromptModal: React.FC<SignInPromptModalProps> = ({
             <View style={styles.card}>
               <Ionicons name="person-add" size={40} color="#5a5680" />
               <Text style={styles.title}>Sign In Required</Text>
-              <Text style={styles.message}>
-                Create an account or sign in to use this feature.
-              </Text>
+              <Text style={styles.message}>Sign in to use this feature.</Text>
               <View style={styles.buttonRow}>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={onClose}
-                >
+                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                   <Text style={styles.closeButtonText}>Close</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -77,6 +72,7 @@ const styles = StyleSheet.create({
     padding: 28,
     alignItems: "center",
     width: "80%",
+    maxWidth: 400,
     gap: 12,
   },
   title: {

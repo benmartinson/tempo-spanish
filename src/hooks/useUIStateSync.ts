@@ -15,11 +15,17 @@ export const useUIStateSync = () => {
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
   const currentSentence = currentVideo?.currentSentence;
   const videoViewId = currentVideo?.videoViewId;
+  const recordId = currentVideo?.recordId;
 
   // Use refs to track previous values and debounce timer
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncedUiRef = useRef<
-    { videoViewId: number | undefined; sentence: number | undefined } | undefined
+    | {
+        videoViewId: number | undefined;
+        recordId: string | undefined;
+        sentence: number | undefined;
+      }
+    | undefined
   >(undefined);
   const lastSavedVideoViewRef = useRef<
     { videoViewId: number | undefined; sentence: number | undefined } | undefined
@@ -47,6 +53,7 @@ export const useUIStateSync = () => {
     // Don't sync if sentence hasn't actually changed
     if (
       lastSyncedUiRef.current?.videoViewId === videoViewId &&
+      lastSyncedUiRef.current?.recordId === recordId &&
       lastSyncedUiRef.current?.sentence === currentSentence
     ) {
       return;
@@ -63,6 +70,7 @@ export const useUIStateSync = () => {
         const { error } = await supabase.from("user_ui_state").upsert(
           {
             user_id: userId,
+            current_video: recordId,
             current_sentence: currentSentence,
             updated_at: new Date(),
           },
@@ -72,7 +80,11 @@ export const useUIStateSync = () => {
         if (error) {
           console.error("Error persisting current_sentence:", error);
         } else {
-          lastSyncedUiRef.current = { videoViewId, sentence: currentSentence };
+          lastSyncedUiRef.current = {
+            videoViewId,
+            recordId,
+            sentence: currentSentence,
+          };
         }
       } catch (err) {
         console.error("Error in useUIStateSync:", err);
@@ -85,5 +97,5 @@ export const useUIStateSync = () => {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [supabase, userId, currentSentence, currentVideo, videoViewId]);
+  }, [supabase, userId, currentSentence, currentVideo, videoViewId, recordId]);
 };

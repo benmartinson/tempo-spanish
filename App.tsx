@@ -1,6 +1,5 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   NavigationContainer,
   useNavigation,
@@ -22,7 +21,6 @@ import {
   setCurrentShadowTab,
   setMemorizeDifficulty,
   setUserCredits,
-  setHasSeenWelcomeModals,
   setSelectedChannelId,
   addUserVideoView,
 } from "./src/store/actions/dataActions";
@@ -37,6 +35,8 @@ import {
   restoreUserUIState,
   loadAndCacheTTSResponses,
   fetchUserCredits,
+  persistVideoSelection,
+  persistVideoUnselection,
 } from "./src/requests";
 import { useUIStateSync } from "./src/hooks/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
@@ -215,15 +215,6 @@ const MainApp: React.FC = () => {
   // User-specific data — only when signed in
   useEffect(() => {
     if (!clerkSupabase || !userId) {
-      // Still restore hasSeenWelcomeModals from local storage when signed out
-      // DEV: uncomment to reset walkthrough state
-      // AsyncStorage.removeItem("has_seen_welcome_modals");
-      AsyncStorage.getItem("has_seen_welcome_modals").then((seen) => {
-        console.log("[AsyncStorage] has_seen_welcome_modals =", seen);
-        if (seen === "true") {
-          dispatch(setHasSeenWelcomeModals(true));
-        }
-      });
       setIsRestoringState(false);
       return;
     }
@@ -264,20 +255,12 @@ const MainApp: React.FC = () => {
         currentShadowTab,
         memorizeDifficulty,
         settings,
-        hasSeenWelcomeModals,
       } = await restoreUserUIState({
         supabase: clerkSupabase,
         userId,
       });
 
       dispatch(setUserSettings(settings));
-      AsyncStorage.getItem("has_seen_welcome_modals").then((seen) => {
-        if (seen === "true") {
-          dispatch(setHasSeenWelcomeModals(true));
-        } else {
-          dispatch(setHasSeenWelcomeModals(hasSeenWelcomeModals));
-        }
-      });
 
       if (currentShadowTab) {
         dispatch(setCurrentShadowTab(currentShadowTab));
@@ -369,7 +352,10 @@ const MainApp: React.FC = () => {
     // }
 
     if (!routeChannelId && !routeVideoId) {
-      if (currentVideo) dispatch(setCurrentVideo(null));
+      if (currentVideo) {
+        dispatch(setCurrentVideo(null));
+        persistVideoUnselection({ supabase: clerkSupabase, userId });
+      }
       if (selectedChannelId) dispatch(setSelectedChannelId(null));
       setIsLoadingRouteVideo(false);
       return;
@@ -400,12 +386,18 @@ const MainApp: React.FC = () => {
         recordId: routeVideo.id,
         userId,
       })
-        .then(({ videoContext, videoView }) => {
+        .then(async ({ videoContext, videoView }) => {
           if (cancelled) return;
           if (userId && videoView) {
             dispatch(addUserVideoView(videoView));
           }
           dispatch(setCurrentVideo(videoContext));
+          await persistVideoSelection({
+            supabase: clerkSupabase,
+            userId,
+            recordId: routeVideo.id,
+            currentSentence: videoContext.currentSentence,
+          });
         })
         .catch((error) => {
           if (!cancelled) console.error("Error loading route video:", error);
@@ -419,7 +411,10 @@ const MainApp: React.FC = () => {
       };
     }
 
-    if (currentVideo) dispatch(setCurrentVideo(null));
+    if (currentVideo) {
+      dispatch(setCurrentVideo(null));
+      persistVideoUnselection({ supabase: clerkSupabase, userId });
+    }
     setIsLoadingRouteVideo(false);
     if (allChannels.length && selectedChannelId !== routeChannelId) {
       dispatch(setSelectedChannelId(routeChannelId));
@@ -427,6 +422,7 @@ const MainApp: React.FC = () => {
   }, [
     allChannels.length,
     allVideos,
+    clerkSupabase,
     currentVideo,
     dispatch,
     isRestoringState,

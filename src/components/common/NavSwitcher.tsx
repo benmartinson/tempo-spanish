@@ -27,6 +27,7 @@ type NavSwitcherProps = {
   style?: StyleProp<ViewStyle>;
   showSearchIcon?: boolean;
   compact?: boolean;
+  navigationDisabled?: boolean;
 };
 
 const NavSwitcher: React.FC<NavSwitcherProps> = ({
@@ -43,6 +44,7 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
   style,
   showSearchIcon = true,
   compact = false,
+  navigationDisabled = false,
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [nextAvailableShadow, setNextAvailableShadow] = useState<number | null>(
@@ -83,6 +85,8 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
     Math.abs(nextAvailableShadow - currentIndex) > 1;
   const jumpIsForward =
     nextAvailableShadow !== null && currentIndex < nextAvailableShadow;
+  const previousDisabled = navigationDisabled || currentIndex === 0;
+  const nextDisabled = navigationDisabled || currentIndex === totalItems - 1;
 
   const handleJump = () => {
     if (nextAvailableShadow === null) return;
@@ -99,25 +103,34 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
       <View style={[styles.navButtonGroup, styles.navButtonGroupLeft]}>
         {showJumpButton && !jumpIsForward && (
           <TouchableOpacity
-            style={[styles.navButton, compact && styles.navButtonCompact]}
+            style={[
+              styles.navButton,
+              compact && styles.navButtonCompact,
+              navigationDisabled && styles.navButtonDisabled,
+            ]}
             onPress={handleJump}
+            disabled={navigationDisabled}
           >
-            <Feather name="chevrons-left" size={navIconSize} color="#007AFF" />
+            <Feather
+              name="chevrons-left"
+              size={navIconSize}
+              color={navigationDisabled ? "#ccc" : "#007AFF"}
+            />
           </TouchableOpacity>
         )}
         <TouchableOpacity
           style={[
             styles.navButton,
             compact && styles.navButtonCompact,
-            currentIndex === 0 && styles.navButtonDisabled,
+            previousDisabled && styles.navButtonDisabled,
           ]}
           onPress={onPrev}
-          disabled={currentIndex === 0}
+          disabled={previousDisabled}
         >
           <MaterialIcons
             name="chevron-left"
             size={navIconSize}
-            color={currentIndex === 0 ? "#ccc" : "#333"}
+            color={previousDisabled ? "#ccc" : "#333"}
           />
         </TouchableOpacity>
       </View>
@@ -148,23 +161,32 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
           style={[
             styles.navButton,
             compact && styles.navButtonCompact,
-            currentIndex === totalItems - 1 && styles.navButtonDisabled,
+            nextDisabled && styles.navButtonDisabled,
           ]}
           onPress={onNext}
-          disabled={currentIndex === totalItems - 1}
+          disabled={nextDisabled}
         >
           <MaterialIcons
             name="chevron-right"
             size={navIconSize}
-            color={currentIndex === totalItems - 1 ? "#ccc" : "#333"}
+            color={nextDisabled ? "#ccc" : "#333"}
           />
         </TouchableOpacity>
         {showJumpButton && jumpIsForward && (
           <TouchableOpacity
-            style={[styles.navButton, compact && styles.navButtonCompact]}
+            style={[
+              styles.navButton,
+              compact && styles.navButtonCompact,
+              navigationDisabled && styles.navButtonDisabled,
+            ]}
             onPress={handleJump}
+            disabled={navigationDisabled}
           >
-            <Feather name="chevrons-right" size={navIconSize} color="#007AFF" />
+            <Feather
+              name="chevrons-right"
+              size={navIconSize}
+              color={navigationDisabled ? "#ccc" : "#007AFF"}
+            />
           </TouchableOpacity>
         )}
       </View>

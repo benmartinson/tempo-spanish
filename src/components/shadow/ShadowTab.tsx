@@ -126,6 +126,8 @@ const WebCountdownTimerContainer: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const webPanelWidth = useDraggableWebPanelWidth();
   const shouldFillNarrowPanel = webPanelWidth !== null && webPanelWidth < 450;
+  const shouldUseCompactWidePanel =
+    webPanelWidth !== null && webPanelWidth >= 1000;
 
   return (
     <View
@@ -133,6 +135,7 @@ const WebCountdownTimerContainer: React.FC<{ children: React.ReactNode }> = ({
         styles.countdownTimer,
         styles.webCountdownTimer,
         shouldFillNarrowPanel && styles.webCountdownTimerNarrow,
+        shouldUseCompactWidePanel && styles.webCountdownTimerWideCompact,
       ]}
     >
       {children}
@@ -535,10 +538,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       }
 
       try {
-        const liveTranscriptText =
-          USE_OPENAI_REALTIME_TRANSCRIPTION
-            ? liveTranscriptionResultRef.current?.trim() || ""
-            : "";
+        const liveTranscriptText = USE_OPENAI_REALTIME_TRANSCRIPTION
+          ? liveTranscriptionResultRef.current?.trim() || ""
+          : "";
         const transcriptionResult = liveTranscriptText
           ? {
               transcript: liveTranscriptText,
@@ -1045,10 +1047,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     if (recordSpeed > 0 && !isVoiceMode) {
       playSentence();
     }
-    if (
-      USE_OPENAI_REALTIME_TRANSCRIPTION &&
-      isRealtimeTranscriptionSupported
-    ) {
+    if (USE_OPENAI_REALTIME_TRANSCRIPTION && isRealtimeTranscriptionSupported) {
       void startRealtimeTranscription(targetLanguage);
     }
     setTimeout(() => {
@@ -1061,10 +1060,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     pausePlayer();
     unMutePlayer();
     setPlayerSpeed(1);
-    if (
-      USE_OPENAI_REALTIME_TRANSCRIPTION &&
-      isRealtimeTranscriptionSupported
-    ) {
+    if (USE_OPENAI_REALTIME_TRANSCRIPTION && isRealtimeTranscriptionSupported) {
       liveTranscriptionResultRef.current = await stopRealtimeTranscription();
     }
     await stopRecording(false);
@@ -1077,10 +1073,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     unMutePlayer();
     setPlayerSpeed(1);
     liveTranscriptionResultRef.current = null;
-    if (
-      USE_OPENAI_REALTIME_TRANSCRIPTION &&
-      isRealtimeTranscriptionSupported
-    ) {
+    if (USE_OPENAI_REALTIME_TRANSCRIPTION && isRealtimeTranscriptionSupported) {
       await stopRealtimeTranscription();
       resetRealtimeTranscript();
     }
@@ -1251,7 +1244,9 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         });
       }}
       onSettingsPress={() => setIsSettingsVisible(true)}
-      showPreviousResults={!isWebScreen && !!previousResults && !isRecordingMode}
+      showPreviousResults={
+        !isWebScreen && !!previousResults && !isRecordingMode
+      }
       onPreviousResultsPress={handlePreviousResults}
       previousResultsDisabled={isPlayingRecording}
     />
@@ -1322,6 +1317,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
       style={isWebScreen ? styles.webPanelSentenceNavSwitcher : undefined}
       showSearchIcon={!isWebScreen}
       compact={isWebScreen}
+      navigationDisabled={isRecordingMode}
     >
       <Text style={styles.segmentNavText}>
         Segment {currentSentenceIndex + 1} of {currentVideo.sentences.length}
@@ -1775,6 +1771,10 @@ export const styles = StyleSheet.create({
   webCountdownTimerNarrow: {
     maxWidth: "100%",
   },
+  webCountdownTimerWideCompact: {
+    width: "auto",
+    marginVertical: 0,
+  },
   instructionContainer: {
     alignItems: "center",
     gap: 8,
@@ -1893,6 +1893,8 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 24,
     gap: 12,
+    minHeight: 200,
+    justifyContent: "center",
   },
   processingText: {
     color: "#666",

@@ -12,6 +12,8 @@ import { useDraggableWebPanelWidth } from "../common/DraggableWebPanel";
 
 type RecordingPhase = "countdown" | "recording" | "buffer" | "complete";
 
+const WEB_PANEL_WIDE_HEADER_BREAKPOINT = 1000;
+
 interface CountdownTimerProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
@@ -43,6 +45,9 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   const warningSeconds = Math.max(0, Math.ceil(bufferCountdown));
   const shouldFillNarrowWebPanel =
     webPanelWidth !== null && webPanelWidth < 450;
+  const shouldUseCompactWideWebPanel =
+    webPanelWidth !== null && webPanelWidth >= WEB_PANEL_WIDE_HEADER_BREAKPOINT;
+  const shouldShowActions = !!onTrash || !shouldUseCompactWideWebPanel;
 
   // Pulse animation for recording indicator
   useEffect(() => {
@@ -133,38 +138,77 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
       style={[
         styles.container,
         shouldFillNarrowWebPanel && styles.narrowWebPanelContainer,
+        shouldUseCompactWideWebPanel && styles.compactWideWebPanelContainer,
       ]}
     >
-      <View style={styles.recordingPhase}>
-        <View style={styles.recordingIndicatorRow}>
+      <View
+        style={[
+          styles.recordingPhase,
+          shouldUseCompactWideWebPanel && styles.compactRecordingPhase,
+        ]}
+      >
+        <View
+          style={[
+            styles.recordingIndicatorRow,
+            shouldUseCompactWideWebPanel && styles.compactRecordingIndicatorRow,
+          ]}
+        >
           <Animated.View
-            style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]}
+            style={[
+              styles.recordingDot,
+              shouldUseCompactWideWebPanel && styles.compactRecordingDot,
+              { transform: [{ scale: pulseAnim }] },
+            ]}
           />
-          <Text style={styles.recordingText}>Recording</Text>
+          <Text
+            style={[
+              styles.recordingText,
+              shouldUseCompactWideWebPanel && styles.compactRecordingText,
+            ]}
+          >
+            Recording
+          </Text>
           {showTimeWarning && warningSeconds > 0 && (
             <Animated.View
               style={[
                 styles.timeWarningBadge,
+                shouldUseCompactWideWebPanel && styles.compactTimeWarningBadge,
                 { transform: [{ scale: pulseAnim }] },
               ]}
             >
-              <Text style={styles.timeWarningText}>{warningSeconds}s</Text>
+              <Text
+                style={[
+                  styles.timeWarningText,
+                  shouldUseCompactWideWebPanel && styles.compactTimeWarningText,
+                ]}
+              >
+                {warningSeconds}s
+              </Text>
             </Animated.View>
           )}
         </View>
-        <View style={styles.buttonRow}>
-          {onTrash && (
-            <TouchableOpacity onPress={onTrash} style={styles.trashButton}>
-              <FontAwesome name="trash-o" size={22} color={"red"} />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            onPress={onStopRecording}
-            style={styles.submitButton}
+        {shouldShowActions && (
+          <View
+            style={[
+              styles.buttonRow,
+              shouldUseCompactWideWebPanel && styles.compactButtonRow,
+            ]}
           >
-            <Text style={styles.submitButtonText}>Submit</Text>
-          </TouchableOpacity>
-        </View>
+            {onTrash && (
+              <TouchableOpacity onPress={onTrash} style={styles.trashButton}>
+                <FontAwesome name="trash-o" size={22} color={"red"} />
+              </TouchableOpacity>
+            )}
+            {!shouldUseCompactWideWebPanel && (
+              <TouchableOpacity
+                onPress={onStopRecording}
+                style={styles.submitButton}
+              >
+                <Text style={styles.submitButtonText}>Submit</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -183,6 +227,13 @@ const styles = StyleSheet.create({
   },
   narrowWebPanelContainer: {
     borderRadius: 0,
+  },
+  compactWideWebPanelContainer: {
+    width: "auto",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 0,
+    backgroundColor: "#f7f9ff",
   },
   countdownPhase: {
     alignItems: "center",
@@ -204,10 +255,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     width: "100%",
   },
+  compactRecordingPhase: {
+    width: "auto",
+    gap: 0,
+  },
   recordingIndicatorRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  compactRecordingIndicatorRow: {
+    gap: 6,
   },
   recordingDot: {
     width: 10,
@@ -215,10 +273,19 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: "#ff4757",
   },
+  compactRecordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   recordingText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#fff",
+  },
+  compactRecordingText: {
+    fontSize: 13,
+    color: "#2d2a40",
   },
   recordingInstructions: {
     fontSize: 14,
@@ -257,6 +324,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
+  compactButtonRow: {
+    gap: 8,
+  },
   pauseButton: {
     alignItems: "center",
     justifyContent: "center",
@@ -290,11 +360,19 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
+  compactTimeWarningBadge: {
+    marginLeft: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
   timeWarningText: {
     fontSize: 18,
     fontWeight: "800",
     color: "#ff4757",
     letterSpacing: 0.5,
+  },
+  compactTimeWarningText: {
+    fontSize: 13,
   },
 });
 

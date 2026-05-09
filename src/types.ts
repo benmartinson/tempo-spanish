@@ -95,7 +95,6 @@ export interface RootState {
   userSettings: UserSettings;
   cachedResponses: CachedResponse[];
   userCredits: number;
-  hasSeenWelcomeModals: boolean;
   profileModalOpen: boolean;
   signInScreenOpen: boolean;
 }
@@ -135,7 +134,6 @@ export type DataActionTypes =
   | "SET_USER_CREDITS"
   | "UPDATE_FOCUS_VOCAB_TRANSLATION"
   | "INCREMENT_FOCUS_VOCAB_REVIEW"
-  | "SET_HAS_SEEN_WELCOME_MODALS"
   | "SET_PROFILE_MODAL_OPEN"
   | "SET_SIGN_IN_SCREEN_OPEN";
 
@@ -344,7 +342,6 @@ export interface UserUIState {
   play_video_while_recording: boolean | null;
   show_review_mode: boolean | null;
   review_frequency: number | null;
-  has_seen_welcome_modals: boolean | null;
   auto_select_difficulty: boolean | null;
   auto_select_difficulty_level: string | null;
   target_language: LanguageCode | null;

@@ -25,7 +25,6 @@ const initialState: RootState = {
   userSettings: DEFAULT_USER_SETTINGS,
   cachedResponses: [],
   userCredits: 0,
-  hasSeenWelcomeModals: false,
   profileModalOpen: false,
   signInScreenOpen: false,
 };
@@ -289,11 +288,6 @@ const dataReducer = (
               : v,
           ),
         },
-      };
-    case "SET_HAS_SEEN_WELCOME_MODALS":
-      return {
-        ...state,
-        hasSeenWelcomeModals: action.payload,
       };
     case "SET_PROFILE_MODAL_OPEN":
       return {
