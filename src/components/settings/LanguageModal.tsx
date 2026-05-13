@@ -47,6 +47,14 @@ const LANGUAGE_OPTIONS: Array<{
   { code: "fr", label: "French" },
 ];
 
+const languageFlagByCode: Record<LanguageCode, string> = {
+  es: "🇪🇸",
+  en: "🇺🇸",
+  pt: "🇧🇷",
+  de: "🇩🇪",
+  fr: "🇫🇷",
+};
+
 const DEFAULT_EDIT_TARGET_LANGUAGE: LanguageCode = "es";
 const DEFAULT_EDIT_TRANSLATION_LANGUAGE: LanguageCode = "en";
 
@@ -235,11 +243,14 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
         activeOpacity={0.72}
       >
         <View style={styles.optionMain}>
-          <Text
-            style={[styles.optionLabel, selected && styles.optionLabelActive]}
-          >
-            {label}
-          </Text>
+          <View style={styles.optionTitle}>
+            <Text style={styles.optionFlag}>{languageFlagByCode[code]}</Text>
+            <Text
+              style={[styles.optionLabel, selected && styles.optionLabelActive]}
+            >
+              {label}
+            </Text>
+          </View>
           {showCounts && <Text style={styles.optionMeta}>{countText}</Text>}
         </View>
         <View style={[styles.radio, selected && styles.radioSelected]}>
@@ -250,9 +261,13 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
   };
 
   return (
-    <SlideModal visible={visible} onRequestClose={onClose} title="Language">
+    <SlideModal
+      visible={visible}
+      onRequestClose={onClose}
+      title="Choose Language"
+    >
       <View style={styles.container}>
-        <Text style={styles.sectionHeader}>Learning Language</Text>
+        <Text style={styles.sectionHeader}></Text>
         <View style={styles.card}>
           {LANGUAGE_OPTIONS.map((option) =>
             renderOption({
@@ -318,21 +333,23 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
           </Pressable>
         </Modal>
 
-        <TouchableOpacity
-          style={[
-            styles.saveButton,
-            (!hasChanges || isSaving) && styles.saveButtonDisabled,
-          ]}
-          onPress={saveLanguages}
-          disabled={!hasChanges || isSaving}
-          activeOpacity={0.75}
-        >
-          {isSaving ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Change Language</Text>
-          )}
-        </TouchableOpacity>
+        {(hasChanges || isSaving) && (
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              (!hasChanges || isSaving) && styles.saveButtonDisabled,
+            ]}
+            onPress={saveLanguages}
+            disabled={isSaving}
+            activeOpacity={0.75}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </SlideModal>
   );
@@ -420,6 +437,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
+  optionTitle: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  optionFlag: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
   optionLabel: {
     color: "#1a1a2e",
     fontSize: 15,
@@ -448,13 +475,13 @@ const styles = StyleSheet.create({
     borderColor: "#3d3a52",
   },
   saveButton: {
-    height: 46,
+    height: 36,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#3d3a52",
     marginTop: 22,
-    width: 200,
+    width: 80,
     alignSelf: "flex-end",
   },
   saveButtonDisabled: {

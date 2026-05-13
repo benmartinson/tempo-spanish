@@ -106,7 +106,9 @@ const linking: any = {
     // } else if (segments[0] === "creator" && segments[1] === "sign_up") {
     //   params.creatorSignUp = true;
     // }
-    if (segments[0] === "channel" && segments[1]) {
+    if (segments[0] === "browse") {
+      // Browse is the canonical root route.
+    } else if (segments[0] === "channel" && segments[1]) {
       params.channelId = segments[1];
     }
     if (segments[0] === "video" && segments[1]) {
@@ -134,8 +136,23 @@ const linking: any = {
       return `/video/${encodeURIComponent(videoId)}`;
     }
     if (channelId) return `/channel/${encodeURIComponent(channelId)}`;
-    return "/";
+    return "/browse";
   },
+};
+
+const useBrowseRootRedirect = () => {
+  React.useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    const path = window.location.pathname;
+    if (path !== "/" && path !== "") return;
+
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `/browse${window.location.search}${window.location.hash}`,
+    );
+  }, []);
 };
 
 // Main app component — serves both authenticated and guest users
@@ -181,6 +198,7 @@ const MainApp: React.FC = () => {
 
   // Sync currentSentence changes to the database
   useUIStateSync();
+  useBrowseRootRedirect();
 
   // Use authenticated client when available, raw client for guests
   const publicSupabase = clerkSupabase ?? rawSupabase;
@@ -250,15 +268,11 @@ const MainApp: React.FC = () => {
 
     // Fetch and restore user UI state
     const restoreState = async () => {
-      const {
-        videoContext,
-        currentShadowTab,
-        memorizeDifficulty,
-        settings,
-      } = await restoreUserUIState({
-        supabase: clerkSupabase,
-        userId,
-      });
+      const { videoContext, currentShadowTab, memorizeDifficulty, settings } =
+        await restoreUserUIState({
+          supabase: clerkSupabase,
+          userId,
+        });
 
       dispatch(setUserSettings(settings));
 
@@ -488,13 +502,7 @@ const MainApp: React.FC = () => {
         >
           <ActivityIndicator size="large" color="#5a5680" />
         </View>
-      ) : shouldShowCreatorRequestsPage ? (
-        null
-        // <CreatorRequestsPage onBack={navigateHome} />
-      ) : shouldShowCreatorSignUpPage ? (
-        null
-        // <CreatorSignUpPage onBack={navigateHome} />
-      ) : shouldShowVideoPage ? (
+      ) : shouldShowCreatorRequestsPage ? null : shouldShowCreatorSignUpPage ? null : shouldShowVideoPage ? ( // <CreatorRequestsPage onBack={navigateHome} /> // <CreatorSignUpPage onBack={navigateHome} />
         <>
           <NavTabBanner />
           <SelectedVideoPage />
@@ -564,7 +572,7 @@ const App: React.FC = () => {
           linking={Platform.OS === "web" ? linking : undefined}
           documentTitle={
             Platform.OS === "web"
-              ? { formatter: () => "Tempo Spanish" }
+              ? { formatter: () => "Tempo Language" }
               : undefined
           }
         >

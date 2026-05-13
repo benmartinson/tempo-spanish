@@ -1,13 +1,13 @@
 export default {
   expo: {
-    name: "Tempo Spanish",
+    name: "Tempo Language",
     slug: "rn-starter",
     version: "1.0.1",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
-    scheme: "tempospanish",
+    scheme: "tempolanguage",
     plugins: ["expo-web-browser", "expo-speech-recognition", "expo-iap"],
     splash: {
       image: "./assets/splash-icon.png",

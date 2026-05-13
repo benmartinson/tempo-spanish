@@ -30,9 +30,9 @@ const HelpAndFeedbackModal: React.FC<HelpAndFeedbackModalProps> = ({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionHeading}>How Tempo Spanish Works</Text>
+        <Text style={styles.sectionHeading}>How Tempo Language Works</Text>
         <Text style={styles.body}>
-          Tempo Spanish helps you learn Spanish by shadowing native speakers in
+          Tempo Language helps you learn Spanish by shadowing native speakers in
           YouTube videos. Watch a clip, listen carefully, then record yourself
           repeating what you heard. The app transcribes your recording and gives
           you accuracy feedback so you can track your progress.
@@ -83,7 +83,7 @@ const HelpAndFeedbackModal: React.FC<HelpAndFeedbackModalProps> = ({
           style={styles.emailButton}
           onPress={() =>
             Linking.openURL(
-              "mailto:tempo.spanish@gmail.com?subject=Tempo Spanish Feedback",
+              "mailto:tempo.spanish@gmail.com?subject=Tempo Language Feedback",
             )
           }
         >

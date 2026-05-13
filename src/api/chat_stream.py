@@ -256,13 +256,39 @@ class EvaluateReviewAnswerRequest(BaseModel):
 
 app = FastAPI(title="SpeakUp Spanish API")
 
-# Enable CORS for all origins (configure appropriately for production)
+DEFAULT_CORS_ALLOWED_ORIGINS = [
+    "https://tempospanish.app",
+    "https://www.tempospanish.app",
+    "https://tempolanguage.com",
+    "https://www.tempolanguage.com",
+    "http://localhost:8081",
+    "http://localhost:19006",
+    "http://localhost:3000",
+]
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        ",".join(DEFAULT_CORS_ALLOWED_ORIGINS),
+    ).split(",")
+    if origin.strip()
+]
+
+# Enable CORS for the web app origins. Keep this explicit because browser
+# requests include auth headers and wildcard origins do not pair well with
+# credentialed requests.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*", "OPTIONS"],  # Explicitly include OPTIONS for preflight
-    allow_headers=["*", "Upgrade", "Connection", "Sec-WebSocket-Key", "Sec-WebSocket-Version"],
+    allow_headers=[
+        "*",
+        "Upgrade",
+        "Connection",
+        "Sec-WebSocket-Key",
+        "Sec-WebSocket-Version",
+    ],
 )
 
 # Include the transcription router (provides /ws/transcribe endpoint)
