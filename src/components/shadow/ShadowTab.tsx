@@ -456,7 +456,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         .eq("user_id", userId)
         .eq("video_id", parseInt(currentVideo.recordId))
         .eq("sentence", currentSentenceIndex)
-        .single();
+        .maybeSingle();
       if (error || !data) return null;
       return { spokenWords: data.spoken_words, recordingId: data.recording_id };
     } catch (err) {
@@ -1035,7 +1035,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         .eq("user_id", userId)
         .eq("video_id", parseInt(currentVideo.recordId))
         .eq("sentence", reviewSentenceIndex)
-        .single();
+        .maybeSingle();
       if (data?.was_reviewed) return false;
     }
 

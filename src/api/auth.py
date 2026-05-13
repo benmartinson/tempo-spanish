@@ -51,6 +51,16 @@ async def verify_jwt(
     token = credentials.credentials
     payload = None
     saw_expired_token = False
+    last_invalid_token_error = None
+    unverified_issuer = None
+    try:
+        unverified_issuer = jwt.decode(
+            token,
+            options={"verify_signature": False, "verify_aud": False},
+        ).get("iss")
+    except Exception:
+        pass
+
     for jwks_client in _jwks_clients:
         try:
             signing_key = jwks_client.get_signing_key_from_jwt(token)
@@ -63,10 +73,22 @@ async def verify_jwt(
             break
         except jwt.ExpiredSignatureError:
             saw_expired_token = True
-        except jwt.InvalidTokenError:
+        except jwt.InvalidTokenError as err:
+            last_invalid_token_error = err
+            continue
+        except Exception as err:
+            last_invalid_token_error = err
             continue
 
     if payload is None:
+        if last_invalid_token_error:
+            print(
+                "Clerk JWT verification failed",
+                {
+                    "issuer": unverified_issuer,
+                    "error": str(last_invalid_token_error),
+                },
+            )
         detail = "Token has expired" if saw_expired_token else "Invalid token"
         raise HTTPException(status_code=401, detail=detail)
 

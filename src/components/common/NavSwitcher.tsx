@@ -65,7 +65,7 @@ const NavSwitcher: React.FC<NavSwitcherProps> = ({
           .eq("video_id", parseInt(recordId))
           .order("sentence", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (data && !error) {
           setNextAvailableShadow(data.sentence + 1);
