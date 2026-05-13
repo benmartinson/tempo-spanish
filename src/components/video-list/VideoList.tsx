@@ -293,7 +293,7 @@ const VideoList: React.FC<VideoListProps> = ({
             />
           </>
         )}
-        {newReleaseVideos.length > 0 && (
+        {/* {newReleaseVideos.length > 0 && (
           <>
             <VideoSectionHeader
               title="New Releases"
@@ -306,7 +306,7 @@ const VideoList: React.FC<VideoListProps> = ({
               isChannel={false}
             />
           </>
-        )}
+        )} */}
         {/* <VideoSectionHeader title="Recommended" /> */}
         <FilterVideos
           videos={targetLanguageVideos}

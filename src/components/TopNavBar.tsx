@@ -19,7 +19,7 @@ import LanguageModal from "./settings/LanguageModal";
 import { getInitials, isWebScreenWidth } from "../helpers/helpers";
 import { LanguageCode, RootState } from "../types";
 
-const SHOW_LANGUAGE_SELECTOR = false;
+const SHOW_LANGUAGE_SELECTOR = true;
 
 const languageLabelByCode: Record<LanguageCode, string> = {
   es: "Spanish",
