@@ -30,7 +30,7 @@ const ShadowTabWeb: React.FC<ShadowTabLayoutProps> = ({
           isPlayerFullscreen && styles.webFullscreenShadowRoot,
         ]}
       >
-        {errorBanner}
+        <View style={{ justifyContent: "center" }}>{errorBanner}</View>
         <View style={styles.transcriptContainer}>
           {streamBanner}
           <View style={styles.webPracticeLayout}>

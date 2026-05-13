@@ -25,6 +25,7 @@ export interface UseRecordingReturn {
   isRecording: boolean;
   hasPermission: boolean | null;
   passedSilenceThreshold: boolean;
+  requestPermission: () => Promise<boolean>;
   getRecorderUri: () => string | null;
   startRecording: () => Promise<void>;
   stopRecording: (userTrashed?: boolean) => Promise<string | null>;
@@ -80,29 +81,22 @@ export const useRecording = (
     onErrorRef.current = options.onError;
   }, [options.onRecordingComplete, options.onError]);
 
-  // Request microphone permission on mount
-  useEffect(() => {
-    const requestPermission = async () => {
-      try {
-        const granted = await requestMicrophonePermission();
-        setHasPermission(granted);
-        if (!granted) {
-          onErrorRef.current?.(
-            "Microphone permission is required for speech recognition",
-          );
-        }
-      } catch (err) {
-        onErrorRef.current?.("Failed to request microphone permission");
-        console.error("Permission error:", err);
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    try {
+      const granted = await requestMicrophonePermission();
+      setHasPermission(granted);
+      if (!granted) {
+        onErrorRef.current?.(
+          "Microphone permission is required for speech recognition",
+        );
       }
-    };
-
-    requestPermission();
-
-    // Cleanup on unmount
-    return () => {
-      cleanup();
-    };
+      return granted;
+    } catch (err) {
+      onErrorRef.current?.("Failed to request microphone permission");
+      console.error("Permission error:", err);
+      setHasPermission(false);
+      return false;
+    }
   }, []);
 
   const cleanup = useCallback(async () => {
@@ -117,12 +111,20 @@ export const useRecording = (
     }
   }, []);
 
+  // Request microphone permission on mount
+  useEffect(() => {
+    requestPermission();
+
+    // Cleanup on unmount
+    return () => {
+      cleanup();
+    };
+  }, [cleanup, requestPermission]);
+
   const startRecording = useCallback(async () => {
     if (!hasPermission) {
-      const granted = await requestMicrophonePermission();
-      setHasPermission(granted);
+      const granted = await requestPermission();
       if (!granted) {
-        onErrorRef.current?.("Microphone permission not granted");
         return;
       }
     }
@@ -145,7 +147,7 @@ export const useRecording = (
       onErrorRef.current?.("Failed to start recording. Please try again.");
       cleanup();
     }
-  }, [hasPermission, cleanup]);
+  }, [hasPermission, cleanup, requestPermission]);
 
   const stopRecording = useCallback(
     async (userTrashed: boolean = false): Promise<string | null> => {
@@ -186,6 +188,7 @@ export const useRecording = (
     isRecording,
     hasPermission,
     passedSilenceThreshold,
+    requestPermission,
     getRecorderUri: () => recordingRef.current?.uri ?? null,
     startRecording,
     stopRecording,

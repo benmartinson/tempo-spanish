@@ -5,7 +5,14 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { StyleSheet, View, Text, Linking, Platform } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Text,
+  Linking,
+  Platform,
+  TouchableOpacity,
+} from "react-native";
 import { WebView } from "react-native-webview";
 import { Sentence } from "../../types";
 
@@ -36,6 +43,7 @@ interface YouTubePlayerProps {
   playbackSpeed?: number;
   startTime?: number;
   onPlayingStateChange?: (isPlaying: boolean) => void;
+  onPress?: () => void | Promise<void>;
   webFillContainer?: boolean;
 }
 
@@ -271,6 +279,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       playbackSpeed = 1,
       startTime,
       onPlayingStateChange,
+      onPress,
       webFillContainer = false,
     } = props;
     const webViewRef = useRef<WebView>(null);
@@ -497,6 +506,15 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
             allowFullScreen: true,
             title: "YouTube video player",
           })}
+          {onPress && (
+            <TouchableOpacity
+              accessibilityLabel="Play or pause video"
+              accessibilityRole="button"
+              activeOpacity={1}
+              onPress={onPress}
+              style={styles.clickLayer}
+            />
+          )}
           {videoText && (
             <View style={styles.videoTextContainer}>
               <Text style={styles.videoText}>{videoText}</Text>
@@ -542,6 +560,15 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
             return true;
           }}
         />
+        {onPress && (
+          <TouchableOpacity
+            accessibilityLabel="Play or pause video"
+            accessibilityRole="button"
+            activeOpacity={1}
+            onPress={onPress}
+            style={styles.clickLayer}
+          />
+        )}
         {videoText && (
           <View style={styles.videoTextContainer}>
             <Text style={styles.videoText}>{videoText}</Text>
@@ -594,6 +621,15 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     backgroundColor: "#000",
+  },
+  clickLayer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 20,
+    backgroundColor: "transparent",
   },
 });
 

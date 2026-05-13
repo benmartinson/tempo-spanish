@@ -119,6 +119,9 @@ interface ShadowTabProps {
   setAutoplay: (autoplay: boolean) => void;
   isPlayerFullscreen?: boolean;
   onRequestSentenceTranslation?: () => void | Promise<void>;
+  onPlayPauseHandlerChange?: (
+    handler: (() => void | Promise<void>) | null,
+  ) => void;
 }
 
 const WebCountdownTimerContainer: React.FC<{ children: React.ReactNode }> = ({
@@ -141,6 +144,36 @@ const WebCountdownTimerContainer: React.FC<{ children: React.ReactNode }> = ({
       {children}
     </View>
   );
+};
+
+const getWebMicrophonePermissionMessage = (err: unknown): string => {
+  if (
+    typeof globalThis.isSecureContext === "boolean" &&
+    !globalThis.isSecureContext
+  ) {
+    return "Microphone access requires HTTPS or localhost.";
+  }
+
+  const errorName =
+    err && typeof err === "object" && "name" in err
+      ? String((err as { name?: unknown }).name)
+      : "";
+
+  switch (errorName) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return "Microphone permission is blocked. Allow microphone access in your browser's site settings, then try again.";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "No microphone was found. Connect a microphone, then try again.";
+    case "NotReadableError":
+    case "TrackStartError":
+      return "Your microphone is unavailable. Close other apps or tabs using it, then try again.";
+    case "SecurityError":
+      return "Microphone access is blocked by browser security settings for this page.";
+    default:
+      return "Microphone access is unavailable. Check your browser's site settings, then try again.";
+  }
 };
 
 const ShadowTab: React.FC<ShadowTabProps> = ({
@@ -169,6 +202,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   setAutoplay,
   isPlayerFullscreen = false,
   onRequestSentenceTranslation,
+  onPlayPauseHandlerChange,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
   const isWebScreen = isWebScreenWidth(windowWidth);
@@ -228,7 +262,6 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       if (!showSignInModal && !isWebScreen) {
-        console.log({ isWebScreen });
         setAutoplay(true);
         dispatch(refreshVideoPlayer());
       }
@@ -615,12 +648,38 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     isRecording,
     hasPermission,
     passedSilenceThreshold,
+    requestPermission,
     startRecording,
     stopRecording,
   } = useRecording({
     onRecordingComplete: handleRecordingComplete,
     onError: (message) => setError(message),
   });
+
+  const handleGrantPermissionPress = useCallback(async () => {
+    if (Platform.OS !== "web") {
+      await Linking.openSettings();
+      return;
+    }
+
+    const mediaDevices = globalThis.navigator?.mediaDevices;
+    if (!mediaDevices?.getUserMedia) {
+      setError("Microphone access is managed in your browser settings.");
+      return;
+    }
+
+    try {
+      const stream = await mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      const granted = await requestPermission();
+      if (granted) {
+        setError(null);
+      }
+    } catch (err) {
+      console.warn("Failed to request microphone permission:", err);
+      setError(getWebMicrophonePermissionMessage(err));
+    }
+  }, [requestPermission]);
 
   const {
     isListening,
@@ -1122,14 +1181,34 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
     playSentence();
   };
 
-  const handlePlayPause = async () => {
+  const handlePlayPause = useCallback(async () => {
+    const playDisabled =
+      sentenceEnded &&
+      time >= (currentSentenceObject?.words?.at(-1)?.start ?? 0);
+    if (playDisabled && !playerIsPlaying) return;
+
     await stopListening();
     if (playerIsPlaying) {
       pausePlayer();
     } else {
       resumePlayer();
     }
-  };
+  }, [
+    currentSentenceObject?.words,
+    pausePlayer,
+    playerIsPlaying,
+    resumePlayer,
+    sentenceEnded,
+    stopListening,
+    time,
+  ]);
+
+  useEffect(() => {
+    if (!onPlayPauseHandlerChange) return;
+
+    onPlayPauseHandlerChange(handlePlayPause);
+    return () => onPlayPauseHandlerChange(null);
+  }, [handlePlayPause, onPlayPauseHandlerChange]);
 
   useEffect(() => {
     if (!isWebScreen || typeof document === "undefined") return;
@@ -1331,7 +1410,7 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         {isMissingPermission && (
           <TouchableOpacity
             style={styles.grantPermissionButton}
-            onPress={() => Linking.openSettings()}
+            onPress={handleGrantPermissionPress}
           >
             <Text style={styles.grantPermissionText}>Grant Permission</Text>
           </TouchableOpacity>
@@ -1822,6 +1901,9 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: 16,
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 600,
     marginTop: 8,
     padding: 12,
     backgroundColor: "#ff4757",

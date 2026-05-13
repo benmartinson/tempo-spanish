@@ -958,7 +958,6 @@ export const initializeUserCredits = async ({
     .eq("user_id", userId)
     .maybeSingle();
 
-  console.log({ existing });
   if (existing) return existing.credits;
 
   const { data, error } = await supabase

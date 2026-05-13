@@ -67,6 +67,7 @@ const SelectedVideoPage: React.FC = () => {
     useState<AutoShadowDetails | null>(null);
   const [playerMuted, setPlayerMuted] = useState(false);
   const [isAppFullscreen, setIsAppFullscreen] = useState(false);
+  const playPauseHandlerRef = useRef<(() => void | Promise<void>) | null>(null);
   const isWebScreen = isWebScreenWidth(windowWidth);
 
   // Refresh player when app returns from background
@@ -567,6 +568,23 @@ const SelectedVideoPage: React.FC = () => {
     playerRef.current?.togglePlayback();
   }, [playerRef]);
 
+  const handlePlayPauseHandlerChange = useCallback(
+    (handler: (() => void | Promise<void>) | null) => {
+      playPauseHandlerRef.current = handler;
+    },
+    [],
+  );
+
+  const handlePlayerSurfacePress = useCallback(() => {
+    const handlePlayPause = playPauseHandlerRef.current;
+    if (handlePlayPause) {
+      void handlePlayPause();
+      return;
+    }
+
+    togglePlayer();
+  }, [togglePlayer]);
+
   const mutePlayer = useCallback(() => {
     setPlayerMuted(true);
     playerRef.current?.mute();
@@ -622,12 +640,13 @@ const SelectedVideoPage: React.FC = () => {
           playbackSpeed={playerSpeed}
           startTime={startTimeForPlayer}
           onPlayingStateChange={handlePlayingStateChange}
+          onPress={handlePlayerSurfacePress}
           webFillContainer={isWebScreen && isAppFullscreen}
         />
         {isWebScreen && isAppFullscreen && showVideo && (
           <TouchableOpacity
             style={styles.webFullscreenVideoClickLayer}
-            onPress={togglePlayer}
+            onPress={handlePlayerSurfacePress}
             activeOpacity={1}
           />
         )}
@@ -682,6 +701,7 @@ const SelectedVideoPage: React.FC = () => {
           setAutoplay={setAutoplay}
           isPlayerFullscreen={isWebScreen && isAppFullscreen}
           onRequestSentenceTranslation={loadTranslationInsights}
+          onPlayPauseHandlerChange={handlePlayPauseHandlerChange}
         />
       </View>
       {isWebScreen && showVideo && isAppFullscreen && (
