@@ -818,7 +818,14 @@ async def verify_purchase(request: VerifyPurchaseRequest, user_id: str = Depends
         raise HTTPException(status_code=500, detail="Purchase verification failed")
 
 
-CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
+CLERK_SECRET_KEYS = [
+    key
+    for key in (
+        os.getenv("CLERK_SECRET_KEY"),
+        os.getenv("CLERK_SECRET_KEY_NEW"),
+    )
+    if key
+]
 CLERK_API_URL = os.getenv("CLERK_API_URL", "https://api.clerk.com")
 
 # Tables keyed directly by user_id. Order is not significant — none have FKs
@@ -851,7 +858,7 @@ async def delete_account(user_id: str = Depends(verify_jwt)):
     """
     if not SUPABASE_SERVICE_ROLE_KEY:
         raise HTTPException(status_code=500, detail="Delete is not configured")
-    if not CLERK_SECRET_KEY:
+    if not CLERK_SECRET_KEYS:
         raise HTTPException(status_code=500, detail="Delete is not configured")
 
     service_headers = {
@@ -907,13 +914,30 @@ async def delete_account(user_id: str = Depends(verify_jwt)):
                     print(f"{table} delete failed: {resp.status_code} - {resp.text}")
                     raise HTTPException(status_code=500, detail="Failed to delete account")
 
-            # 5. Delete the Clerk user. 404 is fine — already gone.
-            clerk_resp = await client.delete(
-                f"{CLERK_API_URL}/v1/users/{user_id}",
-                headers={"Authorization": f"Bearer {CLERK_SECRET_KEY}"},
-            )
-            if clerk_resp.status_code not in (200, 204, 404):
-                print(f"Clerk delete failed: {clerk_resp.status_code} - {clerk_resp.text}")
+            # 5. Delete the Clerk user from whichever Clerk instance owns it.
+            # 404 means "not in this instance", so try the next configured key.
+            clerk_deleted = False
+            clerk_not_found = False
+            clerk_errors = []
+            for clerk_secret_key in CLERK_SECRET_KEYS:
+                clerk_resp = await client.delete(
+                    f"{CLERK_API_URL}/v1/users/{user_id}",
+                    headers={"Authorization": f"Bearer {clerk_secret_key}"},
+                )
+                if clerk_resp.status_code in (200, 204):
+                    clerk_deleted = True
+                    break
+                if clerk_resp.status_code == 404:
+                    clerk_not_found = True
+                    continue
+                clerk_errors.append(
+                    f"{clerk_resp.status_code} - {clerk_resp.text}"
+                )
+
+            if not clerk_deleted and clerk_errors:
+                print(f"Clerk delete failed: {'; '.join(clerk_errors)}")
+                raise HTTPException(status_code=500, detail="Failed to delete account")
+            if not clerk_deleted and not clerk_not_found:
                 raise HTTPException(status_code=500, detail="Failed to delete account")
 
         return {"status": "ok"}

@@ -20,11 +20,23 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("EXPO_PUBLIC_SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-# Clerk JWKS endpoint for verifying JWTs. Must be set explicitly per
-# environment (dev instance at *.clerk.accounts.dev, production at
-# clerk.<yourdomain>) — no default so a misconfigured deploy fails loudly.
-CLERK_JWKS_URL = os.environ["CLERK_JWKS_URL"]
-_jwks_client = PyJWKClient(CLERK_JWKS_URL, cache_keys=True)
+# Clerk JWKS endpoints for verifying JWTs. During the domain migration we accept
+# tokens from both the old mobile app Clerk instance and the new web Clerk
+# instance.
+CLERK_JWKS_URLS = [
+    url
+    for url in (
+        os.getenv("CLERK_JWKS_URL"),
+        os.getenv("CLERK_JWKS_URL_NEW"),
+    )
+    if url
+]
+if not CLERK_JWKS_URLS:
+    raise RuntimeError("CLERK_JWKS_URL is not configured")
+
+_jwks_clients = [
+    PyJWKClient(jwks_url, cache_keys=True) for jwks_url in CLERK_JWKS_URLS
+]
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -37,18 +49,26 @@ async def verify_jwt(
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
     token = credentials.credentials
-    try:
-        signing_key = _jwks_client.get_signing_key_from_jwt(token)
-        payload = jwt.decode(
-            token,
-            signing_key.key,
-            algorithms=["RS256"],
-            options={"verify_aud": False},
-        )
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = None
+    saw_expired_token = False
+    for jwks_client in _jwks_clients:
+        try:
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["RS256"],
+                options={"verify_aud": False},
+            )
+            break
+        except jwt.ExpiredSignatureError:
+            saw_expired_token = True
+        except jwt.InvalidTokenError:
+            continue
+
+    if payload is None:
+        detail = "Token has expired" if saw_expired_token else "Invalid token"
+        raise HTTPException(status_code=401, detail=detail)
 
     user_id = payload.get("user_id") or payload.get("sub")
     if not user_id:
