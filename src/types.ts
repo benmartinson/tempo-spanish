@@ -21,7 +21,7 @@ export interface UserSettings {
     | "hardest";
 }
 
-export type LanguageCode = "es" | "en" | "pt";
+export type LanguageCode = "es" | "en" | "pt" | "de" | "fr";
 
 export type VoiceCommand =
   | "record"
@@ -183,7 +183,7 @@ export interface Channel {
   title: string;
   thumbnail_url: string;
   difficulty: string;
-  language: "en" | "es" | "pt";
+  language: LanguageCode;
   sort_index?: number;
 }
 

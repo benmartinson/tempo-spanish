@@ -32,6 +32,20 @@ const normalizeLanguageCode = (
   ) {
     return "pt";
   }
+  if (
+    normalized === "de" ||
+    normalized === "german" ||
+    normalized === "deutsch"
+  ) {
+    return "de";
+  }
+  if (
+    normalized === "fr" ||
+    normalized === "french" ||
+    normalized === "français"
+  ) {
+    return "fr";
+  }
 
   return fallback;
 };

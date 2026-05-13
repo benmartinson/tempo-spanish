@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
   Image,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -19,22 +20,26 @@ import LanguageModal from "./settings/LanguageModal";
 import { getInitials, isWebScreenWidth } from "../helpers/helpers";
 import { LanguageCode, RootState } from "../types";
 
-const SHOW_LANGUAGE_SELECTOR = true;
+const SHOW_LANGUAGE_SELECTOR = Platform.OS === "web";
 
 const languageLabelByCode: Record<LanguageCode, string> = {
   es: "Spanish",
   en: "English",
   pt: "Portuguese",
+  de: "German",
+  fr: "French",
 };
 
 const languageFlagByCode: Record<LanguageCode, string> = {
   es: "🇪🇸",
   en: "🇺🇸",
   pt: "🇧🇷",
+  de: "🇩🇪",
+  fr: "🇫🇷",
 };
 
 const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
   const initials = getInitials(user);
   const navigation = useNavigation<any>();
@@ -52,6 +57,18 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     ? languageFlagByCode[targetLanguage]
     : null;
 
+  useEffect(() => {
+    if (
+      SHOW_LANGUAGE_SELECTOR &&
+      isWebScreen &&
+      isLoaded &&
+      !isSignedIn &&
+      !targetLanguage
+    ) {
+      setLanguageVisible(true);
+    }
+  }, [isLoaded, isSignedIn, isWebScreen, targetLanguage]);
+
   if (isWebScreen) {
     return (
       <View style={styles.webContainer}>
@@ -65,20 +82,23 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             </View>
             <View>
               <Text style={styles.webAppName}>Tempo</Text>
-              <Text style={styles.webAppSubname}>Spanish</Text>
+              <Text style={styles.webAppSubname}>
+                {targetLanguageLabel ?? "Language"}
+              </Text>
             </View>
           </View>
 
           {!minimal && (
             <View style={styles.webActions}>
-              {SHOW_LANGUAGE_SELECTOR && (
-                <TouchableOpacity
-                  style={styles.webFlagButton}
-                  onPress={() => setLanguageVisible(true)}
-                  disabled={!targetLanguage}
-                  activeOpacity={0.72}
-                >
-                  {targetLanguageLabel && targetLanguageFlag ? (
+              {SHOW_LANGUAGE_SELECTOR &&
+                targetLanguageLabel &&
+                targetLanguageFlag && (
+                  <TouchableOpacity
+                    style={styles.webFlagButton}
+                    onPress={() => setLanguageVisible(true)}
+                    disabled={!targetLanguage}
+                    activeOpacity={0.72}
+                  >
                     <>
                       <Text style={styles.webFlagLabel}>
                         {targetLanguageLabel}
@@ -87,11 +107,8 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
                         {targetLanguageFlag}
                       </Text>
                     </>
-                  ) : (
-                    <ActivityIndicator size="small" color="#3d3a52" />
-                  )}
-                </TouchableOpacity>
-              )}
+                  </TouchableOpacity>
+                )}
 
               <TouchableOpacity
                 style={[
