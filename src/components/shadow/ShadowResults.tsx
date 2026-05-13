@@ -35,6 +35,7 @@ interface ShadowResultsProps {
   playSentence?: () => void;
   onPlaybackStateChange?: (isPlaying: boolean) => void;
   onPlaybackError?: (message: string) => void;
+  noMarginTop?: boolean;
 }
 
 const ShadowResults: React.FC<ShadowResultsProps> = ({
@@ -53,6 +54,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   playSentence,
   onPlaybackStateChange,
   onPlaybackError,
+  noMarginTop = false,
 }) => {
   const [isPlayingRecording, setIsPlayingRecording] = useState(false);
   const webPanelWidth = useDraggableWebPanelWidth();
@@ -251,6 +253,7 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
     <View
       style={[
         styles.resultsContainer,
+        noMarginTop && styles.noMarginResults,
         variant === "webPanel" && styles.webPanelResultsContainer,
       ]}
     >
@@ -427,6 +430,9 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: Dimensions.get("window").width > 600 ? 48 : 16,
     paddingHorizontal: 16,
+  },
+  noMarginResults: {
+    marginTop: 0,
   },
   webPanelResultsContainer: {
     width: "100%",

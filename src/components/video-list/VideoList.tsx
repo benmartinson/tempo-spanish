@@ -30,6 +30,7 @@ import ChannelVideoList from "./ChannelVideoList";
 import ChannelHeader from "./ChannelHeader";
 import FilterVideos from "./FilterVideos";
 import { isWebScreenWidth } from "../../helpers/helpers";
+import { channelDifficultyMatchesSelection } from "../../helpers/channelDifficulty";
 
 interface VideoListProps {
   routeChannelId?: string | null;
@@ -69,21 +70,62 @@ const VideoList: React.FC<VideoListProps> = ({
   const targetLanguage = useSelector(
     (state: RootState) => state.userSettings.targetLanguage,
   );
+  const currentDifficulty = useSelector(
+    (state: RootState) => state.userSettings.currentDifficulty,
+  );
   const userVideoViews = useSelector(
     (state: RootState) => state.userVideoViews,
   );
   const currentVideo = useSelector((state: RootState) => state.currentVideo);
 
-  const targetLanguageChannelIds = new Set(
-    targetLanguage
-      ? (allChannels || [])
-          .filter((channel) => channel.language === targetLanguage)
-          .map((channel) => channel.channel_id)
-      : [],
+  const targetLanguageChannels = useMemo(
+    () =>
+      targetLanguage
+        ? (allChannels || []).filter(
+            (channel) => channel.language === targetLanguage,
+          )
+        : [],
+    [allChannels, targetLanguage],
   );
 
-  const targetLanguageVideos = allVideos.filter((video) =>
-    targetLanguageChannelIds.has(video.channel_id),
+  const targetLanguageChannelIds = useMemo(
+    () => new Set(targetLanguageChannels.map((channel) => channel.channel_id)),
+    [targetLanguageChannels],
+  );
+
+  const selectedDifficultyChannels = useMemo(
+    () =>
+      currentDifficulty
+        ? targetLanguageChannels.filter((channel) =>
+            channelDifficultyMatchesSelection(
+              channel.difficulty,
+              currentDifficulty,
+            ),
+          )
+        : [],
+    [currentDifficulty, targetLanguageChannels],
+  );
+
+  const selectedDifficultyChannelIds = useMemo(
+    () =>
+      new Set(selectedDifficultyChannels.map((channel) => channel.channel_id)),
+    [selectedDifficultyChannels],
+  );
+
+  const targetLanguageVideos = useMemo(
+    () =>
+      allVideos.filter((video) =>
+        targetLanguageChannelIds.has(video.channel_id),
+      ),
+    [allVideos, targetLanguageChannelIds],
+  );
+
+  const selectedDifficultyVideos = useMemo(
+    () =>
+      allVideos.filter((video) =>
+        selectedDifficultyChannelIds.has(video.channel_id),
+      ),
+    [allVideos, selectedDifficultyChannelIds],
   );
 
   useEffect(() => {
@@ -110,7 +152,9 @@ const VideoList: React.FC<VideoListProps> = ({
     },
     {} as Record<string, Video>,
   );
-  const videoResultsArray = Object.values(videoResults);
+  const videoResultsArray = Object.values(videoResults).filter((video) =>
+    selectedDifficultyChannelIds.has(video.channel_id),
+  );
 
   const handleWatchPress = async (
     videoId: string,
@@ -166,7 +210,7 @@ const VideoList: React.FC<VideoListProps> = ({
   };
 
   const recentlyWatchedVideos = userId
-    ? targetLanguageVideos
+    ? selectedDifficultyVideos
         ?.filter((video) =>
           userVideoViews?.some((videoView) => videoView.video_id === video.id),
         )
@@ -187,16 +231,16 @@ const VideoList: React.FC<VideoListProps> = ({
   const channelSortIndexById = useMemo(
     () =>
       new Map(
-        (allChannels || []).map((channel) => [
+        selectedDifficultyChannels.map((channel) => [
           channel.channel_id,
           channel.sort_index ?? Number.MAX_SAFE_INTEGER,
         ]),
       ),
-    [allChannels],
+    [selectedDifficultyChannels],
   );
   const newReleaseVideos = useMemo(
     () =>
-      [...targetLanguageVideos]
+      [...selectedDifficultyVideos]
         .sort((a, b) => {
           const releaseDiff =
             new Date(b.release_date ?? 0).getTime() -
@@ -209,7 +253,7 @@ const VideoList: React.FC<VideoListProps> = ({
           );
         })
         .slice(0, 8),
-    [channelSortIndexById, targetLanguageVideos],
+    [channelSortIndexById, selectedDifficultyVideos],
   );
 
   if (selectedChannel) {
@@ -264,14 +308,14 @@ const VideoList: React.FC<VideoListProps> = ({
             <ActivityIndicator size="small" color="#999" />
           </View>
         )}
-        {!isSearching && hasSearched && currentSearchResults.length === 0 && (
+        {!isSearching && hasSearched && videoResultsArray.length === 0 && (
           <View style={styles.searchStatus}>
             <Text style={styles.emptySearchText}>
               No Clips Found for the Word or Phrase
             </Text>
           </View>
         )}
-        {currentSearchResults.length > 0 && (
+        {videoResultsArray.length > 0 && (
           <>
             <VideoSectionHeader title="Search Results" />
             <HorizontalVideoScroll
@@ -293,7 +337,7 @@ const VideoList: React.FC<VideoListProps> = ({
             />
           </>
         )}
-        {newReleaseVideos.length > 0 && (
+        {/* {newReleaseVideos.length > 0 && (
           <>
             <VideoSectionHeader
               title="New Releases"
@@ -306,17 +350,18 @@ const VideoList: React.FC<VideoListProps> = ({
               isChannel={false}
             />
           </>
-        )}
+        )} */}
         {/* <VideoSectionHeader title="Recommended" /> */}
         <FilterVideos
-          videos={targetLanguageVideos}
+          videos={selectedDifficultyVideos}
           mode="topics"
           topics={allTopics}
           channelTopics={channelTopics}
-          channels={allChannels}
+          channels={selectedDifficultyChannels}
+          showDifficultyFilter={false}
         >
           {({ filteredVideos, filterButton, activeFilterBar }) => {
-            const filteredChannels = (allChannels || [])
+            const filteredChannels = selectedDifficultyChannels
               .filter((channel) =>
                 filteredVideos.some(
                   (video) => video.channel_id === channel.channel_id,
@@ -361,41 +406,33 @@ const VideoList: React.FC<VideoListProps> = ({
             return (
               <>
                 <VideoSectionHeader
-                  title="All Channels"
-                  removeBorderTop={
-                    !recentlyWatchedVideos.length && !newReleaseVideos.length
-                  }
-                >
-                  {filterButton}
-                </VideoSectionHeader>
+                  title="Channels"
+                  removeBorderTop={!recentlyWatchedVideos.length}
+                ></VideoSectionHeader>
                 {activeFilterBar}
-                {filteredChannels.map((channel) => {
-                  const channelVideos = filteredVideos
-                    .filter((video) => video.channel_id === channel.channel_id)
-                    .sort(
-                      (a, b) =>
-                        new Date(
-                          b.release_date ?? b.created_at ?? 0,
-                        ).getTime() -
-                        new Date(a.release_date ?? a.created_at ?? 0).getTime(),
+                <View style={styles.channelGrid}>
+                  {filteredChannels.map((channel) => {
+                    const videoCount = filteredVideos.filter(
+                      (video) => video.channel_id === channel.channel_id,
+                    ).length;
+                    return (
+                      <View
+                        key={channel.id}
+                        style={[
+                          styles.channelGridItem,
+                          isWebScreen && styles.webChannelGridItem,
+                        ]}
+                      >
+                        <ChannelHeader
+                          channel={channel}
+                          videoCount={videoCount}
+                          onPress={() => handleChannelPress(channel.channel_id)}
+                          variant="card"
+                        />
+                      </View>
                     );
-                  return (
-                    <View key={channel.id} style={styles.channelContainer}>
-                      <ChannelHeader
-                        channel={channel}
-                        videoCount={channelVideos.length}
-                        onPress={() => handleChannelPress(channel.channel_id)}
-                      />
-
-                      <HorizontalVideoScroll
-                        videos={channelVideos}
-                        handleWatchPress={handleWatchPress}
-                        loadingVideo={loadingVideo}
-                        onViewAll={() => handleChannelPress(channel.channel_id)}
-                      />
-                    </View>
-                  );
-                })}
+                  })}
+                </View>
               </>
             );
           }}
@@ -468,10 +505,18 @@ const styles = StyleSheet.create({
     gap: 24,
     paddingBottom: 24,
   },
-  channelContainer: {
-    marginBottom: 24,
-    borderBottomWidth: 2,
-    borderBottomColor: "#d0d8f0",
+  channelGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 10,
+    paddingBottom: 24,
+  },
+  channelGridItem: {
+    width: "100%",
+    padding: 6,
+  },
+  webChannelGridItem: {
+    width: "33.3333%",
   },
   searchStatus: {
     paddingVertical: 12,

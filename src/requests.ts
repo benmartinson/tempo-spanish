@@ -12,8 +12,10 @@ import {
   LanguageCode,
   DEFAULT_USER_SETTINGS,
   ContentTab,
+  Channel,
 } from "./types";
 import { cachedResponses, splitSegmentsIntoSentences } from "./helpers/helpers";
+import { normalizeChannelDifficulty } from "./helpers/channelDifficulty";
 import { setCachedResponses } from "./store/actions/dataActions";
 
 const normalizeLanguageCode = (
@@ -22,15 +24,35 @@ const normalizeLanguageCode = (
 ): LanguageCode | null => {
   if (typeof value !== "string") return fallback;
 
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "es" || normalized === "spanish") return "es";
-  if (normalized === "en" || normalized === "english") return "en";
+  const normalized = value.trim().toLowerCase().replace("_", "-");
+  const normalizedAscii = normalized
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const baseCode = normalizedAscii.split("-")[0];
+
+  if (baseCode === "es" || normalizedAscii === "spanish") return "es";
+  if (baseCode === "en" || normalizedAscii === "english") return "en";
   if (
-    normalized === "pt" ||
-    normalized === "portuguese" ||
-    normalized === "português"
+    baseCode === "pt" ||
+    normalizedAscii === "portuguese" ||
+    normalizedAscii === "portugues"
   ) {
     return "pt";
+  }
+  if (
+    baseCode === "de" ||
+    normalizedAscii === "german" ||
+    normalizedAscii === "deutsch" ||
+    normalizedAscii === "allemand"
+  ) {
+    return "de";
+  }
+  if (
+    baseCode === "fr" ||
+    normalizedAscii === "french" ||
+    normalizedAscii === "francais"
+  ) {
+    return "fr";
   }
 
   return fallback;
@@ -166,10 +188,14 @@ export const fetchVocabTranslation = async ({
   vocabWord,
   sentenceText,
   sentenceTranslation,
+  targetLanguage,
+  translationLanguage,
 }: {
   vocabWord: string;
   sentenceText: string;
   sentenceTranslation?: string | null;
+  targetLanguage: LanguageCode;
+  translationLanguage: LanguageCode;
 }): Promise<{ translation: string | null; alternateMeanings: string[] }> => {
   const response = await backendFetch("/fetch-vocab-translation", {
     method: "POST",
@@ -177,6 +203,8 @@ export const fetchVocabTranslation = async ({
       vocab_word: vocabWord,
       sentence_text: sentenceText,
       sentence_translation: sentenceTranslation ?? undefined,
+      target_language: targetLanguage,
+      translation_language: translationLanguage,
     }),
   });
 
@@ -324,16 +352,38 @@ export const fetchAllVideos = async ({
   supabase,
   targetLanguage,
 }: FetchAllVideosParams): Promise<FetchAllVideosResult> => {
-  const { data: channelData, error: channelError } = await supabase
+  const { data: rawChannelData, error: channelError } = await supabase
     .from("channel")
-    .select("*")
-    .eq("language", targetLanguage);
+    .select("*");
   if (channelError) console.error(channelError);
 
-  const channelIds = (channelData ?? []).map(
+  const channelData = (
+    (rawChannelData ?? []) as Array<
+      Omit<Channel, "language"> & {
+        language: unknown;
+        difficulty: unknown;
+      }
+    >
+  )
+    .map((channel): Channel | null => {
+      const language = normalizeLanguageCode(channel.language, null);
+      const difficulty = normalizeChannelDifficulty(channel.difficulty);
+      return language
+        ? ({
+            ...channel,
+            language,
+            difficulty: difficulty ?? String(channel.difficulty ?? ""),
+          } as Channel)
+        : null;
+    })
+    .filter(
+      (channel): channel is Channel => channel?.language === targetLanguage,
+    );
+
+  const channelIds = channelData.map(
     (channel: { channel_id: string }) => channel.channel_id,
   );
-  const channelRecordIds = (channelData ?? []).map(
+  const channelRecordIds = channelData.map(
     (channel: { id: string }) => channel.id,
   );
 
@@ -522,6 +572,7 @@ export const restoreUserUIState = async ({
     const rawUiState = uiState as UserUIState & {
       targetLanguage?: unknown;
       translationLanguage?: unknown;
+      currentDifficulty?: unknown;
     };
     const settings: UserSettings = {
       targetLanguage: normalizeLanguageCode(
@@ -532,6 +583,10 @@ export const restoreUserUIState = async ({
         rawUiState.translation_language ?? rawUiState.translationLanguage,
         DEFAULT_USER_SETTINGS.translationLanguage,
       ),
+      currentDifficulty:
+        normalizeChannelDifficulty(
+          rawUiState.current_difficulty ?? rawUiState.currentDifficulty,
+        ) ?? DEFAULT_USER_SETTINGS.currentDifficulty,
       playbackSpeed:
         uiState.playback_speed ?? DEFAULT_USER_SETTINGS.playbackSpeed,
       playbackSpeedDuringRecording:
@@ -730,8 +785,8 @@ export const persistUserSettings = async ({
   supabase: any;
   userId: string | null;
   settings: Partial<UserSettings>;
-}): Promise<void> => {
-  if (!supabase || !userId) return;
+}): Promise<boolean> => {
+  if (!supabase || !userId) return false;
 
   const updateData: Record<string, any> = {
     user_id: userId,
@@ -771,12 +826,19 @@ export const persistUserSettings = async ({
     updateData.target_language = settings.targetLanguage;
   if (settings.translationLanguage !== undefined)
     updateData.translation_language = settings.translationLanguage;
+  if (settings.currentDifficulty !== undefined)
+    updateData.current_difficulty = settings.currentDifficulty;
 
   const { error } = await supabase
     .from("user_ui_state")
     .upsert(updateData, { onConflict: "user_id" });
 
-  if (error) console.error("Error persisting settings:", error);
+  if (error) {
+    console.error("Error persisting settings:", error);
+    return false;
+  }
+
+  return true;
 };
 
 export const loadAndCacheTTSResponses = async ({

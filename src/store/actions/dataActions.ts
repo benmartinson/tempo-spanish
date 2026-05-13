@@ -162,7 +162,9 @@ export const addFocusSentence = (sentence: FocusSentence): DataAction => ({
   payload: sentence,
 });
 
-export const setUserSettings = (settings: UserSettings): DataAction => ({
+export const setUserSettings = (
+  settings: Partial<UserSettings>,
+): DataAction => ({
   type: "SET_USER_SETTINGS",
   payload: settings,
 });

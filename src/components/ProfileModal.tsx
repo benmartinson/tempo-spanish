@@ -33,7 +33,7 @@ import { getInitials } from "../helpers/helpers";
 
 const APP_STORE_URL =
   "https://apps.apple.com/us/app/tempo-spanish/id6763132237";
-const SHOW_LANGUAGE_SETTINGS = false;
+const SHOW_LANGUAGE_SETTINGS = true;
 const SHOW_CREATOR_SIGNUP = false;
 
 interface ProfileModalProps {

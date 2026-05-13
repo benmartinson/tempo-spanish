@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { useAuth } from "@clerk/clerk-expo";
 import SlideModal from "../common/SlideModal";
 import ShadowResults from "./ShadowResults";
 import CountdownTimer from "./CountdownTimer";
@@ -20,6 +21,9 @@ import { sendAudioForTranscription } from "../../helpers/streaming_helpers";
 import { AccuracyResult, RootState, SegmentWord } from "../../types";
 import { capitalize } from "../../helpers/helpers";
 import TranslateContent from "./TranslateContent";
+import { useSupabaseWithClerk } from "../../../utils/supabase";
+import { persistUserSettings } from "../../requests";
+import { setUserSettings } from "../../store/actions/dataActions";
 
 interface TranslationReviewModalProps {
   visible: boolean;
@@ -42,15 +46,21 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
   onComplete,
   onClose,
 }) => {
+  const dispatch = useDispatch();
+  const supabase = useSupabaseWithClerk();
+  const { userId } = useAuth();
   const targetLanguage = useSelector(
     (state: RootState) => state.userSettings.targetLanguage,
   );
+  const userSettings = useSelector((state: RootState) => state.userSettings);
   const [userAnswer, setUserAnswer] = useState("");
   const [accuracyResult, setAccuracyResult] = useState<AccuracyResult | null>(
     null,
   );
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isUpdatingReviewFrequency, setIsUpdatingReviewFrequency] =
+    useState(false);
 
   useEffect(() => {
     handleReset();
@@ -141,6 +151,28 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
     setIsEvaluating(false);
   };
 
+  const handleSeeLessOften = async () => {
+    if (isUpdatingReviewFrequency) return;
+    const nextReviewFrequency = userSettings.reviewFrequency + 1;
+    const updatedSettings = {
+      ...userSettings,
+      reviewFrequency: nextReviewFrequency,
+    };
+
+    setIsUpdatingReviewFrequency(true);
+    dispatch(setUserSettings(updatedSettings));
+    try {
+      await persistUserSettings({
+        supabase,
+        userId,
+        settings: { reviewFrequency: nextReviewFrequency },
+      });
+    } finally {
+      setIsUpdatingReviewFrequency(false);
+      handleClose();
+    }
+  };
+
   const handleStartRecordingFlow = () => {
     startRecording();
   };
@@ -214,24 +246,38 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
                   />
                 ) : (
                   <View style={styles.actionsRow}>
-                    <RecordingControls
-                      isRecording={false}
-                      onMic={handleStartRecordingFlow}
-                      onTrash={() => {}}
-                      disabled={isTranscribing}
-                      showContainer={false}
-                      hideTrash
-                    />
-                    <TouchableOpacity
-                      style={[
-                        styles.submitButton,
-                        !userAnswer.trim() && styles.submitButtonDisabled,
-                      ]}
-                      onPress={handleSubmit}
-                      disabled={!userAnswer.trim()}
-                    >
-                      <Text style={styles.submitButtonText}>Check</Text>
-                    </TouchableOpacity>
+                    <View style={styles.reviewActionsGroup}>
+                      <TouchableOpacity
+                        style={[styles.reviewButton, styles.skipButton]}
+                        onPress={handleClose}
+                      >
+                        <Text style={styles.skipButtonText}>Skip</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.reviewButton,
+                          styles.lessOftenButton,
+                          isUpdatingReviewFrequency &&
+                            styles.reviewButtonDisabled,
+                        ]}
+                        onPress={handleSeeLessOften}
+                        disabled={isUpdatingReviewFrequency}
+                      >
+                        <Text style={styles.lessOftenButtonText}>
+                          See These Less Often
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.recordingAction}>
+                      <RecordingControls
+                        isRecording={false}
+                        onMic={handleStartRecordingFlow}
+                        onTrash={() => {}}
+                        disabled={isTranscribing || isUpdatingReviewFrequency}
+                        showContainer={false}
+                        hideTrash
+                      />
+                    </View>
                   </View>
                 )}
               </>
@@ -249,6 +295,7 @@ const TranslationReviewModal: React.FC<TranslationReviewModalProps> = ({
             hideRetry={false}
             alwaysShowNext
             nextButtonLabel="Continue"
+            noMarginTop
           />
         )}
       </View>
@@ -295,22 +342,47 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
   },
-  submitButton: {
-    backgroundColor: "#4a69bd",
-    paddingVertical: 14,
+  reviewActionsGroup: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  recordingAction: {
+    flexShrink: 0,
+  },
+  reviewButton: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 12,
     alignItems: "center",
-    width: 100,
-    alignSelf: "flex-end",
+    justifyContent: "center",
   },
-  submitButtonDisabled: {
+  skipButton: {
+    borderWidth: 1,
+    borderColor: "#d0d8f0",
+    backgroundColor: "#fff",
+  },
+  lessOftenButton: {
+    flex: 1,
+    backgroundColor: "#4a69bd",
+  },
+  reviewButtonDisabled: {
     opacity: 0.5,
   },
-  submitButtonText: {
-    color: "white",
-    fontSize: 16,
+  skipButtonText: {
+    color: "#4a69bd",
+    fontSize: 15,
     fontWeight: "600",
+  },
+  lessOftenButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
 

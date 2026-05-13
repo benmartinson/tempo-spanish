@@ -250,15 +250,11 @@ const MainApp: React.FC = () => {
 
     // Fetch and restore user UI state
     const restoreState = async () => {
-      const {
-        videoContext,
-        currentShadowTab,
-        memorizeDifficulty,
-        settings,
-      } = await restoreUserUIState({
-        supabase: clerkSupabase,
-        userId,
-      });
+      const { videoContext, currentShadowTab, memorizeDifficulty, settings } =
+        await restoreUserUIState({
+          supabase: clerkSupabase,
+          userId,
+        });
 
       dispatch(setUserSettings(settings));
 
@@ -488,13 +484,7 @@ const MainApp: React.FC = () => {
         >
           <ActivityIndicator size="large" color="#5a5680" />
         </View>
-      ) : shouldShowCreatorRequestsPage ? (
-        null
-        // <CreatorRequestsPage onBack={navigateHome} />
-      ) : shouldShowCreatorSignUpPage ? (
-        null
-        // <CreatorSignUpPage onBack={navigateHome} />
-      ) : shouldShowVideoPage ? (
+      ) : shouldShowCreatorRequestsPage ? null : shouldShowCreatorSignUpPage ? null : shouldShowVideoPage ? ( // <CreatorRequestsPage onBack={navigateHome} /> // <CreatorSignUpPage onBack={navigateHome} />
         <>
           <NavTabBanner />
           <SelectedVideoPage />

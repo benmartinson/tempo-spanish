@@ -324,21 +324,40 @@ class FetchVocabTranslationRequest(BaseModel):
     vocab_word: str
     sentence_text: str
     sentence_translation: str | None = None
+    target_language: str | None = "es"
+    translation_language: str | None = "en"
 
 
-VOCAB_TRANSLATION_SYSTEM_PROMPT = """You are a Spanish-to-English translation assistant.
+LANGUAGE_NAMES = {
+    "de": "German",
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "pt": "Portuguese",
+}
 
-Given a Spanish vocabulary word, the sentence it appears in, and the full English translation of that sentence, provide the single English translation of the word AS IT IS USED in that specific sentence.
+
+def language_name(language_code: str | None, fallback: str) -> str:
+    if not language_code:
+        return fallback
+    normalized = language_code.strip().lower().replace("_", "-").split("-")[0]
+    return LANGUAGE_NAMES.get(normalized, fallback)
+
+
+VOCAB_TRANSLATION_SYSTEM_PROMPT = """You are a precise in-context vocabulary translation assistant.
+
+Given a vocabulary word, the sentence it appears in, the source language, and the desired translation language, provide the single translation of the word AS IT IS USED in that specific sentence.
 
 Important:
-- Many Spanish words have multiple meanings depending on context. You MUST choose the meaning that fits THIS sentence.
-- Use the provided sentence translation to determine the correct meaning — find which English word(s) correspond to the Spanish word in question.
+- Many words have multiple meanings depending on context. You MUST choose the meaning that fits THIS sentence.
+- Translate into the requested translation language only.
+- Use the provided sentence translation, when available, to determine the correct meaning.
 - Provide exactly ONE concise translation (1-3 words max).
 - Do NOT provide definitions, explanations, or full sentence translations.
 
 Output ONLY valid JSON in this format:
 {
-  "translation": "the single best English translation for this context"
+  "translation": "the single best translation for this context"
 }
 """
 
@@ -346,20 +365,24 @@ Output ONLY valid JSON in this format:
 @app.post("/fetch-vocab-translation")
 async def fetch_vocab_translation(request: FetchVocabTranslationRequest, user_id: str = Depends(verify_jwt)):
     """
-    Fetch the in-context English translation of a Spanish vocabulary word.
+    Fetch the in-context translation of a vocabulary word.
     """
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
 
     try:
+        source_language = language_name(request.target_language, "Spanish")
+        translation_language = language_name(request.translation_language, "English")
         translation_line = ""
         if request.sentence_translation:
-            translation_line = f'\nEnglish translation of the sentence: "{request.sentence_translation}"'
+            translation_line = f'\n{translation_language} translation of the sentence: "{request.sentence_translation}"'
 
-        user_prompt = f"""Spanish word: "{request.vocab_word}"
+        user_prompt = f"""Source language: {source_language}
+Translation language: {translation_language}
+Vocabulary word: "{request.vocab_word}"
 Sentence it appears in: "{request.sentence_text}"{translation_line}
 
-What does "{request.vocab_word}" mean in this sentence?"""
+What is the best {translation_language} translation of "{request.vocab_word}" in this sentence?"""
 
         messages = [
             {"role": "system", "content": VOCAB_TRANSLATION_SYSTEM_PROMPT},
@@ -392,8 +415,8 @@ What does "{request.vocab_word}" mean in this sentence?"""
 
         # Parallel call for alternate meanings
         alt_messages = [
-            {"role": "system", "content": "Given a Spanish word, list up to 3 other common English meanings of this word that are NOT the meaning used in the given sentence. Only include meanings that are genuinely different from the in-context meaning. If the word has fewer than 2 other common meanings, return fewer. Each meaning should be 1-3 words. Output valid JSON."},
-            {"role": "user", "content": f'Spanish word: "{request.vocab_word}"\nIn-context meaning: "{result["translation"]}"\nSentence: "{request.sentence_text}"'}
+            {"role": "system", "content": f"Given a {source_language} word, list up to 3 other common {translation_language} meanings of this word that are NOT the meaning used in the given sentence. Only include meanings that are genuinely different from the in-context meaning. If the word has fewer than 2 other common meanings, return fewer. Each meaning should be 1-3 words. Output valid JSON."},
+            {"role": "user", "content": f'{source_language} word: "{request.vocab_word}"\nIn-context meaning in {translation_language}: "{result["translation"]}"\nSentence: "{request.sentence_text}"'}
         ]
 
         alt_response = openai_client.chat.completions.create(

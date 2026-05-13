@@ -16,7 +16,15 @@ const SlideModal: React.FC<{
   children: React.ReactNode;
   title: string;
   noBorderRadius?: boolean;
-}> = ({ visible, onRequestClose, children, title, noBorderRadius = false }) => {
+  showCloseButton?: boolean;
+}> = ({
+  visible,
+  onRequestClose,
+  children,
+  title,
+  noBorderRadius = false,
+  showCloseButton = true,
+}) => {
   if (Platform.OS === "web") {
     return (
       <Modal
@@ -29,12 +37,14 @@ const SlideModal: React.FC<{
           <View style={[styles.webCard, noBorderRadius && styles.noRadius]}>
             <View style={styles.webHeader}>
               <Text style={styles.webTitle}>{title}</Text>
-              <TouchableOpacity
-                style={styles.webCloseButton}
-                onPress={onRequestClose}
-              >
-                <Feather name="x" size={18} color="#666" />
-              </TouchableOpacity>
+              {showCloseButton && (
+                <TouchableOpacity
+                  style={styles.webCloseButton}
+                  onPress={onRequestClose}
+                >
+                  <Feather name="x" size={18} color="#666" />
+                </TouchableOpacity>
+              )}
             </View>
             <View style={styles.webContent}>{children}</View>
           </View>

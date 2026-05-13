@@ -9,6 +9,11 @@ import {
 } from "react-native";
 import { Channel, ChannelTopic, Topic, Video } from "../../types";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  channelDifficultyMatchesSelection,
+  channelDifficultyRank,
+  normalizeChannelDifficulty,
+} from "../../helpers/channelDifficulty";
 
 const DURATION_FILTERS = [
   { label: "All", min: 0, max: Infinity },
@@ -16,18 +21,6 @@ const DURATION_FILTERS = [
   { label: "15–30 min", min: 900, max: 1800 },
   { label: "30+ min", min: 1800, max: Infinity },
 ];
-
-const DIFFICULTY_ORDER = [
-  "beginner",
-  "lower intermediate",
-  "upper intermediate",
-  "advanced",
-];
-
-const difficultyRank = (d: string) => {
-  const idx = DIFFICULTY_ORDER.indexOf(d.toLowerCase());
-  return idx === -1 ? DIFFICULTY_ORDER.length : idx;
-};
 
 const titleCase = (s: string) =>
   s
@@ -43,6 +36,7 @@ const FilterVideos: React.FC<{
   topics?: Topic[];
   channelTopics?: ChannelTopic[];
   channels?: Channel[];
+  showDifficultyFilter?: boolean;
   children: (props: {
     filteredVideos: Video[];
     filterButton: React.ReactNode;
@@ -54,6 +48,7 @@ const FilterVideos: React.FC<{
   topics,
   channelTopics,
   channels,
+  showDifficultyFilter = true,
   children,
 }) => {
   const [filterVisible, setFilterVisible] = useState(false);
@@ -69,20 +64,24 @@ const FilterVideos: React.FC<{
   const [draftDifficulty, setDraftDifficulty] = useState<string | null>(null);
 
   const availableDifficulties = useMemo(() => {
-    if (mode !== "topics" || !channels) return [];
+    if (mode !== "topics" || !channels || !showDifficultyFilter) return [];
     const seen = new Set<string>();
     for (const ch of channels) {
-      if (ch.difficulty) seen.add(ch.difficulty);
+      const normalizedDifficulty = normalizeChannelDifficulty(ch.difficulty);
+      if (normalizedDifficulty) seen.add(normalizedDifficulty);
     }
     return Array.from(seen).sort(
-      (a, b) => difficultyRank(a) - difficultyRank(b),
+      (a, b) => channelDifficultyRank(a) - channelDifficultyRank(b),
     );
-  }, [mode, channels]);
+  }, [mode, channels, showDifficultyFilter]);
 
   const channelDifficultyById = useMemo(() => {
     const map = new Map<string, string>();
     if (!channels) return map;
-    for (const ch of channels) map.set(ch.channel_id, ch.difficulty);
+    for (const ch of channels) {
+      const normalizedDifficulty = normalizeChannelDifficulty(ch.difficulty);
+      if (normalizedDifficulty) map.set(ch.channel_id, normalizedDifficulty);
+    }
     return map;
   }, [channels]);
 
@@ -102,11 +101,11 @@ const FilterVideos: React.FC<{
         }
       }
       if (mode === "topics") {
-        if (selectedDifficulty != null) {
+        if (showDifficultyFilter && selectedDifficulty != null) {
           const chDifficulty = channelDifficultyById.get(video.channel_id);
           if (
             !chDifficulty ||
-            chDifficulty.toLowerCase() !== selectedDifficulty.toLowerCase()
+            !channelDifficultyMatchesSelection(chDifficulty, selectedDifficulty)
           ) {
             return false;
           }
@@ -132,6 +131,7 @@ const FilterVideos: React.FC<{
     selectedDuration,
     selectedTopicId,
     selectedDifficulty,
+    showDifficultyFilter,
     mode,
     channelTopics,
     channels,
@@ -142,7 +142,8 @@ const FilterVideos: React.FC<{
     searchText !== "" ||
     (mode === "duration" && selectedDuration !== 0) ||
     (mode === "topics" &&
-      (selectedTopicId != null || selectedDifficulty != null));
+      (selectedTopicId != null ||
+        (showDifficultyFilter && selectedDifficulty != null)));
 
   const openFilter = () => {
     setDraftSearchText(searchText);
@@ -177,7 +178,7 @@ const FilterVideos: React.FC<{
     )?.description;
     if (topicName) filterDescriptions.push(topicName);
   }
-  if (mode === "topics" && selectedDifficulty != null) {
+  if (mode === "topics" && showDifficultyFilter && selectedDifficulty != null) {
     filterDescriptions.push(titleCase(selectedDifficulty));
   }
 

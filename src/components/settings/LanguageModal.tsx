@@ -44,6 +44,8 @@ const LANGUAGE_OPTIONS: Array<{
   { code: "es", label: "Spanish" },
   { code: "en", label: "English" },
   { code: "pt", label: "Portuguese" },
+  { code: "de", label: "German" },
+  { code: "fr", label: "French" },
 ];
 
 const DEFAULT_EDIT_TARGET_LANGUAGE: LanguageCode = "es";
@@ -80,8 +82,9 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
   );
 
   const selectedNativeLanguage =
-    nativeLanguageOptions.find((option) => option.code === translationLanguage) ??
-    nativeLanguageOptions[0];
+    nativeLanguageOptions.find(
+      (option) => option.code === translationLanguage,
+    ) ?? nativeLanguageOptions[0];
 
   const hasChanges = useMemo(
     () =>
@@ -113,7 +116,9 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
   React.useEffect(() => {
     if (
       translationLanguage === targetLanguage ||
-      !nativeLanguageOptions.some((option) => option.code === translationLanguage)
+      !nativeLanguageOptions.some(
+        (option) => option.code === translationLanguage,
+      )
     ) {
       setTranslationLanguage(nativeLanguageOptions[0]?.code ?? "en");
     }
@@ -219,10 +224,11 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
     showCounts: boolean;
   }) => {
     const counts = contentCounts[code];
-    const countText =
-      counts && !isLoadingCounts
+    const countText = isLoadingCounts
+      ? "Loading counts..."
+      : counts
         ? `${counts.videos} videos, ${counts.channels} channels`
-        : "Loading counts...";
+        : "0 videos, 0 channels";
 
     return (
       <TouchableOpacity
@@ -274,9 +280,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
             </Text>
             <MaterialIcons
               name={
-                nativeDropdownOpen
-                  ? "keyboard-arrow-up"
-                  : "keyboard-arrow-down"
+                nativeDropdownOpen ? "keyboard-arrow-up" : "keyboard-arrow-down"
               }
               size={22}
               color="#3d3a52"

@@ -11,7 +11,8 @@ import { capitalize, stripPunctuation } from "../../helpers/helpers";
 import { fetchVocabTranslation } from "../../requests";
 import { MaterialIcons } from "@expo/vector-icons";
 import SmallSlideModal from "./SmallSlideModal";
-import { VocabCacheEntry } from "../../types";
+import { RootState, VocabCacheEntry } from "../../types";
+import { useSelector } from "react-redux";
 
 interface WordModalProps {
   visible: boolean;
@@ -35,6 +36,8 @@ interface WordModalProps {
   onVocabCacheUpdate?: (entry: VocabCacheEntry) => void;
 }
 
+const EMPTY_VOCAB_CACHE: VocabCacheEntry[] = [];
+
 const WordModal: React.FC<WordModalProps> = ({
   visible,
   onClose,
@@ -47,9 +50,15 @@ const WordModal: React.FC<WordModalProps> = ({
   hideTranslationAtFirst = false,
   onPlaySnippet,
   onPlaySnippetSlow,
-  vocabCache = [],
+  vocabCache = EMPTY_VOCAB_CACHE,
   onVocabCacheUpdate,
 }) => {
+  const targetLanguage =
+    useSelector((state: RootState) => state.userSettings.targetLanguage) ??
+    "es";
+  const translationLanguage =
+    useSelector((state: RootState) => state.userSettings.translationLanguage) ??
+    "en";
   const [translation, setTranslation] = useState<string | null>(null);
   const [alternateMeanings, setAlternateMeanings] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,7 +72,12 @@ const WordModal: React.FC<WordModalProps> = ({
     setTranslation(null);
     setAlternateMeanings([]);
 
-    const cached = vocabCache.find((e) => e.word === word);
+    const cached = vocabCache.find(
+      (e) =>
+        e.word === word &&
+        (e.targetLanguage ?? "es") === targetLanguage &&
+        (e.translationLanguage ?? "en") === translationLanguage,
+    );
     if (cached) {
       setTranslation(cached.translation);
       setAlternateMeanings(cached.alternateMeanings);
@@ -78,6 +92,8 @@ const WordModal: React.FC<WordModalProps> = ({
           vocabWord: word,
           sentenceText: sentenceText ?? "",
           sentenceTranslation,
+          targetLanguage,
+          translationLanguage,
         });
 
         if (!cancelled && result.translation) {
@@ -86,6 +102,8 @@ const WordModal: React.FC<WordModalProps> = ({
           onTranslationFetched?.(result.translation);
           onVocabCacheUpdate?.({
             word,
+            targetLanguage,
+            translationLanguage,
             translation: result.translation,
             alternateMeanings: result.alternateMeanings,
           });
@@ -101,7 +119,16 @@ const WordModal: React.FC<WordModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [visible, word]);
+  }, [
+    visible,
+    word,
+    sentenceText,
+    sentenceTranslation,
+    targetLanguage,
+    translationLanguage,
+    hideTranslationAtFirst,
+    vocabCache,
+  ]);
 
   const handleClose = () => {
     setTranslation(null);

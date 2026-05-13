@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -15,22 +15,31 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import ProfileModal from "./ProfileModal";
+import DifficultyModal, {
+  difficultyLabelByValue,
+} from "./settings/DifficultyModal";
 import LanguageModal from "./settings/LanguageModal";
 import { getInitials, isWebScreenWidth } from "../helpers/helpers";
+import { normalizeChannelDifficulty } from "../helpers/channelDifficulty";
 import { LanguageCode, RootState } from "../types";
 
-const SHOW_LANGUAGE_SELECTOR = false;
+const SHOW_LANGUAGE_SELECTOR = true;
+const SHOW_DIFFICULTY_SELECTOR = true;
 
 const languageLabelByCode: Record<LanguageCode, string> = {
   es: "Spanish",
   en: "English",
   pt: "Portuguese",
+  de: "German",
+  fr: "French",
 };
 
 const languageFlagByCode: Record<LanguageCode, string> = {
   es: "🇪🇸",
   en: "🇺🇸",
   pt: "🇧🇷",
+  de: "🇩🇪",
+  fr: "🇫🇷",
 };
 
 const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
@@ -42,8 +51,12 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
   const isWebScreen = isWebScreenWidth(width);
   const [profileVisible, setProfileVisible] = useState(false);
   const [languageVisible, setLanguageVisible] = useState(false);
+  const [difficultyVisible, setDifficultyVisible] = useState(false);
   const targetLanguage = useSelector(
     (state: RootState) => state.userSettings.targetLanguage,
+  );
+  const currentDifficulty = useSelector(
+    (state: RootState) => state.userSettings.currentDifficulty,
   );
   const targetLanguageLabel = targetLanguage
     ? languageLabelByCode[targetLanguage]
@@ -51,6 +64,17 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
   const targetLanguageFlag = targetLanguage
     ? languageFlagByCode[targetLanguage]
     : null;
+  const normalizedCurrentDifficulty =
+    normalizeChannelDifficulty(currentDifficulty);
+  const currentDifficultyLabel = normalizedCurrentDifficulty
+    ? difficultyLabelByValue[normalizedCurrentDifficulty]
+    : null;
+
+  useEffect(() => {
+    if (!minimal && currentDifficulty === null) {
+      setDifficultyVisible(true);
+    }
+  }, [currentDifficulty, minimal]);
 
   if (isWebScreen) {
     return (
@@ -89,6 +113,26 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
                     </>
                   ) : (
                     <ActivityIndicator size="small" color="#3d3a52" />
+                  )}
+                </TouchableOpacity>
+              )}
+              {SHOW_DIFFICULTY_SELECTOR && (
+                <TouchableOpacity
+                  style={styles.webDifficultyButton}
+                  onPress={() => setDifficultyVisible(true)}
+                  activeOpacity={0.72}
+                >
+                  <Ionicons
+                    name="speedometer-outline"
+                    size={17}
+                    color="#3d3a52"
+                  />
+                  {currentDifficultyLabel ? (
+                    <Text style={styles.webFlagLabel}>
+                      {currentDifficultyLabel}
+                    </Text>
+                  ) : (
+                    <Text style={styles.webFlagLabel}>Difficulty</Text>
                   )}
                 </TouchableOpacity>
               )}
@@ -133,6 +177,13 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
               onClose={() => setLanguageVisible(false)}
             />
           )}
+          {SHOW_DIFFICULTY_SELECTOR && (
+            <DifficultyModal
+              visible={difficultyVisible}
+              onClose={() => setDifficultyVisible(false)}
+              required={currentDifficulty === null}
+            />
+          )}
         </View>
       </View>
     );
@@ -153,7 +204,32 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
         </View>
       </View>
 
-      <>
+      <View style={styles.mobileActions}>
+        {!minimal && SHOW_LANGUAGE_SELECTOR && (
+          <TouchableOpacity
+            style={styles.mobilePillButton}
+            onPress={() => setLanguageVisible(true)}
+            disabled={!targetLanguage}
+            activeOpacity={0.72}
+          >
+            {targetLanguageFlag ? (
+              <Text style={styles.mobilePillText}>{targetLanguageFlag}</Text>
+            ) : (
+              <ActivityIndicator size="small" color="#3d3a52" />
+            )}
+          </TouchableOpacity>
+        )}
+
+        {!minimal && SHOW_DIFFICULTY_SELECTOR && (
+          <TouchableOpacity
+            style={styles.mobilePillButton}
+            onPress={() => setDifficultyVisible(true)}
+            activeOpacity={0.72}
+          >
+            <Ionicons name="speedometer-outline" size={16} color="#5a5680" />
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.avatarButton}
           onPress={() => {
@@ -171,7 +247,20 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
           visible={profileVisible}
           onClose={() => setProfileVisible(false)}
         />
-      </>
+      </View>
+      {SHOW_LANGUAGE_SELECTOR && (
+        <LanguageModal
+          visible={languageVisible}
+          onClose={() => setLanguageVisible(false)}
+        />
+      )}
+      {SHOW_DIFFICULTY_SELECTOR && (
+        <DifficultyModal
+          visible={difficultyVisible}
+          onClose={() => setDifficultyVisible(false)}
+          required={currentDifficulty === null}
+        />
+      )}
     </View>
   );
 };
@@ -217,6 +306,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#5a5680",
+  },
+  mobileActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  mobilePillButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f7f9ff",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.24)",
+  },
+  mobilePillText: {
+    fontSize: 17,
+    lineHeight: 20,
   },
   webContainer: {
     marginTop: 0,
@@ -300,6 +408,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    justifyContent: "center",
+    backgroundColor: "#f7f9ff",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.24)",
+  },
+  webDifficultyButton: {
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
     paddingHorizontal: 13,
     borderRadius: 999,
     justifyContent: "center",

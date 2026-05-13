@@ -1,6 +1,7 @@
 export interface UserSettings {
   targetLanguage: LanguageCode | null;
   translationLanguage: LanguageCode | null;
+  currentDifficulty: ChannelDifficulty | null;
   playbackSpeed: number;
   playbackSpeedDuringRecording: number;
   showWordsHints: boolean;
@@ -21,7 +22,13 @@ export interface UserSettings {
     | "hardest";
 }
 
-export type LanguageCode = "es" | "en" | "pt";
+export type LanguageCode = "es" | "en" | "pt" | "de" | "fr";
+
+export type ChannelDifficulty =
+  | "beginner"
+  | "lower intermediate"
+  | "upper intermediate"
+  | "advanced";
 
 export type VoiceCommand =
   | "record"
@@ -53,6 +60,7 @@ export type VoiceCommand =
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   targetLanguage: "es",
   translationLanguage: "en",
+  currentDifficulty: null,
   playbackSpeed: 1,
   playbackSpeedDuringRecording: 0.25,
   showWordsHints: true,
@@ -183,7 +191,7 @@ export interface Channel {
   title: string;
   thumbnail_url: string;
   difficulty: string;
-  language: "en" | "es" | "pt";
+  language: LanguageCode;
   sort_index?: number;
 }
 
@@ -305,6 +313,8 @@ export interface AccuracyDetail {
 }
 export interface VocabCacheEntry {
   word: string;
+  targetLanguage?: LanguageCode;
+  translationLanguage?: LanguageCode;
   translation: string;
   alternateMeanings: string[];
 }
@@ -346,6 +356,7 @@ export interface UserUIState {
   auto_select_difficulty_level: string | null;
   target_language: LanguageCode | null;
   translation_language: LanguageCode | null;
+  current_difficulty: ChannelDifficulty | null;
 }
 
 export type ContentTab =

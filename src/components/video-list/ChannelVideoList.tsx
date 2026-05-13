@@ -12,16 +12,13 @@ import VideoCard from "./VideoCard";
 import FilterVideos from "./FilterVideos";
 import ChannelHeader from "./ChannelHeader";
 
-const WEB_MAX_CONTENT_WIDTH = 1320;
 const WEB_VIDEO_GAP = 12;
 const WEB_VIDEO_LIST_MARGIN = 16;
 const WEB_VIDEO_MIN_WIDTH = 280;
-const WEB_VIDEO_GRID_MAX_WIDTH = WEB_VIDEO_MIN_WIDTH * 4 + WEB_VIDEO_GAP * 3;
 
 const webVideoGridStyle: any = {
   display: "grid",
   width: `calc(100% - ${WEB_VIDEO_LIST_MARGIN * 2}px)`,
-  maxWidth: WEB_VIDEO_GRID_MAX_WIDTH,
   gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${WEB_VIDEO_MIN_WIDTH}px), 1fr))`,
   gap: `20px ${WEB_VIDEO_GAP}px`,
   alignItems: "start",
