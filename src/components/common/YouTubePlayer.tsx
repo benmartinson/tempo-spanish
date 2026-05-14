@@ -45,6 +45,7 @@ interface YouTubePlayerProps {
   onPlayingStateChange?: (isPlaying: boolean) => void;
   onPress?: () => void | Promise<void>;
   webFillContainer?: boolean;
+  webCropToFill?: boolean;
 }
 
 const isWeb = Platform.OS === "web";
@@ -57,6 +58,7 @@ const getWebPlayerHtml = ({
   end,
   playbackSpeed,
   fillContainer,
+  cropToFill,
 }: {
   videoId: string;
   autoplay: boolean;
@@ -65,6 +67,7 @@ const getWebPlayerHtml = ({
   end?: number;
   playbackSpeed: number;
   fillContainer: boolean;
+  cropToFill: boolean;
 }) => {
   const config = JSON.stringify({
     videoId,
@@ -74,6 +77,7 @@ const getWebPlayerHtml = ({
     end,
     playbackSpeed,
     fillContainer,
+    cropToFill,
   }).replace(/</g, "\\u003c");
 
   return `<!doctype html>
@@ -115,28 +119,28 @@ const getWebPlayerHtml = ({
         display: block;
       }
       @media (max-width: 968px) {
-        #player {
+        body.cropToFill #player {
           width: 900% !important;
           margin-left: -400%;
         }
-        #playerShell iframe {
+        body.cropToFill #playerShell iframe {
           width: 900% !important;
           margin-left: -400%;
         }
       }
       @media (min-width: 969px) {
-        #player {
+        body.cropToFill #player {
           width: 300% !important;
           margin-left: -100%;
         }
-        #playerShell iframe {
+        body.cropToFill #playerShell iframe {
           width: 300% !important;
           margin-left: -100%;
         }
       }
     </style>
   </head>
-  <body>
+  <body class="${cropToFill ? "cropToFill" : ""}">
     <div id="playerShell">
       <div id="player"></div>
     </div>
@@ -281,6 +285,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       onPlayingStateChange,
       onPress,
       webFillContainer = false,
+      webCropToFill = true,
     } = props;
     const webViewRef = useRef<WebView>(null);
     const webFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -489,8 +494,9 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
           end: clip?.end,
           playbackSpeed,
           fillContainer: webFillContainer,
+          cropToFill: webCropToFill,
         }),
-      [refreshKey, webFillContainer],
+      [refreshKey, webCropToFill, webFillContainer],
     );
 
     if (isWeb) {

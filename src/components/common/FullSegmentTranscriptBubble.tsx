@@ -5,6 +5,7 @@ import {
   ScrollView,
   LayoutChangeEvent,
   Pressable,
+  Platform,
 } from "react-native";
 import { RootState, SegmentWord, VocabCacheEntry } from "../../types";
 import {
@@ -52,11 +53,19 @@ interface FullSegmentTranscriptBubbleProps {
   reviewPresentation?: "modal" | "inline";
   onInlineReviewWord?: (word: SegmentWord) => void;
   footerContent?: ReactNode;
+  relayHighlightedWords?: (words: SegmentWord[]) => void;
 }
 
 const LINE_HEIGHT = 28;
 const VISIBLE_LINES = 3;
 const VISIBLE_HEIGHT = LINE_HEIGHT * VISIBLE_LINES;
+const normalizeRelayToken = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .trim();
 
 const FullSegmentTranscriptBubble: React.FC<
   FullSegmentTranscriptBubbleProps
@@ -82,6 +91,7 @@ const FullSegmentTranscriptBubble: React.FC<
   reviewPresentation = "modal",
   onInlineReviewWord,
   footerContent,
+  relayHighlightedWords,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -90,10 +100,18 @@ const FullSegmentTranscriptBubble: React.FC<
 
   const [guessWord, setGuessWord] = useState<string | null>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [relayRange, setRelayRange] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+  const relayDidHighlightRef = useRef(false);
 
   const handleSelectForReview = useCallback(
     async (word: SegmentWord) => {
-      if (!currentVideo) return;
+      if (!currentVideo) {
+        setGuessWord(word.word);
+        return;
+      }
       if (!isSignedIn) {
         setShowSignInModal(true);
         return;
@@ -163,7 +181,83 @@ const FullSegmentTranscriptBubble: React.FC<
   useEffect(() => {
     setIsActive(false);
     setWordPositions({});
+    setRelayRange(null);
+    relayDidHighlightRef.current = false;
   }, [segmentIdentity]);
+
+  const relayWordRange = useCallback(
+    (startIndex: number, endIndex: number) => {
+      if (!relayHighlightedWords || !words?.length) return;
+
+      const start = Math.min(startIndex, endIndex);
+      const end = Math.max(startIndex, endIndex);
+
+      setRelayRange({ start, end });
+      relayHighlightedWords(words.slice(start, end + 1));
+    },
+    [relayHighlightedWords, words],
+  );
+
+  const relayBrowserSelection = useCallback(
+    (selectionText: string) => {
+      if (!relayHighlightedWords || !words?.length) return;
+
+      const selectedTokens = selectionText
+        .split(/\s+/)
+        .map(normalizeRelayToken)
+        .filter(Boolean);
+      if (!selectedTokens.length) return;
+
+      const wordTokens = words.map((word) => normalizeRelayToken(word.word));
+      for (
+        let start = 0;
+        start <= wordTokens.length - selectedTokens.length;
+        start++
+      ) {
+        const matches = selectedTokens.every(
+          (token, offset) => wordTokens[start + offset] === token,
+        );
+        if (!matches) continue;
+
+        relayDidHighlightRef.current = true;
+        relayWordRange(start, start + selectedTokens.length - 1);
+        if (typeof window !== "undefined") {
+          window.getSelection?.()?.removeAllRanges();
+        }
+        return;
+      }
+    },
+    [relayHighlightedWords, relayWordRange, words],
+  );
+
+  useEffect(() => {
+    if (
+      Platform.OS !== "web" ||
+      !relayHighlightedWords ||
+      typeof document === "undefined" ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const handleSelectionComplete = () => {
+      window.setTimeout(() => {
+        const selectionText = window.getSelection?.()?.toString() ?? "";
+        if (selectionText.trim()) {
+          relayBrowserSelection(selectionText);
+        }
+      }, 0);
+    };
+
+    document.addEventListener("mouseup", handleSelectionComplete);
+    document.addEventListener("touchend", handleSelectionComplete);
+    document.addEventListener("keyup", handleSelectionComplete);
+    return () => {
+      document.removeEventListener("mouseup", handleSelectionComplete);
+      document.removeEventListener("touchend", handleSelectionComplete);
+      document.removeEventListener("keyup", handleSelectionComplete);
+    };
+  }, [relayBrowserSelection, relayHighlightedWords]);
 
   // Compute raw word index from current playback time
   const rawWordIdx = useMemo(() => {
@@ -282,12 +376,24 @@ const FullSegmentTranscriptBubble: React.FC<
           const wordStyle = getWordStyle();
           const isActive = wordStyle === styles.activeWord;
           const displayWord = getDisplayWord(words, index);
+          const isRelayHighlighted =
+            relayRange !== null &&
+            index >= relayRange.start &&
+            index <= relayRange.end;
 
           return (
             <Pressable
               key={`${word.start}-${index}`}
               onLayout={(e) => handleWordLayout(index, e)}
               onPress={() => {
+                const hasBrowserSelection =
+                  Platform.OS === "web" &&
+                  typeof window !== "undefined" &&
+                  !!window.getSelection?.()?.toString().trim();
+                if (relayDidHighlightRef.current || hasBrowserSelection) {
+                  relayDidHighlightRef.current = false;
+                  return;
+                }
                 if (isBlurred && onWordPress) {
                   onWordPress(index);
                 } else if (!isBlurred && !disableGuessModal) {
@@ -298,7 +404,13 @@ const FullSegmentTranscriptBubble: React.FC<
               delayLongPress={300}
               style={isBlurred ? styles.maskedWordWrapper : undefined}
             >
-              <Text style={[styles.word, wordStyle]}>
+              <Text
+                style={[
+                  styles.word,
+                  wordStyle,
+                  isRelayHighlighted && styles.relayHighlightedWord,
+                ]}
+              >
                 {word.word.startsWith(" ") ? "" : " "}
                 {displayWord}
               </Text>
@@ -422,6 +534,10 @@ const styles = StyleSheet.create({
   },
   activeWord: {
     color: "#4CAF50",
+  },
+  relayHighlightedWord: {
+    color: "#26705d",
+    fontWeight: "800",
   },
   normalWord: {
     color: "#222",

@@ -4,7 +4,9 @@ import {
   CachedResponse,
   ContextSegment,
   Segment,
+  SegmentWord,
   VocabEvaluation,
+  Video,
   VideoContext,
   VideoView,
   UserUIState,
@@ -13,8 +15,29 @@ import {
   DEFAULT_USER_SETTINGS,
   ContentTab,
 } from "./types";
-import { cachedResponses, splitSegmentsIntoSentences } from "./helpers/helpers";
+import {
+  cachedResponses,
+  removeSpecialPunctuation,
+  splitSegmentsIntoSentences,
+} from "./helpers/helpers";
 import { setCachedResponses } from "./store/actions/dataActions";
+
+const normalizePhraseToken = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .trim();
+
+const tokenizePhrase = (value: string): string[] =>
+  value.split(/\s+/).map(normalizePhraseToken).filter(Boolean);
+
+const formatTranscriptSegmentSearchText = (value: string): string =>
+  value.trim().split(/\s+/).filter(Boolean).join("  ");
+
+const escapeIlikePattern = (value: string): string =>
+  value.replace(/[%_]/g, (match) => `\\${match}`);
 
 const normalizeLanguageCode = (
   value: unknown,
@@ -325,6 +348,213 @@ export interface FetchAllVideosResult {
   topicData: any[];
   channelTopicData: any[];
 }
+
+export interface WritingSuggestion {
+  label: string;
+  insertText: string;
+}
+
+export const fetchWritingSuggestions = async ({
+  draftText,
+  activeSentence,
+  targetLanguage,
+}: {
+  draftText: string;
+  activeSentence: string;
+  targetLanguage: LanguageCode;
+}): Promise<WritingSuggestion[]> => {
+  const response = await backendFetch("/writing-suggestions", {
+    method: "POST",
+    body: JSON.stringify({
+      draft_text: draftText,
+      active_sentence: activeSentence,
+      target_language: targetLanguage,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error fetching writing suggestions: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return Array.isArray(data.suggestions) ? data.suggestions : [];
+};
+
+export interface TranscriptPhraseMatch {
+  videoId: string;
+  videoRecordId: string;
+  channelId: string;
+  title: string;
+  thumbnailUrl?: string | null;
+  segmentId: number;
+  segmentText: string;
+  segmentWords: string[];
+  highlightStartIndex: number | null;
+  highlightEndIndex: number | null;
+  clipText: string;
+  start: number;
+  end: number;
+  anchorTime: number;
+  score: number;
+}
+
+const findPhraseWordSpan = (
+  words: SegmentWord[] | null | undefined,
+  phrase: string,
+): {
+  start: number;
+  end: number;
+  anchorTime: number;
+  clipText: string;
+  highlightStartIndex: number;
+  highlightEndIndex: number;
+  score: number;
+} | null => {
+  if (!words?.length) return null;
+
+  const phraseTokens = tokenizePhrase(phrase);
+  if (!phraseTokens.length) return null;
+
+  const normalizedWords = words.map((word) => normalizePhraseToken(word.word));
+  let best: {
+    startIndex: number;
+    endIndex: number;
+    matched: number;
+    score: number;
+  } | null = null;
+
+  for (let startIndex = 0; startIndex < normalizedWords.length; startIndex++) {
+    if (normalizedWords[startIndex] !== phraseTokens[0]) continue;
+
+    let phraseIndex = 0;
+    let endIndex = startIndex;
+    for (
+      let wordIndex = startIndex;
+      wordIndex < normalizedWords.length && phraseIndex < phraseTokens.length;
+      wordIndex++
+    ) {
+      if (!normalizedWords[wordIndex]) continue;
+      if (normalizedWords[wordIndex] !== phraseTokens[phraseIndex]) break;
+      phraseIndex += 1;
+      endIndex = wordIndex;
+    }
+
+    const score = phraseIndex / phraseTokens.length;
+    if (!best || score > best.score) {
+      best = {
+        startIndex,
+        endIndex,
+        matched: phraseIndex,
+        score,
+      };
+    }
+    if (score === 1) break;
+  }
+
+  if (!best || best.matched === 0) return null;
+
+  const expandedStartIndex = Math.max(0, best.startIndex - 2);
+  const expandedEndIndex = Math.min(words.length - 1, best.endIndex + 2);
+  const hasTwoWordsAfterMatch = best.endIndex + 2 < words.length;
+  const end = hasTwoWordsAfterMatch
+    ? words[expandedEndIndex].end
+    : words[best.endIndex].end + 2;
+
+  return {
+    start: words[expandedStartIndex].start,
+    end,
+    anchorTime: words[best.startIndex].start,
+    highlightStartIndex: best.startIndex,
+    highlightEndIndex: best.endIndex,
+    clipText: words
+      .slice(expandedStartIndex, expandedEndIndex + 1)
+      .map((word) => word.word.trim())
+      .filter(Boolean)
+      .join(" "),
+    score: best.score,
+  };
+};
+
+export const searchTranscriptPhrase = async ({
+  supabase,
+  phrase,
+  videos,
+  limit = 8,
+}: {
+  supabase: any;
+  phrase: string;
+  videos: Video[];
+  limit?: number;
+}): Promise<TranscriptPhraseMatch[]> => {
+  const cleanPhrase = phrase.trim().replace(/\s+/g, " ");
+  if (cleanPhrase.length < 2 || videos.length === 0) return [];
+  const transcriptSearchText = formatTranscriptSegmentSearchText(cleanPhrase);
+
+  const videoRecordIds = videos.map((video) => video.id).filter(Boolean);
+  const videoByRecordId = new Map(videos.map((video) => [video.id, video]));
+
+  let query = supabase
+    .from("transcript_segment")
+    .select("segment_id,start,end,text,video_id,words")
+    .ilike("text", `%${escapeIlikePattern(transcriptSearchText)}%`)
+    .limit(limit * 4);
+
+  if (videoRecordIds.length > 0) {
+    query = query.in("video_id", videoRecordIds);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error(error);
+    throw new Error("Failed to search transcript segments");
+  }
+
+  return ((data ?? []) as Segment[])
+    .map((segment): TranscriptPhraseMatch | null => {
+      const video = videoByRecordId.get(segment.video_id);
+      if (!video) return null;
+
+      const wordSpan = findPhraseWordSpan(segment.words, cleanPhrase);
+      const start = wordSpan?.start ?? segment.start;
+      const end = wordSpan?.end ?? segment.end;
+      const segmentWords =
+        segment.words
+          ?.map((word) => removeSpecialPunctuation(word.word).trim())
+          .filter(Boolean) ??
+        removeSpecialPunctuation(segment.text).split(/\s+/).filter(Boolean);
+      const clipText =
+        wordSpan?.clipText ?? segment.text.replace(/\s+/g, " ").trim();
+      const score =
+        wordSpan?.score ??
+        (segment.text.toLowerCase().includes(transcriptSearchText.toLowerCase())
+          ? 0.75
+          : 0.25);
+
+      return {
+        videoId: video.video_id,
+        videoRecordId: video.id,
+        channelId: video.channel_id,
+        title: video.title,
+        thumbnailUrl: video.thumbnail_url,
+        segmentId: segment.segment_id,
+        segmentText: segment.text,
+        segmentWords,
+        highlightStartIndex: wordSpan?.highlightStartIndex ?? null,
+        highlightEndIndex: wordSpan?.highlightEndIndex ?? null,
+        clipText,
+        start: Math.max(0, start - 0.25),
+        end: end + 0.25,
+        anchorTime: wordSpan?.anchorTime ?? start,
+        score,
+      };
+    })
+    .filter((match): match is TranscriptPhraseMatch => !!match)
+    .sort(
+      (a, b) =>
+        b.score - a.score || a.segmentText.length - b.segmentText.length,
+    )
+    .slice(0, limit);
+};
 
 export type LanguageContentCounts = Record<
   LanguageCode,

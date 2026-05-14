@@ -38,7 +38,10 @@ const languageFlagByCode: Record<LanguageCode, string> = {
   fr: "🇫🇷",
 };
 
-const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
+const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
+  minimal = false,
+  composeActive = false,
+}) => {
   const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
   const initials = getInitials(user);
@@ -56,6 +59,18 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
   const targetLanguageFlag = targetLanguage
     ? languageFlagByCode[targetLanguage]
     : null;
+  const navigateBrowse = () =>
+    navigation.navigate({
+      name: "MainApp",
+      params: {},
+      merge: false,
+    });
+  const navigateCompose = () =>
+    navigation.navigate({
+      name: "MainApp",
+      params: { compose: true },
+      merge: false,
+    });
 
   useEffect(() => {
     if (
@@ -73,7 +88,11 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     return (
       <View style={styles.webContainer}>
         <View style={styles.webInner}>
-          <View style={styles.webBrand}>
+          <TouchableOpacity
+            style={styles.webBrand}
+            onPress={navigateBrowse}
+            activeOpacity={0.78}
+          >
             <View style={styles.webBrandMark}>
               <Image
                 source={require("../../public/try/assets/icon.png")}
@@ -86,10 +105,25 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
                 {targetLanguageLabel ?? "Language"}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
           {!minimal && (
             <View style={styles.webActions}>
+              <TouchableOpacity
+                style={styles.webComposeButton}
+                onPress={composeActive ? navigateBrowse : navigateCompose}
+                activeOpacity={0.76}
+              >
+                <Ionicons
+                  name={composeActive ? "albums-outline" : "create-outline"}
+                  size={17}
+                  color="#3d3a52"
+                />
+                <Text style={styles.webComposeButtonText}>
+                  {composeActive ? "Browse" : "Compose"}
+                </Text>
+              </TouchableOpacity>
+
               {SHOW_LANGUAGE_SELECTOR &&
                 targetLanguageLabel &&
                 targetLanguageFlag && (
@@ -157,7 +191,11 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.webBrand}>
+      <TouchableOpacity
+        style={styles.webBrand}
+        onPress={navigateBrowse}
+        activeOpacity={0.78}
+      >
         <View style={styles.webBrandMark}>
           <Image
             source={require("../../public/try/assets/icon.png")}
@@ -168,7 +206,7 @@ const TopNavBar: React.FC<{ minimal?: boolean }> = ({ minimal = false }) => {
           <Text style={styles.mobileAppName}>Tempo</Text>
           <Text style={styles.mobileAppSubname}>Spanish</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       <>
         <TouchableOpacity
@@ -323,6 +361,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#f7f9ff",
     borderWidth: 1,
     borderColor: "rgba(74, 105, 189, 0.24)",
+  },
+  webComposeButton: {
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.24)",
+  },
+  webComposeButtonText: {
+    color: "#3d3a52",
+    fontSize: 14,
+    fontWeight: "800",
   },
   webFlagLabel: {
     color: "#3d3a52",

@@ -101,14 +101,14 @@ Guidelines:
 - Only text, no emojis or other formatting."""
 
 # System prompt for generating sentence continuation suggestions
-SUGGESTION_SYSTEM_PROMPT = """You are helping a Spanish language learner continue their sentence.
-Given their partial sentence and conversation context, suggest the next 2-3 words in Spanish.
+SUGGESTION_SYSTEM_PROMPT = """You are helping a language learner write a short script or essay in their target language.
+Given their full draft and the sentence they are actively writing, suggest natural continuations.
 
 Rules:
-- Return ONLY 3-4 Spanish words that naturally continue their sentence
-- No punctuation, no explanation, just the continuation words
-- Match the tone and topic of the conversation
-- If the partial sentence is empty or very short, suggest a conversation starter phrase"""
+- Suggestions should complete or meaningfully advance the active sentence.
+- Keep each suggestion concise, usually 3-10 words.
+- Match the target language, tone, and topic of the draft.
+- Do not explain the suggestions."""
 
 # System prompt for autocorrecting transcript errors
 AUTOCORRECT_SYSTEM_PROMPT = """You are a transcript correction assistant for Spanish speech.
@@ -239,6 +239,12 @@ class SuggestionRequest(BaseModel):
     history: List[ChatMessage] = []
 
 
+class WritingSuggestionsRequest(BaseModel):
+    draft_text: str = ""
+    active_sentence: str = ""
+    target_language: str = "es"
+
+
 class AutocorrectRequest(BaseModel):
     transcript: str
 
@@ -327,6 +333,84 @@ async def tts(request: TTSRequest, user_id: str = Depends(verify_jwt)):
     if audio_base64 is None:
         return {"error": "TTS generation failed or ElevenLabs not configured"}
     return {"audio": audio_base64, "status": "complete"}
+
+
+@app.post("/writing-suggestions")
+async def writing_suggestions(
+    request: WritingSuggestionsRequest, user_id: str = Depends(verify_jwt)
+):
+    """Generate short continuation suggestions for the compose page."""
+    if not openai_client:
+        raise HTTPException(status_code=503, detail="OpenAI API key not configured")
+
+    language_names = {
+        "es": "Spanish",
+        "en": "English",
+        "pt": "Portuguese",
+        "de": "German",
+        "fr": "French",
+    }
+    target_language = language_names.get(
+        request.target_language.lower(), request.target_language
+    )
+
+    user_prompt = f"""Target language: {target_language}
+
+Full draft:
+{request.draft_text.strip() or "(empty)"}
+
+Active sentence:
+{request.active_sentence.strip() or "(empty)"}
+
+Return three distinct continuations the user could insert next."""
+
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": SUGGESTION_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=240,
+            temperature=0.7,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "writing_suggestions_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["suggestions"],
+                        "properties": {
+                            "suggestions": {
+                                "type": "array",
+                                "minItems": 3,
+                                "maxItems": 3,
+                                "items": {
+                                    "type": "object",
+                                    "required": ["label", "insertText"],
+                                    "properties": {
+                                        "label": {"type": "string"},
+                                        "insertText": {"type": "string"},
+                                    },
+                                    "additionalProperties": False,
+                                },
+                            }
+                        },
+                        "additionalProperties": False,
+                    },
+                }
+            },
+        )
+
+        result = json.loads(response.choices[0].message.content.strip())
+        return {
+            "suggestions": result.get("suggestions", [])[:3],
+            "status": "complete",
+        }
+    except Exception as e:
+        print(f"Error generating writing suggestions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate suggestions")
 
 
 # System prompt for evaluating review answers (comprehension questions)

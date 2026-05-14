@@ -22,6 +22,7 @@ import {
   setMemorizeDifficulty,
   setUserCredits,
   setSelectedChannelId,
+  setSentenceByTime,
   addUserVideoView,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
@@ -47,6 +48,7 @@ import VideoList from "./src/components/video-list/VideoList";
 import NavTabBanner from "./src/components/common/NavTabBanner";
 import SelectedVideoPage from "./src/components/common/SelectedVideoPage";
 import CreditStore from "./src/components/CreditStore";
+import WritingStudioPage from "./src/components/WritingStudioPage";
 // Creator routes are intentionally hidden for this deploy. Keep the pages in
 // the repo so the feature can be re-enabled without rebuilding it.
 // import CreatorRequestsPage from "./src/components/CreatorRequestsPage";
@@ -88,7 +90,8 @@ const CREDIT_PACK_CREDITS: Record<string, number> = {
 const linking: any = {
   prefixes: [],
   getStateFromPath(path: string) {
-    const [pathname] = path.split("?");
+    const [pathname, queryString] = path.split("?");
+    const searchParams = new URLSearchParams(queryString ?? "");
     const segments = pathname
       .split("/")
       .filter(Boolean)
@@ -97,6 +100,8 @@ const linking: any = {
     const params: {
       channelId?: string;
       videoId?: string;
+      compose?: boolean;
+      clip?: number;
       // creatorRequests?: boolean;
       // creatorSignUp?: boolean;
     } = {};
@@ -106,13 +111,19 @@ const linking: any = {
     // } else if (segments[0] === "creator" && segments[1] === "sign_up") {
     //   params.creatorSignUp = true;
     // }
-    if (segments[0] === "browse") {
+    if (segments[0] === "compose") {
+      params.compose = true;
+    } else if (segments[0] === "browse") {
       // Browse is the canonical root route.
     } else if (segments[0] === "channel" && segments[1]) {
       params.channelId = segments[1];
     }
     if (segments[0] === "video" && segments[1]) {
       params.videoId = segments[1];
+      const clip = Number(searchParams.get("clip"));
+      if (Number.isFinite(clip)) {
+        params.clip = clip;
+      }
     }
 
     return {
@@ -123,7 +134,7 @@ const linking: any = {
     const route = state.routes[state.index ?? 0];
     if (route?.name !== "MainApp") return "";
 
-    const { channelId, videoId } = route.params ?? {};
+    const { channelId, videoId, compose, clip } = route.params ?? {};
     // Creator routes are hidden for this deploy.
     // const { creatorRequests, creatorSignUp } = route.params ?? {};
     // if (creatorRequests) {
@@ -132,8 +143,13 @@ const linking: any = {
     // if (creatorSignUp) {
     //   return "/creator/sign_up";
     // }
+    if (compose) return "/compose";
     if (videoId) {
-      return `/video/${encodeURIComponent(videoId)}`;
+      const clipParam =
+        typeof clip === "number" && Number.isFinite(clip)
+          ? `?clip=${encodeURIComponent(String(clip))}`
+          : "";
+      return `/video/${encodeURIComponent(videoId)}${clipParam}`;
     }
     if (channelId) return `/channel/${encodeURIComponent(channelId)}`;
     return "/browse";
@@ -175,6 +191,11 @@ const MainApp: React.FC = () => {
     typeof route.params?.channelId === "string" ? route.params.channelId : null;
   const routeVideoId =
     typeof route.params?.videoId === "string" ? route.params.videoId : null;
+  const routeClip =
+    typeof route.params?.clip === "number" && Number.isFinite(route.params.clip)
+      ? route.params.clip
+      : null;
+  const routeCompose = route.params?.compose === true;
   // Creator routes are hidden for this deploy.
   // const routeCreatorRequests = route.params?.creatorRequests === true;
   // const routeCreatorSignUp = route.params?.creatorSignUp === true;
@@ -185,6 +206,7 @@ const MainApp: React.FC = () => {
     !!(
       routeChannelId ||
       routeVideoId ||
+      routeCompose ||
       routeCreatorRequests ||
       routeCreatorSignUp
     );
@@ -365,6 +387,16 @@ const MainApp: React.FC = () => {
     //   return;
     // }
 
+    if (routeCompose) {
+      if (currentVideo) {
+        dispatch(setCurrentVideo(null));
+        persistVideoUnselection({ supabase: clerkSupabase, userId });
+      }
+      if (selectedChannelId) dispatch(setSelectedChannelId(null));
+      setIsLoadingRouteVideo(false);
+      return;
+    }
+
     if (!routeChannelId && !routeVideoId) {
       if (currentVideo) {
         dispatch(setCurrentVideo(null));
@@ -388,6 +420,9 @@ const MainApp: React.FC = () => {
         currentVideo?.videoId === routeVideoId &&
         currentVideo?.recordId === routeVideo.id
       ) {
+        if (routeClip !== null) {
+          dispatch(setSentenceByTime(routeClip));
+        }
         setIsLoadingRouteVideo(false);
         return;
       }
@@ -398,6 +433,7 @@ const MainApp: React.FC = () => {
         supabase: rawSupabase,
         videoId: routeVideo.video_id,
         recordId: routeVideo.id,
+        clip: routeClip ?? undefined,
         userId,
       })
         .then(async ({ videoContext, videoView }) => {
@@ -441,6 +477,8 @@ const MainApp: React.FC = () => {
     dispatch,
     isRestoringState,
     routeChannelId,
+    routeClip,
+    routeCompose,
     routeCreatorRequests,
     routeCreatorSignUp,
     routeVideoId,
@@ -478,6 +516,7 @@ const MainApp: React.FC = () => {
     Platform.OS === "web"
       ? !!routeVideoId && routeVideoIsReady
       : !!currentVideo;
+  const shouldShowComposePage = routeCompose;
   // Creator routes are hidden for this deploy.
   // const shouldShowCreatorRequestsPage = routeCreatorRequests;
   // const shouldShowCreatorSignUpPage = routeCreatorSignUp;
@@ -490,7 +529,7 @@ const MainApp: React.FC = () => {
         shouldShowCreatorRequestsPage ||
         shouldShowCreatorSignUpPage ||
         isRestoringState ||
-        isLoadingRouteVideo) && <TopNavBar />}
+        isLoadingRouteVideo) && <TopNavBar composeActive={routeCompose} />}
       {isRestoringState || isLoadingRouteVideo || !routeVideoIsReady ? (
         <View
           style={{
@@ -502,7 +541,9 @@ const MainApp: React.FC = () => {
         >
           <ActivityIndicator size="large" color="#5a5680" />
         </View>
-      ) : shouldShowCreatorRequestsPage ? null : shouldShowCreatorSignUpPage ? null : shouldShowVideoPage ? ( // <CreatorRequestsPage onBack={navigateHome} /> // <CreatorSignUpPage onBack={navigateHome} />
+      ) : shouldShowCreatorRequestsPage ? null : shouldShowCreatorSignUpPage ? null : shouldShowComposePage ? (
+        <WritingStudioPage />
+      ) : shouldShowVideoPage ? ( // <CreatorRequestsPage onBack={navigateHome} /> // <CreatorSignUpPage onBack={navigateHome} />
         <>
           <NavTabBanner />
           <SelectedVideoPage />
