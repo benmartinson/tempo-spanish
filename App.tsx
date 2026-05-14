@@ -48,7 +48,7 @@ import VideoList from "./src/components/video-list/VideoList";
 import NavTabBanner from "./src/components/common/NavTabBanner";
 import SelectedVideoPage from "./src/components/common/SelectedVideoPage";
 import CreditStore from "./src/components/CreditStore";
-import WritingStudioPage from "./src/components/WritingStudioPage";
+import WritingStudioPage from "./src/components/writing-studio/WritingStudioPage";
 // Creator routes are intentionally hidden for this deploy. Keep the pages in
 // the repo so the feature can be re-enabled without rebuilding it.
 // import CreatorRequestsPage from "./src/components/CreatorRequestsPage";

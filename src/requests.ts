@@ -453,21 +453,14 @@ const findPhraseWordSpan = (
 
   if (!best || best.matched === 0) return null;
 
-  const expandedStartIndex = Math.max(0, best.startIndex - 2);
-  const expandedEndIndex = Math.min(words.length - 1, best.endIndex + 2);
-  const hasTwoWordsAfterMatch = best.endIndex + 2 < words.length;
-  const end = hasTwoWordsAfterMatch
-    ? words[expandedEndIndex].end
-    : words[best.endIndex].end + 2;
-
   return {
-    start: words[expandedStartIndex].start,
-    end,
+    start: Math.max(0, words[best.startIndex].start - 3),
+    end: words[best.endIndex].end + 3,
     anchorTime: words[best.startIndex].start,
     highlightStartIndex: best.startIndex,
     highlightEndIndex: best.endIndex,
     clipText: words
-      .slice(expandedStartIndex, expandedEndIndex + 1)
+      .slice(best.startIndex, best.endIndex + 1)
       .map((word) => word.word.trim())
       .filter(Boolean)
       .join(" "),
