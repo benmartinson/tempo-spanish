@@ -46,6 +46,7 @@ interface YouTubePlayerProps {
   onPress?: () => void | Promise<void>;
   webFillContainer?: boolean;
   webCropToFill?: boolean;
+  webCropMode?: "responsive" | "narrow";
 }
 
 const isWeb = Platform.OS === "web";
@@ -59,6 +60,7 @@ const getWebPlayerHtml = ({
   playbackSpeed,
   fillContainer,
   cropToFill,
+  cropMode,
 }: {
   videoId: string;
   autoplay: boolean;
@@ -68,6 +70,7 @@ const getWebPlayerHtml = ({
   playbackSpeed: number;
   fillContainer: boolean;
   cropToFill: boolean;
+  cropMode: "responsive" | "narrow";
 }) => {
   const config = JSON.stringify({
     videoId,
@@ -78,6 +81,7 @@ const getWebPlayerHtml = ({
     playbackSpeed,
     fillContainer,
     cropToFill,
+    cropMode,
   }).replace(/</g, "\\u003c");
 
   return `<!doctype html>
@@ -118,29 +122,37 @@ const getWebPlayerHtml = ({
         height: 100% !important;
         display: block;
       }
+      body.cropToFill.forceNarrowCrop #player {
+        width: 900% !important;
+        margin-left: -400%;
+      }
+      body.cropToFill.forceNarrowCrop #playerShell iframe {
+        width: 900% !important;
+        margin-left: -400%;
+      }
       @media (max-width: 968px) {
-        body.cropToFill #player {
+        body.cropToFill:not(.forceNarrowCrop) #player {
           width: 900% !important;
           margin-left: -400%;
         }
-        body.cropToFill #playerShell iframe {
+        body.cropToFill:not(.forceNarrowCrop) #playerShell iframe {
           width: 900% !important;
           margin-left: -400%;
         }
       }
       @media (min-width: 969px) {
-        body.cropToFill #player {
+        body.cropToFill:not(.forceNarrowCrop) #player {
           width: 300% !important;
           margin-left: -100%;
         }
-        body.cropToFill #playerShell iframe {
+        body.cropToFill:not(.forceNarrowCrop) #playerShell iframe {
           width: 300% !important;
           margin-left: -100%;
         }
       }
     </style>
   </head>
-  <body class="${cropToFill ? "cropToFill" : ""}">
+  <body class="${[cropToFill ? "cropToFill" : "", cropMode === "narrow" ? "forceNarrowCrop" : ""].filter(Boolean).join(" ")}">
     <div id="playerShell">
       <div id="player"></div>
     </div>
@@ -286,6 +298,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       onPress,
       webFillContainer = false,
       webCropToFill = true,
+      webCropMode = "responsive",
     } = props;
     const webViewRef = useRef<WebView>(null);
     const webFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -495,8 +508,9 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
           playbackSpeed,
           fillContainer: webFillContainer,
           cropToFill: webCropToFill,
+          cropMode: webCropMode,
         }),
-      [refreshKey, webCropToFill, webFillContainer],
+      [refreshKey, webCropMode, webCropToFill, webFillContainer],
     );
 
     if (isWeb) {

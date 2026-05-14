@@ -456,7 +456,7 @@ const WritingStudioPage: React.FC = () => {
                     startTime={playerTime}
                     videoText={activeSearchPhrase}
                     onPlayingStateChange={setPlayerIsPlaying}
-                    webCropToFill={false}
+                    webCropMode="narrow"
                   />
                 </View>
                 <View style={styles.matchTitleRow}>
