@@ -380,6 +380,113 @@ export const fetchWritingSuggestions = async ({
   return Array.isArray(data.suggestions) ? data.suggestions : [];
 };
 
+export interface UserComposition {
+  id: string | number;
+  user_id: string;
+  title: string;
+  text: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const USER_COMPOSITION_COLUMNS = "id,user_id,title,text,created_at,updated_at";
+
+export const fetchUserCompositions = async ({
+  supabase,
+  userId,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+}): Promise<UserComposition[]> => {
+  if (!supabase || !userId) return [];
+
+  const { data, error } = await supabase
+    .from("user_composition")
+    .select(USER_COMPOSITION_COLUMNS)
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching user compositions:", error);
+    throw new Error("Failed to fetch saved compositions");
+  }
+
+  return (data ?? []) as UserComposition[];
+};
+
+export const createUserComposition = async ({
+  supabase,
+  userId,
+  title,
+  text,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+  title: string;
+  text: string;
+}): Promise<UserComposition> => {
+  if (!supabase || !userId) {
+    throw new Error("Sign in to save compositions.");
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("user_composition")
+    .insert({
+      user_id: userId,
+      title,
+      text,
+      created_at: now,
+      updated_at: now,
+    })
+    .select(USER_COMPOSITION_COLUMNS)
+    .single();
+
+  if (error) {
+    console.error("Error creating user composition:", error);
+    throw new Error("Failed to save composition");
+  }
+
+  return data as UserComposition;
+};
+
+export const updateUserComposition = async ({
+  supabase,
+  userId,
+  compositionId,
+  title,
+  text,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+  compositionId: string | number;
+  title: string;
+  text: string;
+}): Promise<UserComposition> => {
+  if (!supabase || !userId) {
+    throw new Error("Sign in to save compositions.");
+  }
+
+  const { data, error } = await supabase
+    .from("user_composition")
+    .update({
+      title,
+      text,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", compositionId)
+    .eq("user_id", userId)
+    .select(USER_COMPOSITION_COLUMNS)
+    .single();
+
+  if (error) {
+    console.error("Error updating user composition:", error);
+    throw new Error("Failed to update composition");
+  }
+
+  return data as UserComposition;
+};
+
 export interface TranscriptPhraseMatch {
   videoId: string;
   videoRecordId: string;

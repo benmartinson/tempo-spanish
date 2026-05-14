@@ -13,11 +13,15 @@ import { supabase as rawSupabase } from "../../../lib/supabase";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import {
   TranscriptPhraseMatch,
+  UserComposition,
   WritingSuggestion,
+  createUserComposition,
   fetchVideoContext,
+  fetchUserCompositions,
   fetchWritingSuggestions,
   persistVideoSelection,
   searchTranscriptPhrase,
+  updateUserComposition,
 } from "../../requests";
 import {
   addUserVideoView,
@@ -30,11 +34,9 @@ import {
 } from "../../helpers/helpers";
 import { LanguageCode, RootState, SegmentWord } from "../../types";
 import { YouTubePlayerHandle } from "../common/YouTubePlayer";
+import { CompositionTemplate } from "./ChooseComposition";
 import ClipMatcher from "./ClipMatcher";
 import Composer, { StudioMode } from "./Composer";
-
-const DEFAULT_DRAFT =
-  "Cuando pienso en mi futuro, quiero hablar con mas confianza y contar historias que suenen naturales.";
 
 const splitDraftIntoSentences = (text: string): string[] =>
   text
@@ -68,6 +70,12 @@ const getSelectedPhrase = (
   return draft.slice(start, end).trim().replace(/\s+/g, " ");
 };
 
+const makeCompositionTitle = (text: string): string => {
+  const words = text.trim().split(/\s+/).filter(Boolean).slice(0, 7);
+  if (!words.length) return "Untitled composition";
+  return words.join(" ");
+};
+
 const WritingStudioPage: React.FC = () => {
   const { width } = useWindowDimensions();
   const isWide = isWebScreenWidth(width);
@@ -83,7 +91,26 @@ const WritingStudioPage: React.FC = () => {
   );
 
   const [mode, setMode] = useState<StudioMode>("write");
-  const [draft, setDraft] = useState(DEFAULT_DRAFT);
+  const [draft, setDraft] = useState("");
+  const [compositionTitle, setCompositionTitle] = useState("");
+  const [hasChosenComposition, setHasChosenComposition] = useState(false);
+  const [currentComposition, setCurrentComposition] =
+    useState<UserComposition | null>(null);
+  const [savedCompositions, setSavedCompositions] = useState<UserComposition[]>(
+    [],
+  );
+  const [isLoadingSavedCompositions, setIsLoadingSavedCompositions] =
+    useState(false);
+  const [savedCompositionError, setSavedCompositionError] = useState<
+    string | null
+  >(null);
+  const [isSavingComposition, setIsSavingComposition] = useState(false);
+  const [saveCompositionError, setSaveCompositionError] = useState<
+    string | null
+  >(null);
+  const [saveCompositionMessage, setSaveCompositionMessage] = useState<
+    string | null
+  >(null);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [relayedHighlightedPhrase, setRelayedHighlightedPhrase] = useState("");
   const [suggestions, setSuggestions] = useState<WritingSuggestion[]>([]);
@@ -147,6 +174,42 @@ const WritingStudioPage: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isSignedIn || !userId) {
+      setSavedCompositions([]);
+      setSavedCompositionError(null);
+      setIsLoadingSavedCompositions(false);
+      return;
+    }
+
+    if (!clerkSupabase) {
+      setIsLoadingSavedCompositions(true);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingSavedCompositions(true);
+    setSavedCompositionError(null);
+
+    fetchUserCompositions({ supabase: clerkSupabase, userId })
+      .then((compositions) => {
+        if (!cancelled) setSavedCompositions(compositions);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSavedCompositions([]);
+          setSavedCompositionError("None found.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingSavedCompositions(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clerkSupabase, isSignedIn, userId]);
+
   const selectedPhrase = useMemo(
     () => getSelectedPhrase(draft, selection),
     [draft, selection],
@@ -186,8 +249,23 @@ const WritingStudioPage: React.FC = () => {
     () => setRevealedMemorizeIndices(new Set()),
     [memorizeDifficulty, memorizeWords],
   );
+
   useEffect(() => {
-    if (!targetLanguage || !isSignedIn || activeSentence.length < 4) {
+    if (!saveCompositionMessage) return;
+    const timer = setTimeout(() => {
+      setSaveCompositionMessage(null);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [saveCompositionMessage]);
+
+  useEffect(() => {
+    if (
+      !hasChosenComposition ||
+      !targetLanguage ||
+      !isSignedIn ||
+      activeSentence.length < 4
+    ) {
       setSuggestions([]);
       setSuggestionError(
         !isSignedIn && activeSentence.length >= 4
@@ -225,7 +303,7 @@ const WritingStudioPage: React.FC = () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [activeSentence, draft, isSignedIn, targetLanguage]);
+  }, [activeSentence, draft, hasChosenComposition, isSignedIn, targetLanguage]);
 
   useEffect(() => {
     if (!activeSearchPhrase) {
@@ -350,6 +428,137 @@ const WritingStudioPage: React.FC = () => {
     playerRef.current?.togglePlayback();
   }, []);
 
+  const clearCompositionWorkspace = useCallback(() => {
+    clipPlaybackTimeoutsRef.current.forEach(clearTimeout);
+    clipPlaybackTimeoutsRef.current = [];
+    setMode("write");
+    setSelection({ start: 0, end: 0 });
+    setRelayedHighlightedPhrase("");
+    setMatches([]);
+    setSelectedMatch(null);
+    setSelectedMatchPhrase("");
+    setIsSearchingPhrase(false);
+    setPhraseError(null);
+    setPlayerTime(0);
+    setPlayerIsPlaying(false);
+    setRevealedMemorizeIndices(new Set());
+  }, []);
+
+  const beginComposition = useCallback(
+    (text: string, composition: UserComposition | null = null) => {
+      clearCompositionWorkspace();
+      setDraft(text);
+      setCompositionTitle(composition?.title ?? "");
+      setCurrentComposition(composition);
+      setHasChosenComposition(true);
+      setSaveCompositionError(null);
+      setSaveCompositionMessage(null);
+    },
+    [clearCompositionWorkspace],
+  );
+
+  const handleDraftChange = useCallback((nextDraft: string) => {
+    setDraft(nextDraft);
+    setSaveCompositionError(null);
+    setSaveCompositionMessage(null);
+  }, []);
+
+  const handleTitleChange = useCallback((nextTitle: string) => {
+    setCompositionTitle(nextTitle);
+    setSaveCompositionError(null);
+    setSaveCompositionMessage(null);
+  }, []);
+
+  const handleBlankCanvas = useCallback(() => {
+    beginComposition("");
+  }, [beginComposition]);
+
+  const handleChooseTemplate = useCallback(
+    (template: CompositionTemplate) => {
+      beginComposition(template.text);
+    },
+    [beginComposition],
+  );
+
+  const handleChooseSavedComposition = useCallback(
+    (composition: UserComposition) => {
+      beginComposition(composition.text, composition);
+    },
+    [beginComposition],
+  );
+
+  const handleNewComposition = useCallback(() => {
+    clearCompositionWorkspace();
+    setDraft("");
+    setCompositionTitle("");
+    setCurrentComposition(null);
+    setHasChosenComposition(false);
+    setSaveCompositionError(null);
+    setSaveCompositionMessage(null);
+  }, [clearCompositionWorkspace]);
+
+  const mergeSavedComposition = useCallback((composition: UserComposition) => {
+    setSavedCompositions((prev) => [
+      composition,
+      ...prev.filter((item) => item.id !== composition.id),
+    ]);
+  }, []);
+
+  const saveComposition = useCallback(async () => {
+    const text = draft.trim();
+    if (!text) return;
+
+    if (!isSignedIn || !userId) {
+      setSaveCompositionError("Sign in to save compositions.");
+      setSaveCompositionMessage(null);
+      return;
+    }
+
+    if (!clerkSupabase) {
+      setSaveCompositionError("Saving is still getting ready.");
+      setSaveCompositionMessage(null);
+      return;
+    }
+
+    setIsSavingComposition(true);
+    setSaveCompositionError(null);
+    setSaveCompositionMessage(null);
+
+    try {
+      const title = compositionTitle.trim() || makeCompositionTitle(text);
+      const savedComposition = currentComposition
+        ? await updateUserComposition({
+            supabase: clerkSupabase,
+            userId,
+            compositionId: currentComposition.id,
+            title,
+            text: draft,
+          })
+        : await createUserComposition({
+            supabase: clerkSupabase,
+            userId,
+            title,
+            text: draft,
+          });
+
+      setCurrentComposition(savedComposition);
+      mergeSavedComposition(savedComposition);
+      setSaveCompositionMessage("Saved!");
+    } catch {
+      setSaveCompositionError("Could not save this composition.");
+    } finally {
+      setIsSavingComposition(false);
+    }
+  }, [
+    currentComposition,
+    draft,
+    compositionTitle,
+    clerkSupabase,
+    isSignedIn,
+    mergeSavedComposition,
+    userId,
+  ]);
+
   const openSelectedVideo = useCallback(async () => {
     if (!selectedMatch) return;
 
@@ -429,13 +638,28 @@ const WritingStudioPage: React.FC = () => {
         <Composer
           mode={mode}
           draft={draft}
+          title={compositionTitle}
+          hasChosenComposition={hasChosenComposition}
           selectionSearchPhrase={activeSearchPhrase}
+          savedCompositions={savedCompositions}
+          isLoadingSavedCompositions={isLoadingSavedCompositions}
+          savedCompositionError={savedCompositionError}
+          isSignedIn={isSignedIn}
           memorizeWords={memorizeWords}
           memorizeMaskedIndices={memorizeMaskedIndices}
           memorizeDifficulty={memorizeDifficulty}
+          isSavingComposition={isSavingComposition}
+          saveCompositionError={saveCompositionError}
+          saveCompositionMessage={saveCompositionMessage}
           onModeChange={setMode}
-          onDraftChange={setDraft}
+          onTitleChange={handleTitleChange}
+          onDraftChange={handleDraftChange}
           onSelectionChange={setSelection}
+          onBlankCanvas={handleBlankCanvas}
+          onChooseTemplate={handleChooseTemplate}
+          onChooseSavedComposition={handleChooseSavedComposition}
+          onNewComposition={handleNewComposition}
+          onSaveComposition={saveComposition}
           onMemorizeDifficultyChange={setMemorizeDifficultyAndReset}
           onRevealMemorizeWord={revealMemorizeWord}
           onRelayHighlightedWords={handleRelayHighlightedWords}
