@@ -10,6 +10,7 @@ import {
 import { RootState, SegmentWord, VocabCacheEntry } from "../../types";
 import {
   ReactNode,
+  Fragment,
   useMemo,
   useRef,
   useEffect,
@@ -54,6 +55,7 @@ interface FullSegmentTranscriptBubbleProps {
   onInlineReviewWord?: (word: SegmentWord) => void;
   footerContent?: ReactNode;
   relayHighlightedWords?: (words: SegmentWord[]) => void;
+  showWordTimestamps?: boolean;
 }
 
 const LINE_HEIGHT = 28;
@@ -66,6 +68,27 @@ const normalizeRelayToken = (value: string): string =>
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, "")
     .trim();
+
+const formatWordTimestamp = (time: number): string => {
+  const safeTime = Math.max(0, Number.isFinite(time) ? time : 0);
+  const minutes = Math.floor(safeTime / 60);
+  const seconds = Math.floor(safeTime % 60);
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+};
+
+const hasParagraphBreakBefore = (word: SegmentWord): boolean =>
+  Boolean(word.paragraphBreakBefore);
+
+const selectionTokenMatchesWord = (
+  token: string,
+  wordToken: string,
+  index: number,
+  lastIndex: number,
+): boolean => {
+  if (!token || !wordToken) return false;
+  if (index === 0 || index === lastIndex) return wordToken.includes(token);
+  return wordToken === token;
+};
 
 const FullSegmentTranscriptBubble: React.FC<
   FullSegmentTranscriptBubbleProps
@@ -92,6 +115,7 @@ const FullSegmentTranscriptBubble: React.FC<
   onInlineReviewWord,
   footerContent,
   relayHighlightedWords,
+  showWordTimestamps = false,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -204,6 +228,7 @@ const FullSegmentTranscriptBubble: React.FC<
 
       const selectedTokens = selectionText
         .split(/\s+/)
+        .filter((token) => !/^\d+:\d{2}$/.test(token.trim()))
         .map(normalizeRelayToken)
         .filter(Boolean);
       if (!selectedTokens.length) return;
@@ -214,8 +239,13 @@ const FullSegmentTranscriptBubble: React.FC<
         start <= wordTokens.length - selectedTokens.length;
         start++
       ) {
-        const matches = selectedTokens.every(
-          (token, offset) => wordTokens[start + offset] === token,
+        const matches = selectedTokens.every((token, offset) =>
+          selectionTokenMatchesWord(
+            token,
+            wordTokens[start + offset],
+            offset,
+            selectedTokens.length - 1,
+          ),
         );
         if (!matches) continue;
 
@@ -382,53 +412,62 @@ const FullSegmentTranscriptBubble: React.FC<
             index <= relayRange.end;
 
           return (
-            <Pressable
-              key={`${word.start}-${index}`}
-              onLayout={(e) => handleWordLayout(index, e)}
-              onPress={() => {
-                const hasBrowserSelection =
-                  Platform.OS === "web" &&
-                  typeof window !== "undefined" &&
-                  !!window.getSelection?.()?.toString().trim();
-                if (relayDidHighlightRef.current || hasBrowserSelection) {
-                  relayDidHighlightRef.current = false;
-                  return;
-                }
-                if (isBlurred && onWordPress) {
-                  onWordPress(index);
-                } else if (!isBlurred && !disableGuessModal) {
-                  handleSelectForReview(word);
-                }
-              }}
-              onLongPress={onWordPress ? () => onWordPress(index) : undefined}
-              delayLongPress={300}
-              style={isBlurred ? styles.maskedWordWrapper : undefined}
-            >
-              <Text
-                style={[
-                  styles.word,
-                  wordStyle,
-                  isRelayHighlighted && styles.relayHighlightedWord,
-                ]}
-              >
-                {word.word.startsWith(" ") ? "" : " "}
-                {displayWord}
-              </Text>
-              {isBlurred && (
-                <View
-                  style={[
-                    styles.maskedWordOverlay,
-                    isActive && { backgroundColor: "#b9e6bf" },
-                    revealCounts?.[index] != null && {
-                      left:
-                        1 +
-                        (CHAR_WIDTHS[TEST_CHAR ?? word.word.trim()[0]] ??
-                          DEFAULT_CHAR_WIDTH),
-                    },
-                  ]}
-                />
+            <Fragment key={`${word.start}-${index}`}>
+              {hasParagraphBreakBefore(word) && (
+                <View style={styles.paragraphBreak} />
               )}
-            </Pressable>
+              <Pressable
+                onLayout={(e) => handleWordLayout(index, e)}
+                onPress={() => {
+                  const hasBrowserSelection =
+                    Platform.OS === "web" &&
+                    typeof window !== "undefined" &&
+                    !!window.getSelection?.()?.toString().trim();
+                  if (relayDidHighlightRef.current || hasBrowserSelection) {
+                    relayDidHighlightRef.current = false;
+                    return;
+                  }
+                  if (isBlurred && onWordPress) {
+                    onWordPress(index);
+                  } else if (!isBlurred && !disableGuessModal) {
+                    handleSelectForReview(word);
+                  }
+                }}
+                onLongPress={onWordPress ? () => onWordPress(index) : undefined}
+                delayLongPress={300}
+                style={isBlurred ? styles.maskedWordWrapper : undefined}
+              >
+                <Text
+                  style={[
+                    styles.word,
+                    wordStyle,
+                    isRelayHighlighted && styles.relayHighlightedWord,
+                  ]}
+                >
+                  {word.word.startsWith(" ") ? "" : " "}
+                  {displayWord}
+                </Text>
+                {showWordTimestamps && (
+                  <Text selectable={false} style={styles.wordTimestamp}>
+                    {formatWordTimestamp(word.start)}
+                  </Text>
+                )}
+                {isBlurred && (
+                  <View
+                    style={[
+                      styles.maskedWordOverlay,
+                      isActive && { backgroundColor: "#b9e6bf" },
+                      revealCounts?.[index] != null && {
+                        left:
+                          1 +
+                          (CHAR_WIDTHS[TEST_CHAR ?? word.word.trim()[0]] ??
+                            DEFAULT_CHAR_WIDTH),
+                      },
+                    ]}
+                  />
+                )}
+              </Pressable>
+            </Fragment>
           );
         })}
       </ScrollView>
@@ -537,13 +576,25 @@ const styles = StyleSheet.create({
   },
   relayHighlightedWord: {
     color: "#26705d",
-    fontWeight: "800",
   },
   normalWord: {
     color: "#222",
   },
   maskedWordWrapper: {
     position: "relative",
+  },
+  paragraphBreak: {
+    width: "100%",
+    height: 12,
+  },
+  wordTimestamp: {
+    color: "#7c8497",
+    fontSize: 9,
+    lineHeight: 10,
+    fontWeight: "800",
+    textAlign: "center",
+    marginTop: -3,
+    userSelect: "none" as any,
   },
   maskedWordOverlay: {
     position: "absolute",

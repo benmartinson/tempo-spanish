@@ -8,7 +8,11 @@ import {
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { UserComposition } from "../../requests";
+import type { UserComposition } from "../../requests";
+import type { Channel, Segment, Video } from "../../types";
+import VideoTranscriptImport, {
+  type VideoTranscriptSearchResult,
+} from "./VideoTranscriptImport";
 
 export interface CompositionTemplate {
   id: string;
@@ -61,8 +65,15 @@ interface ChooseCompositionProps {
   isLoadingSavedCompositions: boolean;
   savedCompositionError: string | null;
   isSignedIn: boolean;
+  allChannels: Channel[];
+  publicSupabase: any;
+  targetLanguageVideos: Video[];
   onBlankCanvas: () => void;
   onChooseTemplate: (template: CompositionTemplate) => void;
+  onChooseVideoTranscript: (
+    result: VideoTranscriptSearchResult,
+    segments: Segment[],
+  ) => void;
   onChooseSavedComposition: (composition: UserComposition) => void;
 }
 
@@ -80,26 +91,29 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   isLoadingSavedCompositions,
   savedCompositionError,
   isSignedIn,
+  allChannels,
+  publicSupabase,
+  targetLanguageVideos,
   onBlankCanvas,
   onChooseTemplate,
+  onChooseVideoTranscript,
   onChooseSavedComposition,
 }) => {
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [view, setView] = useState<"main" | "templates" | "videoTranscript">(
+    "main",
+  );
   const savedEmptyLabel = isSignedIn
     ? "No saved compositions yet."
     : "Sign in to save and reopen compositions.";
 
-  if (templatesOpen) {
+  if (view === "templates") {
     return (
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator
       >
-        <Pressable
-          style={styles.backButton}
-          onPress={() => setTemplatesOpen(false)}
-        >
+        <Pressable style={styles.backButton} onPress={() => setView("main")}>
           <Ionicons name="arrow-back" size={16} color="#3d3a52" />
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
@@ -126,13 +140,42 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
     );
   }
 
+  if (view === "videoTranscript") {
+    return (
+      <VideoTranscriptImport
+        allChannels={allChannels}
+        publicSupabase={publicSupabase}
+        targetLanguageVideos={targetLanguageVideos}
+        onBack={() => setView("main")}
+        onChooseVideoTranscript={onChooseVideoTranscript}
+      />
+    );
+  }
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator
     >
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Choose Composition</Text>
+        <Text style={styles.headerSubtitle}>
+          Start fresh, import a transcript, or reopen saved work.
+        </Text>
+      </View>
       <View style={styles.list}>
+        <Pressable
+          style={styles.row}
+          onPress={() => setView("videoTranscript")}
+        >
+          <View style={styles.rowIcon}>
+            <Ionicons name="film-outline" size={18} color="#26705d" />
+          </View>
+          <Text style={styles.rowTitle}>Video Transcript</Text>
+          <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
+        </Pressable>
+
         <Pressable style={styles.row} onPress={onBlankCanvas}>
           <View style={styles.rowIcon}>
             <Ionicons name="document-text-outline" size={18} color="#26705d" />
@@ -141,7 +184,7 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
           <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
         </Pressable>
 
-        <Pressable style={styles.row} onPress={() => setTemplatesOpen(true)}>
+        <Pressable style={styles.row} onPress={() => setView("templates")}>
           <View style={styles.rowIcon}>
             <Ionicons name="albums-outline" size={18} color="#26705d" />
           </View>
@@ -149,14 +192,12 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
           <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
         </Pressable>
       </View>
-
       <View style={styles.savedHeader}>
         <Text style={styles.savedHeaderText}>Saved</Text>
         {isLoadingSavedCompositions && (
           <ActivityIndicator size="small" color="#5a5680" />
         )}
       </View>
-
       {savedCompositionError ? (
         <Text style={styles.emptyText}>{savedCompositionError}</Text>
       ) : savedCompositions.length ? (
@@ -171,9 +212,16 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
                 <Text style={styles.rowTitle} numberOfLines={1}>
                   {composition.title || "Untitled composition"}
                 </Text>
-                <Text style={styles.rowMeta}>
-                  {formatDate(composition.updated_at)}
-                </Text>
+                <View style={styles.rowMetaLine}>
+                  <Text style={styles.rowMeta}>
+                    {formatDate(composition.updated_at)}
+                  </Text>
+                  {composition.video_id && (
+                    <View style={styles.videoBadge}>
+                      <Text style={styles.videoBadgeText}>video</Text>
+                    </View>
+                  )}
+                </View>
               </View>
               <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
             </Pressable>
@@ -195,6 +243,20 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 14,
     gap: 10,
+  },
+  header: {
+    gap: 3,
+  },
+  headerTitle: {
+    color: "#2f3140",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  headerSubtitle: {
+    color: "#697187",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
   },
   list: {
     borderTopWidth: 1,
@@ -228,10 +290,28 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   rowMeta: {
-    marginTop: 2,
     color: "#697187",
     fontSize: 11,
     fontWeight: "700",
+  },
+  rowMetaLine: {
+    marginTop: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  videoBadge: {
+    minHeight: 16,
+    justifyContent: "center",
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    backgroundColor: "#f7dc82",
+  },
+  videoBadgeText: {
+    color: "#6f5300",
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
   savedHeader: {
     minHeight: 28,

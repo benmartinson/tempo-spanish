@@ -101,6 +101,7 @@ const linking: any = {
       channelId?: string;
       videoId?: string;
       compose?: boolean;
+      composeVideoId?: string;
       clip?: number;
       // creatorRequests?: boolean;
       // creatorSignUp?: boolean;
@@ -113,6 +114,10 @@ const linking: any = {
     // }
     if (segments[0] === "compose") {
       params.compose = true;
+      const composeVideoId = searchParams.get("video");
+      if (composeVideoId) {
+        params.composeVideoId = composeVideoId;
+      }
     } else if (segments[0] === "browse") {
       // Browse is the canonical root route.
     } else if (segments[0] === "channel" && segments[1]) {
@@ -134,7 +139,8 @@ const linking: any = {
     const route = state.routes[state.index ?? 0];
     if (route?.name !== "MainApp") return "";
 
-    const { channelId, videoId, compose, clip } = route.params ?? {};
+    const { channelId, videoId, compose, composeVideoId, clip } =
+      route.params ?? {};
     // Creator routes are hidden for this deploy.
     // const { creatorRequests, creatorSignUp } = route.params ?? {};
     // if (creatorRequests) {
@@ -143,7 +149,13 @@ const linking: any = {
     // if (creatorSignUp) {
     //   return "/creator/sign_up";
     // }
-    if (compose) return "/compose";
+    if (compose) {
+      const composeVideoParam =
+        typeof composeVideoId === "string" && composeVideoId
+          ? `?video=${encodeURIComponent(composeVideoId)}`
+          : "";
+      return `/compose${composeVideoParam}`;
+    }
     if (videoId) {
       const clipParam =
         typeof clip === "number" && Number.isFinite(clip)
@@ -196,6 +208,10 @@ const MainApp: React.FC = () => {
       ? route.params.clip
       : null;
   const routeCompose = route.params?.compose === true;
+  const routeComposeVideoId =
+    typeof route.params?.composeVideoId === "string"
+      ? route.params.composeVideoId
+      : null;
   // Creator routes are hidden for this deploy.
   // const routeCreatorRequests = route.params?.creatorRequests === true;
   // const routeCreatorSignUp = route.params?.creatorSignUp === true;
@@ -502,10 +518,18 @@ const MainApp: React.FC = () => {
     });
   };
 
-  const navigateVideo = (videoId: string) => {
+  const navigateVideo = (videoId: string, clip?: number) => {
     navigation.navigate({
       name: "MainApp",
-      params: { videoId },
+      params: typeof clip === "number" ? { videoId, clip } : { videoId },
+      merge: false,
+    });
+  };
+
+  const navigateCompositionVideo = (videoRecordId: string) => {
+    navigation.navigate({
+      name: "MainApp",
+      params: { compose: true, composeVideoId: videoRecordId },
       merge: false,
     });
   };
@@ -542,7 +566,7 @@ const MainApp: React.FC = () => {
           <ActivityIndicator size="large" color="#5a5680" />
         </View>
       ) : shouldShowCreatorRequestsPage ? null : shouldShowCreatorSignUpPage ? null : shouldShowComposePage ? (
-        <WritingStudioPage />
+        <WritingStudioPage initialVideoRecordId={routeComposeVideoId} />
       ) : shouldShowVideoPage ? ( // <CreatorRequestsPage onBack={navigateHome} /> // <CreatorSignUpPage onBack={navigateHome} />
         <>
           <NavTabBanner />
@@ -554,6 +578,7 @@ const MainApp: React.FC = () => {
           onNavigateHome={navigateHome}
           onNavigateChannel={navigateChannel}
           onNavigateVideo={navigateVideo}
+          onNavigateComposition={navigateCompositionVideo}
         />
       )}
       <CreditStore

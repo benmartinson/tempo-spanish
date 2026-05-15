@@ -30,12 +30,14 @@ import ChannelVideoList from "./ChannelVideoList";
 import ChannelHeader from "./ChannelHeader";
 import FilterVideos from "./FilterVideos";
 import { isWebScreenWidth } from "../../helpers/helpers";
+import VideoActionChoiceModal from "./VideoActionChoiceModal";
 
 interface VideoListProps {
   routeChannelId?: string | null;
   onNavigateHome?: () => void;
   onNavigateChannel?: (channelId: string) => void;
-  onNavigateVideo?: (videoId: string) => void;
+  onNavigateVideo?: (videoId: string, clip?: number) => void;
+  onNavigateComposition?: (videoRecordId: string) => void;
 }
 
 const VideoList: React.FC<VideoListProps> = ({
@@ -43,6 +45,7 @@ const VideoList: React.FC<VideoListProps> = ({
   onNavigateHome,
   onNavigateChannel,
   onNavigateVideo,
+  onNavigateComposition,
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -51,6 +54,11 @@ const VideoList: React.FC<VideoListProps> = ({
   const isWeb = Platform.OS === "web";
   const isWebScreen = isWebScreenWidth(width);
   const [loadingVideo, setLoadingVideo] = useState(false);
+  const [pendingVideoAction, setPendingVideoAction] = useState<{
+    videoId: string;
+    recordId: string;
+    clip?: number;
+  } | null>(null);
   const selectedChannelId = useSelector(
     (state: RootState) => state.selectedChannelId,
   );
@@ -96,7 +104,9 @@ const VideoList: React.FC<VideoListProps> = ({
   }, [supabase, userId, currentVideo]);
   const videoResults = currentSearchResults.reduce(
     (acc, result) => {
-      const video = allVideos.find((video) => video.id === result.video_id);
+      const video = allVideos.find(
+        (video) => String(video.id) === String(result.video_id),
+      );
       if (!video) return acc;
       if (video.id in acc) {
         acc[video.id].clips.push(result.start);
@@ -112,17 +122,18 @@ const VideoList: React.FC<VideoListProps> = ({
   );
   const videoResultsArray = Object.values(videoResults);
 
-  const handleWatchPress = async (
+  const startShadowingVideo = async (
     videoId: string,
     recordId: string,
     clip?: number,
   ) => {
     if (isWeb && onNavigateVideo) {
       const selectedVideo = allVideos.find(
-        (video) => video.id === recordId || video.video_id === videoId,
+        (video) =>
+          String(video.id) === String(recordId) || video.video_id === videoId,
       );
       if (selectedVideo) {
-        onNavigateVideo(selectedVideo.video_id);
+        onNavigateVideo(selectedVideo.video_id, clip);
       }
       return;
     }
@@ -154,6 +165,36 @@ const VideoList: React.FC<VideoListProps> = ({
     } finally {
       setLoadingVideo(false);
     }
+  };
+
+  const handleWatchPress = (
+    videoId: string,
+    recordId: string,
+    clip?: number,
+  ) => {
+    if (loadingVideo) return;
+    setPendingVideoAction({ videoId, recordId, clip });
+  };
+
+  const pendingVideo = pendingVideoAction
+    ? allVideos.find(
+        (video) =>
+          String(video.id) === String(pendingVideoAction.recordId) ||
+          video.video_id === pendingVideoAction.videoId,
+      )
+    : null;
+
+  const handleChooseComposition = () => {
+    if (!pendingVideoAction) return;
+    onNavigateComposition?.(String(pendingVideoAction.recordId));
+    setPendingVideoAction(null);
+  };
+
+  const handleChooseShadowing = () => {
+    if (!pendingVideoAction) return;
+    const { videoId, recordId, clip } = pendingVideoAction;
+    setPendingVideoAction(null);
+    startShadowingVideo(videoId, recordId, clip);
   };
 
   const handleChannelPress = (channelId: string) => {
@@ -211,6 +252,15 @@ const VideoList: React.FC<VideoListProps> = ({
         .slice(0, 8),
     [channelSortIndexById, targetLanguageVideos],
   );
+  const videoActionModal = (
+    <VideoActionChoiceModal
+      visible={Boolean(pendingVideoAction)}
+      videoTitle={pendingVideo?.title}
+      onClose={() => setPendingVideoAction(null)}
+      onChooseComposition={handleChooseComposition}
+      onChooseShadowing={handleChooseShadowing}
+    />
+  );
 
   if (selectedChannel) {
     const channelVideos = allVideos
@@ -221,19 +271,22 @@ const VideoList: React.FC<VideoListProps> = ({
           new Date(a.release_date ?? a.created_at ?? 0).getTime(),
       );
     return (
-      <ChannelVideoList
-        channel={selectedChannel}
-        videos={channelVideos}
-        handleWatchPress={handleWatchPress}
-        loadingVideo={loadingVideo}
-        onBack={() => {
-          if (isWeb) {
-            onNavigateHome?.();
-          } else {
-            dispatch(setSelectedChannelId(null));
-          }
-        }}
-      />
+      <>
+        <ChannelVideoList
+          channel={selectedChannel}
+          videos={channelVideos}
+          handleWatchPress={handleWatchPress}
+          loadingVideo={loadingVideo}
+          onBack={() => {
+            if (isWeb) {
+              onNavigateHome?.();
+            } else {
+              dispatch(setSelectedChannelId(null));
+            }
+          }}
+        />
+        {videoActionModal}
+      </>
     );
   }
 
@@ -401,6 +454,7 @@ const VideoList: React.FC<VideoListProps> = ({
           }}
         </FilterVideos>
       </ScrollView>
+      {videoActionModal}
     </View>
   );
 };

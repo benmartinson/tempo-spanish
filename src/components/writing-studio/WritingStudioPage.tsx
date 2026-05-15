@@ -11,72 +11,28 @@ import { useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import { supabase as rawSupabase } from "../../../lib/supabase";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import {
-  TranscriptPhraseMatch,
-  UserComposition,
-  WritingSuggestion,
-  createUserComposition,
-  fetchVideoContext,
-  fetchUserCompositions,
-  fetchWritingSuggestions,
-  persistVideoSelection,
-  searchTranscriptPhrase,
-  updateUserComposition,
-} from "../../requests";
+import { fetchVideoContext, persistVideoSelection } from "../../requests";
+import type { UserComposition } from "../../requests";
 import {
   addUserVideoView,
   setCurrentVideo,
 } from "../../store/actions/dataActions";
-import {
-  computeBaseMaskedIndices,
-  isWebScreenWidth,
-  removeSpecialPunctuation,
-} from "../../helpers/helpers";
-import { LanguageCode, RootState, SegmentWord } from "../../types";
-import { YouTubePlayerHandle } from "../common/YouTubePlayer";
-import { CompositionTemplate } from "./ChooseComposition";
+import { isWebScreenWidth } from "../../helpers/helpers";
+import type { RootState, Segment } from "../../types";
 import ClipMatcher from "./ClipMatcher";
-import Composer, { StudioMode } from "./Composer";
+import Composer from "./Composer";
+import type { CompositionTemplate } from "./ChooseComposition";
+import type { VideoTranscriptSearchResult } from "./VideoTranscriptImport";
+import { useClipMatcher } from "./useClipMatcher";
+import { useCompositionController } from "./useCompositionController";
 
-const splitDraftIntoSentences = (text: string): string[] =>
-  text
-    .replace(/\s+/g, " ")
-    .match(/[^.!?]+[.!?]+|[^.!?]+$/g)
-    ?.map((sentence) => sentence.trim())
-    .filter(Boolean) ?? [];
+interface WritingStudioPageProps {
+  initialVideoRecordId?: string | null;
+}
 
-const getActiveSentence = (text: string, cursor: number): string => {
-  const safeCursor = Math.max(0, Math.min(cursor, text.length));
-  const before = text.slice(0, safeCursor);
-  const after = text.slice(safeCursor);
-  const start = Math.max(
-    before.lastIndexOf("."),
-    before.lastIndexOf("!"),
-    before.lastIndexOf("?"),
-  );
-  const nextStops = [after.indexOf("."), after.indexOf("!"), after.indexOf("?")]
-    .filter((index) => index >= 0)
-    .map((index) => safeCursor + index + 1);
-  const end = nextStops.length ? Math.min(...nextStops) : text.length;
-  return text.slice(start + 1, end).trim();
-};
-
-const getSelectedPhrase = (
-  draft: string,
-  selection: { start: number; end: number },
-): string => {
-  const start = Math.min(selection.start, selection.end);
-  const end = Math.max(selection.start, selection.end);
-  return draft.slice(start, end).trim().replace(/\s+/g, " ");
-};
-
-const makeCompositionTitle = (text: string): string => {
-  const words = text.trim().split(/\s+/).filter(Boolean).slice(0, 7);
-  if (!words.length) return "Untitled composition";
-  return words.join(" ");
-};
-
-const WritingStudioPage: React.FC = () => {
+const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
+  initialVideoRecordId = null,
+}) => {
   const { width } = useWindowDimensions();
   const isWide = isWebScreenWidth(width);
   const navigation = useNavigation<any>();
@@ -84,53 +40,18 @@ const WritingStudioPage: React.FC = () => {
   const { isSignedIn, userId } = useAuth();
   const clerkSupabase = useSupabaseWithClerk();
   const publicSupabase = clerkSupabase ?? rawSupabase;
+  const [
+    isLoadingInitialVideoComposition,
+    setIsLoadingInitialVideoComposition,
+  ] = useState(Boolean(initialVideoRecordId));
+  const [initialVideoCompositionFailed, setInitialVideoCompositionFailed] =
+    useState(false);
+  const [isMemorizeFullScreen, setIsMemorizeFullScreen] = useState(false);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const allChannels = useSelector((state: RootState) => state.allChannels);
   const targetLanguage = useSelector(
     (state: RootState) => state.userSettings.targetLanguage,
   );
-
-  const [mode, setMode] = useState<StudioMode>("write");
-  const [draft, setDraft] = useState("");
-  const [compositionTitle, setCompositionTitle] = useState("");
-  const [hasChosenComposition, setHasChosenComposition] = useState(false);
-  const [currentComposition, setCurrentComposition] =
-    useState<UserComposition | null>(null);
-  const [savedCompositions, setSavedCompositions] = useState<UserComposition[]>(
-    [],
-  );
-  const [isLoadingSavedCompositions, setIsLoadingSavedCompositions] =
-    useState(false);
-  const [savedCompositionError, setSavedCompositionError] = useState<
-    string | null
-  >(null);
-  const [isSavingComposition, setIsSavingComposition] = useState(false);
-  const [saveCompositionError, setSaveCompositionError] = useState<
-    string | null
-  >(null);
-  const [saveCompositionMessage, setSaveCompositionMessage] = useState<
-    string | null
-  >(null);
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
-  const [relayedHighlightedPhrase, setRelayedHighlightedPhrase] = useState("");
-  const [suggestions, setSuggestions] = useState<WritingSuggestion[]>([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [suggestionError, setSuggestionError] = useState<string | null>(null);
-  const [matches, setMatches] = useState<TranscriptPhraseMatch[]>([]);
-  const [selectedMatch, setSelectedMatch] =
-    useState<TranscriptPhraseMatch | null>(null);
-  const [selectedMatchPhrase, setSelectedMatchPhrase] = useState("");
-  const [isSearchingPhrase, setIsSearchingPhrase] = useState(false);
-  const [phraseError, setPhraseError] = useState<string | null>(null);
-  const [playerTime, setPlayerTime] = useState(0);
-  const [playerIsPlaying, setPlayerIsPlaying] = useState(false);
-  const [playerRefreshKey, setPlayerRefreshKey] = useState(1);
-  const [memorizeDifficulty, setMemorizeDifficulty] = useState(0);
-  const [revealedMemorizeIndices, setRevealedMemorizeIndices] = useState<
-    Set<number>
-  >(new Set());
-  const playerRef = useRef<YouTubePlayerHandle>(null);
-  const clipPlaybackTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const channelTitleById = useMemo(
     () =>
@@ -139,427 +60,194 @@ const WritingStudioPage: React.FC = () => {
       ),
     [allChannels],
   );
-  const selectedMatchIndex = selectedMatch
-    ? matches.findIndex(
-        (match) =>
-          match.videoRecordId === selectedMatch.videoRecordId &&
-          match.segmentId === selectedMatch.segmentId,
-      )
-    : -1;
-  const previousMatch =
-    selectedMatchIndex > 0 ? matches[selectedMatchIndex - 1] : null;
-  const nextMatch =
-    selectedMatchIndex >= 0 && selectedMatchIndex < matches.length - 1
-      ? matches[selectedMatchIndex + 1]
+  const targetLanguageVideos = useMemo(() => {
+    if (!targetLanguage) return [];
+
+    const channelLanguageById = new Map(
+      allChannels.map((channel) => [channel.channel_id, channel.language]),
+    );
+
+    return allVideos.filter(
+      (video) => channelLanguageById.get(video.channel_id) === targetLanguage,
+    );
+  }, [allChannels, allVideos, targetLanguage]);
+
+  const composition = useCompositionController({
+    allChannels,
+    allVideos,
+    clerkSupabase,
+    isSignedIn: Boolean(isSignedIn),
+    targetLanguage,
+    userId,
+  });
+  const transcriptSourceVideo = useMemo(() => {
+    if (!composition.transcriptSource) return null;
+    return (
+      allVideos.find(
+        (video) =>
+          String(video.id) ===
+          String(composition.transcriptSource?.result.videoRecordId),
+      ) ?? null
+    );
+  }, [allVideos, composition.transcriptSource]);
+  const clipMatcher = useClipMatcher({
+    activeSearchPhrase: composition.activeSearchPhrase,
+    publicSupabase,
+    targetLanguageVideos,
+    transcriptSourceVideo,
+    transcriptSourceSegmentRange: composition.transcriptSourceSegmentRange,
+    localClipMatch: composition.videoModeClipMatch,
+  });
+
+  const handleBlankCanvas = useCallback(() => {
+    clipMatcher.clearClipMatches();
+    composition.handleBlankCanvas();
+  }, [clipMatcher, composition]);
+  const handleChooseTemplate = useCallback(
+    (template: CompositionTemplate) => {
+      clipMatcher.clearClipMatches();
+      composition.handleChooseTemplate(template);
+    },
+    [clipMatcher, composition],
+  );
+  const handleChooseSavedComposition = useCallback(
+    async (compositionRecord: UserComposition) => {
+      clipMatcher.clearClipMatches();
+      await composition.handleChooseSavedComposition(compositionRecord);
+    },
+    [clipMatcher, composition],
+  );
+  const handleChooseVideoTranscript = useCallback(
+    (result: VideoTranscriptSearchResult, segments: Segment[]) => {
+      clipMatcher.clearClipMatches();
+      composition.handleChooseVideoTranscript(result, segments);
+    },
+    [clipMatcher, composition],
+  );
+  const chooseInitialVideoTranscriptRef = useRef(handleChooseVideoTranscript);
+  useEffect(() => {
+    chooseInitialVideoTranscriptRef.current = handleChooseVideoTranscript;
+  }, [handleChooseVideoTranscript]);
+  const handleNewComposition = useCallback(() => {
+    clipMatcher.clearClipMatches();
+    setIsMemorizeFullScreen(false);
+    composition.handleNewComposition();
+    if (initialVideoRecordId) {
+      navigation.navigate({
+        name: "MainApp",
+        params: { compose: true },
+        merge: false,
+      });
+    }
+  }, [clipMatcher, composition, initialVideoRecordId, navigation]);
+  const loadedInitialVideoRecordIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const normalizedInitialVideoRecordId = initialVideoRecordId
+      ? String(initialVideoRecordId)
       : null;
 
-  const queueMatchPlayback = useCallback(
-    (match: TranscriptPhraseMatch, delays = [500, 1000]) => {
-      clipPlaybackTimeoutsRef.current.forEach(clearTimeout);
-      clipPlaybackTimeoutsRef.current = delays.map((delay) =>
-        setTimeout(() => {
-          playerRef.current?.setClip(match.start, match.end);
-          playerRef.current?.setSpeed(1);
-          playerRef.current?.seekAndPlay(match.start);
-        }, delay),
-      );
-    },
-    [],
-  );
-
-  useEffect(() => {
-    return () => {
-      clipPlaybackTimeoutsRef.current.forEach(clearTimeout);
-      clipPlaybackTimeoutsRef.current = [];
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isSignedIn || !userId) {
-      setSavedCompositions([]);
-      setSavedCompositionError(null);
-      setIsLoadingSavedCompositions(false);
+    if (!initialVideoRecordId || !publicSupabase) {
+      setIsLoadingInitialVideoComposition(false);
       return;
     }
-
-    if (!clerkSupabase) {
-      setIsLoadingSavedCompositions(true);
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoadingSavedCompositions(true);
-    setSavedCompositionError(null);
-
-    fetchUserCompositions({ supabase: clerkSupabase, userId })
-      .then((compositions) => {
-        if (!cancelled) setSavedCompositions(compositions);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSavedCompositions([]);
-          setSavedCompositionError("None found.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingSavedCompositions(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [clerkSupabase, isSignedIn, userId]);
-
-  const selectedPhrase = useMemo(
-    () => getSelectedPhrase(draft, selection),
-    [draft, selection],
-  );
-  const activeSearchPhrase = selectedPhrase || relayedHighlightedPhrase;
-  const activeSentence = useMemo(
-    () => getActiveSentence(draft, selection.end),
-    [draft, selection.end],
-  );
-  const memorizeWords = useMemo<SegmentWord[]>(() => {
-    const tokens = draft.trim().split(/\s+/).filter(Boolean);
-    return tokens.map((word, index) => ({
-      word,
-      start: index * 0.35,
-      end: index * 0.35 + 0.3,
-      frequency: index,
-    }));
-  }, [draft]);
-  const memorizeMaskedIndices = useMemo(() => {
-    const masked = computeBaseMaskedIndices(memorizeWords, memorizeDifficulty);
-    revealedMemorizeIndices.forEach((index) => masked.delete(index));
-    return masked;
-  }, [memorizeDifficulty, memorizeWords, revealedMemorizeIndices]);
-  const setMemorizeDifficultyAndReset = useCallback((difficulty: number) => {
-    setMemorizeDifficulty(difficulty);
-    setRevealedMemorizeIndices(new Set());
-  }, []);
-  const revealMemorizeWord = useCallback((index: number) => {
-    setRevealedMemorizeIndices((prev) => {
-      const next = new Set(prev);
-      next.add(index);
-      return next;
-    });
-  }, []);
-
-  useEffect(
-    () => setRevealedMemorizeIndices(new Set()),
-    [memorizeDifficulty, memorizeWords],
-  );
-
-  useEffect(() => {
-    if (!saveCompositionMessage) return;
-    const timer = setTimeout(() => {
-      setSaveCompositionMessage(null);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [saveCompositionMessage]);
-
-  useEffect(() => {
     if (
-      !hasChosenComposition ||
-      !targetLanguage ||
-      !isSignedIn ||
-      activeSentence.length < 4
+      loadedInitialVideoRecordIdRef.current === normalizedInitialVideoRecordId
     ) {
-      setSuggestions([]);
-      setSuggestionError(
-        !isSignedIn && activeSentence.length >= 4
-          ? "Sign in to use AI suggestions."
-          : null,
-      );
-      setIsLoadingSuggestions(false);
+      setIsLoadingInitialVideoComposition(false);
+      return;
+    }
+
+    const video = allVideos.find(
+      (item) => String(item.id) === String(initialVideoRecordId),
+    );
+    if (!video) {
+      setIsLoadingInitialVideoComposition(!allVideos.length);
+      setInitialVideoCompositionFailed(Boolean(allVideos.length));
       return;
     }
 
     let cancelled = false;
-    const timer = setTimeout(() => {
-      setIsLoadingSuggestions(true);
-      setSuggestionError(null);
-      fetchWritingSuggestions({
-        draftText: draft,
-        activeSentence,
-        targetLanguage: targetLanguage as LanguageCode,
-      })
-        .then((nextSuggestions) => {
-          if (!cancelled) setSuggestions(nextSuggestions);
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setSuggestions([]);
-            setSuggestionError("Suggestions are unavailable right now.");
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setIsLoadingSuggestions(false);
-        });
-    }, 450);
+    setInitialVideoCompositionFailed(false);
+    setIsLoadingInitialVideoComposition(true);
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [activeSentence, draft, hasChosenComposition, isSignedIn, targetLanguage]);
+    const loadInitialVideoTranscript = async () => {
+      try {
+        const { data, error } = await publicSupabase
+          .from("transcript_segment")
+          .select("segment_id,start,end,text,video_id,words")
+          .eq("video_id", video.id)
+          .order("segment_id");
 
-  useEffect(() => {
-    if (!activeSearchPhrase) {
-      setPhraseError(null);
-      setIsSearchingPhrase(false);
-      return;
-    }
-
-    const selectedSentences = splitDraftIntoSentences(activeSearchPhrase);
-    if (selectedSentences.length > 1 || activeSearchPhrase.length > 180) {
-      setIsSearchingPhrase(false);
-      setPhraseError("Select no more than one sentence.");
-      return;
-    }
-
-    if (activeSearchPhrase.length < 3) {
-      setIsSearchingPhrase(false);
-      setPhraseError(null);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setIsSearchingPhrase(true);
-      setPhraseError(null);
-      const requestedPhrase = activeSearchPhrase;
-
-      const runSearch = async () => {
-        let quickMatch: TranscriptPhraseMatch | null = null;
-
-        try {
-          const quickMatches = await searchTranscriptPhrase({
-            supabase: publicSupabase,
-            phrase: requestedPhrase,
-            videos: allVideos,
-            limit: 1,
-          });
-          if (cancelled) return;
-
-          quickMatch = quickMatches[0] ?? null;
-          if (quickMatch) {
-            setMatches([quickMatch]);
-            setSelectedMatch(quickMatch);
-            setSelectedMatchPhrase(requestedPhrase);
-            setPlayerTime(quickMatch.start);
-            setPlayerRefreshKey((key) => key + 1);
-            queueMatchPlayback(quickMatch);
-          }
-        } catch {
-          if (!cancelled) {
-            setMatches([]);
-            setSelectedMatch(null);
-            setSelectedMatchPhrase("");
-            setPhraseError("Transcript search is unavailable right now.");
-          }
+        if (error) {
+          console.error("Error loading composition video transcript:", error);
           return;
         }
 
-        try {
-          const fullMatches = await searchTranscriptPhrase({
-            supabase: publicSupabase,
-            phrase: requestedPhrase,
-            videos: allVideos,
-          });
-          if (cancelled) return;
-
-          setMatches(fullMatches);
-          const bestMatch = fullMatches[0] ?? quickMatch;
-          if (!bestMatch) {
-            setSelectedMatch(null);
-            setSelectedMatchPhrase("");
-            setPhraseError("No transcript match found.");
-            return;
-          }
-
-          if (!quickMatch) {
-            setSelectedMatch(bestMatch);
-            setSelectedMatchPhrase(requestedPhrase);
-            setPlayerTime(bestMatch.start);
-            setPlayerRefreshKey((key) => key + 1);
-            queueMatchPlayback(bestMatch);
-          }
-        } catch {
-          if (!cancelled) {
-            setPhraseError("Transcript search is unavailable right now.");
-          }
-        } finally {
-          if (!cancelled) setIsSearchingPhrase(false);
+        const segments = ((data ?? []) as Segment[]).filter((segment) =>
+          Boolean(segment.text?.trim()),
+        );
+        if (cancelled) return;
+        if (!segments.length) {
+          setInitialVideoCompositionFailed(true);
+          return;
         }
-      };
 
-      runSearch();
-    }, 350);
+        const channel = allChannels.find(
+          (item) => item.channel_id === video.channel_id,
+        );
+        const result: VideoTranscriptSearchResult = {
+          videoId: video.video_id,
+          videoRecordId: String(video.id),
+          channelId: video.channel_id,
+          title: video.title,
+          channelTitle: channel?.title ?? "Tempo channel",
+          thumbnailUrl: video.thumbnail_url,
+          matchedSegmentId: null,
+        };
+
+        chooseInitialVideoTranscriptRef.current(result, segments);
+        loadedInitialVideoRecordIdRef.current = String(video.id);
+      } catch (error) {
+        console.error("Error opening video transcript composition:", error);
+        if (!cancelled) setInitialVideoCompositionFailed(true);
+      } finally {
+        if (!cancelled) setIsLoadingInitialVideoComposition(false);
+      }
+    };
+
+    loadInitialVideoTranscript();
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
     };
-  }, [activeSearchPhrase, allVideos, publicSupabase, queueMatchPlayback]);
-
-  const playMatch = useCallback(
-    (match: TranscriptPhraseMatch) => {
-      setSelectedMatch(match);
-      setPlayerTime(match.start);
-      setPlayerRefreshKey((key) => key + 1);
-      queueMatchPlayback(match, [250, 700]);
-    },
-    [queueMatchPlayback],
+  }, [allChannels, allVideos, initialVideoRecordId, publicSupabase]);
+  const shouldBypassCompositionChooser = Boolean(
+    initialVideoRecordId &&
+    !composition.hasChosenComposition &&
+    isLoadingInitialVideoComposition &&
+    !initialVideoCompositionFailed,
   );
-
-  const replaySelectedMatch = useCallback(
-    (speed = 1) => {
-      if (!selectedMatch) return;
-      playerRef.current?.setSpeed(speed);
-      playerRef.current?.setClip(selectedMatch.start, selectedMatch.end);
-      playerRef.current?.seekAndPlay(selectedMatch.start);
-    },
-    [selectedMatch],
-  );
-
-  const toggleMatchPlayback = useCallback(() => {
-    playerRef.current?.togglePlayback();
-  }, []);
-
-  const clearCompositionWorkspace = useCallback(() => {
-    clipPlaybackTimeoutsRef.current.forEach(clearTimeout);
-    clipPlaybackTimeoutsRef.current = [];
-    setMode("write");
-    setSelection({ start: 0, end: 0 });
-    setRelayedHighlightedPhrase("");
-    setMatches([]);
-    setSelectedMatch(null);
-    setSelectedMatchPhrase("");
-    setIsSearchingPhrase(false);
-    setPhraseError(null);
-    setPlayerTime(0);
-    setPlayerIsPlaying(false);
-    setRevealedMemorizeIndices(new Set());
-  }, []);
-
-  const beginComposition = useCallback(
-    (text: string, composition: UserComposition | null = null) => {
-      clearCompositionWorkspace();
-      setDraft(text);
-      setCompositionTitle(composition?.title ?? "");
-      setCurrentComposition(composition);
-      setHasChosenComposition(true);
-      setSaveCompositionError(null);
-      setSaveCompositionMessage(null);
-    },
-    [clearCompositionWorkspace],
-  );
-
-  const handleDraftChange = useCallback((nextDraft: string) => {
-    setDraft(nextDraft);
-    setSaveCompositionError(null);
-    setSaveCompositionMessage(null);
-  }, []);
-
-  const handleTitleChange = useCallback((nextTitle: string) => {
-    setCompositionTitle(nextTitle);
-    setSaveCompositionError(null);
-    setSaveCompositionMessage(null);
-  }, []);
-
-  const handleBlankCanvas = useCallback(() => {
-    beginComposition("");
-  }, [beginComposition]);
-
-  const handleChooseTemplate = useCallback(
-    (template: CompositionTemplate) => {
-      beginComposition(template.text);
-    },
-    [beginComposition],
-  );
-
-  const handleChooseSavedComposition = useCallback(
-    (composition: UserComposition) => {
-      beginComposition(composition.text, composition);
-    },
-    [beginComposition],
-  );
-
-  const handleNewComposition = useCallback(() => {
-    clearCompositionWorkspace();
-    setDraft("");
-    setCompositionTitle("");
-    setCurrentComposition(null);
-    setHasChosenComposition(false);
-    setSaveCompositionError(null);
-    setSaveCompositionMessage(null);
-  }, [clearCompositionWorkspace]);
-
-  const mergeSavedComposition = useCallback((composition: UserComposition) => {
-    setSavedCompositions((prev) => [
+  const composerComposition = useMemo(
+    () => ({
+      ...composition,
+      handleBlankCanvas,
+      handleChooseSavedComposition,
+      handleChooseTemplate,
+      handleChooseVideoTranscript,
+      handleNewComposition,
+    }),
+    [
       composition,
-      ...prev.filter((item) => item.id !== composition.id),
-    ]);
-  }, []);
-
-  const saveComposition = useCallback(async () => {
-    const text = draft.trim();
-    if (!text) return;
-
-    if (!isSignedIn || !userId) {
-      setSaveCompositionError("Sign in to save compositions.");
-      setSaveCompositionMessage(null);
-      return;
-    }
-
-    if (!clerkSupabase) {
-      setSaveCompositionError("Saving is still getting ready.");
-      setSaveCompositionMessage(null);
-      return;
-    }
-
-    setIsSavingComposition(true);
-    setSaveCompositionError(null);
-    setSaveCompositionMessage(null);
-
-    try {
-      const title = compositionTitle.trim() || makeCompositionTitle(text);
-      const savedComposition = currentComposition
-        ? await updateUserComposition({
-            supabase: clerkSupabase,
-            userId,
-            compositionId: currentComposition.id,
-            title,
-            text: draft,
-          })
-        : await createUserComposition({
-            supabase: clerkSupabase,
-            userId,
-            title,
-            text: draft,
-          });
-
-      setCurrentComposition(savedComposition);
-      mergeSavedComposition(savedComposition);
-      setSaveCompositionMessage("Saved!");
-    } catch {
-      setSaveCompositionError("Could not save this composition.");
-    } finally {
-      setIsSavingComposition(false);
-    }
-  }, [
-    currentComposition,
-    draft,
-    compositionTitle,
-    clerkSupabase,
-    isSignedIn,
-    mergeSavedComposition,
-    userId,
-  ]);
+      handleBlankCanvas,
+      handleChooseSavedComposition,
+      handleChooseTemplate,
+      handleChooseVideoTranscript,
+      handleNewComposition,
+    ],
+  );
 
   const openSelectedVideo = useCallback(async () => {
+    const { selectedMatch } = clipMatcher;
     if (!selectedMatch) return;
 
     try {
@@ -594,75 +282,47 @@ const WritingStudioPage: React.FC = () => {
     });
   }, [
     clerkSupabase,
+    clipMatcher,
     dispatch,
     navigation,
     publicSupabase,
-    selectedMatch,
     userId,
   ]);
-
-  const handleRelayHighlightedWords = useCallback((words: SegmentWord[]) => {
-    const phrase = removeSpecialPunctuation(
-      words
-        .map((word) => word.word)
-        .join(" ")
-        .replace(/\s+/g, " "),
-    ).trim();
-    setRelayedHighlightedPhrase(phrase);
+  const toggleMemorizeFullScreen = useCallback(() => {
+    setIsMemorizeFullScreen((prev) => !prev);
+  }, []);
+  const exitMemorizeFullScreen = useCallback(() => {
+    setIsMemorizeFullScreen(false);
   }, []);
 
   return (
     <View style={styles.page}>
-      <View style={[styles.writeLayout, !isWide && styles.writeLayoutNarrow]}>
-        <ClipMatcher
-          matches={matches}
-          selectedMatch={selectedMatch}
-          selectedMatchIndex={selectedMatchIndex}
-          previousMatch={previousMatch}
-          nextMatch={nextMatch}
-          selectedMatchPhrase={selectedMatchPhrase}
-          isSearchingPhrase={isSearchingPhrase}
-          phraseError={phraseError}
-          playerRef={playerRef}
-          playerRefreshKey={playerRefreshKey}
-          playerTime={playerTime}
-          playerIsPlaying={playerIsPlaying}
-          channelTitleById={channelTitleById}
-          onSetPlayerTime={setPlayerTime}
-          onSetPlayerIsPlaying={setPlayerIsPlaying}
-          onPlayMatch={playMatch}
-          onReplaySelectedMatch={replaySelectedMatch}
-          onToggleMatchPlayback={toggleMatchPlayback}
-          onOpenSelectedVideo={openSelectedVideo}
-        />
+      <View
+        style={[
+          styles.writeLayout,
+          !isWide && styles.writeLayoutNarrow,
+          isMemorizeFullScreen && styles.writeLayoutFullScreen,
+        ]}
+      >
+        {!isMemorizeFullScreen && (
+          <ClipMatcher
+            clipMatcher={clipMatcher}
+            channelTitleById={channelTitleById}
+            hideSegmentTranscript={composition.isVideoMode}
+            onOpenSelectedVideo={openSelectedVideo}
+          />
+        )}
         <Composer
-          mode={mode}
-          draft={draft}
-          title={compositionTitle}
-          hasChosenComposition={hasChosenComposition}
-          selectionSearchPhrase={activeSearchPhrase}
-          savedCompositions={savedCompositions}
-          isLoadingSavedCompositions={isLoadingSavedCompositions}
-          savedCompositionError={savedCompositionError}
-          isSignedIn={isSignedIn}
-          memorizeWords={memorizeWords}
-          memorizeMaskedIndices={memorizeMaskedIndices}
-          memorizeDifficulty={memorizeDifficulty}
-          isSavingComposition={isSavingComposition}
-          saveCompositionError={saveCompositionError}
-          saveCompositionMessage={saveCompositionMessage}
-          onModeChange={setMode}
-          onTitleChange={handleTitleChange}
-          onDraftChange={handleDraftChange}
-          onSelectionChange={setSelection}
-          onBlankCanvas={handleBlankCanvas}
-          onChooseTemplate={handleChooseTemplate}
-          onChooseSavedComposition={handleChooseSavedComposition}
-          onNewComposition={handleNewComposition}
-          onSaveComposition={saveComposition}
-          onMemorizeDifficultyChange={setMemorizeDifficultyAndReset}
-          onRevealMemorizeWord={revealMemorizeWord}
-          onRelayHighlightedWords={handleRelayHighlightedWords}
+          composition={composerComposition}
+          isOpeningVideoComposition={
+            shouldBypassCompositionChooser || isLoadingInitialVideoComposition
+          }
+          isMemorizeFullScreen={isMemorizeFullScreen}
+          onToggleMemorizeFullScreen={toggleMemorizeFullScreen}
+          onExitMemorizeFullScreen={exitMemorizeFullScreen}
+          allChannels={allChannels}
+          publicSupabase={publicSupabase}
+          targetLanguageVideos={targetLanguageVideos}
         />
       </View>
     </View>
@@ -686,6 +346,9 @@ const styles = StyleSheet.create({
   },
   writeLayoutNarrow: {
     flexDirection: "column",
+  },
+  writeLayoutFullScreen: {
+    maxWidth: "100%",
   },
 });
 

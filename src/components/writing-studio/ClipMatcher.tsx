@@ -1,4 +1,4 @@
-import React, { RefObject, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -7,30 +7,16 @@ import {
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { TranscriptPhraseMatch } from "../../requests";
-import { Sentence } from "../../types";
-import YouTubePlayer, { YouTubePlayerHandle } from "../common/YouTubePlayer";
+import type { TranscriptPhraseMatch } from "../../requests";
+import type { Sentence } from "../../types";
+import YouTubePlayer from "../common/YouTubePlayer";
 import PlayerControls from "../shadow/PlayerControls";
+import type { ClipMatcherController } from "./useClipMatcher";
 
 interface ClipMatcherProps {
-  matches: TranscriptPhraseMatch[];
-  selectedMatch: TranscriptPhraseMatch | null;
-  selectedMatchIndex: number;
-  previousMatch: TranscriptPhraseMatch | null;
-  nextMatch: TranscriptPhraseMatch | null;
-  selectedMatchPhrase: string;
-  isSearchingPhrase: boolean;
-  phraseError: string | null;
-  playerRef: RefObject<YouTubePlayerHandle | null>;
-  playerRefreshKey: number;
-  playerTime: number;
-  playerIsPlaying: boolean;
+  clipMatcher: ClipMatcherController;
   channelTitleById: Map<string, string>;
-  onSetPlayerTime: (time: number) => void;
-  onSetPlayerIsPlaying: (isPlaying: boolean) => void;
-  onPlayMatch: (match: TranscriptPhraseMatch) => void;
-  onReplaySelectedMatch: (speed?: number) => void;
-  onToggleMatchPlayback: () => void;
+  hideSegmentTranscript?: boolean;
   onOpenSelectedVideo: () => void;
 }
 
@@ -42,40 +28,28 @@ const makeClipSentence = (match: TranscriptPhraseMatch): Sentence => ({
   words: [],
 });
 
-const ClipMatcher: React.FC<ClipMatcherProps> = ({
-  matches,
-  selectedMatch,
-  selectedMatchIndex,
-  previousMatch,
-  nextMatch,
-  selectedMatchPhrase,
-  isSearchingPhrase,
-  phraseError,
-  playerRef,
-  playerRefreshKey,
-  playerTime,
-  playerIsPlaying,
-  channelTitleById,
-  onSetPlayerTime,
-  onSetPlayerIsPlaying,
-  onPlayMatch,
-  onReplaySelectedMatch,
-  onToggleMatchPlayback,
-  onOpenSelectedVideo,
-}) => {
-  const segmentTranscript = useMemo(() => {
-    if (!selectedMatch) return null;
+const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
+  const {
+    clipMatcher: cm,
+    channelTitleById,
+    hideSegmentTranscript = false,
+    onOpenSelectedVideo,
+  } = props;
 
-    const words = selectedMatch.segmentWords.length
-      ? selectedMatch.segmentWords
-      : selectedMatch.segmentText.split(/\s+/).filter(Boolean);
+  const segmentTranscript = useMemo(() => {
+    const match = cm.selectedMatch;
+    if (!match) return null;
+
+    const words = match.segmentWords.length
+      ? match.segmentWords
+      : match.segmentText.split(/\s+/).filter(Boolean);
 
     return words.map((word, index) => {
       const isHighlighted =
-        selectedMatch.highlightStartIndex !== null &&
-        selectedMatch.highlightEndIndex !== null &&
-        index >= selectedMatch.highlightStartIndex &&
-        index <= selectedMatch.highlightEndIndex;
+        match.highlightStartIndex !== null &&
+        match.highlightEndIndex !== null &&
+        index >= match.highlightStartIndex &&
+        index <= match.highlightEndIndex;
 
       return (
         <Text
@@ -87,41 +61,42 @@ const ClipMatcher: React.FC<ClipMatcherProps> = ({
         </Text>
       );
     });
-  }, [selectedMatch]);
+  }, [cm.selectedMatch]);
 
   return (
     <View style={styles.clipColumn}>
       <View style={styles.videoPane}>
         <View style={[styles.paneHeader, styles.videoPaneHeader]}>
           <Text style={styles.paneTitle}>Clip Match</Text>
-          {isSearchingPhrase && (
+          {cm.isSearchingPhrase && (
             <ActivityIndicator size="small" color="#5a5680" />
           )}
         </View>
 
-        {selectedMatch ? (
+        {cm.selectedMatch ? (
           <>
             <View style={styles.playerShell}>
               <YouTubePlayer
-                ref={playerRef}
-                videoId={selectedMatch.videoId}
-                clip={makeClipSentence(selectedMatch)}
+                ref={cm.playerRef}
+                videoId={cm.selectedMatch.videoId}
+                clip={makeClipSentence(cm.selectedMatch)}
                 autoplay
-                refreshKey={playerRefreshKey}
-                setTime={onSetPlayerTime}
-                startTime={playerTime}
-                videoText={selectedMatchPhrase}
-                onPlayingStateChange={onSetPlayerIsPlaying}
+                refreshKey={cm.playerRefreshKey}
+                setTime={cm.setPlayerTime}
+                startTime={cm.playerTime}
+                videoText={cm.selectedMatchPhrase}
+                onPlayingStateChange={cm.setPlayerIsPlaying}
+                onPress={cm.toggleMatchPlayback}
                 webCropMode="narrow"
               />
             </View>
             <View style={styles.matchTitleRow}>
               <View style={styles.matchTitleTextGroup}>
                 <Text style={styles.matchTitle} numberOfLines={1}>
-                  {selectedMatch.title}
+                  {cm.selectedMatch.title}
                 </Text>
                 <Text style={styles.matchChannel} numberOfLines={1}>
-                  {channelTitleById.get(selectedMatch.channelId) ??
+                  {channelTitleById.get(cm.selectedMatch.channelId) ??
                     "Tempo clip"}
                 </Text>
               </View>
@@ -135,11 +110,11 @@ const ClipMatcher: React.FC<ClipMatcherProps> = ({
             </View>
             <View style={styles.clipActionRow}>
               <PlayerControls
-                onReplay={() => onReplaySelectedMatch(1)}
-                onReplaySlow={() => onReplaySelectedMatch(0.75)}
-                onPlayPause={onToggleMatchPlayback}
-                isPlaying={playerIsPlaying}
-                playDisabled={!selectedMatch}
+                onReplay={() => cm.replaySelectedMatch(1)}
+                onReplaySlow={() => cm.replaySelectedMatch(0.75)}
+                onPlayPause={cm.toggleMatchPlayback}
+                isPlaying={cm.playerIsPlaying}
+                playDisabled={!cm.selectedMatch}
                 compact
                 containerStyle={styles.clipPlayerControls}
               />
@@ -147,35 +122,39 @@ const ClipMatcher: React.FC<ClipMatcherProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.clipNavArrow,
-                    !previousMatch && styles.clipNavArrowDisabled,
+                    !cm.previousMatch && styles.clipNavArrowDisabled,
                   ]}
-                  onPress={() => previousMatch && onPlayMatch(previousMatch)}
-                  disabled={!previousMatch}
+                  onPress={() =>
+                    cm.previousMatch && cm.playMatch(cm.previousMatch)
+                  }
+                  disabled={!cm.previousMatch}
                 >
                   <Ionicons name="arrow-back" size={18} color="#3d3a52" />
                 </TouchableOpacity>
                 <Text style={styles.clipNavCount}>
-                  Clip {selectedMatchIndex + 1} of {matches.length}
+                  Clip {cm.selectedMatchIndex + 1} of {cm.matches.length}
                 </Text>
                 <TouchableOpacity
                   style={[
                     styles.clipNavArrow,
-                    !nextMatch && styles.clipNavArrowDisabled,
+                    !cm.nextMatch && styles.clipNavArrowDisabled,
                   ]}
-                  onPress={() => nextMatch && onPlayMatch(nextMatch)}
-                  disabled={!nextMatch}
+                  onPress={() => cm.nextMatch && cm.playMatch(cm.nextMatch)}
+                  disabled={!cm.nextMatch}
                 >
                   <Ionicons name="arrow-forward" size={18} color="#3d3a52" />
                 </TouchableOpacity>
               </View>
             </View>
-            <Text style={styles.segmentTranscript}>{segmentTranscript}</Text>
+            {!hideSegmentTranscript && (
+              <Text style={styles.segmentTranscript}>{segmentTranscript}</Text>
+            )}
           </>
         ) : (
           <View style={styles.emptyVideoState}>
             <Ionicons name="film-outline" size={24} color="#5a5680" />
             <Text style={styles.emptyText}>
-              {phraseError ||
+              {cm.phraseError ||
                 "Matched video clips will appear after you highlight text."}
             </Text>
           </View>
@@ -187,7 +166,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = ({
 
 const styles = StyleSheet.create({
   clipColumn: {
-    flex: 1.2,
+    flex: 1,
     gap: 16,
   },
   videoPane: {

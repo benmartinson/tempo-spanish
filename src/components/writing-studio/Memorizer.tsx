@@ -1,5 +1,6 @@
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import DifficultySlider from "../common/DifficultySlider";
 import FullSegmentTranscriptBubble from "../common/FullSegmentTranscriptBubble";
 import { SegmentWord } from "../../types";
@@ -11,6 +12,8 @@ interface MemorizerProps {
   onDifficultyChange: (difficulty: number) => void;
   onRevealWord: (index: number) => void;
   onRelayHighlightedWords: (words: SegmentWord[]) => void;
+  isFullScreen?: boolean;
+  onToggleFullScreen?: () => void;
 }
 
 const Memorizer: React.FC<MemorizerProps> = ({
@@ -20,14 +23,29 @@ const Memorizer: React.FC<MemorizerProps> = ({
   onDifficultyChange,
   onRevealWord,
   onRelayHighlightedWords,
+  isFullScreen = false,
+  onToggleFullScreen,
 }) => (
   <View style={styles.composerMemorizeContent}>
-    <DifficultySlider
-      difficulty={difficulty}
-      onDifficultyChange={onDifficultyChange}
-      variant="compact"
-      style={styles.composerDifficultySlider}
-    />
+    <View style={styles.controlsRow}>
+      <DifficultySlider
+        difficulty={difficulty}
+        onDifficultyChange={onDifficultyChange}
+        variant="compact"
+        style={styles.composerDifficultySlider}
+      />
+      <Pressable
+        style={styles.fullScreenButton}
+        onPress={onToggleFullScreen}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <MaterialIcons
+          name={isFullScreen ? "fullscreen-exit" : "fullscreen"}
+          size={20}
+          color="#3d3a52"
+        />
+      </Pressable>
+    </View>
     <ScrollView
       style={styles.memorizeBubbleScroll}
       contentContainerStyle={styles.memorizeBubbleScrollContent}
@@ -50,13 +68,32 @@ const Memorizer: React.FC<MemorizerProps> = ({
 const styles = StyleSheet.create({
   composerMemorizeContent: {
     flex: 1,
+    width: "100%",
+    maxWidth: 800,
+    alignSelf: "center",
     paddingHorizontal: 14,
     paddingBottom: 14,
     gap: 8,
   },
-  composerDifficultySlider: {
-    alignSelf: "stretch",
+  controlsRow: {
     marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  composerDifficultySlider: {
+    flex: 1,
+    alignSelf: "auto",
+  },
+  fullScreenButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.18)",
   },
   memorizeBubbleScroll: {
     flex: 1,

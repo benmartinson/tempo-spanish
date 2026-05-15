@@ -385,11 +385,13 @@ export interface UserComposition {
   user_id: string;
   title: string;
   text: string;
+  video_id?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-const USER_COMPOSITION_COLUMNS = "id,user_id,title,text,created_at,updated_at";
+const USER_COMPOSITION_COLUMNS =
+  "id,user_id,title,text,video_id,created_at,updated_at";
 
 export const fetchUserCompositions = async ({
   supabase,
@@ -419,11 +421,13 @@ export const createUserComposition = async ({
   userId,
   title,
   text,
+  videoId,
 }: {
   supabase: any;
   userId: string | null | undefined;
   title: string;
   text: string;
+  videoId?: string | null;
 }): Promise<UserComposition> => {
   if (!supabase || !userId) {
     throw new Error("Sign in to save compositions.");
@@ -436,6 +440,7 @@ export const createUserComposition = async ({
       user_id: userId,
       title,
       text,
+      video_id: videoId ?? null,
       created_at: now,
       updated_at: now,
     })
@@ -456,12 +461,14 @@ export const updateUserComposition = async ({
   compositionId,
   title,
   text,
+  videoId,
 }: {
   supabase: any;
   userId: string | null | undefined;
   compositionId: string | number;
   title: string;
   text: string;
+  videoId?: string | null;
 }): Promise<UserComposition> => {
   if (!supabase || !userId) {
     throw new Error("Sign in to save compositions.");
@@ -472,6 +479,7 @@ export const updateUserComposition = async ({
     .update({
       title,
       text,
+      video_id: videoId ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", compositionId)
@@ -561,8 +569,8 @@ const findPhraseWordSpan = (
   if (!best || best.matched === 0) return null;
 
   return {
-    start: Math.max(0, words[best.startIndex].start - 3),
-    end: words[best.endIndex].end + 3,
+    start: Math.max(0, words[best.startIndex].start - 1),
+    end: words[best.endIndex].end + 1,
     anchorTime: words[best.startIndex].start,
     highlightStartIndex: best.startIndex,
     highlightEndIndex: best.endIndex,
@@ -580,11 +588,15 @@ export const searchTranscriptPhrase = async ({
   phrase,
   videos,
   limit = 8,
+  segmentIdStart,
+  segmentIdEnd,
 }: {
   supabase: any;
   phrase: string;
   videos: Video[];
   limit?: number;
+  segmentIdStart?: number;
+  segmentIdEnd?: number;
 }): Promise<TranscriptPhraseMatch[]> => {
   const cleanPhrase = phrase.trim().replace(/\s+/g, " ");
   if (cleanPhrase.length < 2 || videos.length === 0) return [];
@@ -601,6 +613,16 @@ export const searchTranscriptPhrase = async ({
 
   if (videoRecordIds.length > 0) {
     query = query.in("video_id", videoRecordIds);
+  }
+  if (
+    typeof segmentIdStart === "number" &&
+    Number.isFinite(segmentIdStart) &&
+    typeof segmentIdEnd === "number" &&
+    Number.isFinite(segmentIdEnd)
+  ) {
+    query = query
+      .gte("segment_id", Math.min(segmentIdStart, segmentIdEnd))
+      .lte("segment_id", Math.max(segmentIdStart, segmentIdEnd));
   }
 
   const { data, error } = await query;

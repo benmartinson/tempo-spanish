@@ -247,6 +247,7 @@ export interface SegmentWord {
   start: number;
   end: number;
   frequency: number;
+  paragraphBreakBefore?: boolean;
   isKnown?: boolean;
   contextTranslation?: string;
   vocabularyId?: number;
