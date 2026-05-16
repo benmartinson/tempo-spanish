@@ -63,6 +63,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
   const clerkSupabase = useSupabaseWithClerk();
   const { userId } = useAuth();
   const userSettings = useSelector((state: RootState) => state.userSettings);
+  const isRequiredSelection = !userSettings.targetLanguage;
   const [targetLanguage, setTargetLanguage] = useState<LanguageCode>(
     userSettings.targetLanguage ?? DEFAULT_EDIT_TARGET_LANGUAGE,
   );
@@ -205,6 +206,10 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
     }
   };
 
+  const handleRequestClose = () => {
+    if (!isRequiredSelection) onClose();
+  };
+
   const openNativeDropdown = () => {
     if (nativeDropdownOpen) {
       setNativeDropdownOpen(false);
@@ -263,8 +268,9 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
   return (
     <SlideModal
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={handleRequestClose}
       title="Choose Language"
+      showCloseButton={!isRequiredSelection}
     >
       <View style={styles.container}>
         <Text style={styles.sectionHeader}></Text>

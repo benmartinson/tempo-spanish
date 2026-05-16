@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -7,7 +7,11 @@ import {
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import type { TranscriptPhraseMatch } from "../../requests";
+import {
+  fetchVocabTranslation,
+  type TranscriptPhraseMatch,
+} from "../../requests";
+import { capitalize, stripPunctuation } from "../../helpers/helpers";
 import type { Sentence } from "../../types";
 import YouTubePlayer from "../common/YouTubePlayer";
 import PlayerControls from "../shadow/PlayerControls";
@@ -28,6 +32,18 @@ const makeClipSentence = (match: TranscriptPhraseMatch): Sentence => ({
   text: match.clipText,
   words: [],
 });
+
+const formatSelectedTranslationText = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  const displayValue = words.length === 1 ? stripPunctuation(trimmed) : trimmed;
+  return capitalize(displayValue);
+};
+
+const stripTrailingPhrasePunctuation = (value: string): string =>
+  value.trim().replace(/[.,!?;:…]+$/, "");
 
 const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   const {
@@ -64,15 +80,98 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
       );
     });
   }, [cm.selectedMatch]);
+  const [translation, setTranslation] = useState<string | null>(null);
+  const [alternateMeanings, setAlternateMeanings] = useState<string[]>([]);
+  const [isLoadingTranslation, setIsLoadingTranslation] = useState(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
+  const translationCacheRef = useRef<
+    Record<
+      string,
+      {
+        translation: string | null;
+        alternateMeanings: string[];
+      }
+    >
+  >({});
+  const selectedMatchRef = useRef<TranscriptPhraseMatch | null>(null);
+  selectedMatchRef.current = cm.selectedMatch;
+  const hasSelectedMatch = Boolean(cm.selectedMatch);
+  const selectedTranslationText = useMemo(
+    () => stripTrailingPhrasePunctuation(cm.selectedMatchPhrase),
+    [cm.selectedMatchPhrase],
+  );
+  const translationLookupText = useMemo(() => {
+    const words = selectedTranslationText.split(/\s+/).filter(Boolean);
+    return words.length === 1
+      ? stripPunctuation(selectedTranslationText)
+      : selectedTranslationText;
+  }, [selectedTranslationText]);
+  const selectedTranslationLabel = useMemo(
+    () => formatSelectedTranslationText(selectedTranslationText),
+    [selectedTranslationText],
+  );
+
+  useEffect(() => {
+    const selectedMatch = selectedMatchRef.current;
+    if (!selectedMatch || !translationLookupText) {
+      setTranslation(null);
+      setAlternateMeanings([]);
+      setIsLoadingTranslation(false);
+      setTranslationError(null);
+      return;
+    }
+
+    const selectedSegmentText = selectedMatch.segmentText;
+    const cacheKey = translationLookupText.toLocaleLowerCase();
+    const cached = translationCacheRef.current[cacheKey];
+    if (cached) {
+      setTranslation(cached.translation);
+      setAlternateMeanings(cached.alternateMeanings);
+      setIsLoadingTranslation(false);
+      setTranslationError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setTranslation(null);
+    setAlternateMeanings([]);
+    setTranslationError(null);
+    setIsLoadingTranslation(true);
+
+    fetchVocabTranslation({
+      vocabWord: translationLookupText,
+      sentenceText: selectedSegmentText,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        setTranslation(result.translation);
+        setAlternateMeanings(result.alternateMeanings);
+        translationCacheRef.current = {
+          ...translationCacheRef.current,
+          [cacheKey]: {
+            translation: result.translation,
+            alternateMeanings: result.alternateMeanings,
+          },
+        };
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTranslationError("Translation is unavailable.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingTranslation(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasSelectedMatch, translationLookupText]);
 
   return (
     <View style={styles.clipColumn}>
       <View style={styles.videoPane}>
-        <View style={[styles.paneHeader, styles.videoPaneHeader]}>
-          {cm.isSearchingPhrase && (
-            <ActivityIndicator size="small" color="#5a5680" />
-          )}
-        </View>
+        <View style={[styles.paneHeader, styles.videoPaneHeader]} />
 
         {cm.selectedMatch ? (
           <>
@@ -85,7 +184,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
                 refreshKey={cm.playerRefreshKey}
                 setTime={cm.setPlayerTime}
                 startTime={cm.playerTime}
-                videoText={cm.selectedMatchPhrase}
+                // videoText={cm.selectedMatchPhrase}
                 onPlayingStateChange={cm.setPlayerIsPlaying}
                 onPress={cm.toggleMatchPlayback}
                 webCropMode="narrow"
@@ -110,16 +209,25 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
               </TouchableOpacity>
             </View>
             <View style={styles.clipActionRow}>
-              <PlayerControls
-                onReplay={() => cm.replaySelectedMatch(1)}
-                onReplaySlow={() => cm.replaySelectedMatch(0.75)}
-                onPlayPause={cm.toggleMatchPlayback}
-                isPlaying={cm.playerIsPlaying}
-                playDisabled={!cm.selectedMatch}
-                compact
-                containerStyle={styles.clipPlayerControls}
-              />
-              {!hideClipNavigation && (
+              <View style={{ height: "100%", justifyContent: "center" }}>
+                <PlayerControls
+                  onReplay={() => cm.replaySelectedMatch(1)}
+                  onReplaySlow={() => cm.replaySelectedMatch(0.75)}
+                  onPlayPause={cm.toggleMatchPlayback}
+                  isPlaying={cm.playerIsPlaying}
+                  playDisabled={!cm.selectedMatch}
+                  compact
+                  containerStyle={styles.clipPlayerControls}
+                />
+              </View>
+              {cm.isSearchingPhrase && hideClipNavigation ? (
+                <View style={styles.findingClipsStatus}>
+                  <Text style={styles.findingClipsText}>
+                    Finding more clips...
+                  </Text>
+                  <ActivityIndicator size="small" color="#5a5680" />
+                </View>
+              ) : !hideClipNavigation || cm.hasOtherClips ? (
                 <View style={styles.clipNavHeader}>
                   <TouchableOpacity
                     style={[
@@ -147,8 +255,46 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
                     <Ionicons name="arrow-forward" size={18} color="#3d3a52" />
                   </TouchableOpacity>
                 </View>
-              )}
+              ) : null}
             </View>
+            {selectedTranslationText ? (
+              <View style={styles.translationPanel}>
+                <Text style={styles.vocabText} numberOfLines={1}>
+                  {selectedTranslationLabel}
+                </Text>
+                {isLoadingTranslation ? (
+                  <ActivityIndicator size="small" color="#4a69bd" />
+                ) : translation ? (
+                  <View style={styles.translationContainer}>
+                    <Text style={styles.translationLabel}>
+                      Translation in context
+                    </Text>
+                    <Text style={styles.translationText}>
+                      {capitalize(translation)}
+                    </Text>
+                  </View>
+                ) : translationError ? (
+                  <Text style={styles.translationError}>
+                    {translationError}
+                  </Text>
+                ) : null}
+                {!isLoadingTranslation && alternateMeanings.length > 0 && (
+                  <View style={styles.altMeaningsContainer}>
+                    <Text style={styles.altMeaningsLabel}>Other meanings</Text>
+                    {alternateMeanings
+                      .sort((a, b) => a.length - b.length)
+                      .map((meaning, index) => (
+                        <Text
+                          key={`${meaning}-${index}`}
+                          style={styles.altMeaningText}
+                        >
+                          {capitalize(meaning)}
+                        </Text>
+                      ))}
+                  </View>
+                )}
+              </View>
+            ) : null}
             {!hideSegmentTranscript && (
               <Text style={styles.segmentTranscript}>{segmentTranscript}</Text>
             )}
@@ -256,6 +402,72 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
+  },
+  findingClipsStatus: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  findingClipsText: {
+    color: "#5a5680",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  translationPanel: {
+    marginTop: 10,
+    gap: 10,
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.16)",
+    backgroundColor: "#f7f9ff",
+  },
+  vocabText: {
+    color: "#222",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  translationContainer: {
+    alignItems: "center",
+    gap: 6,
+    width: "100%",
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#d6e0f5",
+    backgroundColor: "#f0f4ff",
+  },
+  translationLabel: {
+    color: "#888",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  translationText: {
+    color: "#222",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  altMeaningsContainer: {
+    gap: 4,
+    alignItems: "center",
+  },
+  altMeaningsLabel: {
+    color: "#999",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  altMeaningText: {
+    color: "#555",
+    fontSize: 14,
+  },
+  translationError: {
+    color: "#a03a3a",
+    fontSize: 12,
+    fontWeight: "700",
   },
   segmentTranscript: {
     marginTop: 12,

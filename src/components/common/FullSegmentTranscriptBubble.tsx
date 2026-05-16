@@ -429,6 +429,8 @@ const FullSegmentTranscriptBubble: React.FC<
                   }
                   if (isBlurred && onWordPress) {
                     onWordPress(index);
+                  } else if (!isBlurred && relayHighlightedWords) {
+                    relayWordRange(index, index);
                   } else if (!isBlurred && !disableGuessModal) {
                     handleSelectForReview(word);
                   }

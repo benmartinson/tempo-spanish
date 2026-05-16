@@ -61,6 +61,14 @@ export const useClipMatcher = ({
       ].join("|")
     : "";
   const lastLocalClipMatchKeyRef = useRef("");
+  const lastLocalSearchKeyRef = useRef("");
+  const hasOtherClips = localClipMatch
+    ? matches.some(
+        (match) =>
+          match.videoRecordId !== localClipMatch.videoRecordId ||
+          match.segmentId !== localClipMatch.segmentId,
+      )
+    : matches.length > 1;
 
   const selectedMatchIndex = selectedMatch
     ? matches.findIndex(
@@ -110,8 +118,10 @@ export const useClipMatcher = ({
 
   useEffect(() => {
     if (localClipMatch) {
+      let cancelled = false;
+      const requestedPhrase = activeSearchPhrase.trim();
+
       setPhraseError(null);
-      setIsSearchingPhrase(false);
       setMatches([localClipMatch]);
       setSelectedMatch(localClipMatch);
       setSelectedMatchPhrase(activeSearchPhrase);
@@ -122,11 +132,68 @@ export const useClipMatcher = ({
         setPlayerRefreshKey((key) => key + 1);
         queueMatchPlayback(localClipMatch);
       }
-      return;
+
+      if (!requestedPhrase || requestedPhrase.length < 3) {
+        setIsSearchingPhrase(false);
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const selectedSentences = splitDraftIntoSentences(requestedPhrase);
+      if (selectedSentences.length > 1 || requestedPhrase.length > 180) {
+        setIsSearchingPhrase(false);
+        setPhraseError("Select no more than one sentence.");
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const localSearchKey = [
+        localClipMatchKey,
+        requestedPhrase,
+        targetLanguageVideoIdsKey,
+      ].join("|");
+      if (lastLocalSearchKeyRef.current === localSearchKey) {
+        setIsSearchingPhrase(false);
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      lastLocalSearchKeyRef.current = localSearchKey;
+      setIsSearchingPhrase(true);
+      searchTranscriptPhrase({
+        supabase: publicSupabase,
+        phrase: requestedPhrase,
+        videos: targetLanguageVideos,
+      })
+        .then((fullMatches) => {
+          if (cancelled) return;
+          const otherMatches = fullMatches.filter(
+            (match) =>
+              match.videoRecordId !== localClipMatch.videoRecordId ||
+              match.segmentId !== localClipMatch.segmentId,
+          );
+          setMatches([localClipMatch, ...otherMatches]);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setPhraseError("Transcript search is unavailable right now.");
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setIsSearchingPhrase(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (!activeSearchPhrase) {
       lastLocalClipMatchKeyRef.current = "";
+      lastLocalSearchKeyRef.current = "";
       setPhraseError(null);
       setIsSearchingPhrase(false);
       return;
@@ -282,6 +349,7 @@ export const useClipMatcher = ({
   return useMemo(
     () => ({
       clearClipMatches,
+      hasOtherClips,
       isSearchingPhrase,
       matches,
       nextMatch,
@@ -302,6 +370,7 @@ export const useClipMatcher = ({
     }),
     [
       clearClipMatches,
+      hasOtherClips,
       isSearchingPhrase,
       matches,
       nextMatch,

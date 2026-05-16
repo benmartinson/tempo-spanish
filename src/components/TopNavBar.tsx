@@ -102,25 +102,16 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
 
           {!minimal && (
             <View style={styles.webActions}>
-              {SHOW_LANGUAGE_SELECTOR &&
-                targetLanguageLabel &&
-                targetLanguageFlag && (
-                  <TouchableOpacity
-                    style={styles.webFlagButton}
-                    onPress={() => setLanguageVisible(true)}
-                    disabled={!targetLanguage}
-                    activeOpacity={0.72}
-                  >
-                    <>
-                      <Text style={styles.webFlagLabel}>
-                        {targetLanguageLabel}
-                      </Text>
-                      <Text style={styles.webFlagText}>
-                        {targetLanguageFlag}
-                      </Text>
-                    </>
-                  </TouchableOpacity>
-                )}
+              {SHOW_LANGUAGE_SELECTOR && targetLanguageFlag && (
+                <TouchableOpacity
+                  style={styles.webFlagButton}
+                  onPress={() => setLanguageVisible(true)}
+                  disabled={!targetLanguage}
+                  activeOpacity={0.72}
+                >
+                  <Text style={styles.webFlagText}>{targetLanguageFlag}</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={[
@@ -329,21 +320,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   webFlagButton: {
+    width: 38,
     minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 13,
     borderRadius: 999,
     justifyContent: "center",
     backgroundColor: "#f7f9ff",
     borderWidth: 1,
     borderColor: "rgba(74, 105, 189, 0.24)",
-  },
-  webFlagLabel: {
-    color: "#3d3a52",
-    fontSize: 14,
-    fontWeight: "800",
   },
   webFlagText: {
     fontSize: 18,

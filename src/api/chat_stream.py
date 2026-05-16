@@ -438,12 +438,12 @@ class FetchVocabTranslationRequest(BaseModel):
 
 VOCAB_TRANSLATION_SYSTEM_PROMPT = """You are a Spanish-to-English translation assistant.
 
-Given a Spanish vocabulary word, the sentence it appears in, and the full English translation of that sentence, provide the single English translation of the word AS IT IS USED in that specific sentence.
+Given a Spanish vocabulary word or phrase, the sentence it appears in, and optionally the full English translation of that sentence, provide the English translation of the word or phrase AS IT IS USED in that specific sentence.
 
 Important:
-- Many Spanish words have multiple meanings depending on context. You MUST choose the meaning that fits THIS sentence.
-- Use the provided sentence translation to determine the correct meaning — find which English word(s) correspond to the Spanish word in question.
-- Provide exactly ONE concise translation (1-3 words max).
+- Many Spanish words and phrases have multiple meanings depending on context. You MUST choose the meaning that fits THIS sentence.
+- Use the provided sentence translation when available to determine the correct meaning — find which English word(s) correspond to the Spanish text in question.
+- Provide exactly ONE concise translation. For one word, prefer 1-3 words. For a phrase, translate the phrase naturally and concisely.
 - Do NOT provide definitions, explanations, or full sentence translations.
 
 Output ONLY valid JSON in this format:
@@ -456,7 +456,7 @@ Output ONLY valid JSON in this format:
 @app.post("/fetch-vocab-translation")
 async def fetch_vocab_translation(request: FetchVocabTranslationRequest, user_id: str = Depends(verify_jwt)):
     """
-    Fetch the in-context English translation of a Spanish vocabulary word.
+    Fetch the in-context English translation of a Spanish vocabulary word or phrase.
     """
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
@@ -466,7 +466,7 @@ async def fetch_vocab_translation(request: FetchVocabTranslationRequest, user_id
         if request.sentence_translation:
             translation_line = f'\nEnglish translation of the sentence: "{request.sentence_translation}"'
 
-        user_prompt = f"""Spanish word: "{request.vocab_word}"
+        user_prompt = f"""Spanish word or phrase: "{request.vocab_word}"
 Sentence it appears in: "{request.sentence_text}"{translation_line}
 
 What does "{request.vocab_word}" mean in this sentence?"""
@@ -500,42 +500,45 @@ What does "{request.vocab_word}" mean in this sentence?"""
 
         result = json.loads(response.choices[0].message.content.strip())
 
-        # Parallel call for alternate meanings
-        alt_messages = [
-            {"role": "system", "content": "Given a Spanish word, list up to 3 other common English meanings of this word that are NOT the meaning used in the given sentence. Only include meanings that are genuinely different from the in-context meaning. If the word has fewer than 2 other common meanings, return fewer. Each meaning should be 1-3 words. Output valid JSON."},
-            {"role": "user", "content": f'Spanish word: "{request.vocab_word}"\nIn-context meaning: "{result["translation"]}"\nSentence: "{request.sentence_text}"'}
-        ]
+        alt_meanings = []
+        if len(request.vocab_word.split()) == 1:
+            # Parallel call for alternate meanings
+            alt_messages = [
+                {"role": "system", "content": "Given a Spanish word, list up to 3 other common English meanings of this word that are NOT the meaning used in the given sentence. Only include meanings that are genuinely different from the in-context meaning. If the word has fewer than 2 other common meanings, return fewer. Each meaning should be 1-3 words. Output valid JSON."},
+                {"role": "user", "content": f'Spanish word: "{request.vocab_word}"\nIn-context meaning: "{result["translation"]}"\nSentence: "{request.sentence_text}"'}
+            ]
 
-        alt_response = openai_client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=alt_messages,
-            max_tokens=100,
-            temperature=0.3,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "alternate_meanings_data",
-                    "strict": True,
-                    "schema": {
-                        "type": "object",
-                        "required": ["meanings"],
-                        "properties": {
-                            "meanings": {
-                                "type": "array",
-                                "items": {"type": "string"}
-                            }
-                        },
-                        "additionalProperties": False
+            alt_response = openai_client.chat.completions.create(
+                model="gpt-4.1-mini",
+                messages=alt_messages,
+                max_tokens=100,
+                temperature=0.3,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "alternate_meanings_data",
+                        "strict": True,
+                        "schema": {
+                            "type": "object",
+                            "required": ["meanings"],
+                            "properties": {
+                                "meanings": {
+                                    "type": "array",
+                                    "items": {"type": "string"}
+                                }
+                            },
+                            "additionalProperties": False
+                        }
                     }
                 }
-            }
-        )
+            )
 
-        alt_result = json.loads(alt_response.choices[0].message.content.strip())
+            alt_result = json.loads(alt_response.choices[0].message.content.strip())
+            alt_meanings = alt_result.get("meanings", [])[:3]
 
         return {
             "translation": result["translation"],
-            "alternate_meanings": alt_result.get("meanings", [])[:3],
+            "alternate_meanings": alt_meanings,
             "status": "complete"
         }
     except Exception as e:

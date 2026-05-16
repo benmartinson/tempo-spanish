@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -55,6 +55,7 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
   >(null);
   const [videoSearchError, setVideoSearchError] = useState<string | null>(null);
   const [hasSearchedVideos, setHasSearchedVideos] = useState(false);
+  const searchRunIdRef = useRef(0);
 
   const channelById = useMemo(
     () => new Map(allChannels.map((channel) => [channel.channel_id, channel])),
@@ -67,6 +68,8 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
   const runVideoSearch = async () => {
     if (!hasVideoSearchInput || isSearchingVideos) return;
 
+    const searchRunId = searchRunIdRef.current + 1;
+    searchRunIdRef.current = searchRunId;
     setIsSearchingVideos(true);
     setVideoSearchError(null);
     setHasSearchedVideos(true);
@@ -91,7 +94,7 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
           .filter(Boolean);
 
         if (!candidateVideoIds.length) {
-          setVideoResults([]);
+          if (searchRunIdRef.current === searchRunId) setVideoResults([]);
           return;
         }
 
@@ -121,26 +124,43 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
         );
       }
 
-      setVideoResults(
-        candidateVideos.slice(0, 30).map((video) => {
-          const channelRecord = channelById.get(video.channel_id);
-          return {
-            videoId: video.video_id,
-            videoRecordId: video.id,
-            channelId: video.channel_id,
-            title: video.title,
-            channelTitle: channelRecord?.title ?? "Tempo channel",
-            thumbnailUrl: video.thumbnail_url,
-            matchedSegmentId: matchedSegmentByVideoId.get(video.id) ?? null,
-          };
-        }),
-      );
+      if (searchRunIdRef.current === searchRunId) {
+        setVideoResults(
+          candidateVideos.slice(0, 30).map((video) => {
+            const channelRecord = channelById.get(video.channel_id);
+            return {
+              videoId: video.video_id,
+              videoRecordId: video.id,
+              channelId: video.channel_id,
+              title: video.title,
+              channelTitle: channelRecord?.title ?? "Tempo channel",
+              thumbnailUrl: video.thumbnail_url,
+              matchedSegmentId: matchedSegmentByVideoId.get(video.id) ?? null,
+            };
+          }),
+        );
+      }
     } catch {
-      setVideoResults([]);
-      setVideoSearchError("Video search is unavailable.");
+      if (searchRunIdRef.current === searchRunId) {
+        setVideoResults([]);
+        setVideoSearchError("Video search is unavailable.");
+      }
     } finally {
-      setIsSearchingVideos(false);
+      if (searchRunIdRef.current === searchRunId) {
+        setIsSearchingVideos(false);
+      }
     }
+  };
+
+  const cancelVideoSearch = () => {
+    searchRunIdRef.current += 1;
+    setTopicQuery("");
+    setChannelQuery("");
+    setTranscriptQuery("");
+    setVideoResults([]);
+    setVideoSearchError(null);
+    setHasSearchedVideos(false);
+    setIsSearchingVideos(false);
   };
 
   const loadVideoTranscript = async (result: VideoTranscriptSearchResult) => {
@@ -214,43 +234,54 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
         </View>
 
         <View style={styles.searchFields}>
-          <TextInput
-            value={topicQuery}
-            onChangeText={setTopicQuery}
-            placeholder="Topic"
-            placeholderTextColor="#8a91a3"
-            style={styles.searchInput}
-          />
-          <TextInput
-            value={channelQuery}
-            onChangeText={setChannelQuery}
-            placeholder="Channel"
-            placeholderTextColor="#8a91a3"
-            style={styles.searchInput}
-          />
-          <TextInput
-            value={transcriptQuery}
-            onChangeText={setTranscriptQuery}
-            placeholder="Transcript includes"
-            placeholderTextColor="#8a91a3"
-            style={styles.searchInput}
-          />
-          <Pressable
-            style={[
-              styles.searchButton,
-              (!hasVideoSearchInput || isSearchingVideos) &&
-                styles.searchButtonDisabled,
-            ]}
-            onPress={runVideoSearch}
-            disabled={!hasVideoSearchInput || isSearchingVideos}
-          >
-            {isSearchingVideos ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <Ionicons name="search" size={16} color="#ffffff" />
-            )}
-            <Text style={styles.searchButtonText}>Search</Text>
-          </Pressable>
+          <View style={styles.searchInputRow}>
+            <TextInput
+              value={topicQuery}
+              onChangeText={setTopicQuery}
+              placeholder="Topic"
+              placeholderTextColor="#8a91a3"
+              style={styles.searchInput}
+            />
+            <TextInput
+              value={channelQuery}
+              onChangeText={setChannelQuery}
+              placeholder="Channel"
+              placeholderTextColor="#8a91a3"
+              style={styles.searchInput}
+            />
+            <TextInput
+              value={transcriptQuery}
+              onChangeText={setTranscriptQuery}
+              placeholder="Transcript includes"
+              placeholderTextColor="#8a91a3"
+              style={[styles.searchInput, styles.transcriptSearchInput]}
+            />
+            <Pressable
+              style={[
+                styles.searchButton,
+                (!hasVideoSearchInput || isSearchingVideos) &&
+                  styles.searchButtonDisabled,
+              ]}
+              onPress={runVideoSearch}
+              disabled={!hasVideoSearchInput || isSearchingVideos}
+            >
+              {isSearchingVideos ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Ionicons name="search" size={16} color="#ffffff" />
+              )}
+              <Text style={styles.searchButtonText}>Search</Text>
+            </Pressable>
+          </View>
+          {(hasSearchedVideos || isSearchingVideos) && (
+            <Pressable
+              style={styles.cancelSearchButton}
+              onPress={cancelVideoSearch}
+            >
+              <Ionicons name="close" size={15} color="#3d3a52" />
+              <Text style={styles.cancelSearchButtonText}>Reset</Text>
+            </Pressable>
+          )}
         </View>
 
         {videoSearchError ? (
@@ -295,16 +326,18 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
         )}
       </View>
 
-      <View style={styles.libraryContainer}>
-        <VideoList
-          compact
-          selectionMode="composition"
-          routeChannelId={libraryChannelId}
-          onNavigateHome={() => setLibraryChannelId(null)}
-          onNavigateChannel={setLibraryChannelId}
-          onNavigateComposition={loadLibraryVideoTranscript}
-        />
-      </View>
+      {!hasSearchedVideos && (
+        <View style={styles.libraryContainer}>
+          <VideoList
+            compact
+            selectionMode="composition"
+            routeChannelId={libraryChannelId}
+            onNavigateHome={() => setLibraryChannelId(null)}
+            onNavigateChannel={setLibraryChannelId}
+            onNavigateComposition={loadLibraryVideoTranscript}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -342,6 +375,11 @@ const styles = StyleSheet.create({
   searchFields: {
     gap: 8,
   },
+  searchInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   header: {
     gap: 4,
   },
@@ -362,6 +400,8 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   searchInput: {
+    flex: 1,
+    minWidth: 0,
     minHeight: 40,
     paddingHorizontal: 10,
     borderRadius: 8,
@@ -372,8 +412,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     outlineStyle: "none" as any,
   },
+  transcriptSearchInput: {
+    flex: 1.35,
+  },
   searchButton: {
-    alignSelf: "flex-end",
+    flexShrink: 0,
     minWidth: 120,
     minHeight: 40,
     flexDirection: "row",
@@ -389,6 +432,19 @@ const styles = StyleSheet.create({
   searchButtonText: {
     color: "#ffffff",
     fontSize: 13,
+    fontWeight: "900",
+  },
+  cancelSearchButton: {
+    minHeight: 32,
+    alignSelf: "flex-end",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+  },
+  cancelSearchButtonText: {
+    color: "#3d3a52",
+    fontSize: 12,
     fontWeight: "900",
   },
   videoList: {

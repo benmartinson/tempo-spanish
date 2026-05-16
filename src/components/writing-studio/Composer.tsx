@@ -90,7 +90,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
                     cps.mode === "write" && styles.modeButtonTextActive,
                   ]}
                 >
-                  Write
+                  Edit
                 </Text>
               </Pressable>
               <Pressable
@@ -283,7 +283,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
           </Text>
         </View>
       )}
-      <Modal
+      {/* <Modal
         visible={showVideoWriteInfo}
         transparent
         animationType="fade"
@@ -309,7 +309,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
             </Pressable>
           </Pressable>
         </Pressable>
-      </Modal>
+      </Modal> */}
       <SignInPromptModal
         visible={cps.showSaveSignInPrompt}
         onClose={cps.closeSaveSignInPrompt}
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   paneHeader: {
-    minHeight: 38,
+    minHeight: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

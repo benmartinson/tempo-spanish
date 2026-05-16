@@ -71,6 +71,49 @@ const makeParagraphSegmentWords = (
     paragraphBreakBefore,
   );
 
+const normalizeVideoMatchToken = (value: string): string =>
+  removeSpecialPunctuation(value).trim().toLowerCase();
+
+const findVideoModePhraseSpan = (
+  words: SegmentWord[],
+  phrase: string,
+): { startIndex: number; endIndex: number } | null => {
+  const phraseTokens = removeSpecialPunctuation(phrase)
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!phraseTokens.length) return null;
+
+  const normalizedWords = words.map((word) =>
+    normalizeVideoMatchToken(word.word),
+  );
+
+  for (let startIndex = 0; startIndex < normalizedWords.length; startIndex++) {
+    if (normalizedWords[startIndex] !== phraseTokens[0]) continue;
+
+    let phraseIndex = 0;
+    let endIndex = startIndex;
+    for (
+      let wordIndex = startIndex;
+      wordIndex < normalizedWords.length && phraseIndex < phraseTokens.length;
+      wordIndex++
+    ) {
+      const normalizedWord = normalizedWords[wordIndex];
+      if (!normalizedWord) continue;
+      if (normalizedWord !== phraseTokens[phraseIndex]) break;
+      phraseIndex += 1;
+      endIndex = wordIndex;
+    }
+
+    if (phraseIndex === phraseTokens.length) {
+      return { startIndex, endIndex };
+    }
+  }
+
+  return null;
+};
+
 const makeDraftMemorizeWords = (text: string): SegmentWord[] => {
   const matches = Array.from(text.matchAll(/\S+/g));
   return matches.map((match, index) => {
@@ -766,6 +809,7 @@ export const useCompositionController = ({
 
   const videoModeClipMatch = useMemo<TranscriptPhraseMatch | null>(() => {
     if (!transcriptSource) return null;
+    const selectedVideoPhrase = activeSearchPhrase.trim();
 
     if (!videoModeHighlightedWords.length) {
       const startSegment =
@@ -777,6 +821,47 @@ export const useCompositionController = ({
         .map((segment) => segment.text.trim())
         .filter(Boolean)
         .join(" ");
+
+      if (selectedVideoPhrase) {
+        const phraseSpan = findVideoModePhraseSpan(
+          videoModeWords,
+          selectedVideoPhrase,
+        );
+        if (!phraseSpan) return null;
+
+        const firstMatchedWord = videoModeWords[phraseSpan.startIndex];
+        const lastMatchedWord = videoModeWords[phraseSpan.endIndex];
+        const containingSegment =
+          videoModeSegments.find(
+            (segment) =>
+              firstMatchedWord.start >= segment.start &&
+              firstMatchedWord.start <= segment.end,
+          ) ?? videoModeSegments[0];
+        const clipText = videoModeWords
+          .slice(phraseSpan.startIndex, phraseSpan.endIndex + 1)
+          .map((word) => word.word.trim())
+          .filter(Boolean)
+          .join(" ");
+
+        return {
+          videoId: transcriptSource.result.videoId,
+          videoRecordId: transcriptSource.result.videoRecordId,
+          channelId: transcriptSource.result.channelId,
+          title: transcriptSource.result.title,
+          thumbnailUrl: transcriptSource.result.thumbnailUrl,
+          segmentId:
+            containingSegment?.segment_id ?? transcriptSource.startIndex,
+          segmentText,
+          segmentWords: videoModeWords.map((word) => word.word.trim()),
+          highlightStartIndex: phraseSpan.startIndex,
+          highlightEndIndex: phraseSpan.endIndex,
+          clipText,
+          start: Math.max(0, firstMatchedWord.start - 1),
+          end: lastMatchedWord.end + 1,
+          anchorTime: firstMatchedWord.start,
+          score: 1,
+        };
+      }
 
       return {
         videoId: transcriptSource.result.videoId,
@@ -812,11 +897,7 @@ export const useCompositionController = ({
         word.start === lastHighlightedWord.start &&
         word.end === lastHighlightedWord.end,
     );
-    const safeStartIndex = startIndex >= 0 ? startIndex : 0;
-    const safeEndIndex =
-      endIndex >= 0
-        ? endIndex
-        : Math.max(safeStartIndex, videoModeHighlightedWords.length - 1);
+    if (startIndex < 0 || endIndex < 0) return null;
     const containingSegment =
       videoModeSegments.find(
         (segment) =>
@@ -841,8 +922,8 @@ export const useCompositionController = ({
         .filter(Boolean)
         .join(" "),
       segmentWords,
-      highlightStartIndex: safeStartIndex,
-      highlightEndIndex: safeEndIndex,
+      highlightStartIndex: startIndex,
+      highlightEndIndex: endIndex,
       clipText,
       start: Math.max(0, firstHighlightedWord.start - 1),
       end: lastHighlightedWord.end + 1,
@@ -850,6 +931,7 @@ export const useCompositionController = ({
       score: 1,
     };
   }, [
+    activeSearchPhrase,
     transcriptSource,
     videoModeHighlightedWords,
     videoModeSegments,
