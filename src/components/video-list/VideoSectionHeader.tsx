@@ -6,7 +6,8 @@ const VideoSectionHeader: React.FC<{
   isFirst?: boolean;
   removeBorderTop?: boolean;
   children?: React.ReactNode;
-}> = ({ title, isFirst, removeBorderTop, children }) => {
+  compact?: boolean;
+}> = ({ title, isFirst, removeBorderTop, children, compact = false }) => {
   const { width } = useWindowDimensions();
   const isWebScreen = isWebScreenWidth(width);
 
@@ -16,11 +17,25 @@ const VideoSectionHeader: React.FC<{
         styles.container,
         removeBorderTop && styles.noBorderTop,
         isWebScreen && styles.webContainer,
+        compact && styles.compactContainer,
       ]}
     >
       <View style={styles.titleRow}>
-        {isWebScreen && <View style={styles.webTitleAccent} />}
-        <Text style={[styles.title, isWebScreen && styles.webTitle]}>
+        {isWebScreen && (
+          <View
+            style={[
+              styles.webTitleAccent,
+              compact && styles.compactTitleAccent,
+            ]}
+          />
+        )}
+        <Text
+          style={[
+            styles.title,
+            isWebScreen && styles.webTitle,
+            compact && styles.compactTitle,
+          ]}
+        >
           {title}
         </Text>
       </View>
@@ -69,6 +84,11 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(74, 105, 189, 0.16)",
     backgroundColor: "transparent",
   },
+  compactContainer: {
+    marginHorizontal: 10,
+    marginBottom: 8,
+    paddingVertical: 6,
+  },
   webTitleAccent: {
     width: 4,
     height: 22,
@@ -76,10 +96,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#4a69bd",
     marginRight: 10,
   },
+  compactTitleAccent: {
+    width: 3,
+    height: 16,
+    marginRight: 7,
+  },
   webTitle: {
     color: "#252b3a",
     fontSize: 20,
     fontWeight: "800",
+  },
+  compactTitle: {
+    fontSize: 14,
   },
   webActions: {
     alignItems: "center",

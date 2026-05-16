@@ -33,6 +33,14 @@ const webChannelThumbnailStyle: React.CSSProperties = {
   objectFit: "cover",
 };
 
+const compactWebChannelThumbnailStyle: React.CSSProperties = {
+  ...webChannelThumbnailStyle,
+  width: 48,
+  height: 48,
+  borderRadius: 48,
+  marginRight: 8,
+};
+
 interface ChannelHeaderProps {
   channel: Channel;
   videoCount: number;
@@ -43,6 +51,7 @@ interface ChannelHeaderProps {
    * the channel detail view ("videos").
    */
   countLabel?: string;
+  compact?: boolean;
 }
 
 const ChannelHeader: React.FC<ChannelHeaderProps> = ({
@@ -50,6 +59,7 @@ const ChannelHeader: React.FC<ChannelHeaderProps> = ({
   videoCount,
   onPress,
   countLabel = "videos available",
+  compact = false,
 }) => {
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const allTopics = useSelector((state: RootState) => state.allTopics);
@@ -72,13 +82,18 @@ const ChannelHeader: React.FC<ChannelHeaderProps> = ({
           src: channel.thumbnail_url,
           alt: `${channel.title} thumbnail`,
           referrerPolicy: "no-referrer",
-          style: webChannelThumbnailStyle,
+          style: compact
+            ? compactWebChannelThumbnailStyle
+            : webChannelThumbnailStyle,
           onError: () => setThumbnailFailed(true),
         })
       ) : (
         <Image
           source={{ uri: channel.thumbnail_url }}
-          style={styles.channelThumbnail}
+          style={[
+            styles.channelThumbnail,
+            compact && styles.compactChannelThumbnail,
+          ]}
           onError={() => setThumbnailFailed(true)}
         />
       )
@@ -87,23 +102,40 @@ const ChannelHeader: React.FC<ChannelHeaderProps> = ({
   const content = (
     <>
       {thumbnail}
-      <View style={styles.channelInfo}>
-        <Text style={styles.channelTitle}>{channel.title}</Text>
-        <View style={styles.channelBadges}>
+      <View style={[styles.channelInfo, compact && styles.compactChannelInfo]}>
+        <Text
+          style={[styles.channelTitle, compact && styles.compactChannelTitle]}
+        >
+          {channel.title}
+        </Text>
+        <View
+          style={[styles.channelBadges, compact && styles.compactChannelBadges]}
+        >
           {topicNames.length > 0 ? (
-            <Text style={styles.mutedText}>{topicNames.join(", ")}</Text>
+            <Text
+              style={[styles.mutedText, compact && styles.compactMutedText]}
+              numberOfLines={1}
+            >
+              {topicNames.join(", ")}
+            </Text>
           ) : null}
-          <Text style={styles.mutedText}>
+          <Text style={[styles.mutedText, compact && styles.compactMutedText]}>
             {videoCount} {countLabel}
           </Text>
           {channel.difficulty ? (
             <View
               style={[
                 styles.difficultyBadge,
+                compact && styles.compactDifficultyBadge,
                 { backgroundColor: difficultyColor(channel.difficulty) },
               ]}
             >
-              <Text style={styles.difficultyBadgeText}>
+              <Text
+                style={[
+                  styles.difficultyBadgeText,
+                  compact && styles.compactDifficultyBadgeText,
+                ]}
+              >
                 {channel.difficulty}
               </Text>
             </View>
@@ -115,12 +147,19 @@ const ChannelHeader: React.FC<ChannelHeaderProps> = ({
 
   if (onPress) {
     return (
-      <TouchableOpacity style={styles.container} onPress={onPress}>
+      <TouchableOpacity
+        style={[styles.container, compact && styles.compactContainer]}
+        onPress={onPress}
+      >
         {content}
       </TouchableOpacity>
     );
   }
-  return <View style={styles.container}>{content}</View>;
+  return (
+    <View style={[styles.container, compact && styles.compactContainer]}>
+      {content}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -130,16 +169,29 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 16,
   },
+  compactContainer: {
+    marginBottom: 8,
+    paddingHorizontal: 10,
+  },
   channelThumbnail: {
     width: 100,
     height: 100,
     borderRadius: 100,
     marginRight: 10,
   },
+  compactChannelThumbnail: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 8,
+  },
   channelInfo: {
     flex: 1,
     paddingRight: 8,
     paddingTop: 8,
+  },
+  compactChannelInfo: {
+    paddingTop: 2,
   },
   channelTitle: {
     fontSize: 22,
@@ -147,13 +199,24 @@ const styles = StyleSheet.create({
     color: "black",
     flexShrink: 1,
   },
+  compactChannelTitle: {
+    fontSize: 15,
+    lineHeight: 19,
+  },
   channelBadges: {
     alignItems: "flex-start",
     marginTop: 2,
     gap: 2,
   },
+  compactChannelBadges: {
+    marginTop: 1,
+    gap: 1,
+  },
   mutedText: {
     opacity: 0.65,
+  },
+  compactMutedText: {
+    fontSize: 11,
   },
   difficultyBadge: {
     paddingVertical: 2,
@@ -161,11 +224,19 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignSelf: "flex-start",
   },
+  compactDifficultyBadge: {
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+    borderRadius: 5,
+  },
   difficultyBadgeText: {
     color: "#ffffff",
     fontSize: 11,
     fontWeight: "600",
     textTransform: "capitalize",
+  },
+  compactDifficultyBadgeText: {
+    fontSize: 10,
   },
 });
 

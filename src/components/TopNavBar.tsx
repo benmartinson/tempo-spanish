@@ -40,7 +40,6 @@ const languageFlagByCode: Record<LanguageCode, string> = {
 
 const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
   minimal = false,
-  composeActive = false,
 }) => {
   const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
@@ -59,12 +58,6 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
   const targetLanguageFlag = targetLanguage
     ? languageFlagByCode[targetLanguage]
     : null;
-  const navigateBrowse = () =>
-    navigation.navigate({
-      name: "MainApp",
-      params: {},
-      merge: false,
-    });
   const navigateCompose = () =>
     navigation.navigate({
       name: "MainApp",
@@ -90,7 +83,7 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
         <View style={styles.webInner}>
           <TouchableOpacity
             style={styles.webBrand}
-            onPress={navigateBrowse}
+            onPress={navigateCompose}
             activeOpacity={0.78}
           >
             <View style={styles.webBrandMark}>
@@ -109,21 +102,6 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
 
           {!minimal && (
             <View style={styles.webActions}>
-              <TouchableOpacity
-                style={styles.webComposeButton}
-                onPress={composeActive ? navigateBrowse : navigateCompose}
-                activeOpacity={0.76}
-              >
-                <Ionicons
-                  name={composeActive ? "albums-outline" : "create-outline"}
-                  size={17}
-                  color="#3d3a52"
-                />
-                <Text style={styles.webComposeButtonText}>
-                  {composeActive ? "Browse" : "Compose"}
-                </Text>
-              </TouchableOpacity>
-
               {SHOW_LANGUAGE_SELECTOR &&
                 targetLanguageLabel &&
                 targetLanguageFlag && (
@@ -193,7 +171,7 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
     <View style={styles.container}>
       <TouchableOpacity
         style={styles.webBrand}
-        onPress={navigateBrowse}
+        onPress={navigateCompose}
         activeOpacity={0.78}
       >
         <View style={styles.webBrandMark}>
@@ -361,23 +339,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f7f9ff",
     borderWidth: 1,
     borderColor: "rgba(74, 105, 189, 0.24)",
-  },
-  webComposeButton: {
-    minHeight: 38,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 13,
-    borderRadius: 999,
-    justifyContent: "center",
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "rgba(74, 105, 189, 0.24)",
-  },
-  webComposeButtonText: {
-    color: "#3d3a52",
-    fontSize: 14,
-    fontWeight: "800",
   },
   webFlagLabel: {
     color: "#3d3a52",

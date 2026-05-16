@@ -10,8 +10,8 @@ import {
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
 import type { Channel, Segment, Video } from "../../types";
+import VideoList from "../video-list/VideoList";
 import { escapeIlikePattern, formatTranscriptSearchText } from "./helpers";
 
 export interface VideoTranscriptSearchResult {
@@ -42,10 +42,10 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
   onBack,
   onChooseVideoTranscript,
 }) => {
-  const navigation = useNavigation<any>();
   const [topicQuery, setTopicQuery] = useState("");
   const [channelQuery, setChannelQuery] = useState("");
   const [transcriptQuery, setTranscriptQuery] = useState("");
+  const [libraryChannelId, setLibraryChannelId] = useState<string | null>(null);
   const [videoResults, setVideoResults] = useState<
     VideoTranscriptSearchResult[]
   >([]);
@@ -176,127 +176,148 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
     }
   };
 
-  const navigateBrowse = () => {
-    navigation.navigate({
-      name: "MainApp",
-      params: {},
-      merge: false,
+  const loadLibraryVideoTranscript = (videoRecordId: string) => {
+    const video = targetLanguageVideos.find(
+      (targetVideo) => String(targetVideo.id) === String(videoRecordId),
+    );
+
+    if (!video) {
+      setVideoSearchError("Could not find that video.");
+      return;
+    }
+
+    const channelRecord = channelById.get(video.channel_id);
+    loadVideoTranscript({
+      videoId: video.video_id,
+      videoRecordId: video.id,
+      channelId: video.channel_id,
+      title: video.title,
+      channelTitle: channelRecord?.title ?? "Tempo channel",
+      thumbnailUrl: video.thumbnail_url,
+      matchedSegmentId: null,
     });
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator
-    >
-      <Pressable style={styles.backButton} onPress={onBack}>
-        <Ionicons name="arrow-back" size={16} color="#3d3a52" />
-        <Text style={styles.backButtonText}>Back</Text>
-      </Pressable>
-
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          Search for a Video in the Library
-        </Text>
-        <Text style={styles.headerSubtitle}>
-          Start from a ready-made transcript. Use the search inputs below or go
-          back to{" "}
-          <Text style={styles.inlineLink} onPress={navigateBrowse}>
-            browse section
-          </Text>{" "}
-          to search from there.
-        </Text>
-      </View>
-
-      <View style={styles.searchFields}>
-        <TextInput
-          value={topicQuery}
-          onChangeText={setTopicQuery}
-          placeholder="Topic"
-          placeholderTextColor="#8a91a3"
-          style={styles.searchInput}
-        />
-        <TextInput
-          value={channelQuery}
-          onChangeText={setChannelQuery}
-          placeholder="Channel"
-          placeholderTextColor="#8a91a3"
-          style={styles.searchInput}
-        />
-        <TextInput
-          value={transcriptQuery}
-          onChangeText={setTranscriptQuery}
-          placeholder="Transcript includes"
-          placeholderTextColor="#8a91a3"
-          style={styles.searchInput}
-        />
-        <Pressable
-          style={[
-            styles.searchButton,
-            (!hasVideoSearchInput || isSearchingVideos) &&
-              styles.searchButtonDisabled,
-          ]}
-          onPress={runVideoSearch}
-          disabled={!hasVideoSearchInput || isSearchingVideos}
-        >
-          {isSearchingVideos ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <Ionicons name="search" size={16} color="#ffffff" />
-          )}
-          <Text style={styles.searchButtonText}>Search</Text>
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={16} color="#3d3a52" />
+          <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
+
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Video Transcript Library</Text>
+          <Text style={styles.headerSubtitle}>
+            Search directly, or browse the library below.
+          </Text>
+        </View>
+
+        <View style={styles.searchFields}>
+          <TextInput
+            value={topicQuery}
+            onChangeText={setTopicQuery}
+            placeholder="Topic"
+            placeholderTextColor="#8a91a3"
+            style={styles.searchInput}
+          />
+          <TextInput
+            value={channelQuery}
+            onChangeText={setChannelQuery}
+            placeholder="Channel"
+            placeholderTextColor="#8a91a3"
+            style={styles.searchInput}
+          />
+          <TextInput
+            value={transcriptQuery}
+            onChangeText={setTranscriptQuery}
+            placeholder="Transcript includes"
+            placeholderTextColor="#8a91a3"
+            style={styles.searchInput}
+          />
+          <Pressable
+            style={[
+              styles.searchButton,
+              (!hasVideoSearchInput || isSearchingVideos) &&
+                styles.searchButtonDisabled,
+            ]}
+            onPress={runVideoSearch}
+            disabled={!hasVideoSearchInput || isSearchingVideos}
+          >
+            {isSearchingVideos ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Ionicons name="search" size={16} color="#ffffff" />
+            )}
+            <Text style={styles.searchButtonText}>Search</Text>
+          </Pressable>
+        </View>
+
+        {videoSearchError ? (
+          <Text style={styles.emptyText}>{videoSearchError}</Text>
+        ) : hasSearchedVideos && !videoResults.length && !isSearchingVideos ? (
+          <Text style={styles.emptyText}>No matching videos found.</Text>
+        ) : null}
+
+        {videoResults.length > 0 && (
+          <ScrollView
+            style={styles.videoResultsScroll}
+            contentContainerStyle={styles.videoList}
+            showsVerticalScrollIndicator
+          >
+            {videoResults.map((result) => (
+              <Pressable
+                key={result.videoRecordId}
+                style={styles.videoCard}
+                onPress={() => loadVideoTranscript(result)}
+                disabled={Boolean(loadingTranscriptVideoId)}
+              >
+                <Image
+                  source={{ uri: result.thumbnailUrl ?? "" }}
+                  style={styles.videoThumbnail}
+                />
+                <View style={styles.videoTextGroup}>
+                  <Text style={styles.videoTitle} numberOfLines={2}>
+                    {result.title}
+                  </Text>
+                  <Text style={styles.videoChannel} numberOfLines={1}>
+                    {result.channelTitle}
+                  </Text>
+                </View>
+                {loadingTranscriptVideoId === result.videoRecordId ? (
+                  <ActivityIndicator size="small" color="#5a5680" />
+                ) : (
+                  <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
-      {videoSearchError ? (
-        <Text style={styles.emptyText}>{videoSearchError}</Text>
-      ) : hasSearchedVideos && !videoResults.length && !isSearchingVideos ? (
-        <Text style={styles.emptyText}>No matching videos found.</Text>
-      ) : null}
-
-      {videoResults.length > 0 && (
-        <View style={styles.videoList}>
-          {videoResults.map((result) => (
-            <Pressable
-              key={result.videoRecordId}
-              style={styles.videoCard}
-              onPress={() => loadVideoTranscript(result)}
-              disabled={Boolean(loadingTranscriptVideoId)}
-            >
-              <Image
-                source={{ uri: result.thumbnailUrl ?? "" }}
-                style={styles.videoThumbnail}
-              />
-              <View style={styles.videoTextGroup}>
-                <Text style={styles.videoTitle} numberOfLines={2}>
-                  {result.title}
-                </Text>
-                <Text style={styles.videoChannel} numberOfLines={1}>
-                  {result.channelTitle}
-                </Text>
-              </View>
-              {loadingTranscriptVideoId === result.videoRecordId ? (
-                <ActivityIndicator size="small" color="#5a5680" />
-              ) : (
-                <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
-              )}
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </ScrollView>
+      <View style={styles.libraryContainer}>
+        <VideoList
+          compact
+          selectionMode="composition"
+          routeChannelId={libraryChannelId}
+          onNavigateHome={() => setLibraryChannelId(null)}
+          onNavigateChannel={setLibraryChannelId}
+          onNavigateComposition={loadLibraryVideoTranscript}
+        />
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#ffffff",
   },
   content: {
     paddingHorizontal: 14,
     paddingTop: 8,
-    paddingBottom: 14,
+    paddingBottom: 10,
     gap: 10,
   },
   backButton: {
@@ -373,6 +394,9 @@ const styles = StyleSheet.create({
   videoList: {
     gap: 8,
   },
+  videoResultsScroll: {
+    maxHeight: 210,
+  },
   videoCard: {
     minHeight: 78,
     flexDirection: "row",
@@ -403,6 +427,12 @@ const styles = StyleSheet.create({
     color: "#697187",
     fontSize: 11,
     fontWeight: "800",
+  },
+  libraryContainer: {
+    flex: 1,
+    minHeight: 260,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 105, 189, 0.12)",
   },
 });
 

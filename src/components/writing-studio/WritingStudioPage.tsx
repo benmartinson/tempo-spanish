@@ -15,6 +15,7 @@ import { fetchVideoContext, persistVideoSelection } from "../../requests";
 import type { UserComposition } from "../../requests";
 import {
   addUserVideoView,
+  setCurrentMode,
   setCurrentVideo,
 } from "../../store/actions/dataActions";
 import { isWebScreenWidth } from "../../helpers/helpers";
@@ -117,12 +118,41 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     },
     [clipMatcher, composition],
   );
+  const setSelectedTranscriptVideoContext = useCallback(
+    async (result: VideoTranscriptSearchResult) => {
+      try {
+        const { videoContext, videoView } = await fetchVideoContext({
+          supabase: publicSupabase,
+          videoId: result.videoId,
+          recordId: result.videoRecordId,
+          userId,
+        });
+
+        if (userId && videoView) {
+          dispatch(addUserVideoView(videoView));
+        }
+        dispatch(setCurrentVideo(videoContext));
+        dispatch(setCurrentMode("compose"));
+        await persistVideoSelection({
+          supabase: clerkSupabase,
+          userId,
+          recordId: result.videoRecordId,
+          currentSentence: videoContext.currentSentence,
+          currentMode: "compose",
+        });
+      } catch (error) {
+        console.error("Error preloading transcript video:", error);
+      }
+    },
+    [clerkSupabase, dispatch, publicSupabase, userId],
+  );
   const handleChooseVideoTranscript = useCallback(
     (result: VideoTranscriptSearchResult, segments: Segment[]) => {
       clipMatcher.clearClipMatches();
       composition.handleChooseVideoTranscript(result, segments);
+      void setSelectedTranscriptVideoContext(result);
     },
-    [clipMatcher, composition],
+    [clipMatcher, composition, setSelectedTranscriptVideoContext],
   );
   const chooseInitialVideoTranscriptRef = useRef(handleChooseVideoTranscript);
   useEffect(() => {
@@ -263,11 +293,13 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
         dispatch(addUserVideoView(videoView));
       }
       dispatch(setCurrentVideo(videoContext));
+      dispatch(setCurrentMode("shadow"));
       await persistVideoSelection({
         supabase: clerkSupabase,
         userId,
         recordId: selectedMatch.videoRecordId,
         currentSentence: videoContext.currentSentence,
+        currentMode: "shadow",
       });
     } catch (error) {
       console.error("Error preloading selected clip video:", error);
@@ -309,6 +341,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
             clipMatcher={clipMatcher}
             channelTitleById={channelTitleById}
             hideSegmentTranscript={composition.isVideoMode}
+            hideClipNavigation={composition.isVideoMode}
             onOpenSelectedVideo={openSelectedVideo}
           />
         )}

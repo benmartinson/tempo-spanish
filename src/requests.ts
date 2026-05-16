@@ -14,6 +14,7 @@ import {
   LanguageCode,
   DEFAULT_USER_SETTINGS,
   ContentTab,
+  AppMode,
 } from "./types";
 import {
   cachedResponses,
@@ -386,12 +387,14 @@ export interface UserComposition {
   title: string;
   text: string;
   video_id?: string | null;
+  segment_start?: number | null;
+  segment_end?: number | null;
   created_at: string;
   updated_at: string;
 }
 
 const USER_COMPOSITION_COLUMNS =
-  "id,user_id,title,text,video_id,created_at,updated_at";
+  "id,user_id,title,text,video_id,segment_start,segment_end,created_at,updated_at";
 
 export const fetchUserCompositions = async ({
   supabase,
@@ -422,12 +425,16 @@ export const createUserComposition = async ({
   title,
   text,
   videoId,
+  segmentStart,
+  segmentEnd,
 }: {
   supabase: any;
   userId: string | null | undefined;
   title: string;
   text: string;
   videoId?: string | null;
+  segmentStart?: number | null;
+  segmentEnd?: number | null;
 }): Promise<UserComposition> => {
   if (!supabase || !userId) {
     throw new Error("Sign in to save compositions.");
@@ -441,6 +448,8 @@ export const createUserComposition = async ({
       title,
       text,
       video_id: videoId ?? null,
+      segment_start: segmentStart ?? null,
+      segment_end: segmentEnd ?? null,
       created_at: now,
       updated_at: now,
     })
@@ -462,6 +471,8 @@ export const updateUserComposition = async ({
   title,
   text,
   videoId,
+  segmentStart,
+  segmentEnd,
 }: {
   supabase: any;
   userId: string | null | undefined;
@@ -469,6 +480,8 @@ export const updateUserComposition = async ({
   title: string;
   text: string;
   videoId?: string | null;
+  segmentStart?: number | null;
+  segmentEnd?: number | null;
 }): Promise<UserComposition> => {
   if (!supabase || !userId) {
     throw new Error("Sign in to save compositions.");
@@ -480,6 +493,8 @@ export const updateUserComposition = async ({
       title,
       text,
       video_id: videoId ?? null,
+      segment_start: segmentStart ?? null,
+      segment_end: segmentEnd ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", compositionId)
@@ -840,6 +855,8 @@ export interface RestoreUserUIStateParams {
 
 export interface RestoreUserUIStateResult {
   videoContext: VideoContext | null;
+  currentMode: AppMode;
+  currentCompositionId: string | number | null;
   currentShadowTab: ContentTab;
   memorizeDifficulty: number | null;
   settings: UserSettings;
@@ -851,6 +868,8 @@ export const restoreUserUIState = async ({
 }: RestoreUserUIStateParams): Promise<RestoreUserUIStateResult> => {
   const defaultResult = {
     videoContext: null,
+    currentMode: "compose" as AppMode,
+    currentCompositionId: null,
     currentShadowTab: null,
     memorizeDifficulty: null,
     settings: DEFAULT_USER_SETTINGS,
@@ -932,6 +951,9 @@ export const restoreUserUIState = async ({
     };
 
     if (uiState?.current_video) {
+      const currentMode =
+        uiState.current_mode === "shadow" ? "shadow" : "compose";
+
       // Fetch the video record to get the video_id string
       const { data: videoRecord, error: videoError } = await supabase
         .from("video")
@@ -944,6 +966,8 @@ export const restoreUserUIState = async ({
         return {
           ...defaultResult,
           settings,
+          currentMode,
+          currentCompositionId: uiState.current_composition ?? null,
           currentShadowTab: uiState?.current_shadow_tab ?? null,
           memorizeDifficulty: uiState?.memorize_difficulty ?? null,
         };
@@ -958,6 +982,8 @@ export const restoreUserUIState = async ({
 
       return {
         videoContext,
+        currentMode,
+        currentCompositionId: uiState.current_composition ?? null,
         currentShadowTab: uiState.current_shadow_tab ?? null,
         memorizeDifficulty: uiState.memorize_difficulty ?? null,
         settings,
@@ -966,6 +992,8 @@ export const restoreUserUIState = async ({
 
     return {
       videoContext: null,
+      currentMode: uiState.current_mode === "shadow" ? "shadow" : "compose",
+      currentCompositionId: uiState.current_composition ?? null,
       currentShadowTab: uiState?.current_shadow_tab ?? null,
       memorizeDifficulty: uiState?.memorize_difficulty ?? null,
       settings,
@@ -1008,6 +1036,7 @@ export const persistVideoUnselection = async ({
     {
       user_id: userId,
       current_video: null,
+      current_mode: "compose",
       updated_at: new Date(),
     },
     { onConflict: "user_id" },
@@ -1021,11 +1050,13 @@ export const persistVideoSelection = async ({
   userId,
   recordId,
   currentSentence,
+  currentMode,
 }: {
   supabase: any;
   userId: string | null;
   recordId: string;
   currentSentence: number;
+  currentMode?: AppMode;
 }): Promise<void> => {
   if (!supabase || !userId) return;
 
@@ -1034,12 +1065,59 @@ export const persistVideoSelection = async ({
       user_id: userId,
       current_video: recordId,
       current_sentence: currentSentence,
+      ...(currentMode ? { current_mode: currentMode } : {}),
       updated_at: new Date(),
     },
     { onConflict: "user_id" },
   );
 
   if (error) console.error("Error persisting video selection:", error);
+};
+
+export const persistCurrentMode = async ({
+  supabase,
+  userId,
+  currentMode,
+}: {
+  supabase: any;
+  userId: string | null;
+  currentMode: AppMode;
+}): Promise<void> => {
+  if (!supabase || !userId) return;
+
+  const { error } = await supabase.from("user_ui_state").upsert(
+    {
+      user_id: userId,
+      current_mode: currentMode,
+      updated_at: new Date(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) console.error("Error persisting current mode:", error);
+};
+
+export const persistCurrentComposition = async ({
+  supabase,
+  userId,
+  compositionId,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+  compositionId: string | number | null;
+}): Promise<void> => {
+  if (!supabase || !userId) return;
+
+  const { error } = await supabase.from("user_ui_state").upsert(
+    {
+      user_id: userId,
+      current_composition: compositionId,
+      updated_at: new Date(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) console.error("Error persisting current composition:", error);
 };
 
 export const persistMemorizeDifficulty = async ({

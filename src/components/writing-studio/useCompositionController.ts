@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   type TranscriptPhraseMatch,
   UserComposition,
@@ -6,8 +7,10 @@ import {
   createUserComposition,
   fetchUserCompositions,
   fetchWritingSuggestions,
+  persistCurrentComposition,
   updateUserComposition,
 } from "../../requests";
+import { setCurrentCompositionId } from "../../store/actions/dataActions";
 import {
   computeBaseMaskedIndices,
   removeSpecialPunctuation,
@@ -18,6 +21,7 @@ import type {
   Segment,
   SegmentWord,
   Video,
+  RootState,
 } from "../../types";
 import type { CompositionTemplate } from "./ChooseComposition";
 import type { VideoTranscriptSearchResult } from "./VideoTranscriptImport";
@@ -120,6 +124,32 @@ const findTranscriptRangeForText = (
   return { startIndex: 0, endIndex: Math.min(segments.length - 1, 2) };
 };
 
+const resolveSavedTranscriptRange = (
+  composition: UserComposition,
+  segments: Segment[],
+): { startIndex: number; endIndex: number } => {
+  const savedStart =
+    typeof composition.segment_start === "number"
+      ? composition.segment_start
+      : null;
+  const savedEnd =
+    typeof composition.segment_end === "number"
+      ? composition.segment_end
+      : null;
+
+  if (
+    savedStart !== null &&
+    savedEnd !== null &&
+    savedStart >= 0 &&
+    savedEnd >= savedStart &&
+    savedEnd < segments.length
+  ) {
+    return { startIndex: savedStart, endIndex: savedEnd };
+  }
+
+  return findTranscriptRangeForText(segments, composition.text);
+};
+
 interface TranscriptCompositionSource {
   result: VideoTranscriptSearchResult;
   segments: Segment[];
@@ -161,6 +191,8 @@ export const useCompositionController = ({
     string | null
   >(null);
   const [isSavingComposition, setIsSavingComposition] = useState(false);
+  const [isRestoringCurrentComposition, setIsRestoringCurrentComposition] =
+    useState(false);
   const [saveCompositionError, setSaveCompositionError] = useState<
     string | null
   >(null);
@@ -180,6 +212,11 @@ export const useCompositionController = ({
   const [revealedMemorizeIndices, setRevealedMemorizeIndices] = useState<
     Set<number>
   >(new Set());
+  const dispatch = useDispatch();
+  const currentCompositionId = useSelector(
+    (state: RootState) => state.currentCompositionId,
+  );
+  const restoredCompositionIdRef = useRef<string | number | null>(null);
 
   useEffect(() => {
     if (!isSignedIn || !userId) {
@@ -397,12 +434,21 @@ export const useCompositionController = ({
 
   const handleChooseSavedComposition = useCallback(
     async (composition: UserComposition) => {
+      dispatch(setCurrentCompositionId(composition.id));
+      void persistCurrentComposition({
+        supabase: clerkSupabase,
+        userId,
+        compositionId: composition.id,
+      });
+
       if (!composition.video_id) {
         beginComposition(composition.text, composition);
         return;
       }
 
-      const video = allVideos.find((item) => item.id === composition.video_id);
+      const video = allVideos.find(
+        (item) => String(item.id) === String(composition.video_id),
+      );
       const channel = video
         ? allChannels.find((item) => item.channel_id === video.channel_id)
         : null;
@@ -415,10 +461,7 @@ export const useCompositionController = ({
         return;
       }
 
-      const restoredRange = findTranscriptRangeForText(
-        segments,
-        composition.text,
-      );
+      const restoredRange = resolveSavedTranscriptRange(composition, segments);
       const result: VideoTranscriptSearchResult = {
         videoId: video.video_id,
         videoRecordId: video.id,
@@ -450,9 +493,61 @@ export const useCompositionController = ({
       allVideos,
       beginComposition,
       clearCompositionWorkspace,
+      clerkSupabase,
+      dispatch,
       loadTranscriptCompositionSegments,
+      userId,
     ],
   );
+
+  const compositionToRestore = useMemo(
+    () =>
+      currentCompositionId
+        ? savedCompositions.find(
+            (item) => String(item.id) === String(currentCompositionId),
+          )
+        : null,
+    [currentCompositionId, savedCompositions],
+  );
+  const isWaitingForCompositionVideo = Boolean(
+    compositionToRestore?.video_id && !allVideos.length,
+  );
+  const isResolvingCurrentComposition = Boolean(
+    currentCompositionId &&
+    !hasChosenComposition &&
+    (isLoadingSavedCompositions ||
+      isRestoringCurrentComposition ||
+      isWaitingForCompositionVideo ||
+      (compositionToRestore &&
+        restoredCompositionIdRef.current !== currentCompositionId)),
+  );
+
+  useEffect(() => {
+    if (
+      !currentCompositionId ||
+      hasChosenComposition ||
+      isLoadingSavedCompositions ||
+      restoredCompositionIdRef.current === currentCompositionId
+    ) {
+      return;
+    }
+
+    if (!compositionToRestore) return;
+    if (isWaitingForCompositionVideo) return;
+
+    restoredCompositionIdRef.current = currentCompositionId;
+    setIsRestoringCurrentComposition(true);
+    void handleChooseSavedComposition(compositionToRestore).finally(() => {
+      setIsRestoringCurrentComposition(false);
+    });
+  }, [
+    compositionToRestore,
+    currentCompositionId,
+    handleChooseSavedComposition,
+    hasChosenComposition,
+    isLoadingSavedCompositions,
+    isWaitingForCompositionVideo,
+  ]);
 
   const handleChooseVideoTranscript = useCallback(
     (result: VideoTranscriptSearchResult, segments: Segment[]) => {
@@ -494,9 +589,16 @@ export const useCompositionController = ({
     setCompositionTitle("");
     setCurrentComposition(null);
     setHasChosenComposition(false);
+    dispatch(setCurrentCompositionId(null));
+    restoredCompositionIdRef.current = null;
+    void persistCurrentComposition({
+      supabase: clerkSupabase,
+      userId,
+      compositionId: null,
+    });
     setSaveCompositionError(null);
     setSaveCompositionMessage(null);
-  }, [clearCompositionWorkspace]);
+  }, [clearCompositionWorkspace, clerkSupabase, dispatch, userId]);
 
   const updateTranscriptRange = useCallback(
     (startDisplayIndex: number, endDisplayIndex: number) => {
@@ -609,6 +711,8 @@ export const useCompositionController = ({
             title,
             text: draft,
             videoId: transcriptSource?.result.videoRecordId ?? null,
+            segmentStart: transcriptSource?.startIndex ?? null,
+            segmentEnd: transcriptSource?.endIndex ?? null,
           })
         : await createUserComposition({
             supabase: clerkSupabase,
@@ -616,10 +720,18 @@ export const useCompositionController = ({
             title,
             text: draft,
             videoId: transcriptSource?.result.videoRecordId ?? null,
+            segmentStart: transcriptSource?.startIndex ?? null,
+            segmentEnd: transcriptSource?.endIndex ?? null,
           });
 
       setCurrentComposition(savedComposition);
       mergeSavedComposition(savedComposition);
+      dispatch(setCurrentCompositionId(savedComposition.id));
+      await persistCurrentComposition({
+        supabase: clerkSupabase,
+        userId,
+        compositionId: savedComposition.id,
+      });
       setSaveCompositionMessage("Saved!");
     } catch {
       setSaveCompositionError("Could not save this composition.");
@@ -631,6 +743,7 @@ export const useCompositionController = ({
     draft,
     compositionTitle,
     clerkSupabase,
+    dispatch,
     isSignedIn,
     mergeSavedComposition,
     transcriptSource,
@@ -652,7 +765,37 @@ export const useCompositionController = ({
   }, []);
 
   const videoModeClipMatch = useMemo<TranscriptPhraseMatch | null>(() => {
-    if (!transcriptSource || !videoModeHighlightedWords.length) return null;
+    if (!transcriptSource) return null;
+
+    if (!videoModeHighlightedWords.length) {
+      const startSegment =
+        transcriptSource.segments[transcriptSource.startIndex];
+      const endSegment = transcriptSource.segments[transcriptSource.endIndex];
+      if (!startSegment || !endSegment) return null;
+
+      const segmentText = videoModeSegments
+        .map((segment) => segment.text.trim())
+        .filter(Boolean)
+        .join(" ");
+
+      return {
+        videoId: transcriptSource.result.videoId,
+        videoRecordId: transcriptSource.result.videoRecordId,
+        channelId: transcriptSource.result.channelId,
+        title: transcriptSource.result.title,
+        thumbnailUrl: transcriptSource.result.thumbnailUrl,
+        segmentId: startSegment.segment_id ?? transcriptSource.startIndex,
+        segmentText,
+        segmentWords: videoModeWords.map((word) => word.word.trim()),
+        highlightStartIndex: null,
+        highlightEndIndex: null,
+        clipText: segmentText,
+        start: startSegment.start,
+        end: endSegment.end,
+        anchorTime: startSegment.start,
+        score: 1,
+      };
+    }
 
     const firstHighlightedWord = videoModeHighlightedWords[0];
     const lastHighlightedWord =
@@ -765,6 +908,7 @@ export const useCompositionController = ({
     closeSaveSignInPrompt,
     hasChosenComposition,
     isLoadingSavedCompositions,
+    isResolvingCurrentComposition,
     isLoadingSuggestions,
     isSavingComposition,
     isSignedIn,

@@ -9,6 +9,7 @@ import {
   SegmentWord,
   Topic,
   UserSettings,
+  AppMode,
   Video,
   VideoContext,
   VideoView,
@@ -22,6 +23,18 @@ export const removeFocusSentence = (id: number): DataAction => ({
 export const setCurrentVideo = (video: VideoContext | null): DataAction => ({
   type: "SET_CURRENT_VIDEO",
   payload: video,
+});
+
+export const setCurrentMode = (mode: AppMode): DataAction => ({
+  type: "SET_CURRENT_MODE",
+  payload: mode,
+});
+
+export const setCurrentCompositionId = (
+  compositionId: string | number | null,
+): DataAction => ({
+  type: "SET_CURRENT_COMPOSITION_ID",
+  payload: compositionId,
 });
 
 export const setSentenceByTime = (time: number): DataAction => ({
@@ -48,9 +61,7 @@ export const refreshVideoPlayer = (): DataAction => ({
   payload: null,
 });
 
-export const setSelectedChannelId = (
-  channelId: string | null,
-): DataAction => ({
+export const setSelectedChannelId = (channelId: string | null): DataAction => ({
   type: "SET_SELECTED_CHANNEL_ID",
   payload: channelId,
 });
@@ -95,9 +106,7 @@ export const updateFocusVocabTranslation = (
   payload: { word, translation },
 });
 
-export const incrementFocusVocabReview = (
-  word: string,
-): DataAction => ({
+export const incrementFocusVocabReview = (word: string): DataAction => ({
   type: "INCREMENT_FOCUS_VOCAB_REVIEW",
   payload: word,
 });

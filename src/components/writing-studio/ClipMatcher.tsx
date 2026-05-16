@@ -17,6 +17,7 @@ interface ClipMatcherProps {
   clipMatcher: ClipMatcherController;
   channelTitleById: Map<string, string>;
   hideSegmentTranscript?: boolean;
+  hideClipNavigation?: boolean;
   onOpenSelectedVideo: () => void;
 }
 
@@ -33,6 +34,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
     clipMatcher: cm,
     channelTitleById,
     hideSegmentTranscript = false,
+    hideClipNavigation = false,
     onOpenSelectedVideo,
   } = props;
 
@@ -67,7 +69,6 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
     <View style={styles.clipColumn}>
       <View style={styles.videoPane}>
         <View style={[styles.paneHeader, styles.videoPaneHeader]}>
-          <Text style={styles.paneTitle}>Clip Match</Text>
           {cm.isSearchingPhrase && (
             <ActivityIndicator size="small" color="#5a5680" />
           )}
@@ -118,33 +119,35 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
                 compact
                 containerStyle={styles.clipPlayerControls}
               />
-              <View style={styles.clipNavHeader}>
-                <TouchableOpacity
-                  style={[
-                    styles.clipNavArrow,
-                    !cm.previousMatch && styles.clipNavArrowDisabled,
-                  ]}
-                  onPress={() =>
-                    cm.previousMatch && cm.playMatch(cm.previousMatch)
-                  }
-                  disabled={!cm.previousMatch}
-                >
-                  <Ionicons name="arrow-back" size={18} color="#3d3a52" />
-                </TouchableOpacity>
-                <Text style={styles.clipNavCount}>
-                  Clip {cm.selectedMatchIndex + 1} of {cm.matches.length}
-                </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.clipNavArrow,
-                    !cm.nextMatch && styles.clipNavArrowDisabled,
-                  ]}
-                  onPress={() => cm.nextMatch && cm.playMatch(cm.nextMatch)}
-                  disabled={!cm.nextMatch}
-                >
-                  <Ionicons name="arrow-forward" size={18} color="#3d3a52" />
-                </TouchableOpacity>
-              </View>
+              {!hideClipNavigation && (
+                <View style={styles.clipNavHeader}>
+                  <TouchableOpacity
+                    style={[
+                      styles.clipNavArrow,
+                      !cm.previousMatch && styles.clipNavArrowDisabled,
+                    ]}
+                    onPress={() =>
+                      cm.previousMatch && cm.playMatch(cm.previousMatch)
+                    }
+                    disabled={!cm.previousMatch}
+                  >
+                    <Ionicons name="arrow-back" size={18} color="#3d3a52" />
+                  </TouchableOpacity>
+                  <Text style={styles.clipNavCount}>
+                    Clip {cm.selectedMatchIndex + 1} of {cm.matches.length}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.clipNavArrow,
+                      !cm.nextMatch && styles.clipNavArrowDisabled,
+                    ]}
+                    onPress={() => cm.nextMatch && cm.playMatch(cm.nextMatch)}
+                    disabled={!cm.nextMatch}
+                  >
+                    <Ionicons name="arrow-forward" size={18} color="#3d3a52" />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
             {!hideSegmentTranscript && (
               <Text style={styles.segmentTranscript}>{segmentTranscript}</Text>

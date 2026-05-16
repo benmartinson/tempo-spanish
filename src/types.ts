@@ -77,6 +77,8 @@ export interface CachedResponse {
 
 export interface RootState {
   currentVideo: VideoContext | null;
+  currentMode: AppMode;
+  currentCompositionId: string | number | null;
   currentChatType: "general" | "video-based" | null;
   videoRefreshKey: number;
   selectedChannelId: string | null;
@@ -101,6 +103,8 @@ export interface RootState {
 
 export type DataActionTypes =
   | "SET_CURRENT_VIDEO"
+  | "SET_CURRENT_MODE"
+  | "SET_CURRENT_COMPOSITION_ID"
   | "SET_CURRENT_CHAT_TYPE"
   | "SET_NEXT_SEGMENT"
   | "REFRESH_VIDEO_PLAYER"
@@ -327,6 +331,8 @@ export interface AccuracyResult {
 
 export interface UserUIState {
   current_video: string | null;
+  current_mode: AppMode | null;
+  current_composition: string | number | null;
   current_sentence: number;
   current_tab: string | null;
   playback_speed: number | null;
@@ -348,6 +354,8 @@ export interface UserUIState {
   target_language: LanguageCode | null;
   translation_language: LanguageCode | null;
 }
+
+export type AppMode = "compose" | "shadow";
 
 export type ContentTab =
   | "insights"

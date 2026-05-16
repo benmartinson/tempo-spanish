@@ -159,7 +159,6 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
       showsVerticalScrollIndicator
     >
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Choose Composition</Text>
         <Text style={styles.headerSubtitle}>
           Start fresh, import a transcript, or reopen saved work.
         </Text>

@@ -40,16 +40,49 @@ const ChannelVideoList: React.FC<{
   handleWatchPress: (videoId: string, recordId: string) => void;
   loadingVideo: boolean;
   onBack: () => void;
-}> = ({ channel, videos, handleWatchPress, loadingVideo, onBack }) => {
+  compact?: boolean;
+}> = ({
+  channel,
+  videos,
+  handleWatchPress,
+  loadingVideo,
+  onBack,
+  compact = false,
+}) => {
   const isWeb = Platform.OS === "web";
+  const compactWebVideoGridStyle: any = {
+    ...webVideoGridStyle,
+    width: "calc(100% - 20px)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
+    gap: "14px 10px",
+  };
 
   return (
     <FilterVideos videos={videos}>
       {({ filteredVideos, filterButton, activeFilterBar }) => (
-        <View style={[styles.allContainer, isWeb && styles.webAllContainer]}>
-          <View style={[styles.topBar, isWeb && styles.webContentContainer]}>
-            <TouchableOpacity style={styles.backButton} onPress={onBack}>
-              <Ionicons name="arrow-back" size={24} color="#5a5680" />
+        <View
+          style={[
+            styles.allContainer,
+            isWeb && styles.webAllContainer,
+            compact && styles.compactAllContainer,
+          ]}
+        >
+          <View
+            style={[
+              styles.topBar,
+              isWeb && styles.webContentContainer,
+              compact && styles.compactTopBar,
+            ]}
+          >
+            <TouchableOpacity
+              style={[styles.backButton, compact && styles.compactBackButton]}
+              onPress={onBack}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={compact ? 18 : 24}
+                color="#5a5680"
+              />
             </TouchableOpacity>
             {filterButton}
           </View>
@@ -58,6 +91,7 @@ const ChannelVideoList: React.FC<{
               channel={channel}
               videoCount={videos.length}
               countLabel="videos"
+              compact={compact}
             />
           </View>
 
@@ -69,13 +103,17 @@ const ChannelVideoList: React.FC<{
 
           <ScrollView
             style={[styles.listContainer, isWeb && styles.webListContainer]}
-            contentContainerStyle={isWeb && styles.webListContent}
+            contentContainerStyle={[
+              isWeb && styles.webListContent,
+              compact && styles.compactWebListContent,
+            ]}
           >
             <View
               style={[
                 styles.videoList,
                 isWeb && styles.webVideoList,
-                isWeb && webVideoGridStyle,
+                isWeb &&
+                  (compact ? compactWebVideoGridStyle : webVideoGridStyle),
               ]}
             >
               {filteredVideos.map((video) => (
@@ -87,6 +125,7 @@ const ChannelVideoList: React.FC<{
                   style={isWeb ? webVideoItemStyle : styles.videoItem}
                   thumbnailStyle={isWeb ? webVideoThumbnailStyle : undefined}
                   fullWidth={!isWeb}
+                  compact={compact}
                 />
               ))}
             </View>
@@ -105,6 +144,9 @@ const styles = StyleSheet.create({
   webAllContainer: {
     backgroundColor: "#f6f8fc",
   },
+  compactAllContainer: {
+    backgroundColor: "#ffffff",
+  },
   listContainer: {
     flex: 1,
     backgroundColor: "white",
@@ -122,12 +164,20 @@ const styles = StyleSheet.create({
     borderBottomColor: "#d0d8f0",
     marginBottom: 12,
   },
+  compactTopBar: {
+    marginBottom: 8,
+    paddingRight: 10,
+  },
   backButton: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 6,
+  },
+  compactBackButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   backText: {
     fontSize: 16,
@@ -147,6 +197,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 20,
     paddingBottom: 40,
+  },
+  compactWebListContent: {
+    paddingTop: 10,
+    paddingBottom: 18,
   },
   webVideoList: {
     gap: 0,

@@ -12,7 +12,7 @@ import {
 import { RootState } from "../../types";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  setCurrentVideo,
+  setCurrentMode,
   setSelectedChannelId,
 } from "../../store/actions/dataActions";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -20,10 +20,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import { useAuth } from "@clerk/clerk-expo";
 import { useNavigation } from "@react-navigation/native";
-import {
-  saveLastSentenceWatched,
-  persistVideoUnselection,
-} from "../../requests";
+import { saveLastSentenceWatched, persistCurrentMode } from "../../requests";
 import VideoInsights from "./VideoInsights";
 import ProfileModal from "../ProfileModal";
 import { isWebScreenWidth } from "../../helpers/helpers";
@@ -49,7 +46,9 @@ const NavTabBanner: React.FC = () => {
   const isWebScreen = isWebScreenWidth(width);
   const isWeb = Platform.OS === "web";
 
-  const navigateToMainApp = (params: { channelId?: string } = {}) => {
+  const navigateToMainApp = (
+    params: { channelId?: string; compose?: boolean } = {},
+  ) => {
     navigation.navigate({
       name: "MainApp",
       params,
@@ -57,7 +56,7 @@ const NavTabBanner: React.FC = () => {
     });
   };
 
-  const leaveVideo = async (params: { channelId?: string } = {}) => {
+  const saveCurrentVideoPosition = () => {
     if (supabase && currentVideo?.videoViewId) {
       saveLastSentenceWatched({
         supabase,
@@ -65,21 +64,31 @@ const NavTabBanner: React.FC = () => {
         currentSentence: currentVideo.currentSentence,
       });
     }
+  };
 
-    persistVideoUnselection({ supabase, userId });
+  const switchToComposeMode = () => {
+    saveCurrentVideoPosition();
+    dispatch(setCurrentMode("compose"));
+    persistCurrentMode({ supabase, userId, currentMode: "compose" });
+  };
+
+  const leaveVideo = async (params: { channelId?: string } = {}) => {
+    switchToComposeMode();
     if (isWeb) {
       navigateToMainApp(params);
       return;
     }
 
-    dispatch(setCurrentVideo(null));
     if (params.channelId) {
       dispatch(setSelectedChannelId(params.channelId));
     }
   };
 
   const handleBackPress = () => {
-    leaveVideo();
+    switchToComposeMode();
+    if (isWeb) {
+      navigateToMainApp({ compose: true });
+    }
   };
 
   const handleSeeAllVideos = async () => {

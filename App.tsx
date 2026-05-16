@@ -24,10 +24,12 @@ import {
   setSelectedChannelId,
   setSentenceByTime,
   addUserVideoView,
+  setCurrentMode,
+  setCurrentCompositionId,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import { supabase as rawSupabase } from "./lib/supabase";
-import { RootState } from "./src/types";
+import { AppMode, RootState } from "./src/types";
 import {
   fetchVideoContext,
   fetchAllVideos,
@@ -38,6 +40,7 @@ import {
   fetchUserCredits,
   persistVideoSelection,
   persistVideoUnselection,
+  persistCurrentMode,
 } from "./src/requests";
 import { useUIStateSync } from "./src/hooks/useUIStateSync";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
@@ -112,14 +115,12 @@ const linking: any = {
     // } else if (segments[0] === "creator" && segments[1] === "sign_up") {
     //   params.creatorSignUp = true;
     // }
-    if (segments[0] === "compose") {
+    if (!segments[0] || segments[0] === "compose" || segments[0] === "browse") {
       params.compose = true;
       const composeVideoId = searchParams.get("video");
       if (composeVideoId) {
         params.composeVideoId = composeVideoId;
       }
-    } else if (segments[0] === "browse") {
-      // Browse is the canonical root route.
     } else if (segments[0] === "channel" && segments[1]) {
       params.channelId = segments[1];
     }
@@ -164,21 +165,21 @@ const linking: any = {
       return `/video/${encodeURIComponent(videoId)}${clipParam}`;
     }
     if (channelId) return `/channel/${encodeURIComponent(channelId)}`;
-    return "/browse";
+    return "/compose";
   },
 };
 
-const useBrowseRootRedirect = () => {
+const useComposeRootRedirect = () => {
   React.useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") return;
 
     const path = window.location.pathname;
-    if (path !== "/" && path !== "") return;
+    if (path !== "/" && path !== "" && path !== "/browse") return;
 
     window.history.replaceState(
       window.history.state,
       "",
-      `/browse${window.location.search}${window.location.hash}`,
+      `/compose${window.location.search}${window.location.hash}`,
     );
   }, []);
 };
@@ -236,7 +237,7 @@ const MainApp: React.FC = () => {
 
   // Sync currentSentence changes to the database
   useUIStateSync();
-  useBrowseRootRedirect();
+  useComposeRootRedirect();
 
   // Use authenticated client when available, raw client for guests
   const publicSupabase = clerkSupabase ?? rawSupabase;
@@ -306,13 +307,21 @@ const MainApp: React.FC = () => {
 
     // Fetch and restore user UI state
     const restoreState = async () => {
-      const { videoContext, currentShadowTab, memorizeDifficulty, settings } =
-        await restoreUserUIState({
-          supabase: clerkSupabase,
-          userId,
-        });
+      const {
+        videoContext,
+        currentMode,
+        currentCompositionId,
+        currentShadowTab,
+        memorizeDifficulty,
+        settings,
+      } = await restoreUserUIState({
+        supabase: clerkSupabase,
+        userId,
+      });
 
       dispatch(setUserSettings(settings));
+      dispatch(setCurrentMode(currentMode));
+      dispatch(setCurrentCompositionId(currentCompositionId));
 
       if (currentShadowTab) {
         dispatch(setCurrentShadowTab(currentShadowTab));
@@ -324,7 +333,7 @@ const MainApp: React.FC = () => {
         dispatch(setMemorizeDifficulty(settings.defaultMemorizeDifficulty));
       }
 
-      if (videoContext && !hasRouteTarget) {
+      if (videoContext && (!hasRouteTarget || routeCompose)) {
         dispatch(setCurrentVideo(videoContext));
       }
 
@@ -404,10 +413,12 @@ const MainApp: React.FC = () => {
     // }
 
     if (routeCompose) {
-      if (currentVideo) {
-        dispatch(setCurrentVideo(null));
-        persistVideoUnselection({ supabase: clerkSupabase, userId });
-      }
+      dispatch(setCurrentMode("compose"));
+      persistCurrentMode({
+        supabase: clerkSupabase,
+        userId,
+        currentMode: "compose",
+      });
       if (selectedChannelId) dispatch(setSelectedChannelId(null));
       setIsLoadingRouteVideo(false);
       return;
@@ -436,6 +447,12 @@ const MainApp: React.FC = () => {
         currentVideo?.videoId === routeVideoId &&
         currentVideo?.recordId === routeVideo.id
       ) {
+        dispatch(setCurrentMode("shadow"));
+        persistCurrentMode({
+          supabase: clerkSupabase,
+          userId,
+          currentMode: "shadow",
+        });
         if (routeClip !== null) {
           dispatch(setSentenceByTime(routeClip));
         }
@@ -458,11 +475,13 @@ const MainApp: React.FC = () => {
             dispatch(addUserVideoView(videoView));
           }
           dispatch(setCurrentVideo(videoContext));
+          dispatch(setCurrentMode("shadow"));
           await persistVideoSelection({
             supabase: clerkSupabase,
             userId,
             recordId: routeVideo.id,
             currentSentence: videoContext.currentSentence,
+            currentMode: "shadow",
           });
         })
         .catch((error) => {
@@ -534,13 +553,19 @@ const MainApp: React.FC = () => {
     });
   };
 
+  const currentMode = useSelector((state: RootState) => state.currentMode);
+  const effectiveMode: AppMode = routeVideoId ? "shadow" : currentMode;
   const routeVideoIsReady =
     !routeVideoId || currentVideo?.videoId === routeVideoId;
   const shouldShowVideoPage =
     Platform.OS === "web"
-      ? !!routeVideoId && routeVideoIsReady
-      : !!currentVideo;
-  const shouldShowComposePage = routeCompose;
+      ? effectiveMode === "shadow" &&
+        !routeChannelId &&
+        !!currentVideo &&
+        routeVideoIsReady
+      : effectiveMode === "shadow" && !!currentVideo;
+  const shouldShowComposePage =
+    routeCompose || (Platform.OS !== "web" && effectiveMode === "compose");
   // Creator routes are hidden for this deploy.
   // const shouldShowCreatorRequestsPage = routeCreatorRequests;
   // const shouldShowCreatorSignUpPage = routeCreatorSignUp;

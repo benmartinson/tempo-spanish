@@ -11,6 +11,7 @@ import {
 import { RootState, Video } from "../../types";
 import {
   addUserVideoView,
+  setCurrentMode,
   setCurrentVideo,
   setSelectedChannelId,
 } from "../../store/actions/dataActions";
@@ -38,6 +39,8 @@ interface VideoListProps {
   onNavigateChannel?: (channelId: string) => void;
   onNavigateVideo?: (videoId: string, clip?: number) => void;
   onNavigateComposition?: (videoRecordId: string) => void;
+  compact?: boolean;
+  selectionMode?: "default" | "composition";
 }
 
 const VideoList: React.FC<VideoListProps> = ({
@@ -46,6 +49,8 @@ const VideoList: React.FC<VideoListProps> = ({
   onNavigateChannel,
   onNavigateVideo,
   onNavigateComposition,
+  compact = false,
+  selectionMode = "default",
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -68,7 +73,11 @@ const VideoList: React.FC<VideoListProps> = ({
   const isSearching = useSelector((state: RootState) => state.isSearching);
   const hasSearched = useSelector((state: RootState) => state.hasSearched);
   const allChannels = useSelector((state: RootState) => state.allChannels);
-  const effectiveChannelId = isWeb ? routeChannelId : selectedChannelId;
+  const effectiveChannelId = compact
+    ? (routeChannelId ?? selectedChannelId)
+    : isWeb
+      ? routeChannelId
+      : selectedChannelId;
   const selectedChannel =
     allChannels.find((c) => c.channel_id === effectiveChannelId) ?? null;
   const allTopics = useSelector((state: RootState) => state.allTopics);
@@ -152,6 +161,7 @@ const VideoList: React.FC<VideoListProps> = ({
         dispatch(addUserVideoView(videoView));
       }
       dispatch(setCurrentVideo(videoContext));
+      dispatch(setCurrentMode("shadow"));
       dispatch(setSelectedChannelId(null));
 
       await persistVideoSelection({
@@ -159,6 +169,7 @@ const VideoList: React.FC<VideoListProps> = ({
         userId,
         recordId,
         currentSentence: videoContext.currentSentence,
+        currentMode: "shadow",
       });
     } catch (error) {
       console.error("Error loading video:", error);
@@ -173,6 +184,10 @@ const VideoList: React.FC<VideoListProps> = ({
     clip?: number,
   ) => {
     if (loadingVideo) return;
+    if (selectionMode === "composition" && onNavigateComposition) {
+      onNavigateComposition(String(recordId));
+      return;
+    }
     setPendingVideoAction({ videoId, recordId, clip });
   };
 
@@ -277,6 +292,7 @@ const VideoList: React.FC<VideoListProps> = ({
           videos={channelVideos}
           handleWatchPress={handleWatchPress}
           loadingVideo={loadingVideo}
+          compact={compact}
           onBack={() => {
             if (isWeb) {
               onNavigateHome?.();
@@ -306,11 +322,22 @@ const VideoList: React.FC<VideoListProps> = ({
   }
   return (
     <View
-      style={[styles.outerContainer, isWebScreen && styles.webOuterContainer]}
+      style={[
+        styles.outerContainer,
+        isWebScreen && styles.webOuterContainer,
+        compact && styles.compactOuterContainer,
+      ]}
     >
       <ScrollView
-        style={[styles.container, isWebScreen && styles.webContainer]}
-        contentContainerStyle={isWebScreen && styles.webContentContainer}
+        style={[
+          styles.container,
+          isWebScreen && styles.webContainer,
+          compact && styles.compactContainer,
+        ]}
+        contentContainerStyle={[
+          isWebScreen && styles.webContentContainer,
+          compact && styles.compactContentContainer,
+        ]}
       >
         {isSearching && (
           <View style={styles.searchStatus}>
@@ -326,23 +353,29 @@ const VideoList: React.FC<VideoListProps> = ({
         )}
         {currentSearchResults.length > 0 && (
           <>
-            <VideoSectionHeader title="Search Results" />
+            <VideoSectionHeader title="Search Results" compact={compact} />
             <HorizontalVideoScroll
               videos={videoResultsArray}
               handleWatchPress={handleWatchPress}
               loadingVideo={loadingVideo}
               showClips={true}
+              compact={compact}
             />
           </>
         )}
         {recentlyWatchedVideos.length > 0 && (
           <>
-            <VideoSectionHeader title="Recently Watched" removeBorderTop />
+            <VideoSectionHeader
+              title="Recently Watched"
+              removeBorderTop
+              compact={compact}
+            />
             <HorizontalVideoScroll
               videos={recentlyWatchedVideos}
               handleWatchPress={handleWatchPress}
               loadingVideo={loadingVideo}
               isChannel={false}
+              compact={compact}
             />
           </>
         )}
@@ -418,6 +451,7 @@ const VideoList: React.FC<VideoListProps> = ({
                   removeBorderTop={
                     !recentlyWatchedVideos.length && !newReleaseVideos.length
                   }
+                  compact={compact}
                 >
                   {filterButton}
                 </VideoSectionHeader>
@@ -433,11 +467,18 @@ const VideoList: React.FC<VideoListProps> = ({
                         new Date(a.release_date ?? a.created_at ?? 0).getTime(),
                     );
                   return (
-                    <View key={channel.id} style={styles.channelContainer}>
+                    <View
+                      key={channel.id}
+                      style={[
+                        styles.channelContainer,
+                        compact && styles.compactChannelContainer,
+                      ]}
+                    >
                       <ChannelHeader
                         channel={channel}
                         videoCount={channelVideos.length}
                         onPress={() => handleChannelPress(channel.channel_id)}
+                        compact={compact}
                       />
 
                       <HorizontalVideoScroll
@@ -445,6 +486,7 @@ const VideoList: React.FC<VideoListProps> = ({
                         handleWatchPress={handleWatchPress}
                         loadingVideo={loadingVideo}
                         onViewAll={() => handleChannelPress(channel.channel_id)}
+                        compact={compact}
                       />
                     </View>
                   );
@@ -466,6 +508,9 @@ const styles = StyleSheet.create({
   },
   webOuterContainer: {
     backgroundColor: "#f6f8fc",
+  },
+  compactOuterContainer: {
+    backgroundColor: "#ffffff",
   },
   tabBar: {
     flexDirection: "row",
@@ -505,12 +550,20 @@ const styles = StyleSheet.create({
   webContainer: {
     backgroundColor: "#f6f8fc",
   },
+  compactContainer: {
+    backgroundColor: "#ffffff",
+  },
   webContentContainer: {
     width: "100%",
     maxWidth: 1320,
     alignSelf: "center",
     paddingTop: 8,
     paddingBottom: 40,
+  },
+  compactContentContainer: {
+    maxWidth: "100%",
+    paddingTop: 0,
+    paddingBottom: 18,
   },
   title: {
     fontSize: 32,
@@ -526,6 +579,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderBottomWidth: 2,
     borderBottomColor: "#d0d8f0",
+  },
+  compactChannelContainer: {
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74, 105, 189, 0.12)",
   },
   searchStatus: {
     paddingVertical: 12,

@@ -224,11 +224,13 @@ const Composer: React.FC<ComposerProps> = (props) => {
           </View>
         )}
 
-      {isOpeningVideoComposition ? (
+      {isOpeningVideoComposition || cps.isResolvingCurrentComposition ? (
         <View style={styles.openingVideoState}>
           <ActivityIndicator size="small" color="#5a5680" />
           <Text style={styles.openingVideoText}>
-            Opening video transcript...
+            {isOpeningVideoComposition
+              ? "Opening video transcript..."
+              : "Opening composition..."}
           </Text>
         </View>
       ) : !cps.hasChosenComposition ? (

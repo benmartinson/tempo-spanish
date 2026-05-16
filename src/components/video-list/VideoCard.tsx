@@ -21,6 +21,7 @@ const VideoCard: React.FC<{
   fullWidth?: boolean;
   channel?: Channel;
   onChannelPress?: () => void;
+  compact?: boolean;
 }> = ({
   video,
   onPress,
@@ -30,6 +31,7 @@ const VideoCard: React.FC<{
   fullWidth,
   channel,
   onChannelPress,
+  compact = false,
 }) => {
   return (
     <View style={[styles.videoItem, style]}>
@@ -50,8 +52,18 @@ const VideoCard: React.FC<{
             ]}
           />
           {video.duration && (
-            <View style={styles.durationBadge}>
-              <Text style={styles.durationText}>
+            <View
+              style={[
+                styles.durationBadge,
+                compact && styles.compactDurationBadge,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.durationText,
+                  compact && styles.compactDurationText,
+                ]}
+              >
                 {formatTimestamp(video.duration)}
               </Text>
             </View>
@@ -98,7 +110,11 @@ const VideoCard: React.FC<{
           unstable_pressDelay={150}
         >
           <Text
-            style={[styles.videoTitle, fullWidth && styles.fullWidthVideoTitle]}
+            style={[
+              styles.videoTitle,
+              compact && styles.compactVideoTitle,
+              fullWidth && styles.fullWidthVideoTitle,
+            ]}
             numberOfLines={2}
           >
             {video.title}
@@ -138,10 +154,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 2,
   },
+  compactDurationBadge: {
+    bottom: 5,
+    right: 3,
+    borderRadius: 3,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
   durationText: {
     color: "white",
     fontSize: 12,
     fontWeight: "600",
+  },
+  compactDurationText: {
+    fontSize: 10,
   },
   channelRow: {
     flexDirection: "row",
@@ -163,6 +189,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "black",
     lineHeight: 18,
+  },
+  compactVideoTitle: {
+    paddingTop: 3,
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: "700",
   },
   channelName: {
     fontSize: 13,

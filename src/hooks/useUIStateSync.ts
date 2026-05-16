@@ -16,6 +16,7 @@ export const useUIStateSync = () => {
   const currentSentence = currentVideo?.currentSentence;
   const videoViewId = currentVideo?.videoViewId;
   const recordId = currentVideo?.recordId;
+  const currentMode = useSelector((state: RootState) => state.currentMode);
 
   // Use refs to track previous values and debounce timer
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -28,7 +29,8 @@ export const useUIStateSync = () => {
     | undefined
   >(undefined);
   const lastSavedVideoViewRef = useRef<
-    { videoViewId: number | undefined; sentence: number | undefined } | undefined
+    | { videoViewId: number | undefined; sentence: number | undefined }
+    | undefined
   >(undefined);
 
   useEffect(() => {
@@ -42,7 +44,10 @@ export const useUIStateSync = () => {
       (lastSavedVideoViewRef.current?.videoViewId !== videoViewId ||
         lastSavedVideoViewRef.current?.sentence !== currentSentence)
     ) {
-      lastSavedVideoViewRef.current = { videoViewId, sentence: currentSentence };
+      lastSavedVideoViewRef.current = {
+        videoViewId,
+        sentence: currentSentence,
+      };
       saveLastSentenceWatched({
         supabase,
         videoViewId,
@@ -71,6 +76,7 @@ export const useUIStateSync = () => {
           {
             user_id: userId,
             current_video: recordId,
+            current_mode: currentMode,
             current_sentence: currentSentence,
             updated_at: new Date(),
           },
@@ -97,5 +103,13 @@ export const useUIStateSync = () => {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [supabase, userId, currentSentence, currentVideo, videoViewId, recordId]);
+  }, [
+    supabase,
+    userId,
+    currentSentence,
+    currentVideo,
+    videoViewId,
+    recordId,
+    currentMode,
+  ]);
 };

@@ -7,6 +7,8 @@ import {
 
 const initialState: RootState = {
   currentVideo: null,
+  currentMode: "compose",
+  currentCompositionId: null,
   currentChatType: null,
   videoRefreshKey: Date.now(),
   selectedChannelId: null,
@@ -100,6 +102,16 @@ const dataReducer = (
             }
           : null,
         videoRefreshKey: Date.now(),
+      };
+    case "SET_CURRENT_MODE":
+      return {
+        ...state,
+        currentMode: action.payload,
+      };
+    case "SET_CURRENT_COMPOSITION_ID":
+      return {
+        ...state,
+        currentCompositionId: action.payload,
       };
     case "SET_FOCUS_VOCAB":
       if (!state.currentVideo) return state;
