@@ -11,7 +11,7 @@ import {
 import { useRef, useEffect, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
-const MAX_DIFFICULTY = 4;
+const MAX_DIFFICULTY = 5;
 
 interface DifficultySliderProps {
   difficulty: number;

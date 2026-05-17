@@ -386,6 +386,7 @@ export interface UserComposition {
   user_id: string;
   title: string;
   text: string;
+  language?: LanguageCode | null;
   video_id?: string | null;
   segment_start?: number | null;
   segment_end?: number | null;
@@ -394,7 +395,7 @@ export interface UserComposition {
 }
 
 const USER_COMPOSITION_COLUMNS =
-  "id,user_id,title,text,video_id,segment_start,segment_end,created_at,updated_at";
+  "id,user_id,title,text,language,video_id,segment_start,segment_end,created_at,updated_at";
 
 export const fetchUserCompositions = async ({
   supabase,
@@ -424,6 +425,7 @@ export const createUserComposition = async ({
   userId,
   title,
   text,
+  language,
   videoId,
   segmentStart,
   segmentEnd,
@@ -432,6 +434,7 @@ export const createUserComposition = async ({
   userId: string | null | undefined;
   title: string;
   text: string;
+  language?: LanguageCode | null;
   videoId?: string | null;
   segmentStart?: number | null;
   segmentEnd?: number | null;
@@ -447,6 +450,7 @@ export const createUserComposition = async ({
       user_id: userId,
       title,
       text,
+      language: language ?? null,
       video_id: videoId ?? null,
       segment_start: segmentStart ?? null,
       segment_end: segmentEnd ?? null,

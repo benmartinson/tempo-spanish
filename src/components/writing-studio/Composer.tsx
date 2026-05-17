@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import type { Channel, Video } from "../../types";
+import type { Channel, LanguageCode, Video } from "../../types";
 import type { SegmentWord } from "../../types";
 import SignInPromptModal from "../common/SignInPromptModal";
 import ChooseComposition from "./ChooseComposition";
@@ -27,6 +27,7 @@ interface ComposerProps {
   onExitMemorizeFullScreen?: () => void;
   allChannels: Channel[];
   publicSupabase: any;
+  targetLanguage: LanguageCode | null;
   targetLanguageVideos: Video[];
 }
 
@@ -39,6 +40,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
     onExitMemorizeFullScreen,
     allChannels,
     publicSupabase,
+    targetLanguage,
     targetLanguageVideos,
   } = props;
   const [showVideoWriteInfo, setShowVideoWriteInfo] = useState(false);
@@ -241,6 +243,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
           isSignedIn={cps.isSignedIn}
           allChannels={allChannels}
           publicSupabase={publicSupabase}
+          targetLanguage={targetLanguage}
           targetLanguageVideos={targetLanguageVideos}
           onBlankCanvas={cps.handleBlankCanvas}
           onChooseTemplate={cps.handleChooseTemplate}
@@ -269,6 +272,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
           onDifficultyChange={cps.setMemorizeDifficultyAndReset}
           onRevealWord={cps.revealMemorizeWord}
           onRelayHighlightedWords={handleRelayHighlightedWords}
+          highlightedWordsResetKey={cps.highlightedWordsResetKey}
           isFullScreen={isMemorizeFullScreen}
           onToggleFullScreen={onToggleMemorizeFullScreen}
         />

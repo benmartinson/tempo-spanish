@@ -50,9 +50,19 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   const [isMemorizeFullScreen, setIsMemorizeFullScreen] = useState(false);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const allChannels = useSelector((state: RootState) => state.allChannels);
+  const currentCompositionId = useSelector(
+    (state: RootState) => state.currentCompositionId,
+  );
+  const currentVideoRecordId = useSelector(
+    (state: RootState) => state.currentVideo?.recordId ?? null,
+  );
   const targetLanguage = useSelector(
     (state: RootState) => state.userSettings.targetLanguage,
   );
+  const targetLanguageRef = useRef(targetLanguage);
+  useEffect(() => {
+    targetLanguageRef.current = targetLanguage;
+  }, [targetLanguage]);
 
   const channelTitleById = useMemo(
     () =>
@@ -91,6 +101,25 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
       ) ?? null
     );
   }, [allVideos, composition.transcriptSource]);
+  const localTranscriptVideoKey = useMemo(() => {
+    if (!composition.transcriptSource) return "none";
+
+    const range = composition.transcriptSourceSegmentRange;
+    return [
+      composition.transcriptSource.result.videoRecordId,
+      range?.start ?? composition.transcriptSource.startIndex,
+      range?.end ?? composition.transcriptSource.endIndex,
+    ].join(":");
+  }, [composition.transcriptSource, composition.transcriptSourceSegmentRange]);
+  const clipMatcherResetKey = useMemo(
+    () =>
+      [
+        currentCompositionId ? String(currentCompositionId) : "none",
+        currentVideoRecordId ? String(currentVideoRecordId) : "none",
+        localTranscriptVideoKey,
+      ].join("|"),
+    [currentCompositionId, currentVideoRecordId, localTranscriptVideoKey],
+  );
   const clipMatcher = useClipMatcher({
     activeSearchPhrase: composition.activeSearchPhrase,
     publicSupabase,
@@ -98,6 +127,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     transcriptSourceVideo,
     transcriptSourceSegmentRange: composition.transcriptSourceSegmentRange,
     localClipMatch: composition.videoModeClipMatch,
+    resetKey: clipMatcherResetKey,
   });
 
   const handleBlankCanvas = useCallback(() => {
@@ -120,6 +150,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   );
   const setSelectedTranscriptVideoContext = useCallback(
     async (result: VideoTranscriptSearchResult) => {
+      const requestTargetLanguage = targetLanguageRef.current;
       try {
         const { videoContext, videoView } = await fetchVideoContext({
           supabase: publicSupabase,
@@ -127,6 +158,8 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
           recordId: result.videoRecordId,
           userId,
         });
+
+        if (targetLanguageRef.current !== requestTargetLanguage) return;
 
         if (userId && videoView) {
           dispatch(addUserVideoView(videoView));
@@ -171,6 +204,18 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     }
   }, [clipMatcher, composition, initialVideoRecordId, navigation]);
   const loadedInitialVideoRecordIdRef = useRef<string | null>(null);
+  const lastTargetLanguageRef = useRef(targetLanguage);
+  useEffect(() => {
+    if (lastTargetLanguageRef.current === targetLanguage) return;
+
+    lastTargetLanguageRef.current = targetLanguage;
+    loadedInitialVideoRecordIdRef.current = null;
+    setIsLoadingInitialVideoComposition(false);
+    setInitialVideoCompositionFailed(false);
+    setIsMemorizeFullScreen(false);
+    clipMatcher.clearClipMatches();
+  }, [clipMatcher, targetLanguage]);
+
   useEffect(() => {
     const normalizedInitialVideoRecordId = initialVideoRecordId
       ? String(initialVideoRecordId)
@@ -197,6 +242,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     }
 
     let cancelled = false;
+    const requestTargetLanguage = targetLanguageRef.current;
     setInitialVideoCompositionFailed(false);
     setIsLoadingInitialVideoComposition(true);
 
@@ -217,6 +263,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
           Boolean(segment.text?.trim()),
         );
         if (cancelled) return;
+        if (targetLanguageRef.current !== requestTargetLanguage) return;
         if (!segments.length) {
           setInitialVideoCompositionFailed(true);
           return;
@@ -280,6 +327,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     const { selectedMatch } = clipMatcher;
     if (!selectedMatch) return;
 
+    const requestTargetLanguage = targetLanguageRef.current;
     try {
       const { videoContext, videoView } = await fetchVideoContext({
         supabase: publicSupabase,
@@ -288,6 +336,8 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
         clip: selectedMatch.anchorTime,
         userId,
       });
+
+      if (targetLanguageRef.current !== requestTargetLanguage) return;
 
       if (userId && videoView) {
         dispatch(addUserVideoView(videoView));
@@ -340,9 +390,11 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
           <ClipMatcher
             clipMatcher={clipMatcher}
             channelTitleById={channelTitleById}
+            resetKey={clipMatcherResetKey}
             hideSegmentTranscript={composition.isVideoMode}
             hideClipNavigation={composition.isVideoMode}
             onOpenSelectedVideo={openSelectedVideo}
+            onClearHighlightedWords={composition.clearHighlightedWords}
           />
         )}
         <Composer
@@ -355,6 +407,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
           onExitMemorizeFullScreen={exitMemorizeFullScreen}
           allChannels={allChannels}
           publicSupabase={publicSupabase}
+          targetLanguage={targetLanguage}
           targetLanguageVideos={targetLanguageVideos}
         />
       </View>
@@ -378,7 +431,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   writeLayoutNarrow: {
-    flexDirection: "column",
+    flexDirection: "column-reverse",
   },
   writeLayoutFullScreen: {
     maxWidth: "100%",

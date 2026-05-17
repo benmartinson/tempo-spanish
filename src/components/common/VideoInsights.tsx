@@ -46,13 +46,6 @@ const VideoInsights: React.FC<VideoInsightsProps> = ({ onSeeAllVideos }) => {
         <Text style={styles.label}>Avg. words/min</Text>
         <Text style={styles.value}>{wordsPerMinute}</Text>
       </View>
-      {channel && (
-        <TouchableOpacity style={styles.linkButton} onPress={onSeeAllVideos}>
-          <Text style={styles.linkText}>
-            See all videos from {channel.title}
-          </Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 };

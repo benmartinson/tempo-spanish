@@ -126,7 +126,9 @@ const linking: any = {
     }
     if (segments[0] === "video" && segments[1]) {
       params.videoId = segments[1];
-      const clip = Number(searchParams.get("clip"));
+      const clipParam = searchParams.get("clip");
+      const clip =
+        clipParam == null || clipParam === "" ? NaN : Number(clipParam);
       if (Number.isFinite(clip)) {
         params.clip = clip;
       }

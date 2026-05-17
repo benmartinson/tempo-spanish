@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { UserComposition } from "../../requests";
-import type { Channel, Segment, Video } from "../../types";
+import type { Channel, LanguageCode, Segment, Video } from "../../types";
 import VideoTranscriptImport, {
   type VideoTranscriptSearchResult,
 } from "./VideoTranscriptImport";
@@ -67,6 +67,7 @@ interface ChooseCompositionProps {
   isSignedIn: boolean;
   allChannels: Channel[];
   publicSupabase: any;
+  targetLanguage: LanguageCode | null;
   targetLanguageVideos: Video[];
   onBlankCanvas: () => void;
   onChooseTemplate: (template: CompositionTemplate) => void;
@@ -93,6 +94,7 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   isSignedIn,
   allChannels,
   publicSupabase,
+  targetLanguage,
   targetLanguageVideos,
   onBlankCanvas,
   onChooseTemplate,
@@ -101,6 +103,15 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
 }) => {
   const [view, setView] = useState<"main" | "templates" | "videoTranscript">(
     "main",
+  );
+  const targetLanguageSavedCompositions = useMemo(
+    () =>
+      targetLanguage
+        ? savedCompositions.filter(
+            (composition) => composition.language === targetLanguage,
+          )
+        : [],
+    [savedCompositions, targetLanguage],
   );
   const savedEmptyLabel = isSignedIn
     ? "No saved compositions yet."
@@ -199,9 +210,9 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
       </View>
       {savedCompositionError ? (
         <Text style={styles.emptyText}>{savedCompositionError}</Text>
-      ) : savedCompositions.length ? (
+      ) : targetLanguageSavedCompositions.length ? (
         <View style={styles.list}>
-          {savedCompositions.map((composition) => (
+          {targetLanguageSavedCompositions.map((composition) => (
             <Pressable
               key={String(composition.id)}
               style={styles.row}

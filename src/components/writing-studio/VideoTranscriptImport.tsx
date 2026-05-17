@@ -152,6 +152,11 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
     }
   };
 
+  const handleSearchInputSubmit = () => {
+    if (!hasVideoSearchInput || isSearchingVideos) return;
+    void runVideoSearch();
+  };
+
   const cancelVideoSearch = () => {
     searchRunIdRef.current += 1;
     setTopicQuery("");
@@ -241,6 +246,8 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
               placeholder="Topic"
               placeholderTextColor="#8a91a3"
               style={styles.searchInput}
+              returnKeyType="search"
+              onSubmitEditing={handleSearchInputSubmit}
             />
             <TextInput
               value={channelQuery}
@@ -248,6 +255,8 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
               placeholder="Channel"
               placeholderTextColor="#8a91a3"
               style={styles.searchInput}
+              returnKeyType="search"
+              onSubmitEditing={handleSearchInputSubmit}
             />
             <TextInput
               value={transcriptQuery}
@@ -255,6 +264,8 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
               placeholder="Transcript includes"
               placeholderTextColor="#8a91a3"
               style={[styles.searchInput, styles.transcriptSearchInput]}
+              returnKeyType="search"
+              onSubmitEditing={handleSearchInputSubmit}
             />
             <Pressable
               style={[

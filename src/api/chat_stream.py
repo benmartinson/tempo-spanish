@@ -458,6 +458,22 @@ async def fetch_vocab_translation(request: FetchVocabTranslationRequest, user_id
     """
     Fetch the in-context English translation of a Spanish vocabulary word or phrase.
     """
+    vocab_word = request.vocab_word.strip()
+    is_phrase = len(vocab_word.split()) > 1
+
+    if is_phrase:
+        try:
+            translator = GoogleTranslator(source='auto', target='en')
+            translation = translator.translate(vocab_word)
+            return {
+                "translation": translation,
+                "alternate_meanings": [],
+                "status": "complete"
+            }
+        except Exception as translate_err:
+            print(f"Error translating vocab phrase: {translate_err}")
+            return {"error": str(translate_err)}
+
     if not openai_client:
         return {"error": "OpenAI API key not configured"}
 
@@ -466,10 +482,10 @@ async def fetch_vocab_translation(request: FetchVocabTranslationRequest, user_id
         if request.sentence_translation:
             translation_line = f'\nEnglish translation of the sentence: "{request.sentence_translation}"'
 
-        user_prompt = f"""Spanish word or phrase: "{request.vocab_word}"
+        user_prompt = f"""Spanish word or phrase: "{vocab_word}"
 Sentence it appears in: "{request.sentence_text}"{translation_line}
 
-What does "{request.vocab_word}" mean in this sentence?"""
+What does "{vocab_word}" mean in this sentence?"""
 
         messages = [
             {"role": "system", "content": VOCAB_TRANSLATION_SYSTEM_PROMPT},
@@ -501,11 +517,11 @@ What does "{request.vocab_word}" mean in this sentence?"""
         result = json.loads(response.choices[0].message.content.strip())
 
         alt_meanings = []
-        if len(request.vocab_word.split()) == 1:
+        if len(vocab_word.split()) == 1:
             # Parallel call for alternate meanings
             alt_messages = [
                 {"role": "system", "content": "Given a Spanish word, list up to 3 other common English meanings of this word that are NOT the meaning used in the given sentence. Only include meanings that are genuinely different from the in-context meaning. If the word has fewer than 2 other common meanings, return fewer. Each meaning should be 1-3 words. Output valid JSON."},
-                {"role": "user", "content": f'Spanish word: "{request.vocab_word}"\nIn-context meaning: "{result["translation"]}"\nSentence: "{request.sentence_text}"'}
+                {"role": "user", "content": f'Spanish word: "{vocab_word}"\nIn-context meaning: "{result["translation"]}"\nSentence: "{request.sentence_text}"'}
             ]
 
             alt_response = openai_client.chat.completions.create(

@@ -366,7 +366,7 @@ const VideoList: React.FC<VideoListProps> = ({
         {recentlyWatchedVideos.length > 0 && (
           <>
             <VideoSectionHeader
-              title="Recently Watched"
+              title="Recents"
               removeBorderTop
               compact={compact}
             />
@@ -452,9 +452,7 @@ const VideoList: React.FC<VideoListProps> = ({
                     !recentlyWatchedVideos.length && !newReleaseVideos.length
                   }
                   compact={compact}
-                >
-                  {filterButton}
-                </VideoSectionHeader>
+                ></VideoSectionHeader>
                 {activeFilterBar}
                 {filteredChannels.map((channel) => {
                   const channelVideos = filteredVideos

@@ -17,6 +17,7 @@ import {
   fetchAllVideos,
   fetchLanguageContentCounts,
   LanguageContentCounts,
+  persistCurrentComposition,
   persistUserSettings,
   persistVideoUnselection,
 } from "../../requests";
@@ -25,6 +26,7 @@ import {
   setAllTopics,
   setAllVideos,
   setChannelTopics,
+  setCurrentCompositionId,
   setCurrentVideo,
   setSelectedChannelId,
   setUserSettings,
@@ -171,6 +173,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
       dispatch(setUserSettings(nextSettings));
       if (targetChanged) {
         dispatch(setCurrentVideo(null));
+        dispatch(setCurrentCompositionId(null));
         dispatch(setSelectedChannelId(null));
       }
 
@@ -195,6 +198,11 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
         persistVideoUnselection({
           supabase: clerkSupabase,
           userId,
+        });
+        persistCurrentComposition({
+          supabase: clerkSupabase,
+          userId,
+          compositionId: null,
         });
       }
 
@@ -269,7 +277,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
     <SlideModal
       visible={visible}
       onRequestClose={handleRequestClose}
-      title="Choose Language"
+      title="What language are you learning?"
       showCloseButton={!isRequiredSelection}
     >
       <View style={styles.container}>
@@ -280,7 +288,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ visible, onClose }) => {
               ...option,
               selected: targetLanguage === option.code,
               onPress: () => setTargetLanguage(option.code),
-              showCounts: true,
+              showCounts: false,
             }),
           )}
         </View>

@@ -510,10 +510,11 @@ export type DifficultyLevel =
 
 /**
  * Decide which word indices in a sentence should start out masked, given
- * the active difficulty (0–4). Difficulty 0 masks nothing, 4 masks every
- * word. In between, easy filler words (prepositions/pronouns) are masked
- * first; harder difficulties reach a target masked-word percentage by
- * adding evenly-spaced content words on top.
+ * the active difficulty (0–5). Difficulty 0 masks nothing, 5 masks every
+ * word. Level 4 reveals only the first two words of each simple sentence.
+ * In between, easy filler words (prepositions/pronouns) are masked first;
+ * harder difficulties reach a target masked-word percentage by adding
+ * evenly-spaced content words on top.
  */
 export const computeBaseMaskedIndices = (
   words: SegmentWord[] | undefined,
@@ -521,8 +522,17 @@ export const computeBaseMaskedIndices = (
 ): Set<number> => {
   const masked = new Set<number>();
   if (difficulty === 0 || !words) return masked;
-  if (difficulty === 4) {
+  if (difficulty >= 5) {
     words.forEach((_, i) => masked.add(i));
+    return masked;
+  }
+  if (difficulty === 4) {
+    let sentenceWordIndex = 0;
+    words.forEach((word, i) => {
+      if (sentenceWordIndex >= 2) masked.add(i);
+      sentenceWordIndex += 1;
+      if (/[.!?]$/.test(word.word.trim())) sentenceWordIndex = 0;
+    });
     return masked;
   }
   const easyWords = new Set([...SPANISH_PREPOSITIONS, ...SPANISH_PRONOUNS]);
@@ -579,14 +589,14 @@ export const getAutoHintDifficulty = (
       if (charCount <= 180) return 1;
       return 0;
     case "difficult":
-      if (charCount <= 72) return 4;
+      if (charCount <= 72) return 5;
       if (charCount <= 120) return 3;
       if (charCount <= 180) return 2;
       return 1;
     case "hardest":
-      if (charCount <= 96) return 4;
-      if (charCount <= 180) return 3;
-      return 2;
+      if (charCount <= 96) return 5;
+      if (charCount <= 180) return 4;
+      return 3;
   }
 };
 

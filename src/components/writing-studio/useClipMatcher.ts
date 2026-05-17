@@ -19,6 +19,7 @@ interface UseClipMatcherParams {
   transcriptSourceVideo: Video | null;
   transcriptSourceSegmentRange: TranscriptSourceSegmentRange | null;
   localClipMatch?: TranscriptPhraseMatch | null;
+  resetKey?: string;
 }
 
 export const useClipMatcher = ({
@@ -28,6 +29,7 @@ export const useClipMatcher = ({
   transcriptSourceVideo,
   transcriptSourceSegmentRange,
   localClipMatch,
+  resetKey = "",
 }: UseClipMatcherParams) => {
   const [matches, setMatches] = useState<TranscriptPhraseMatch[]>([]);
   const [selectedMatch, setSelectedMatch] =
@@ -62,6 +64,7 @@ export const useClipMatcher = ({
     : "";
   const lastLocalClipMatchKeyRef = useRef("");
   const lastLocalSearchKeyRef = useRef("");
+  const lastResetKeyRef = useRef(resetKey);
   const hasOtherClips = localClipMatch
     ? matches.some(
         (match) =>
@@ -115,6 +118,15 @@ export const useClipMatcher = ({
   }, [clearPlaybackTimeouts]);
 
   useEffect(() => clearPlaybackTimeouts, [clearPlaybackTimeouts]);
+
+  useEffect(() => {
+    if (lastResetKeyRef.current === resetKey) return;
+
+    lastResetKeyRef.current = resetKey;
+    lastLocalClipMatchKeyRef.current = "";
+    lastLocalSearchKeyRef.current = "";
+    clearClipMatches();
+  }, [clearClipMatches, resetKey]);
 
   useEffect(() => {
     if (localClipMatch) {
@@ -194,8 +206,14 @@ export const useClipMatcher = ({
     if (!activeSearchPhrase) {
       lastLocalClipMatchKeyRef.current = "";
       lastLocalSearchKeyRef.current = "";
+      clearPlaybackTimeouts();
+      setMatches([]);
+      setSelectedMatch(null);
+      setSelectedMatchPhrase("");
       setPhraseError(null);
       setIsSearchingPhrase(false);
+      setPlayerTime(0);
+      setPlayerIsPlaying(false);
       return;
     }
 
@@ -314,6 +332,7 @@ export const useClipMatcher = ({
     localClipMatchKey,
     publicSupabase,
     queueMatchPlayback,
+    resetKey,
     segmentIdEnd,
     segmentIdStart,
     targetLanguageVideos,

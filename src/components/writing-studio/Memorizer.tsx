@@ -12,6 +12,7 @@ interface MemorizerProps {
   onDifficultyChange: (difficulty: number) => void;
   onRevealWord: (index: number) => void;
   onRelayHighlightedWords: (words: SegmentWord[]) => void;
+  highlightedWordsResetKey?: number;
   isFullScreen?: boolean;
   onToggleFullScreen?: () => void;
 }
@@ -23,6 +24,7 @@ const Memorizer: React.FC<MemorizerProps> = ({
   onDifficultyChange,
   onRevealWord,
   onRelayHighlightedWords,
+  highlightedWordsResetKey = 0,
   isFullScreen = false,
   onToggleFullScreen,
 }) => (
@@ -60,6 +62,7 @@ const Memorizer: React.FC<MemorizerProps> = ({
         disableGuessModal={false}
         onWordPress={onRevealWord}
         relayHighlightedWords={onRelayHighlightedWords}
+        relayResetKey={highlightedWordsResetKey}
       />
     </ScrollView>
   </View>

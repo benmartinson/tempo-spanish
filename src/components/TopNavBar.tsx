@@ -9,6 +9,7 @@ import {
   Image,
   ActivityIndicator,
   Platform,
+  Linking,
 } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -21,6 +22,8 @@ import { getInitials, isWebScreenWidth } from "../helpers/helpers";
 import { LanguageCode, RootState } from "../types";
 
 const SHOW_LANGUAGE_SELECTOR = Platform.OS === "web";
+const APP_STORE_URL =
+  "https://apps.apple.com/us/app/tempo-spanish/id6763132237";
 
 const languageLabelByCode: Record<LanguageCode, string> = {
   es: "Spanish",
@@ -58,12 +61,16 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
   const targetLanguageFlag = targetLanguage
     ? languageFlagByCode[targetLanguage]
     : null;
+  const showMobileAppBanner = Platform.OS === "web" && !isWebScreen;
   const navigateCompose = () =>
     navigation.navigate({
       name: "MainApp",
       params: { compose: true },
       merge: false,
     });
+  const openAppStore = () => {
+    void Linking.openURL(APP_STORE_URL);
+  };
 
   useEffect(() => {
     if (
@@ -159,44 +166,63 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
   }
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.webBrand}
-        onPress={navigateCompose}
-        activeOpacity={0.78}
-      >
-        <View style={styles.webBrandMark}>
-          <Image
-            source={require("../../public/try/assets/icon.png")}
-            style={styles.webBrandIcon}
-          />
-        </View>
-        <View style={{ flexDirection: "row" }}>
-          <Text style={styles.mobileAppName}>Tempo</Text>
-          <Text style={styles.mobileAppSubname}>Spanish</Text>
-        </View>
-      </TouchableOpacity>
-
-      <>
+    <>
+      {showMobileAppBanner && (
         <TouchableOpacity
-          style={styles.avatarButton}
-          onPress={() => {
-            if (isSignedIn) {
-              setProfileVisible(true);
-            } else {
-              navigation.navigate("SignIn");
-            }
-          }}
+          style={styles.mobileAppBanner}
+          onPress={openAppStore}
+          activeOpacity={0.82}
         >
-          <Ionicons name="person" size={16} color="#5a5680" />
+          <Text style={styles.mobileAppBannerText}>
+            Try Tempo Spanish on Mobile
+          </Text>
+          <Ionicons name="arrow-forward" size={16} color="#ffffff" />
+        </TouchableOpacity>
+      )}
+      <View
+        style={[
+          styles.container,
+          showMobileAppBanner && styles.containerBelowMobileAppBanner,
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.webBrand}
+          onPress={navigateCompose}
+          activeOpacity={0.78}
+        >
+          <View style={styles.webBrandMark}>
+            <Image
+              source={require("../../public/try/assets/icon.png")}
+              style={styles.webBrandIcon}
+            />
+          </View>
+          <View style={styles.mobileBrandTextGroup}>
+            <Text style={styles.mobileAppName}>Tempo</Text>
+            <Text style={styles.mobileAppSubname}>Spanish</Text>
+          </View>
         </TouchableOpacity>
 
-        <ProfileModal
-          visible={profileVisible}
-          onClose={() => setProfileVisible(false)}
-        />
-      </>
-    </View>
+        <>
+          <TouchableOpacity
+            style={styles.avatarButton}
+            onPress={() => {
+              if (isSignedIn) {
+                setProfileVisible(true);
+              } else {
+                navigation.navigate("SignIn");
+              }
+            }}
+          >
+            <Ionicons name="person" size={16} color="#5a5680" />
+          </TouchableOpacity>
+
+          <ProfileModal
+            visible={profileVisible}
+            onClose={() => setProfileVisible(false)}
+          />
+        </>
+      </View>
+    </>
   );
 };
 
@@ -211,6 +237,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#d0d8f0",
     justifyContent: "space-between",
+  },
+  containerBelowMobileAppBanner: {
+    marginTop: 0,
+  },
+  mobileAppBanner: {
+    width: "100%",
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    backgroundColor: "#3d3a52",
+  },
+  mobileAppBannerText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "900",
   },
   leftFlagContainer: {
     width: 36,
@@ -305,14 +349,18 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 20,
   },
+  mobileBrandTextGroup: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
   mobileAppSubname: {
     color: "#6f7890",
-    fontSize: 16,
+    fontSize: 11,
     fontWeight: "700",
-    lineHeight: 19,
+    lineHeight: 14,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    paddingLeft: 4,
+    letterSpacing: 1.4,
+    paddingLeft: 1,
   },
   webActions: {
     flexDirection: "row",

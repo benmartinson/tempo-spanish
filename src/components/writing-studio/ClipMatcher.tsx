@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -20,9 +21,11 @@ import type { ClipMatcherController } from "./useClipMatcher";
 interface ClipMatcherProps {
   clipMatcher: ClipMatcherController;
   channelTitleById: Map<string, string>;
+  resetKey?: string;
   hideSegmentTranscript?: boolean;
   hideClipNavigation?: boolean;
   onOpenSelectedVideo: () => void;
+  onClearHighlightedWords?: () => void;
 }
 
 const makeClipSentence = (match: TranscriptPhraseMatch): Sentence => ({
@@ -45,13 +48,32 @@ const formatSelectedTranslationText = (value: string): string => {
 const stripTrailingPhrasePunctuation = (value: string): string =>
   value.trim().replace(/[.,!?;:…]+$/, "");
 
+const formatClipStartTime = (value: number): string => `${Math.floor(value)}s`;
+
+const formatClipEndTime = (value: number): string => `${Math.ceil(value)}s`;
+
+const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+
+  const tagName = element.tagName?.toLowerCase();
+  return (
+    tagName === "input" ||
+    tagName === "textarea" ||
+    tagName === "select" ||
+    element.isContentEditable
+  );
+};
+
 const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   const {
     clipMatcher: cm,
     channelTitleById,
+    resetKey = "",
     hideSegmentTranscript = false,
     hideClipNavigation = false,
     onOpenSelectedVideo,
+    onClearHighlightedWords,
   } = props;
 
   const segmentTranscript = useMemo(() => {
@@ -93,8 +115,13 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
       }
     >
   >({});
+  const lastResetKeyRef = useRef(resetKey);
   const selectedMatchRef = useRef<TranscriptPhraseMatch | null>(null);
+  const toggleMatchPlaybackRef = useRef(cm.toggleMatchPlayback);
+  const hasSelectedMatchRef = useRef(Boolean(cm.selectedMatch));
   selectedMatchRef.current = cm.selectedMatch;
+  toggleMatchPlaybackRef.current = cm.toggleMatchPlayback;
+  hasSelectedMatchRef.current = Boolean(cm.selectedMatch);
   const hasSelectedMatch = Boolean(cm.selectedMatch);
   const selectedTranslationText = useMemo(
     () => stripTrailingPhrasePunctuation(cm.selectedMatchPhrase),
@@ -110,6 +137,43 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
     () => formatSelectedTranslationText(selectedTranslationText),
     [selectedTranslationText],
   );
+  const clipStartLabel = cm.selectedMatch
+    ? formatClipStartTime(cm.selectedMatch.start)
+    : "0s";
+  const clipEndLabel = cm.selectedMatch
+    ? formatClipEndTime(cm.selectedMatch.end)
+    : "0s";
+
+  useEffect(() => {
+    if (lastResetKeyRef.current === resetKey) return;
+
+    lastResetKeyRef.current = resetKey;
+    translationCacheRef.current = {};
+    setTranslation(null);
+    setAlternateMeanings([]);
+    setIsLoadingTranslation(false);
+    setTranslationError(null);
+  }, [resetKey]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isSpacebar = event.code === "Space" || event.key === " ";
+      if (!isSpacebar || event.repeat) return;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      if (isEditableKeyboardTarget(event.target)) return;
+      if (!hasSelectedMatchRef.current) return;
+
+      event.preventDefault();
+      toggleMatchPlaybackRef.current();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const selectedMatch = selectedMatchRef.current;
@@ -209,7 +273,10 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
               </TouchableOpacity>
             </View>
             <View style={styles.clipActionRow}>
-              <View style={{ height: "100%", justifyContent: "center" }}>
+              <View style={styles.clipControlsGroup}>
+                <Text style={styles.clipTimeLabel}>
+                  Playing clip {clipStartLabel} - {clipEndLabel}
+                </Text>
                 <PlayerControls
                   onReplay={() => cm.replaySelectedMatch(1)}
                   onReplaySlow={() => cm.replaySelectedMatch(0.75)}
@@ -259,9 +326,20 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
             </View>
             {selectedTranslationText ? (
               <View style={styles.translationPanel}>
-                <Text style={styles.vocabText} numberOfLines={1}>
-                  {selectedTranslationLabel}
-                </Text>
+                <View style={styles.translationHeader}>
+                  <Text style={styles.vocabText} numberOfLines={1}>
+                    {selectedTranslationLabel}
+                  </Text>
+                  <TouchableOpacity
+                    accessibilityLabel="Close translation"
+                    style={styles.translationCloseButton}
+                    onPress={onClearHighlightedWords}
+                    disabled={!onClearHighlightedWords}
+                    activeOpacity={0.72}
+                  >
+                    <Ionicons name="close" size={16} color="#5a5680" />
+                  </TouchableOpacity>
+                </View>
                 {isLoadingTranslation ? (
                   <ActivityIndicator size="small" color="#4a69bd" />
                 ) : translation ? (
@@ -396,12 +474,22 @@ const styles = StyleSheet.create({
     borderColor: "rgba(38, 112, 93, 0.18)",
   },
   clipActionRow: {
-    minHeight: 42,
+    minHeight: 50,
     marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
+  },
+  clipControlsGroup: {
+    minHeight: 48,
+    justifyContent: "center",
+    gap: 4,
+  },
+  clipTimeLabel: {
+    color: "#697187",
+    fontSize: 10,
+    fontWeight: "800",
   },
   findingClipsStatus: {
     minHeight: 34,
@@ -425,6 +513,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(74, 105, 189, 0.16)",
     backgroundColor: "#f7f9ff",
+  },
+  translationHeader: {
+    width: "100%",
+    minHeight: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 34,
+  },
+  translationCloseButton: {
+    position: "absolute",
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.16)",
   },
   vocabText: {
     color: "#222",

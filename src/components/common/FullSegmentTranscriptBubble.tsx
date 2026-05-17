@@ -55,6 +55,7 @@ interface FullSegmentTranscriptBubbleProps {
   onInlineReviewWord?: (word: SegmentWord) => void;
   footerContent?: ReactNode;
   relayHighlightedWords?: (words: SegmentWord[]) => void;
+  relayResetKey?: number | string;
   showWordTimestamps?: boolean;
 }
 
@@ -115,6 +116,7 @@ const FullSegmentTranscriptBubble: React.FC<
   onInlineReviewWord,
   footerContent,
   relayHighlightedWords,
+  relayResetKey = 0,
   showWordTimestamps = false,
 }) => {
   const dispatch = useDispatch();
@@ -208,6 +210,11 @@ const FullSegmentTranscriptBubble: React.FC<
     setRelayRange(null);
     relayDidHighlightRef.current = false;
   }, [segmentIdentity]);
+
+  useEffect(() => {
+    setRelayRange(null);
+    relayDidHighlightRef.current = false;
+  }, [relayResetKey]);
 
   const relayWordRange = useCallback(
     (startIndex: number, endIndex: number) => {

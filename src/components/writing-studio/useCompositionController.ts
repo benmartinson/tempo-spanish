@@ -248,6 +248,7 @@ export const useCompositionController = ({
   const [videoModeHighlightedWords, setVideoModeHighlightedWords] = useState<
     SegmentWord[]
   >([]);
+  const [highlightedWordsResetKey, setHighlightedWordsResetKey] = useState(0);
   const [suggestions, setSuggestions] = useState<WritingSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
@@ -260,6 +261,7 @@ export const useCompositionController = ({
     (state: RootState) => state.currentCompositionId,
   );
   const restoredCompositionIdRef = useRef<string | number | null>(null);
+  const lastTargetLanguageRef = useRef(targetLanguage);
 
   useEffect(() => {
     if (!isSignedIn || !userId) {
@@ -428,6 +430,37 @@ export const useCompositionController = ({
     [clearCompositionWorkspace],
   );
 
+  useEffect(() => {
+    if (currentCompositionId || !currentComposition) return;
+
+    clearCompositionWorkspace();
+    setDraft("");
+    setCompositionTitle("");
+    setCurrentComposition(null);
+    setHasChosenComposition(false);
+    restoredCompositionIdRef.current = null;
+    setSaveCompositionError(null);
+    setSaveCompositionMessage(null);
+  }, [clearCompositionWorkspace, currentComposition, currentCompositionId]);
+
+  useEffect(() => {
+    if (lastTargetLanguageRef.current === targetLanguage) return;
+
+    lastTargetLanguageRef.current = targetLanguage;
+    clearCompositionWorkspace();
+    setDraft("");
+    setCompositionTitle("");
+    setCurrentComposition(null);
+    setHasChosenComposition(false);
+    restoredCompositionIdRef.current = null;
+    setIsRestoringCurrentComposition(false);
+    setSaveCompositionError(null);
+    setSaveCompositionMessage(null);
+    setSuggestions([]);
+    setSuggestionError(null);
+    setIsLoadingSuggestions(false);
+  }, [clearCompositionWorkspace, targetLanguage]);
+
   const handleDraftChange = useCallback((nextDraft: string) => {
     setDraft(cleanCompositionText(nextDraft));
     setRelayedHighlightedPhrase("");
@@ -547,10 +580,12 @@ export const useCompositionController = ({
     () =>
       currentCompositionId
         ? savedCompositions.find(
-            (item) => String(item.id) === String(currentCompositionId),
+            (item) =>
+              String(item.id) === String(currentCompositionId) &&
+              item.language === targetLanguage,
           )
         : null,
-    [currentCompositionId, savedCompositions],
+    [currentCompositionId, savedCompositions, targetLanguage],
   );
   const isWaitingForCompositionVideo = Boolean(
     compositionToRestore?.video_id && !allVideos.length,
@@ -762,6 +797,7 @@ export const useCompositionController = ({
             userId,
             title,
             text: draft,
+            language: targetLanguage,
             videoId: transcriptSource?.result.videoRecordId ?? null,
             segmentStart: transcriptSource?.startIndex ?? null,
             segmentEnd: transcriptSource?.endIndex ?? null,
@@ -789,6 +825,7 @@ export const useCompositionController = ({
     dispatch,
     isSignedIn,
     mergeSavedComposition,
+    targetLanguage,
     transcriptSource,
     userId,
   ]);
@@ -805,6 +842,12 @@ export const useCompositionController = ({
     ).trim();
     setVideoModeHighlightedWords(words);
     setRelayedHighlightedPhrase(phrase);
+  }, []);
+  const clearHighlightedWords = useCallback(() => {
+    setSelection({ start: 0, end: 0 });
+    setRelayedHighlightedPhrase("");
+    setVideoModeHighlightedWords([]);
+    setHighlightedWordsResetKey((key) => key + 1);
   }, []);
 
   const videoModeClipMatch = useMemo<TranscriptPhraseMatch | null>(() => {
@@ -987,8 +1030,10 @@ export const useCompositionController = ({
     handleNewComposition,
     handleRelayHighlightedWords,
     handleTitleChange,
+    clearHighlightedWords,
     closeSaveSignInPrompt,
     hasChosenComposition,
+    highlightedWordsResetKey,
     isLoadingSavedCompositions,
     isResolvingCurrentComposition,
     isLoadingSuggestions,
