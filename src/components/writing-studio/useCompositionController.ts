@@ -627,6 +627,48 @@ export const useCompositionController = ({
     isWaitingForCompositionVideo,
   ]);
 
+  const handleChooseVideoTranscriptRange = useCallback(
+    (
+      result: VideoTranscriptSearchResult,
+      segments: Segment[],
+      startIndex: number,
+      endIndex: number,
+    ) => {
+      if (!segments.length) return;
+
+      const normalizedStart = Math.max(
+        0,
+        Math.min(startIndex, segments.length - 1),
+      );
+      const normalizedEnd = Math.max(
+        0,
+        Math.min(endIndex, segments.length - 1),
+      );
+      const rangeStart = Math.min(normalizedStart, normalizedEnd);
+      const rangeEnd = Math.max(normalizedStart, normalizedEnd);
+
+      clearCompositionWorkspace();
+      setMode("memorize");
+      setTranscriptSource({
+        result,
+        segments,
+        startIndex: rangeStart,
+        endIndex: rangeEnd,
+      });
+      setDraft(
+        cleanCompositionText(
+          makeTranscriptRangeText(segments, rangeStart, rangeEnd),
+        ),
+      );
+      setCompositionTitle(result.title);
+      setCurrentComposition(null);
+      setHasChosenComposition(true);
+      setSaveCompositionError(null);
+      setSaveCompositionMessage(null);
+    },
+    [clearCompositionWorkspace],
+  );
+
   const handleChooseVideoTranscript = useCallback(
     (result: VideoTranscriptSearchResult, segments: Segment[]) => {
       if (!segments.length) return;
@@ -639,26 +681,9 @@ export const useCompositionController = ({
       const startIndex = matchedIndex >= 0 ? matchedIndex : 0;
       const endIndex = Math.min(segments.length - 1, startIndex + 2);
 
-      clearCompositionWorkspace();
-      setMode("memorize");
-      setTranscriptSource({
-        result,
-        segments,
-        startIndex,
-        endIndex,
-      });
-      setDraft(
-        cleanCompositionText(
-          makeTranscriptRangeText(segments, startIndex, endIndex),
-        ),
-      );
-      setCompositionTitle(result.title);
-      setCurrentComposition(null);
-      setHasChosenComposition(true);
-      setSaveCompositionError(null);
-      setSaveCompositionMessage(null);
+      handleChooseVideoTranscriptRange(result, segments, startIndex, endIndex);
     },
-    [clearCompositionWorkspace],
+    [handleChooseVideoTranscriptRange],
   );
 
   const handleNewComposition = useCallback(() => {
@@ -1026,6 +1051,7 @@ export const useCompositionController = ({
     handleChooseSavedComposition,
     handleChooseTemplate,
     handleChooseVideoTranscript,
+    handleChooseVideoTranscriptRange,
     handleDraftChange,
     handleNewComposition,
     handleRelayHighlightedWords,

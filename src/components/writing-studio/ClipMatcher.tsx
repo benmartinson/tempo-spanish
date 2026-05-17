@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
+  Modal,
   Platform,
   StyleSheet,
   Text,
@@ -12,7 +14,11 @@ import {
   fetchVocabTranslation,
   type TranscriptPhraseMatch,
 } from "../../requests";
-import { capitalize, stripPunctuation } from "../../helpers/helpers";
+import {
+  capitalize,
+  formatTimestamp,
+  stripPunctuation,
+} from "../../helpers/helpers";
 import type { Sentence } from "../../types";
 import YouTubePlayer from "../common/YouTubePlayer";
 import PlayerControls from "../shadow/PlayerControls";
@@ -27,6 +33,8 @@ interface ClipMatcherProps {
   onOpenSelectedVideo: () => void;
   onClearHighlightedWords?: () => void;
   onShowWelcomeHelp?: () => void;
+  secondaryOpenOptionLabel?: string;
+  onSecondaryOpenOption?: () => void;
 }
 
 const makeClipSentence = (match: TranscriptPhraseMatch): Sentence => ({
@@ -49,9 +57,10 @@ const formatSelectedTranslationText = (value: string): string => {
 const stripTrailingPhrasePunctuation = (value: string): string =>
   value.trim().replace(/[.,!?;:…]+$/, "");
 
-const formatClipStartTime = (value: number): string => `${Math.floor(value)}s`;
+const formatClipStartTime = (value: number): string => formatTimestamp(value);
 
-const formatClipEndTime = (value: number): string => `${Math.ceil(value)}s`;
+const formatClipEndTime = (value: number): string =>
+  formatTimestamp(Math.ceil(value));
 
 const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
   const element = target as HTMLElement | null;
@@ -76,6 +85,8 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
     onOpenSelectedVideo,
     onClearHighlightedWords,
     onShowWelcomeHelp,
+    secondaryOpenOptionLabel,
+    onSecondaryOpenOption,
   } = props;
 
   const segmentTranscript = useMemo(() => {
@@ -108,6 +119,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   const [alternateMeanings, setAlternateMeanings] = useState<string[]>([]);
   const [isLoadingTranslation, setIsLoadingTranslation] = useState(false);
   const [translationError, setTranslationError] = useState<string | null>(null);
+  const [openOptionsVisible, setOpenOptionsVisible] = useState(false);
   const translationCacheRef = useRef<
     Record<
       string,
@@ -148,6 +160,32 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   const showEmptyHelpButton = Boolean(
     !cm.selectedMatch && !cm.phraseError && onShowWelcomeHelp,
   );
+  const hasSecondaryOpenOption = Boolean(
+    secondaryOpenOptionLabel && onSecondaryOpenOption,
+  );
+
+  const chooseOpenSelectedVideo = () => {
+    setOpenOptionsVisible(false);
+    onOpenSelectedVideo();
+  };
+
+  const chooseSecondaryOpenOption = () => {
+    if (!onSecondaryOpenOption) return;
+    setOpenOptionsVisible(false);
+    onSecondaryOpenOption();
+  };
+
+  const chooseWatchOnYouTube = () => {
+    if (!cm.selectedMatch) return;
+
+    setOpenOptionsVisible(false);
+    const startSeconds = Math.max(0, Math.floor(cm.selectedMatch.anchorTime));
+    void Linking.openURL(
+      `https://www.youtube.com/watch?v=${encodeURIComponent(
+        cm.selectedMatch.videoId,
+      )}&t=${startSeconds}s`,
+    );
+  };
 
   useEffect(() => {
     if (lastResetKeyRef.current === resetKey) return;
@@ -288,7 +326,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
               </View>
               <TouchableOpacity
                 style={styles.openVideoButton}
-                onPress={onOpenSelectedVideo}
+                onPress={() => setOpenOptionsVisible(true)}
                 activeOpacity={0.76}
               >
                 <Ionicons name="open-outline" size={18} color="#26705d" />
@@ -409,6 +447,65 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
           </View>
         )}
       </View>
+      <Modal
+        visible={openOptionsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpenOptionsVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.optionModalOverlay}
+          activeOpacity={1}
+          onPress={() => setOpenOptionsVisible(false)}
+        >
+          <View style={styles.optionModalCard}>
+            <View style={styles.optionModalHeader}>
+              <Text style={styles.optionModalTitle}>Options</Text>
+            </View>
+            <View style={styles.optionButtonGroup}>
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={chooseOpenSelectedVideo}
+                activeOpacity={0.78}
+              >
+                <View style={styles.optionIconBadge}>
+                  <Ionicons name="open-outline" size={18} color="#303446" />
+                </View>
+                <Text style={styles.optionButtonText}>
+                  Focus shadow in full screen
+                </Text>
+                <Ionicons name="chevron-forward" size={17} color="#9aa2b3" />
+              </TouchableOpacity>
+              {hasSecondaryOpenOption && (
+                <TouchableOpacity
+                  style={styles.optionButton}
+                  onPress={chooseSecondaryOpenOption}
+                  activeOpacity={0.78}
+                >
+                  <View style={styles.optionIconBadge}>
+                    <Ionicons name="create-outline" size={18} color="#303446" />
+                  </View>
+                  <Text style={styles.optionButtonText}>
+                    {secondaryOpenOptionLabel}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={17} color="#9aa2b3" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={chooseWatchOnYouTube}
+                activeOpacity={0.78}
+              >
+                <View style={styles.optionIconBadge}>
+                  <Ionicons name="logo-youtube" size={18} color="#303446" />
+                </View>
+                <Text style={styles.optionButtonText}>Watch on Youtube</Text>
+                <Ionicons name="chevron-forward" size={17} color="#9aa2b3" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -663,6 +760,74 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingHorizontal: 20,
+  },
+  optionModalOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+    backgroundColor: "rgba(18,22,32,0.42)",
+  },
+  optionModalCard: {
+    width: "92%",
+    maxWidth: 520,
+    overflow: "hidden",
+    borderRadius: 14,
+    backgroundColor: "#f8f9fb",
+    borderWidth: 1,
+    borderColor: "#eef0f4",
+  },
+  optionModalHeader: {
+    gap: 4,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 12,
+  },
+  optionModalTitle: {
+    color: "#242838",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  optionModalSubtitle: {
+    color: "#737b8c",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  optionButtonGroup: {
+    gap: 10,
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    paddingBottom: 24,
+  },
+  optionButton: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    alignSelf: "stretch",
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e4e7ed",
+  },
+  optionIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f1f3f7",
+    borderWidth: 1,
+    borderColor: "#e4e7ed",
+  },
+  optionButtonText: {
+    flex: 1,
+    color: "#303446",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "800",
   },
 });
 

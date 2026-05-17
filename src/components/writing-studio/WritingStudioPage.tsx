@@ -13,12 +13,15 @@ import { supabase as rawSupabase } from "../../../lib/supabase";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
 import {
   fetchVideoContext,
+  persistCurrentComposition,
   persistHasSeenWelcomeModals,
   persistVideoSelection,
+  persistVideoUnselection,
 } from "../../requests";
 import type { UserComposition } from "../../requests";
 import {
   addUserVideoView,
+  setCurrentCompositionId,
   setCurrentMode,
   setHasSeenWelcomeModals,
   setCurrentVideo,
@@ -28,6 +31,7 @@ import type { RootState, Segment } from "../../types";
 import ClipMatcher from "./ClipMatcher";
 import Composer from "./Composer";
 import type { CompositionTemplate } from "./ChooseComposition";
+import type { TranscriptPhraseMatch } from "../../requests";
 import type { VideoTranscriptSearchResult } from "./VideoTranscriptImport";
 import WelcomePanel from "./WelcomePanel";
 import { useClipMatcher } from "./useClipMatcher";
@@ -36,6 +40,36 @@ import { useCompositionController } from "./useCompositionController";
 interface WritingStudioPageProps {
   initialVideoRecordId?: string | null;
 }
+
+const findSegmentRangeForClip = (
+  segments: Segment[],
+  match: TranscriptPhraseMatch,
+): { startIndex: number; endIndex: number } => {
+  const lastIndex = Math.max(segments.length - 1, 0);
+  const clipSegmentIndex = segments.findIndex(
+    (segment) => segment.segment_id === match.segmentId,
+  );
+  const anchorSegmentIndex = segments.findIndex(
+    (segment) =>
+      match.anchorTime >= segment.start && match.anchorTime <= segment.end,
+  );
+  const startTimeSegmentIndex = segments.findIndex(
+    (segment) => match.start >= segment.start && match.start <= segment.end,
+  );
+  const targetIndex =
+    clipSegmentIndex >= 0
+      ? clipSegmentIndex
+      : anchorSegmentIndex >= 0
+        ? anchorSegmentIndex
+        : Math.max(startTimeSegmentIndex, 0);
+  const rangeStart = Math.min(targetIndex, Math.max(0, segments.length - 3));
+  const rangeEnd = Math.min(lastIndex, rangeStart + 2);
+
+  return {
+    startIndex: rangeStart,
+    endIndex: rangeEnd,
+  };
+};
 
 const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   initialVideoRecordId = null,
@@ -142,6 +176,27 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   const shouldShowInitialWelcome =
     Boolean(targetLanguage) && !hasSeenWelcomeModals;
   const showWelcomePanel = shouldShowInitialWelcome || isWelcomePanelRequested;
+  const selectedMatchBelongsToCurrentVideo = Boolean(
+    composition.isVideoMode &&
+    clipMatcher.selectedMatch &&
+    ((currentVideoRecordId &&
+      String(clipMatcher.selectedMatch.videoRecordId) ===
+        String(currentVideoRecordId)) ||
+      (composition.transcriptSource?.result.videoRecordId &&
+        String(clipMatcher.selectedMatch.videoRecordId) ===
+          String(composition.transcriptSource.result.videoRecordId))),
+  );
+  const canStartCanvasWithSelectedPhrase =
+    selectedMatchBelongsToCurrentVideo &&
+    Boolean(clipMatcher.selectedMatchPhrase.trim());
+  const canStartCompositionWithSelectedClip = Boolean(
+    clipMatcher.selectedMatch && !selectedMatchBelongsToCurrentVideo,
+  );
+  const secondaryOpenOptionLabel = canStartCanvasWithSelectedPhrase
+    ? "Start canvas with the highlighted word/phrase"
+    : canStartCompositionWithSelectedClip
+      ? "Start a composition with this video segment"
+      : undefined;
 
   useEffect(() => {
     if (!shouldShowInitialWelcome || !clipMatcher.selectedMatch) return;
@@ -238,6 +293,118 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
       });
     }
   }, [clipMatcher, composition, initialVideoRecordId, navigation]);
+  const handleStartCanvasWithSelectedPhrase = useCallback(() => {
+    const phrase = clipMatcher.selectedMatchPhrase.trim();
+    if (!phrase) return;
+
+    setIsWelcomePanelRequested(false);
+    clipMatcher.clearClipMatches();
+    composition.handleBlankCanvas();
+    composition.handleDraftChange(phrase);
+    dispatch(setCurrentVideo(null));
+    dispatch(setCurrentCompositionId(null));
+    dispatch(setCurrentMode("compose"));
+    void persistVideoUnselection({
+      supabase: clerkSupabase,
+      userId,
+    });
+    void persistCurrentComposition({
+      supabase: clerkSupabase,
+      userId,
+      compositionId: null,
+    });
+
+    if (initialVideoRecordId) {
+      navigation.navigate({
+        name: "MainApp",
+        params: { compose: true },
+        merge: false,
+      });
+    }
+  }, [
+    clerkSupabase,
+    clipMatcher,
+    composition,
+    dispatch,
+    initialVideoRecordId,
+    navigation,
+    userId,
+  ]);
+  const handleStartCompositionWithSelectedClip = useCallback(async () => {
+    const match = clipMatcher.selectedMatch;
+    if (!match) return;
+
+    try {
+      const { data, error } = await publicSupabase
+        .from("transcript_segment")
+        .select("segment_id,start,end,text,video_id,words")
+        .eq("video_id", match.videoRecordId)
+        .order("segment_id");
+
+      if (error) {
+        console.error("Error loading matched clip transcript:", error);
+        return;
+      }
+
+      const segments = ((data ?? []) as Segment[]).filter((segment) =>
+        Boolean(segment.text?.trim()),
+      );
+      if (!segments.length) return;
+
+      const range = findSegmentRangeForClip(segments, match);
+      const result: VideoTranscriptSearchResult = {
+        videoId: match.videoId,
+        videoRecordId: match.videoRecordId,
+        channelId: match.channelId,
+        title: match.title,
+        channelTitle: channelTitleById.get(match.channelId) ?? "Tempo channel",
+        thumbnailUrl: match.thumbnailUrl,
+        matchedSegmentId: match.segmentId,
+      };
+
+      setIsWelcomePanelRequested(false);
+      clipMatcher.clearClipMatches();
+      dispatch(setCurrentCompositionId(null));
+      void persistCurrentComposition({
+        supabase: clerkSupabase,
+        userId,
+        compositionId: null,
+      });
+      composition.handleChooseVideoTranscriptRange(
+        result,
+        segments,
+        range.startIndex,
+        range.endIndex,
+      );
+      void setSelectedTranscriptVideoContext(result);
+
+      if (initialVideoRecordId) {
+        navigation.navigate({
+          name: "MainApp",
+          params: { compose: true },
+          merge: false,
+        });
+      }
+    } catch (error) {
+      console.error("Error starting composition from clip:", error);
+    }
+  }, [
+    channelTitleById,
+    clerkSupabase,
+    clipMatcher,
+    composition,
+    dispatch,
+    initialVideoRecordId,
+    navigation,
+    publicSupabase,
+    setSelectedTranscriptVideoContext,
+    userId,
+  ]);
+  const handleSecondaryOpenOption = canStartCanvasWithSelectedPhrase
+    ? handleStartCanvasWithSelectedPhrase
+    : canStartCompositionWithSelectedClip
+      ? handleStartCompositionWithSelectedClip
+      : undefined;
   const loadedInitialVideoRecordIdRef = useRef<string | null>(null);
   const lastTargetLanguageRef = useRef(targetLanguage);
   useEffect(() => {
@@ -445,6 +612,8 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
                     ? () => setIsWelcomePanelRequested(true)
                     : undefined
                 }
+                secondaryOpenOptionLabel={secondaryOpenOptionLabel}
+                onSecondaryOpenOption={handleSecondaryOpenOption}
               />
             )}
           </>
