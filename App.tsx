@@ -26,6 +26,7 @@ import {
   addUserVideoView,
   setCurrentMode,
   setCurrentCompositionId,
+  setHasSeenWelcomeModals,
 } from "./src/store/actions/dataActions";
 import { useSupabaseWithClerk } from "./utils/supabase";
 import { supabase as rawSupabase } from "./lib/supabase";
@@ -313,6 +314,7 @@ const MainApp: React.FC = () => {
         videoContext,
         currentMode,
         currentCompositionId,
+        hasSeenWelcomeModals,
         currentShadowTab,
         memorizeDifficulty,
         settings,
@@ -324,6 +326,7 @@ const MainApp: React.FC = () => {
       dispatch(setUserSettings(settings));
       dispatch(setCurrentMode(currentMode));
       dispatch(setCurrentCompositionId(currentCompositionId));
+      dispatch(setHasSeenWelcomeModals(hasSeenWelcomeModals));
 
       if (currentShadowTab) {
         dispatch(setCurrentShadowTab(currentShadowTab));

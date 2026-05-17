@@ -283,7 +283,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
           <Ionicons name="scan-outline" size={16} color="#5a5680" />
           <Text style={styles.selectionText} numberOfLines={1}>
             {cps.activeSearchPhrase ||
-              "Highlight a phrase to find a matching clip"}
+              "Highlight a word or phrase to hear it spoken"}
           </Text>
         </View>
       )}

@@ -79,6 +79,7 @@ export interface RootState {
   currentVideo: VideoContext | null;
   currentMode: AppMode;
   currentCompositionId: string | number | null;
+  hasSeenWelcomeModals: boolean;
   currentChatType: "general" | "video-based" | null;
   videoRefreshKey: number;
   selectedChannelId: string | null;
@@ -105,6 +106,7 @@ export type DataActionTypes =
   | "SET_CURRENT_VIDEO"
   | "SET_CURRENT_MODE"
   | "SET_CURRENT_COMPOSITION_ID"
+  | "SET_HAS_SEEN_WELCOME_MODALS"
   | "SET_CURRENT_CHAT_TYPE"
   | "SET_NEXT_SEGMENT"
   | "REFRESH_VIDEO_PLAYER"
@@ -333,6 +335,7 @@ export interface UserUIState {
   current_video: string | null;
   current_mode: AppMode | null;
   current_composition: string | number | null;
+  has_seen_welcome_modals: boolean | null;
   current_sentence: number;
   current_tab: string | null;
   playback_speed: number | null;

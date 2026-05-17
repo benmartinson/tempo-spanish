@@ -37,6 +37,11 @@ export const setCurrentCompositionId = (
   payload: compositionId,
 });
 
+export const setHasSeenWelcomeModals = (hasSeen: boolean): DataAction => ({
+  type: "SET_HAS_SEEN_WELCOME_MODALS",
+  payload: hasSeen,
+});
+
 export const setSentenceByTime = (time: number): DataAction => ({
   type: "SET_SENTENCE_BY_TIME",
   payload: time,

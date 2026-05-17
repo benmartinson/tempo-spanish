@@ -26,6 +26,7 @@ interface ClipMatcherProps {
   hideClipNavigation?: boolean;
   onOpenSelectedVideo: () => void;
   onClearHighlightedWords?: () => void;
+  onShowWelcomeHelp?: () => void;
 }
 
 const makeClipSentence = (match: TranscriptPhraseMatch): Sentence => ({
@@ -74,6 +75,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
     hideClipNavigation = false,
     onOpenSelectedVideo,
     onClearHighlightedWords,
+    onShowWelcomeHelp,
   } = props;
 
   const segmentTranscript = useMemo(() => {
@@ -143,6 +145,9 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   const clipEndLabel = cm.selectedMatch
     ? formatClipEndTime(cm.selectedMatch.end)
     : "0s";
+  const showEmptyHelpButton = Boolean(
+    !cm.selectedMatch && !cm.phraseError && onShowWelcomeHelp,
+  );
 
   useEffect(() => {
     if (lastResetKeyRef.current === resetKey) return;
@@ -235,7 +240,24 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   return (
     <View style={styles.clipColumn}>
       <View style={styles.videoPane}>
-        <View style={[styles.paneHeader, styles.videoPaneHeader]} />
+        <View
+          style={[
+            styles.paneHeader,
+            styles.videoPaneHeader,
+            showEmptyHelpButton && styles.emptyPaneHeader,
+          ]}
+        >
+          {showEmptyHelpButton && (
+            <TouchableOpacity
+              accessibilityLabel="Show getting started help"
+              style={styles.helpButton}
+              onPress={onShowWelcomeHelp}
+              activeOpacity={0.74}
+            >
+              <Ionicons name="help-circle-outline" size={18} color="#697187" />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {cm.selectedMatch ? (
           <>
@@ -418,6 +440,19 @@ const styles = StyleSheet.create({
   },
   videoPaneHeader: {
     marginHorizontal: -14,
+  },
+  emptyPaneHeader: {
+    justifyContent: "flex-end",
+  },
+  helpButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f7f9ff",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.14)",
   },
   paneTitle: {
     color: "#2f3140",

@@ -9,6 +9,7 @@ const initialState: RootState = {
   currentVideo: null,
   currentMode: "compose",
   currentCompositionId: null,
+  hasSeenWelcomeModals: false,
   currentChatType: null,
   videoRefreshKey: Date.now(),
   selectedChannelId: null,
@@ -112,6 +113,11 @@ const dataReducer = (
       return {
         ...state,
         currentCompositionId: action.payload,
+      };
+    case "SET_HAS_SEEN_WELCOME_MODALS":
+      return {
+        ...state,
+        hasSeenWelcomeModals: action.payload,
       };
     case "SET_FOCUS_VOCAB":
       if (!state.currentVideo) return state;

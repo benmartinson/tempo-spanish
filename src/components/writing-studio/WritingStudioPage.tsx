@@ -11,11 +11,16 @@ import { useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import { supabase as rawSupabase } from "../../../lib/supabase";
 import { useSupabaseWithClerk } from "../../../utils/supabase";
-import { fetchVideoContext, persistVideoSelection } from "../../requests";
+import {
+  fetchVideoContext,
+  persistHasSeenWelcomeModals,
+  persistVideoSelection,
+} from "../../requests";
 import type { UserComposition } from "../../requests";
 import {
   addUserVideoView,
   setCurrentMode,
+  setHasSeenWelcomeModals,
   setCurrentVideo,
 } from "../../store/actions/dataActions";
 import { isWebScreenWidth } from "../../helpers/helpers";
@@ -24,6 +29,7 @@ import ClipMatcher from "./ClipMatcher";
 import Composer from "./Composer";
 import type { CompositionTemplate } from "./ChooseComposition";
 import type { VideoTranscriptSearchResult } from "./VideoTranscriptImport";
+import WelcomePanel from "./WelcomePanel";
 import { useClipMatcher } from "./useClipMatcher";
 import { useCompositionController } from "./useCompositionController";
 
@@ -48,6 +54,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   const [initialVideoCompositionFailed, setInitialVideoCompositionFailed] =
     useState(false);
   const [isMemorizeFullScreen, setIsMemorizeFullScreen] = useState(false);
+  const [isWelcomePanelRequested, setIsWelcomePanelRequested] = useState(false);
   const allVideos = useSelector((state: RootState) => state.allVideos);
   const allChannels = useSelector((state: RootState) => state.allChannels);
   const currentCompositionId = useSelector(
@@ -55,6 +62,9 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   );
   const currentVideoRecordId = useSelector(
     (state: RootState) => state.currentVideo?.recordId ?? null,
+  );
+  const hasSeenWelcomeModals = useSelector(
+    (state: RootState) => state.hasSeenWelcomeModals,
   );
   const targetLanguage = useSelector(
     (state: RootState) => state.userSettings.targetLanguage,
@@ -129,13 +139,35 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     localClipMatch: composition.videoModeClipMatch,
     resetKey: clipMatcherResetKey,
   });
+  const shouldShowInitialWelcome =
+    Boolean(targetLanguage) && !hasSeenWelcomeModals;
+  const showWelcomePanel = shouldShowInitialWelcome || isWelcomePanelRequested;
+
+  useEffect(() => {
+    if (!shouldShowInitialWelcome || !clipMatcher.selectedMatch) return;
+
+    dispatch(setHasSeenWelcomeModals(true));
+    void persistHasSeenWelcomeModals({
+      supabase: clerkSupabase,
+      userId,
+      hasSeenWelcomeModals: true,
+    });
+  }, [
+    clerkSupabase,
+    clipMatcher.selectedMatch,
+    dispatch,
+    shouldShowInitialWelcome,
+    userId,
+  ]);
 
   const handleBlankCanvas = useCallback(() => {
+    setIsWelcomePanelRequested(false);
     clipMatcher.clearClipMatches();
     composition.handleBlankCanvas();
   }, [clipMatcher, composition]);
   const handleChooseTemplate = useCallback(
     (template: CompositionTemplate) => {
+      setIsWelcomePanelRequested(false);
       clipMatcher.clearClipMatches();
       composition.handleChooseTemplate(template);
     },
@@ -143,6 +175,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   );
   const handleChooseSavedComposition = useCallback(
     async (compositionRecord: UserComposition) => {
+      setIsWelcomePanelRequested(false);
       clipMatcher.clearClipMatches();
       await composition.handleChooseSavedComposition(compositionRecord);
     },
@@ -181,6 +214,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   );
   const handleChooseVideoTranscript = useCallback(
     (result: VideoTranscriptSearchResult, segments: Segment[]) => {
+      setIsWelcomePanelRequested(false);
       clipMatcher.clearClipMatches();
       composition.handleChooseVideoTranscript(result, segments);
       void setSelectedTranscriptVideoContext(result);
@@ -192,6 +226,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     chooseInitialVideoTranscriptRef.current = handleChooseVideoTranscript;
   }, [handleChooseVideoTranscript]);
   const handleNewComposition = useCallback(() => {
+    setIsWelcomePanelRequested(false);
     clipMatcher.clearClipMatches();
     setIsMemorizeFullScreen(false);
     composition.handleNewComposition();
@@ -213,6 +248,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     setIsLoadingInitialVideoComposition(false);
     setInitialVideoCompositionFailed(false);
     setIsMemorizeFullScreen(false);
+    setIsWelcomePanelRequested(false);
     clipMatcher.clearClipMatches();
   }, [clipMatcher, targetLanguage]);
 
@@ -304,6 +340,11 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     isLoadingInitialVideoComposition &&
     !initialVideoCompositionFailed,
   );
+  const isChooseCompositionOpen =
+    !composition.hasChosenComposition &&
+    !shouldBypassCompositionChooser &&
+    !isLoadingInitialVideoComposition &&
+    !composition.isResolvingCurrentComposition;
   const composerComposition = useMemo(
     () => ({
       ...composition,
@@ -387,15 +428,26 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
         ]}
       >
         {!isMemorizeFullScreen && (
-          <ClipMatcher
-            clipMatcher={clipMatcher}
-            channelTitleById={channelTitleById}
-            resetKey={clipMatcherResetKey}
-            hideSegmentTranscript={composition.isVideoMode}
-            hideClipNavigation={composition.isVideoMode}
-            onOpenSelectedVideo={openSelectedVideo}
-            onClearHighlightedWords={composition.clearHighlightedWords}
-          />
+          <>
+            {showWelcomePanel ? (
+              <WelcomePanel />
+            ) : (
+              <ClipMatcher
+                clipMatcher={clipMatcher}
+                channelTitleById={channelTitleById}
+                resetKey={clipMatcherResetKey}
+                hideSegmentTranscript={composition.isVideoMode}
+                hideClipNavigation={composition.isVideoMode}
+                onOpenSelectedVideo={openSelectedVideo}
+                onClearHighlightedWords={composition.clearHighlightedWords}
+                onShowWelcomeHelp={
+                  isChooseCompositionOpen
+                    ? () => setIsWelcomePanelRequested(true)
+                    : undefined
+                }
+              />
+            )}
+          </>
         )}
         <Composer
           composition={composerComposition}

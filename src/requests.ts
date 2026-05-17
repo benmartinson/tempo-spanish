@@ -861,6 +861,7 @@ export interface RestoreUserUIStateResult {
   videoContext: VideoContext | null;
   currentMode: AppMode;
   currentCompositionId: string | number | null;
+  hasSeenWelcomeModals: boolean;
   currentShadowTab: ContentTab;
   memorizeDifficulty: number | null;
   settings: UserSettings;
@@ -874,6 +875,7 @@ export const restoreUserUIState = async ({
     videoContext: null,
     currentMode: "compose" as AppMode,
     currentCompositionId: null,
+    hasSeenWelcomeModals: false,
     currentShadowTab: null,
     memorizeDifficulty: null,
     settings: DEFAULT_USER_SETTINGS,
@@ -972,6 +974,7 @@ export const restoreUserUIState = async ({
           settings,
           currentMode,
           currentCompositionId: uiState.current_composition ?? null,
+          hasSeenWelcomeModals: uiState.has_seen_welcome_modals === true,
           currentShadowTab: uiState?.current_shadow_tab ?? null,
           memorizeDifficulty: uiState?.memorize_difficulty ?? null,
         };
@@ -988,6 +991,7 @@ export const restoreUserUIState = async ({
         videoContext,
         currentMode,
         currentCompositionId: uiState.current_composition ?? null,
+        hasSeenWelcomeModals: uiState.has_seen_welcome_modals === true,
         currentShadowTab: uiState.current_shadow_tab ?? null,
         memorizeDifficulty: uiState.memorize_difficulty ?? null,
         settings,
@@ -998,6 +1002,7 @@ export const restoreUserUIState = async ({
       videoContext: null,
       currentMode: uiState.current_mode === "shadow" ? "shadow" : "compose",
       currentCompositionId: uiState.current_composition ?? null,
+      hasSeenWelcomeModals: uiState.has_seen_welcome_modals === true,
       currentShadowTab: uiState?.current_shadow_tab ?? null,
       memorizeDifficulty: uiState?.memorize_difficulty ?? null,
       settings,
@@ -1122,6 +1127,29 @@ export const persistCurrentComposition = async ({
   );
 
   if (error) console.error("Error persisting current composition:", error);
+};
+
+export const persistHasSeenWelcomeModals = async ({
+  supabase,
+  userId,
+  hasSeenWelcomeModals,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+  hasSeenWelcomeModals: boolean;
+}): Promise<void> => {
+  if (!supabase || !userId) return;
+
+  const { error } = await supabase.from("user_ui_state").upsert(
+    {
+      user_id: userId,
+      has_seen_welcome_modals: hasSeenWelcomeModals,
+      updated_at: new Date(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) console.error("Error persisting welcome modal state:", error);
 };
 
 export const persistMemorizeDifficulty = async ({
