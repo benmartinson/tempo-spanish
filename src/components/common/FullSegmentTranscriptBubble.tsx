@@ -196,14 +196,15 @@ const FullSegmentTranscriptBubble: React.FC<
   // );
   const localTime = time;
 
-  // Build a stable identity for the segment (based on timing, not text content)
-  // so masking/revealing words doesn't trigger a full reset
+  // Build a stable identity for the displayed segment so edit-tab text changes
+  // refresh the memorize view while masking/revealing words does not.
   const segmentIdentity = useMemo(() => {
     if (!words?.length) return "";
-    return `${words.length}-${words[0]?.start}-${words[words.length - 1]?.end}`;
+    const textIdentity = words.map((word) => word.word).join("|");
+    return `${words.length}-${words[0]?.start}-${words[words.length - 1]?.end}-${textIdentity}`;
   }, [words]);
 
-  // Reset only when the actual segment changes, not when word text changes
+  // Reset only when the displayed segment changes.
   useEffect(() => {
     setIsActive(false);
     setWordPositions({});

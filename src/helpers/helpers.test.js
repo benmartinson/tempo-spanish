@@ -259,14 +259,14 @@ describe("splitSegmentsIntoSentences", () => {
       "Cuesta 3.14 millones y 1,000 o $1,000 personas.",
     );
     expect(result[0].words.map((word) => word.word)).toEqual([
-      " Cuesta",
-      " 3.14",
-      " millones",
-      " y",
-      " 1,000",
-      " o",
-      " $1,000",
-      " personas.",
+      "Cuesta",
+      "3.14",
+      "millones",
+      "y",
+      "1,000",
+      "o",
+      "$1,000",
+      "personas.",
     ]);
   });
 
@@ -291,9 +291,9 @@ describe("splitSegmentsIntoSentences", () => {
     ]);
 
     expect(result[0].words.map((word) => word.word)).toEqual([
-      " Hola",
-      " ,amigo",
-      " termina.",
+      "Hola",
+      ",amigo",
+      "termina.",
     ]);
   });
 });
@@ -341,8 +341,29 @@ describe("computeBaseMaskedIndices", () => {
     expect(indicesAt(3).length).toBeGreaterThan(indicesAt(2).length);
   });
 
-  it("masks every word at difficulty 4", () => {
-    expect(indicesAt(4)).toEqual(words.map((_, i) => i));
+  it("keeps only the first two words of each sentence visible at difficulty 4", () => {
+    expect(indicesAt(4)).toEqual([
+      2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,
+    ]);
+  });
+
+  it("keeps the first two words visible for short middle sentences at difficulty 4", () => {
+    const text =
+      "Simetría  facial  en  el  sentido  de  que  los  dos  lados  de  la  cara  son  iguales  o  muy  parecidos. Y,  evolutivamente,  eso  se  asoció  con  buena  salud.  También  la  postura.  Es  decir,  cómo  pones  el  cuerpo. Una  postura  recta  se  asoció  con  fuerza.";
+    const words = text.split(/\s+/).map((word, index) => ({
+      word,
+      start: index,
+      end: index + 1,
+      frequency: 0,
+    }));
+    const masked = computeBaseMaskedIndices(words, 4);
+    const wordIndexByText = new Map(
+      words.map((word, index) => [word.word, index]),
+    );
+
+    expect(masked.has(wordIndexByText.get("También"))).toBe(false);
+    expect(masked.has(wordIndexByText.get("la"))).toBe(false);
+    expect(masked.has(wordIndexByText.get("postura."))).toBe(true);
   });
 
   describe("with one non-easy word", () => {
@@ -356,12 +377,12 @@ describe("computeBaseMaskedIndices", () => {
     const at = (d) =>
       [...computeBaseMaskedIndices(wordsOne, d)].sort((a, b) => a - b);
 
-    it("masks the same set at difficulties 2, 3, and 4", () => {
+    it("masks the same set at difficulties 2 and 3, then keeps the first two words visible at difficulty 4", () => {
       const all = [0, 1, 2];
       expect(at(1)).toEqual([0, 1]);
       expect(at(2)).toEqual(all);
       expect(at(3)).toEqual(all);
-      expect(at(4)).toEqual(all);
+      expect(at(4)).toEqual([2]);
     });
   });
 
@@ -377,12 +398,12 @@ describe("computeBaseMaskedIndices", () => {
     const at = (d) =>
       [...computeBaseMaskedIndices(wordsTwo, d)].sort((a, b) => a - b);
 
-    it("masks one rest word at difficulty 2 and both at difficulties 3 and 4", () => {
+    it("masks one rest word at difficulty 2, both at difficulty 3, then keeps the first two words visible at difficulty 4", () => {
       expect(at(1)).toEqual([0, 1, 3]);
       expect(at(2)).toEqual([0, 1, 2, 3]);
       const all = [0, 1, 2, 3, 4];
       expect(at(3)).toEqual(all);
-      expect(at(4)).toEqual(all);
+      expect(at(4)).toEqual([2, 3, 4]);
     });
   });
 });

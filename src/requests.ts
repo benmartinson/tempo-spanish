@@ -514,6 +514,31 @@ export const updateUserComposition = async ({
   return data as UserComposition;
 };
 
+export const deleteUserComposition = async ({
+  supabase,
+  userId,
+  compositionId,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+  compositionId: string | number;
+}): Promise<void> => {
+  if (!supabase || !userId) {
+    throw new Error("Sign in to delete compositions.");
+  }
+
+  const { error } = await supabase
+    .from("user_composition")
+    .delete()
+    .eq("id", compositionId)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("Error deleting user composition:", error);
+    throw new Error("Failed to delete composition");
+  }
+};
+
 export interface TranscriptPhraseMatch {
   videoId: string;
   videoRecordId: string;

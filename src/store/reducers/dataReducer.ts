@@ -25,11 +25,7 @@ const initialState: RootState = {
   hasSearched: false,
   currentShadowTab: "memorize",
   memorizeDifficulty: 0,
-  userSettings: {
-    ...DEFAULT_USER_SETTINGS,
-    targetLanguage: null,
-    translationLanguage: null,
-  },
+  userSettings: DEFAULT_USER_SETTINGS,
   cachedResponses: [],
   userCredits: 0,
   profileModalOpen: false,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -52,6 +52,13 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
   const isWebScreen = isWebScreenWidth(width);
   const [profileVisible, setProfileVisible] = useState(false);
   const [languageVisible, setLanguageVisible] = useState(false);
+  const languageButtonRef = useRef<View>(null);
+  const [languageAnchorFrame, setLanguageAnchorFrame] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const targetLanguage = useSelector(
     (state: RootState) => state.userSettings.targetLanguage,
   );
@@ -70,6 +77,12 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
     });
   const openAppStore = () => {
     void Linking.openURL(APP_STORE_URL);
+  };
+  const openLanguageDropdown = () => {
+    languageButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setLanguageAnchorFrame({ x, y, width, height });
+    });
+    setLanguageVisible(true);
   };
 
   useEffect(() => {
@@ -101,9 +114,7 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
             </View>
             <View>
               <Text style={styles.webAppName}>Tempo</Text>
-              <Text style={styles.webAppSubname}>
-                {targetLanguageLabel ?? "Language"}
-              </Text>
+              <Text style={styles.webAppSubname}>Language</Text>
             </View>
           </TouchableOpacity>
 
@@ -111,8 +122,9 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
             <View style={styles.webActions}>
               {SHOW_LANGUAGE_SELECTOR && targetLanguageFlag && (
                 <TouchableOpacity
+                  ref={languageButtonRef}
                   style={styles.webFlagButton}
-                  onPress={() => setLanguageVisible(true)}
+                  onPress={openLanguageDropdown}
                   disabled={!targetLanguage}
                   activeOpacity={0.72}
                 >
@@ -157,6 +169,7 @@ const TopNavBar: React.FC<{ minimal?: boolean; composeActive?: boolean }> = ({
           {SHOW_LANGUAGE_SELECTOR && (
             <LanguageModal
               visible={languageVisible}
+              anchorFrame={languageAnchorFrame}
               onClose={() => setLanguageVisible(false)}
             />
           )}

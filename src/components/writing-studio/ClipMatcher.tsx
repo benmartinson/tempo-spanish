@@ -387,7 +387,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
             {selectedTranslationText ? (
               <View style={styles.translationPanel}>
                 <View style={styles.translationHeader}>
-                  <Text style={styles.vocabText} numberOfLines={1}>
+                  <Text style={styles.vocabText}>
                     {selectedTranslationLabel}
                   </Text>
                   <TouchableOpacity
@@ -404,9 +404,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
                   <ActivityIndicator size="small" color="#4a69bd" />
                 ) : translation ? (
                   <View style={styles.translationContainer}>
-                    <Text style={styles.translationLabel}>
-                      Translation in context
-                    </Text>
+                    <Text style={styles.translationLabel}>Translation</Text>
                     <Text style={styles.translationText}>
                       {capitalize(translation)}
                     </Text>
@@ -667,13 +665,16 @@ const styles = StyleSheet.create({
   },
   vocabText: {
     color: "#222",
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "500",
+    textAlign: "center",
   },
   translationContainer: {
     alignItems: "center",
     gap: 6,
     width: "100%",
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
@@ -683,12 +684,14 @@ const styles = StyleSheet.create({
   translationLabel: {
     color: "#888",
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   translationText: {
     color: "#222",
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "500",
+    textAlign: "center",
   },
   altMeaningsContainer: {
     gap: 4,
@@ -697,7 +700,7 @@ const styles = StyleSheet.create({
   altMeaningsLabel: {
     color: "#999",
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   altMeaningText: {
     color: "#555",

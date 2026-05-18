@@ -16,6 +16,7 @@ import SignInPromptModal from "../common/SignInPromptModal";
 import ChooseComposition from "./ChooseComposition";
 import Memorizer from "./Memorizer";
 import type { CompositionController } from "./useCompositionController";
+import type { UserComposition } from "../../requests";
 
 export type StudioMode = "write" | "memorize";
 
@@ -25,6 +26,9 @@ interface ComposerProps {
   isMemorizeFullScreen?: boolean;
   onToggleMemorizeFullScreen?: () => void;
   onExitMemorizeFullScreen?: () => void;
+  onQuickRefreshSavedComposition?: (
+    composition: UserComposition,
+  ) => Promise<void>;
   allChannels: Channel[];
   publicSupabase: any;
   targetLanguage: LanguageCode | null;
@@ -38,12 +42,15 @@ const Composer: React.FC<ComposerProps> = (props) => {
     isMemorizeFullScreen = false,
     onToggleMemorizeFullScreen,
     onExitMemorizeFullScreen,
+    onQuickRefreshSavedComposition,
     allChannels,
     publicSupabase,
     targetLanguage,
     targetLanguageVideos,
   } = props;
   const [showVideoWriteInfo, setShowVideoWriteInfo] = useState(false);
+  const [draftSegmentStart, setDraftSegmentStart] = useState("");
+  const [draftSegmentEnd, setDraftSegmentEnd] = useState("");
   const hideComposerChrome = isMemorizeFullScreen && cps.mode === "memorize";
 
   const handleWriteModePress = () => {
@@ -67,6 +74,30 @@ const Composer: React.FC<ComposerProps> = (props) => {
       onExitMemorizeFullScreen?.();
     }
   }, [cps.mode, isMemorizeFullScreen, onExitMemorizeFullScreen]);
+
+  useEffect(() => {
+    if (!cps.transcriptRange) {
+      setDraftSegmentStart("");
+      setDraftSegmentEnd("");
+      return;
+    }
+
+    setDraftSegmentStart(String(cps.transcriptRange.startDisplayIndex));
+    setDraftSegmentEnd(String(cps.transcriptRange.endDisplayIndex));
+  }, [
+    cps.transcriptRange?.endDisplayIndex,
+    cps.transcriptRange?.startDisplayIndex,
+  ]);
+
+  const commitSegmentStart = () => {
+    if (!cps.transcriptRange) return;
+    cps.transcriptRange.onStartSegmentChange(draftSegmentStart);
+  };
+
+  const commitSegmentEnd = () => {
+    if (!cps.transcriptRange) return;
+    cps.transcriptRange.onEndSegmentChange(draftSegmentEnd);
+  };
 
   return (
     <View style={styles.editorPane}>
@@ -197,8 +228,9 @@ const Composer: React.FC<ComposerProps> = (props) => {
               <View style={styles.segmentInputGroup}>
                 <Text style={styles.segmentInputLabel}>Start</Text>
                 <TextInput
-                  value={String(cps.transcriptRange.startDisplayIndex)}
-                  onChangeText={cps.transcriptRange.onStartSegmentChange}
+                  value={draftSegmentStart}
+                  onChangeText={setDraftSegmentStart}
+                  onBlur={commitSegmentStart}
                   keyboardType="numeric"
                   style={styles.segmentInput}
                 />
@@ -206,8 +238,9 @@ const Composer: React.FC<ComposerProps> = (props) => {
               <View style={styles.segmentInputGroup}>
                 <Text style={styles.segmentInputLabel}>End</Text>
                 <TextInput
-                  value={String(cps.transcriptRange.endDisplayIndex)}
-                  onChangeText={cps.transcriptRange.onEndSegmentChange}
+                  value={draftSegmentEnd}
+                  onChangeText={setDraftSegmentEnd}
+                  onBlur={commitSegmentEnd}
                   keyboardType="numeric"
                   style={styles.segmentInput}
                 />
@@ -249,6 +282,9 @@ const Composer: React.FC<ComposerProps> = (props) => {
           onChooseTemplate={cps.handleChooseTemplate}
           onChooseVideoTranscript={cps.handleChooseVideoTranscript}
           onChooseSavedComposition={cps.handleChooseSavedComposition}
+          onCopySavedComposition={cps.handleCopySavedComposition}
+          onDeleteSavedComposition={cps.handleDeleteSavedComposition}
+          onQuickRefreshSavedComposition={onQuickRefreshSavedComposition}
         />
       ) : cps.mode === "write" ? (
         <TextInput
@@ -270,6 +306,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
           maskedIndices={cps.memorizeMaskedIndices}
           difficulty={cps.memorizeDifficulty}
           onDifficultyChange={cps.setMemorizeDifficultyAndReset}
+          onResetRevealedWords={cps.resetRevealedMemorizeWords}
           onRevealWord={cps.revealMemorizeWord}
           onRelayHighlightedWords={handleRelayHighlightedWords}
           highlightedWordsResetKey={cps.highlightedWordsResetKey}

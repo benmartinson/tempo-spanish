@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -60,6 +62,8 @@ const COMPOSITION_TEMPLATES: CompositionTemplate[] = [
   },
 ];
 
+const OPTIONS_MENU_WIDTH = 164;
+
 interface ChooseCompositionProps {
   savedCompositions: UserComposition[];
   isLoadingSavedCompositions: boolean;
@@ -76,6 +80,11 @@ interface ChooseCompositionProps {
     segments: Segment[],
   ) => void;
   onChooseSavedComposition: (composition: UserComposition) => void;
+  onCopySavedComposition: (composition: UserComposition) => Promise<void>;
+  onDeleteSavedComposition: (composition: UserComposition) => Promise<void>;
+  onQuickRefreshSavedComposition?: (
+    composition: UserComposition,
+  ) => Promise<void>;
 }
 
 const formatDate = (value: string): string => {
@@ -100,10 +109,33 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   onChooseTemplate,
   onChooseVideoTranscript,
   onChooseSavedComposition,
+  onCopySavedComposition,
+  onDeleteSavedComposition,
+  onQuickRefreshSavedComposition,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const optionsButtonRefs = useRef<Record<string, any>>({});
   const [view, setView] = useState<"main" | "templates" | "videoTranscript">(
     "main",
   );
+  const [compositionToDelete, setCompositionToDelete] =
+    useState<UserComposition | null>(null);
+  const [deletingCompositionId, setDeletingCompositionId] = useState<
+    string | number | null
+  >(null);
+  const [copyingCompositionId, setCopyingCompositionId] = useState<
+    string | number | null
+  >(null);
+  const [quickRefreshingCompositionId, setQuickRefreshingCompositionId] =
+    useState<string | number | null>(null);
+  const [optionsCompositionId, setOptionsCompositionId] = useState<
+    string | number | null
+  >(null);
+  const [optionsMenuPosition, setOptionsMenuPosition] = useState({
+    left: 12,
+    top: 12,
+  });
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const targetLanguageSavedCompositions = useMemo(
     () =>
       targetLanguage
@@ -116,6 +148,88 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   const savedEmptyLabel = isSignedIn
     ? "No saved compositions yet."
     : "Sign in to save and reopen compositions.";
+  const optionsComposition = useMemo(
+    () =>
+      optionsCompositionId
+        ? targetLanguageSavedCompositions.find(
+            (composition) =>
+              String(composition.id) === String(optionsCompositionId),
+          )
+        : null,
+    [optionsCompositionId, targetLanguageSavedCompositions],
+  );
+
+  const closeDeleteModal = () => {
+    if (deletingCompositionId !== null) return;
+    setOptionsCompositionId(null);
+    setCompositionToDelete(null);
+    setDeleteError(null);
+  };
+
+  const confirmDeleteComposition = async () => {
+    if (!compositionToDelete || deletingCompositionId !== null) return;
+
+    setDeletingCompositionId(compositionToDelete.id);
+    setOptionsCompositionId(null);
+    setDeleteError(null);
+    try {
+      await onDeleteSavedComposition(compositionToDelete);
+      setCompositionToDelete(null);
+    } catch {
+      setDeleteError("Could not delete this composition.");
+    } finally {
+      setDeletingCompositionId(null);
+    }
+  };
+
+  const openSavedComposition = (composition: UserComposition) => {
+    setOptionsCompositionId(null);
+    onChooseSavedComposition(composition);
+  };
+
+  const copySavedComposition = async (composition: UserComposition) => {
+    if (copyingCompositionId !== null) return;
+
+    setCopyingCompositionId(composition.id);
+    setOptionsCompositionId(null);
+    setDeleteError(null);
+    try {
+      await onCopySavedComposition(composition);
+    } finally {
+      setCopyingCompositionId(null);
+    }
+  };
+
+  const quickRefreshSavedComposition = (composition: UserComposition) => {
+    if (quickRefreshingCompositionId !== null) return;
+
+    setQuickRefreshingCompositionId(composition.id);
+    setOptionsCompositionId(null);
+    setDeleteError(null);
+    void onQuickRefreshSavedComposition?.(composition);
+  };
+
+  const toggleOptionsMenu = (composition: UserComposition) => {
+    const compositionId = String(composition.id);
+    if (String(optionsCompositionId) === compositionId) {
+      setOptionsCompositionId(null);
+      return;
+    }
+
+    const buttonRef = optionsButtonRefs.current[compositionId];
+    buttonRef?.measureInWindow?.(
+      (x: number, y: number, buttonWidth: number, buttonHeight: number) => {
+        setOptionsMenuPosition({
+          left: Math.min(
+            Math.max(12, windowWidth - OPTIONS_MENU_WIDTH - 12),
+            Math.max(12, x + buttonWidth - OPTIONS_MENU_WIDTH),
+          ),
+          top: y + buttonHeight + 6,
+        });
+      },
+    );
+    setOptionsCompositionId(composition.id);
+  };
 
   if (view === "templates") {
     return (
@@ -164,82 +278,248 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator
-    >
-      <View style={styles.header}>
-        <Text style={styles.headerSubtitle}>
-          Start fresh, import a transcript, or reopen saved work.
-        </Text>
-      </View>
-      <View style={styles.list}>
-        <Pressable
-          style={styles.row}
-          onPress={() => setView("videoTranscript")}
-        >
-          <View style={styles.rowIcon}>
-            <Ionicons name="film-outline" size={18} color="#26705d" />
-          </View>
-          <Text style={styles.rowTitle}>Video Transcript</Text>
-          <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
-        </Pressable>
-
-        <Pressable style={styles.row} onPress={onBlankCanvas}>
-          <View style={styles.rowIcon}>
-            <Ionicons name="document-text-outline" size={18} color="#26705d" />
-          </View>
-          <Text style={styles.rowTitle}>Blank Canvas</Text>
-          <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
-        </Pressable>
-
-        <Pressable style={styles.row} onPress={() => setView("templates")}>
-          <View style={styles.rowIcon}>
-            <Ionicons name="albums-outline" size={18} color="#26705d" />
-          </View>
-          <Text style={styles.rowTitle}>Template</Text>
-          <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
-        </Pressable>
-      </View>
-      <View style={styles.savedHeader}>
-        <Text style={styles.savedHeaderText}>Saved</Text>
-        {isLoadingSavedCompositions && (
-          <ActivityIndicator size="small" color="#5a5680" />
-        )}
-      </View>
-      {savedCompositionError ? (
-        <Text style={styles.emptyText}>{savedCompositionError}</Text>
-      ) : targetLanguageSavedCompositions.length ? (
-        <View style={styles.list}>
-          {targetLanguageSavedCompositions.map((composition) => (
-            <Pressable
-              key={String(composition.id)}
-              style={styles.row}
-              onPress={() => onChooseSavedComposition(composition)}
-            >
-              <View style={styles.rowTextGroup}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {composition.title || "Untitled composition"}
-                </Text>
-                <View style={styles.rowMetaLine}>
-                  <Text style={styles.rowMeta}>
-                    {formatDate(composition.updated_at)}
-                  </Text>
-                  {composition.video_id && (
-                    <View style={styles.videoBadge}>
-                      <Text style={styles.videoBadgeText}>video</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-              <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
-            </Pressable>
-          ))}
+    <ScrollView style={styles.container} showsVerticalScrollIndicator>
+      <Pressable
+        style={styles.content}
+        onPress={() => setOptionsCompositionId(null)}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerSubtitle}>
+            Start fresh, import a transcript, or reopen saved work.
+          </Text>
         </View>
-      ) : (
-        <Text style={styles.emptyText}>{savedEmptyLabel}</Text>
-      )}
+        <View style={styles.list}>
+          <Pressable
+            style={styles.row}
+            onPress={() => setView("videoTranscript")}
+          >
+            <View style={styles.rowIcon}>
+              <Ionicons name="film-outline" size={18} color="#26705d" />
+            </View>
+            <Text style={styles.rowTitle}>Video Transcript</Text>
+            <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
+          </Pressable>
+
+          <Pressable style={styles.row} onPress={onBlankCanvas}>
+            <View style={styles.rowIcon}>
+              <Ionicons
+                name="document-text-outline"
+                size={18}
+                color="#26705d"
+              />
+            </View>
+            <Text style={styles.rowTitle}>Blank Canvas</Text>
+            <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
+          </Pressable>
+
+          {/* <Pressable style={styles.row} onPress={() => setView("templates")}>
+            <View style={styles.rowIcon}>
+              <Ionicons name="albums-outline" size={18} color="#26705d" />
+            </View>
+            <Text style={styles.rowTitle}>Template</Text>
+            <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
+          </Pressable> */}
+        </View>
+        <View style={styles.savedHeader}>
+          <Text style={styles.savedHeaderText}>Saved</Text>
+          {isLoadingSavedCompositions && (
+            <ActivityIndicator size="small" color="#5a5680" />
+          )}
+        </View>
+        {savedCompositionError ? (
+          <Text style={styles.emptyText}>{savedCompositionError}</Text>
+        ) : targetLanguageSavedCompositions.length ? (
+          <View style={styles.list}>
+            {targetLanguageSavedCompositions.map((composition) => {
+              const isDeleting =
+                String(deletingCompositionId) === String(composition.id);
+              const isCopying =
+                String(copyingCompositionId) === String(composition.id);
+              const isQuickRefreshing =
+                String(quickRefreshingCompositionId) === String(composition.id);
+              const isBusy = isDeleting || isCopying || isQuickRefreshing;
+              const isOptionsOpen =
+                String(optionsCompositionId) === String(composition.id);
+
+              return (
+                <Pressable
+                  key={String(composition.id)}
+                  style={[styles.row, isOptionsOpen && styles.rowWithOpenMenu]}
+                  onPress={() => openSavedComposition(composition)}
+                  disabled={isBusy}
+                >
+                  <View style={styles.rowTextGroup}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {composition.title || "Untitled composition"}
+                    </Text>
+                    <View style={styles.rowMetaLine}>
+                      <Text style={styles.rowMeta}>
+                        {formatDate(composition.updated_at)}
+                      </Text>
+                      {composition.video_id && (
+                        <View style={styles.videoBadge}>
+                          <Text style={styles.videoBadgeText}>video</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.rowActions}>
+                    <Pressable
+                      ref={(ref) => {
+                        optionsButtonRefs.current[String(composition.id)] = ref;
+                      }}
+                      style={[
+                        styles.moreButton,
+                        isOptionsOpen && styles.moreButtonActive,
+                      ]}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        setDeleteError(null);
+                        toggleOptionsMenu(composition);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="More composition options"
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      disabled={isBusy}
+                    >
+                      {isBusy ? (
+                        <ActivityIndicator size="small" color="#697187" />
+                      ) : (
+                        <Ionicons
+                          name="ellipsis-horizontal"
+                          size={17}
+                          color="#697187"
+                        />
+                      )}
+                    </Pressable>
+                    <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <Text style={styles.emptyText}>{savedEmptyLabel}</Text>
+        )}
+      </Pressable>
+      <Modal
+        visible={Boolean(optionsComposition)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOptionsCompositionId(null)}
+      >
+        <Pressable
+          style={styles.optionsModalOverlay}
+          onPress={() => setOptionsCompositionId(null)}
+        >
+          {optionsComposition && (
+            <Pressable
+              style={[
+                styles.optionsMenu,
+                {
+                  left: optionsMenuPosition.left,
+                  top: optionsMenuPosition.top,
+                },
+              ]}
+              onPress={(event) => event.stopPropagation()}
+            >
+              <Pressable
+                style={styles.optionsMenuItem}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  openSavedComposition(optionsComposition);
+                }}
+              >
+                <Ionicons name="open-outline" size={14} color="#3d3a52" />
+                <Text style={styles.optionsMenuText}>Open</Text>
+              </Pressable>
+              <Pressable
+                style={styles.optionsMenuItem}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  void copySavedComposition(optionsComposition);
+                }}
+              >
+                <Ionicons name="copy-outline" size={14} color="#3d3a52" />
+                <Text style={styles.optionsMenuText}>Copy</Text>
+              </Pressable>
+              <Pressable
+                style={styles.optionsMenuItem}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  quickRefreshSavedComposition(optionsComposition);
+                }}
+              >
+                <Ionicons name="flash-outline" size={14} color="#3d3a52" />
+                <Text style={styles.optionsMenuText}>Quick refresher</Text>
+              </Pressable>
+              <View style={styles.optionsMenuDivider} />
+              <Pressable
+                style={styles.optionsMenuItem}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setOptionsCompositionId(null);
+                  setCompositionToDelete(optionsComposition);
+                  setDeleteError(null);
+                }}
+              >
+                <Ionicons name="trash-outline" size={14} color="#9f3c3c" />
+                <Text style={[styles.optionsMenuText, styles.deleteText]}>
+                  Delete
+                </Text>
+              </Pressable>
+            </Pressable>
+          )}
+        </Pressable>
+      </Modal>
+      <Modal
+        visible={Boolean(compositionToDelete)}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDeleteModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeDeleteModal}>
+          <Pressable
+            style={styles.confirmCard}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <View style={styles.confirmIcon}>
+              <Ionicons name="trash-outline" size={20} color="#9f3c3c" />
+            </View>
+            <Text style={styles.confirmTitle}>Delete composition?</Text>
+            <Text style={styles.confirmText}>
+              This will permanently remove{" "}
+              <Text style={styles.confirmTextStrong}>
+                {compositionToDelete?.title || "Untitled composition"}
+              </Text>
+              .
+            </Text>
+            {deleteError && (
+              <Text style={styles.deleteError}>{deleteError}</Text>
+            )}
+            <View style={styles.confirmActions}>
+              <Pressable
+                style={[styles.confirmButton, styles.cancelButton]}
+                onPress={closeDeleteModal}
+                disabled={deletingCompositionId !== null}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.confirmButton, styles.deleteConfirmButton]}
+                onPress={confirmDeleteComposition}
+                disabled={deletingCompositionId !== null}
+              >
+                {deletingCompositionId !== null ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.deleteConfirmButtonText}>Delete</Text>
+                )}
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 };
@@ -249,6 +529,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    flexGrow: 1,
     paddingHorizontal: 14,
     paddingTop: 8,
     paddingBottom: 14,
@@ -271,6 +552,7 @@ const styles = StyleSheet.create({
   list: {
     borderTopWidth: 1,
     borderTopColor: "rgba(74, 105, 189, 0.12)",
+    overflow: "visible",
   },
   row: {
     minHeight: 48,
@@ -280,6 +562,10 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(74, 105, 189, 0.12)",
+    overflow: "visible",
+  },
+  rowWithOpenMenu: {
+    zIndex: 20,
   },
   rowIcon: {
     width: 28,
@@ -309,6 +595,66 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+  },
+  rowActions: {
+    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    overflow: "visible",
+  },
+  moreButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f6f7fa",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.12)",
+  },
+  moreButtonActive: {
+    backgroundColor: "#eef2f8",
+    borderColor: "rgba(74, 105, 189, 0.24)",
+  },
+  optionsMenu: {
+    position: "absolute",
+    width: 164,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.14)",
+    shadowColor: "#1f2330",
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+    zIndex: 30,
+  },
+  optionsModalOverlay: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  optionsMenuItem: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+  },
+  optionsMenuText: {
+    color: "#3d3a52",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  deleteText: {
+    color: "#9f3c3c",
+  },
+  optionsMenuDivider: {
+    height: 1,
+    marginVertical: 4,
+    backgroundColor: "rgba(74, 105, 189, 0.1)",
   },
   videoBadge: {
     minHeight: 16,
@@ -353,6 +699,89 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     color: "#3d3a52",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  modalOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 18,
+    backgroundColor: "rgba(31, 35, 48, 0.28)",
+  },
+  confirmCard: {
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 18,
+    padding: 20,
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.12)",
+    gap: 10,
+  },
+  confirmIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff5f5",
+    borderWidth: 1,
+    borderColor: "rgba(159, 60, 60, 0.14)",
+  },
+  confirmTitle: {
+    color: "#2f3140",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  confirmText: {
+    color: "#697187",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  confirmTextStrong: {
+    color: "#2f3140",
+    fontWeight: "900",
+  },
+  deleteError: {
+    color: "#9f3c3c",
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  confirmActions: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  confirmButton: {
+    minWidth: 92,
+    minHeight: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  cancelButton: {
+    backgroundColor: "#f3f5f8",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.12)",
+  },
+  cancelButtonText: {
+    color: "#3d3a52",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  deleteConfirmButton: {
+    backgroundColor: "#9f3c3c",
+  },
+  deleteConfirmButtonText: {
+    color: "#ffffff",
     fontSize: 13,
     fontWeight: "900",
   },

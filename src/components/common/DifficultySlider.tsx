@@ -16,6 +16,7 @@ const MAX_DIFFICULTY = 5;
 interface DifficultySliderProps {
   difficulty: number;
   onDifficultyChange: (d: number) => void;
+  onResetRevealedWords?: () => void;
   variant?: "default" | "compact";
   style?: StyleProp<ViewStyle>;
 }
@@ -23,6 +24,7 @@ interface DifficultySliderProps {
 const DifficultySlider: React.FC<DifficultySliderProps> = ({
   difficulty,
   onDifficultyChange,
+  onResetRevealedWords,
   variant = "default",
   style,
 }) => {
@@ -111,6 +113,17 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
             color={difficulty === MAX_DIFFICULTY ? "#9aa4ba" : "#32405f"}
           />
         </TouchableOpacity>
+        {onResetRevealedWords && (
+          <TouchableOpacity
+            style={styles.compactResetButton}
+            onPress={onResetRevealedWords}
+            accessibilityRole="button"
+            accessibilityLabel="Reset revealed words"
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+          >
+            <MaterialIcons name="refresh" size={14} color="#32405f" />
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -160,6 +173,17 @@ const DifficultySlider: React.FC<DifficultySliderProps> = ({
           Less hints
         </Text>
       </TouchableOpacity>
+      {onResetRevealedWords && (
+        <TouchableOpacity
+          style={styles.resetButton}
+          onPress={onResetRevealedWords}
+          accessibilityRole="button"
+          accessibilityLabel="Reset revealed words"
+          hitSlop={{ top: 16, bottom: 16, left: 12, right: 12 }}
+        >
+          <MaterialIcons name="refresh" size={15} color="#3d3a52" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -179,6 +203,16 @@ const styles = StyleSheet.create({
   },
   labelDisabled: {
     opacity: 0.3,
+  },
+  resetButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(61, 58, 82, 0.14)",
   },
   trackContainer: {
     flex: 1,
@@ -246,6 +280,16 @@ const styles = StyleSheet.create({
   },
   compactStepButtonDisabled: {
     opacity: 0.45,
+  },
+  compactResetButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(74,105,189,0.18)",
   },
   compactTrack: {
     flex: 1,

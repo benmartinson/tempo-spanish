@@ -522,25 +522,34 @@ export const computeBaseMaskedIndices = (
 ): Set<number> => {
   const masked = new Set<number>();
   if (difficulty === 0 || !words) return masked;
+  const normalizedWords = words.map((word) => ({
+    ...word,
+    word: removeSpecialPunctuation(word.word).trim(),
+  }));
   if (difficulty >= 5) {
     words.forEach((_, i) => masked.add(i));
     return masked;
   }
   if (difficulty === 4) {
-    let sentenceWordIndex = 0;
-    words.forEach((word, i) => {
-      if (sentenceWordIndex >= 2) masked.add(i);
-      sentenceWordIndex += 1;
-      if (/[.!?]$/.test(word.word.trim())) sentenceWordIndex = 0;
+    let visibleSentenceWordCount = 0;
+    normalizedWords.forEach((word, i) => {
+      const trimmedWord = word.word;
+      const isWordToken = /[\p{L}\p{N}]/u.test(trimmedWord);
+      const endsSentence = /[.!?]+["'”’)\]]*$/.test(trimmedWord);
+
+      if (isWordToken) {
+        if (visibleSentenceWordCount >= 2) masked.add(i);
+        visibleSentenceWordCount += 1;
+      }
+      if (endsSentence) visibleSentenceWordCount = 0;
     });
     return masked;
   }
   const easyWords = new Set([...SPANISH_PREPOSITIONS, ...SPANISH_PRONOUNS]);
   const easyIndices: number[] = [];
   const restIndices: number[] = [];
-  words.forEach((word, i) => {
+  normalizedWords.forEach((word, i) => {
     const normalized = word.word
-      .trim()
       .toLowerCase()
       .replace(/[,.!?]$/, "")
       .normalize("NFD")

@@ -236,6 +236,17 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     },
     [clipMatcher, composition],
   );
+  const handleQuickRefreshSavedComposition = useCallback(
+    async (compositionRecord: UserComposition) => {
+      setIsWelcomePanelRequested(false);
+      clipMatcher.clearClipMatches();
+      await composition.handleChooseSavedComposition(compositionRecord);
+      composition.setMemorizeDifficultyAndReset(4);
+      composition.setMode("memorize");
+      setIsMemorizeFullScreen(true);
+    },
+    [clipMatcher, composition],
+  );
   const setSelectedTranscriptVideoContext = useCallback(
     async (result: VideoTranscriptSearchResult) => {
       const requestTargetLanguage = targetLanguageRef.current;
@@ -429,6 +440,14 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
       return;
     }
     if (
+      composition.isResolvingCurrentComposition ||
+      composition.hasChosenComposition
+    ) {
+      setIsLoadingInitialVideoComposition(false);
+      setInitialVideoCompositionFailed(false);
+      return;
+    }
+    if (
       loadedInitialVideoRecordIdRef.current === normalizedInitialVideoRecordId
     ) {
       setIsLoadingInitialVideoComposition(false);
@@ -500,7 +519,14 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [allChannels, allVideos, initialVideoRecordId, publicSupabase]);
+  }, [
+    allChannels,
+    allVideos,
+    composition.hasChosenComposition,
+    composition.isResolvingCurrentComposition,
+    initialVideoRecordId,
+    publicSupabase,
+  ]);
   const shouldBypassCompositionChooser = Boolean(
     initialVideoRecordId &&
     !composition.hasChosenComposition &&
@@ -626,6 +652,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
           isMemorizeFullScreen={isMemorizeFullScreen}
           onToggleMemorizeFullScreen={toggleMemorizeFullScreen}
           onExitMemorizeFullScreen={exitMemorizeFullScreen}
+          onQuickRefreshSavedComposition={handleQuickRefreshSavedComposition}
           allChannels={allChannels}
           publicSupabase={publicSupabase}
           targetLanguage={targetLanguage}

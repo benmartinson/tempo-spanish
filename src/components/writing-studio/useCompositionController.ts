@@ -5,6 +5,7 @@ import {
   UserComposition,
   WritingSuggestion,
   createUserComposition,
+  deleteUserComposition,
   fetchUserCompositions,
   fetchWritingSuggestions,
   persistCurrentComposition,
@@ -134,6 +135,24 @@ const makeDraftMemorizeWords = (text: string): SegmentWord[] => {
     };
   });
 };
+
+const makeVideoDraftMemorizeWords = (
+  text: string,
+  referenceWords: SegmentWord[],
+): SegmentWord[] =>
+  makeDraftMemorizeWords(text).map((word, index) => {
+    const referenceWord = referenceWords[index];
+    if (!referenceWord) return word;
+
+    return {
+      ...word,
+      start: referenceWord.start,
+      end: referenceWord.end,
+      frequency: referenceWord.frequency,
+      paragraphBreakBefore:
+        word.paragraphBreakBefore || referenceWord.paragraphBreakBefore,
+    };
+  });
 
 const cleanCompositionText = (text: string): string =>
   text
@@ -329,7 +348,11 @@ export const useCompositionController = ({
       ),
     [videoModeSegments],
   );
-  const memorizerWords = isVideoMode ? videoModeWords : memorizeWords;
+  const videoModeDraftWords = useMemo(
+    () => makeVideoDraftMemorizeWords(draft, videoModeWords),
+    [draft, videoModeWords],
+  );
+  const memorizerWords = isVideoMode ? videoModeDraftWords : memorizeWords;
   const memorizeMaskedIndices = useMemo(() => {
     const masked = computeBaseMaskedIndices(memorizerWords, memorizeDifficulty);
     revealedMemorizeIndices.forEach((index) => masked.delete(index));
@@ -346,6 +369,9 @@ export const useCompositionController = ({
       next.add(index);
       return next;
     });
+  }, []);
+  const resetRevealedMemorizeWords = useCallback(() => {
+    setRevealedMemorizeIndices(new Set());
   }, []);
 
   useEffect(
@@ -510,6 +536,8 @@ export const useCompositionController = ({
 
   const handleChooseSavedComposition = useCallback(
     async (composition: UserComposition) => {
+      const savedText = cleanCompositionText(composition.text);
+
       dispatch(setCurrentCompositionId(composition.id));
       void persistCurrentComposition({
         supabase: clerkSupabase,
@@ -518,7 +546,7 @@ export const useCompositionController = ({
       });
 
       if (!composition.video_id) {
-        beginComposition(composition.text, composition);
+        beginComposition(savedText, composition);
         return;
       }
 
@@ -533,7 +561,7 @@ export const useCompositionController = ({
       );
 
       if (!video || !segments.length) {
-        beginComposition(composition.text, composition);
+        beginComposition(savedText, composition);
         return;
       }
 
@@ -557,7 +585,7 @@ export const useCompositionController = ({
         startIndex: restoredRange.startIndex,
         endIndex: restoredRange.endIndex,
       });
-      setDraft(cleanCompositionText(composition.text));
+      setDraft(savedText);
       setCompositionTitle(composition.title ?? "");
       setCurrentComposition(composition);
       setHasChosenComposition(true);
@@ -783,6 +811,49 @@ export const useCompositionController = ({
     ]);
   }, []);
 
+  const handleDeleteSavedComposition = useCallback(
+    async (composition: UserComposition) => {
+      await deleteUserComposition({
+        supabase: clerkSupabase,
+        userId,
+        compositionId: composition.id,
+      });
+
+      setSavedCompositions((prev) =>
+        prev.filter((item) => String(item.id) !== String(composition.id)),
+      );
+
+      if (String(currentCompositionId) === String(composition.id)) {
+        dispatch(setCurrentCompositionId(null));
+        restoredCompositionIdRef.current = null;
+        await persistCurrentComposition({
+          supabase: clerkSupabase,
+          userId,
+          compositionId: null,
+        });
+      }
+    },
+    [clerkSupabase, currentCompositionId, dispatch, userId],
+  );
+
+  const handleCopySavedComposition = useCallback(
+    async (composition: UserComposition) => {
+      const copiedComposition = await createUserComposition({
+        supabase: clerkSupabase,
+        userId,
+        title: `${composition.title || "Untitled composition"} COPY`,
+        text: composition.text,
+        language: composition.language ?? targetLanguage,
+        videoId: composition.video_id ?? null,
+        segmentStart: composition.segment_start ?? null,
+        segmentEnd: composition.segment_end ?? null,
+      });
+
+      mergeSavedComposition(copiedComposition);
+    },
+    [clerkSupabase, mergeSavedComposition, targetLanguage, userId],
+  );
+
   const saveComposition = useCallback(async () => {
     const text = draft.trim();
     if (!text) return;
@@ -858,16 +929,19 @@ export const useCompositionController = ({
     setShowSaveSignInPrompt(false);
   }, []);
 
-  const handleRelayHighlightedWords = useCallback((words: SegmentWord[]) => {
-    const phrase = removeSpecialPunctuation(
-      words
-        .map((word) => word.word)
-        .join(" ")
-        .replace(/\s+/g, " "),
-    ).trim();
-    setVideoModeHighlightedWords(words);
-    setRelayedHighlightedPhrase(phrase);
-  }, []);
+  const handleRelayHighlightedWords = useCallback(
+    (words: SegmentWord[]) => {
+      const phrase = removeSpecialPunctuation(
+        words
+          .map((word) => word.word)
+          .join(" ")
+          .replace(/\s+/g, " "),
+      ).trim();
+      setVideoModeHighlightedWords(isVideoMode ? [] : words);
+      setRelayedHighlightedPhrase(phrase);
+    },
+    [isVideoMode],
+  );
   const clearHighlightedWords = useCallback(() => {
     setSelection({ start: 0, end: 0 });
     setRelayedHighlightedPhrase("");
@@ -1052,6 +1126,8 @@ export const useCompositionController = ({
     handleChooseTemplate,
     handleChooseVideoTranscript,
     handleChooseVideoTranscriptRange,
+    handleCopySavedComposition,
+    handleDeleteSavedComposition,
     handleDraftChange,
     handleNewComposition,
     handleRelayHighlightedWords,
@@ -1071,6 +1147,7 @@ export const useCompositionController = ({
     memorizeWords: memorizerWords,
     mode,
     revealMemorizeWord,
+    resetRevealedMemorizeWords,
     saveComposition,
     saveCompositionError,
     saveCompositionMessage,

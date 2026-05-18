@@ -136,6 +136,10 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
   const [selectedReviewWord, setSelectedReviewWord] =
     useState<SegmentWord | null>(null);
   const [webPanelWidth, setWebPanelWidth] = useState(620);
+  const resetRevealedWords = useCallback(() => {
+    setRevealedWords(new Set());
+    setHintLevels({});
+  }, []);
 
   // Compute which words would be masked (ignoring reveals) — stable per difficulty/segment
   const baseMaskedIndices = useMemo(
@@ -217,8 +221,9 @@ const MemorizeContent: React.FC<MemorizeContentProps> = ({
       difficulty={difficulty}
       onDifficultyChange={(d) => {
         setDifficulty(d);
-        setRevealedWords(new Set());
+        resetRevealedWords();
       }}
+      onResetRevealedWords={resetRevealedWords}
       variant={layout === "webPlayer" ? "compact" : "default"}
     />
   );

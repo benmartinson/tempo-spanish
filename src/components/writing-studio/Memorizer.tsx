@@ -10,6 +10,7 @@ interface MemorizerProps {
   maskedIndices: Set<number>;
   difficulty: number;
   onDifficultyChange: (difficulty: number) => void;
+  onResetRevealedWords: () => void;
   onRevealWord: (index: number) => void;
   onRelayHighlightedWords: (words: SegmentWord[]) => void;
   highlightedWordsResetKey?: number;
@@ -22,6 +23,7 @@ const Memorizer: React.FC<MemorizerProps> = ({
   maskedIndices,
   difficulty,
   onDifficultyChange,
+  onResetRevealedWords,
   onRevealWord,
   onRelayHighlightedWords,
   highlightedWordsResetKey = 0,
@@ -33,6 +35,7 @@ const Memorizer: React.FC<MemorizerProps> = ({
       <DifficultySlider
         difficulty={difficulty}
         onDifficultyChange={onDifficultyChange}
+        onResetRevealedWords={onResetRevealedWords}
         variant="compact"
         style={styles.composerDifficultySlider}
       />
