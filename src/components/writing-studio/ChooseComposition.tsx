@@ -1,6 +1,7 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -10,8 +11,10 @@ import {
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import type { UserComposition } from "../../requests";
+import type { TranscriptPhraseMatch, UserComposition } from "../../requests";
+import { formatTimestamp } from "../../helpers/helpers";
 import type { Channel, LanguageCode, Segment, Video } from "../../types";
+import FindVideoMatch from "./FindVideoMatch";
 import VideoTranscriptImport, {
   type VideoTranscriptSearchResult,
 } from "./VideoTranscriptImport";
@@ -79,6 +82,13 @@ interface ChooseCompositionProps {
     result: VideoTranscriptSearchResult,
     segments: Segment[],
   ) => void;
+  onChooseVideoTranscriptRange: (
+    result: VideoTranscriptSearchResult,
+    segments: Segment[],
+    startIndex: number,
+    endIndex: number,
+  ) => void;
+  onPreviewVideoMatch?: (match: TranscriptPhraseMatch | null) => void;
   onChooseSavedComposition: (composition: UserComposition) => void;
   onCopySavedComposition: (composition: UserComposition) => Promise<void>;
   onDeleteSavedComposition: (composition: UserComposition) => Promise<void>;
@@ -108,6 +118,8 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   onBlankCanvas,
   onChooseTemplate,
   onChooseVideoTranscript,
+  onChooseVideoTranscriptRange,
+  onPreviewVideoMatch,
   onChooseSavedComposition,
   onCopySavedComposition,
   onDeleteSavedComposition,
@@ -115,9 +127,9 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
 }) => {
   const { width: windowWidth } = useWindowDimensions();
   const optionsButtonRefs = useRef<Record<string, any>>({});
-  const [view, setView] = useState<"main" | "templates" | "videoTranscript">(
-    "main",
-  );
+  const [view, setView] = useState<
+    "main" | "templates" | "videoTranscript" | "findVideoMatch"
+  >("main");
   const [compositionToDelete, setCompositionToDelete] =
     useState<UserComposition | null>(null);
   const [deletingCompositionId, setDeletingCompositionId] = useState<
@@ -136,6 +148,8 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
     top: 12,
   });
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [savedClipTimesByCompositionId, setSavedClipTimesByCompositionId] =
+    useState<Record<string, string>>({});
   const targetLanguageSavedCompositions = useMemo(
     () =>
       targetLanguage
@@ -158,6 +172,87 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
         : null,
     [optionsCompositionId, targetLanguageSavedCompositions],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSavedClipTimes = async () => {
+      const videoCompositions = targetLanguageSavedCompositions.filter(
+        (composition) =>
+          composition.video_id &&
+          typeof composition.segment_start === "number" &&
+          typeof composition.segment_end === "number",
+      );
+
+      if (!videoCompositions.length) {
+        setSavedClipTimesByCompositionId({});
+        return;
+      }
+
+      const videoRecordIds = Array.from(
+        new Set(videoCompositions.map((composition) => composition.video_id)),
+      ).filter(Boolean);
+
+      try {
+        const { data, error } = await publicSupabase
+          .from("transcript_segment")
+          .select("segment_id,start,end,text,video_id")
+          .in("video_id", videoRecordIds)
+          .order("segment_id");
+
+        if (error) {
+          console.error(error);
+          throw new Error("Failed to load saved clip times");
+        }
+
+        const segmentsByVideoId = new Map<string, Segment[]>();
+        for (const segment of ((data ?? []) as Segment[]).filter((item) =>
+          Boolean(item.text?.trim()),
+        )) {
+          const existing = segmentsByVideoId.get(segment.video_id) ?? [];
+          existing.push(segment);
+          segmentsByVideoId.set(segment.video_id, existing);
+        }
+
+        const nextTimes: Record<string, string> = {};
+        for (const composition of videoCompositions) {
+          if (!composition.video_id) continue;
+
+          const segments = segmentsByVideoId.get(composition.video_id);
+          if (!segments?.length) continue;
+
+          const startIndex = Math.max(
+            0,
+            Math.min(composition.segment_start ?? 0, segments.length - 1),
+          );
+          const endIndex = Math.max(
+            0,
+            Math.min(
+              composition.segment_end ?? startIndex,
+              segments.length - 1,
+            ),
+          );
+          const startSegment = segments[Math.min(startIndex, endIndex)];
+          const endSegment = segments[Math.max(startIndex, endIndex)];
+
+          if (!startSegment || !endSegment) continue;
+          nextTimes[String(composition.id)] = `${formatTimestamp(
+            startSegment.start,
+          )} - ${formatTimestamp(endSegment.end)}`;
+        }
+
+        if (!cancelled) setSavedClipTimesByCompositionId(nextTimes);
+      } catch {
+        if (!cancelled) setSavedClipTimesByCompositionId({});
+      }
+    };
+
+    void loadSavedClipTimes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [publicSupabase, targetLanguageSavedCompositions]);
 
   const closeDeleteModal = () => {
     if (deletingCompositionId !== null) return;
@@ -272,7 +367,21 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
         publicSupabase={publicSupabase}
         targetLanguageVideos={targetLanguageVideos}
         onBack={() => setView("main")}
+        onFindGoodMatch={() => setView("findVideoMatch")}
         onChooseVideoTranscript={onChooseVideoTranscript}
+      />
+    );
+  }
+
+  if (view === "findVideoMatch") {
+    return (
+      <FindVideoMatch
+        allChannels={allChannels}
+        publicSupabase={publicSupabase}
+        targetLanguageVideos={targetLanguageVideos}
+        onBack={() => setView("videoTranscript")}
+        onPreviewVideoMatch={onPreviewVideoMatch}
+        onChooseVideoTranscriptRange={onChooseVideoTranscriptRange}
       />
     );
   }
@@ -340,6 +449,15 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
               const isBusy = isDeleting || isCopying || isQuickRefreshing;
               const isOptionsOpen =
                 String(optionsCompositionId) === String(composition.id);
+              const savedVideo = composition.video_id
+                ? targetLanguageVideos.find(
+                    (video) =>
+                      String(video.id) === String(composition.video_id),
+                  )
+                : null;
+              const thumbnailUrl = savedVideo?.thumbnail_url;
+              const savedClipTime =
+                savedClipTimesByCompositionId[String(composition.id)] ?? null;
 
               return (
                 <Pressable
@@ -348,6 +466,19 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
                   onPress={() => openSavedComposition(composition)}
                   disabled={isBusy}
                 >
+                  {composition.video_id && (
+                    <View style={styles.savedVideoThumbnailShell}>
+                      {thumbnailUrl ? (
+                        <Image
+                          source={{ uri: thumbnailUrl }}
+                          style={styles.savedVideoThumbnail}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Ionicons name="videocam" size={17} color="#000000" />
+                      )}
+                    </View>
+                  )}
                   <View style={styles.rowTextGroup}>
                     <Text style={styles.rowTitle} numberOfLines={1}>
                       {composition.title || "Untitled composition"}
@@ -356,10 +487,13 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
                       <Text style={styles.rowMeta}>
                         {formatDate(composition.updated_at)}
                       </Text>
-                      {composition.video_id && (
-                        <View style={styles.videoBadge}>
-                          <Text style={styles.videoBadgeText}>video</Text>
-                        </View>
+                      {savedClipTime && (
+                        <>
+                          <View style={styles.rowMetaDot} />
+                          <Text style={styles.rowClipTime}>
+                            {savedClipTime}
+                          </Text>
+                        </>
                       )}
                     </View>
                   </View>
@@ -555,11 +689,11 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
   row: {
-    minHeight: 48,
+    minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(74, 105, 189, 0.12)",
     overflow: "visible",
@@ -575,6 +709,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#edf4f2",
   },
+  savedVideoThumbnailShell: {
+    width: 72,
+    height: 40,
+    flexShrink: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+    overflow: "hidden",
+    borderRadius: 2,
+  },
+  savedVideoThumbnail: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
   rowTextGroup: {
     flex: 1,
     minWidth: 0,
@@ -588,7 +737,20 @@ const styles = StyleSheet.create({
   rowMeta: {
     color: "#697187",
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: "700",
+  },
+  rowMetaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: "#b1b8c7",
+  },
+  rowClipTime: {
+    color: "#26705d",
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "900",
   },
   rowMetaLine: {
     marginTop: 2,
@@ -657,17 +819,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(74, 105, 189, 0.1)",
   },
   videoBadge: {
-    minHeight: 16,
+    width: 18,
+    height: 18,
+    alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 6,
-    borderRadius: 8,
-    backgroundColor: "#f7dc82",
-  },
-  videoBadgeText: {
-    color: "#6f5300",
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    opacity: 0.5,
   },
   savedHeader: {
     minHeight: 28,

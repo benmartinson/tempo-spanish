@@ -29,6 +29,7 @@ interface VideoTranscriptImportProps {
   publicSupabase: any;
   targetLanguageVideos: Video[];
   onBack: () => void;
+  onFindGoodMatch: () => void;
   onChooseVideoTranscript: (
     result: VideoTranscriptSearchResult,
     segments: Segment[],
@@ -40,6 +41,7 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
   publicSupabase,
   targetLanguageVideos,
   onBack,
+  onFindGoodMatch,
   onChooseVideoTranscript,
 }) => {
   const [topicQuery, setTopicQuery] = useState("");
@@ -232,7 +234,17 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Video Transcript Library</Text>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.headerTitle}>Video Transcript Library</Text>
+            <Pressable
+              style={styles.matchButton}
+              onPress={onFindGoodMatch}
+              accessibilityRole="button"
+            >
+              <Ionicons name="sparkles-outline" size={15} color="#26705d" />
+              <Text style={styles.matchButtonText}>Find a Good Match</Text>
+            </Pressable>
+          </View>
           <Text style={styles.headerSubtitle}>
             Search directly, or browse the library below.
           </Text>
@@ -394,9 +406,35 @@ const styles = StyleSheet.create({
   header: {
     gap: 4,
   },
+  headerTitleRow: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
   headerTitle: {
+    flex: 1,
     color: "#2f3140",
     fontSize: 16,
+    fontWeight: "900",
+  },
+  matchButton: {
+    flexShrink: 0,
+    minHeight: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: "#edf4f2",
+    borderWidth: 1,
+    borderColor: "rgba(38, 112, 93, 0.2)",
+  },
+  matchButtonText: {
+    color: "#26705d",
+    fontSize: 12,
     fontWeight: "900",
   },
   headerSubtitle: {

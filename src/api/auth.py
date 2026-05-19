@@ -135,8 +135,11 @@ async def ensure_credits(user_id: str = Depends(verify_jwt)) -> str:
     return user_id
 
 
-async def deduct_credit(user_id: str) -> None:
-    """Deduct 1 credit from the current user."""
+async def deduct_credits(user_id: str, credit_count: int = 1) -> None:
+    """Deduct the requested number of credits from the current user."""
+    if credit_count <= 0:
+        return
+
     if not SUPABASE_SERVICE_ROLE_KEY:
         print("SUPABASE_SERVICE_ROLE_KEY is not configured")
         raise HTTPException(status_code=500, detail="Credit check is not configured")
@@ -159,16 +162,15 @@ async def deduct_credit(user_id: str) -> None:
                 raise HTTPException(status_code=500, detail="Credit check failed")
 
             rows = response.json()
-            if not rows or rows[0].get("credits", 0) <= 0:
+            if not rows or rows[0].get("credits", 0) < credit_count:
                 raise HTTPException(status_code=403, detail="Insufficient credits")
 
-            # Deduct 1 credit
             current_credits = rows[0]["credits"]
             deduct_response = await client.patch(
                 f"{SUPABASE_URL}/rest/v1/user_credits",
                 params={"user_id": f"eq.{user_id}"},
                 headers={**headers, "Content-Type": "application/json", "Prefer": "return=minimal"},
-                json={"credits": current_credits - 1},
+                json={"credits": current_credits - credit_count},
             )
 
             if deduct_response.status_code not in (200, 204):
@@ -179,6 +181,11 @@ async def deduct_credit(user_id: str) -> None:
     except Exception as e:
         print(f"Credit check error: {e}")
         raise HTTPException(status_code=500, detail="Credit check failed")
+
+
+async def deduct_credit(user_id: str) -> None:
+    """Deduct 1 credit from the current user."""
+    await deduct_credits(user_id, 1)
 
 
 async def check_credits(user_id: str = Depends(ensure_credits)) -> str:

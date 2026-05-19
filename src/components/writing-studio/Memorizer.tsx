@@ -16,6 +16,7 @@ interface MemorizerProps {
   highlightedWordsResetKey?: number;
   isFullScreen?: boolean;
   onToggleFullScreen?: () => void;
+  resultsContent?: React.ReactNode;
 }
 
 const Memorizer: React.FC<MemorizerProps> = ({
@@ -29,44 +30,49 @@ const Memorizer: React.FC<MemorizerProps> = ({
   highlightedWordsResetKey = 0,
   isFullScreen = false,
   onToggleFullScreen,
+  resultsContent,
 }) => (
   <View style={styles.composerMemorizeContent}>
-    <View style={styles.controlsRow}>
-      <DifficultySlider
-        difficulty={difficulty}
-        onDifficultyChange={onDifficultyChange}
-        onResetRevealedWords={onResetRevealedWords}
-        variant="compact"
-        style={styles.composerDifficultySlider}
-      />
-      <Pressable
-        style={styles.fullScreenButton}
-        onPress={onToggleFullScreen}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <MaterialIcons
-          name={isFullScreen ? "fullscreen-exit" : "fullscreen"}
-          size={20}
-          color="#3d3a52"
+    {!resultsContent && (
+      <View style={styles.controlsRow}>
+        <DifficultySlider
+          difficulty={difficulty}
+          onDifficultyChange={onDifficultyChange}
+          onResetRevealedWords={onResetRevealedWords}
+          variant="compact"
+          style={styles.composerDifficultySlider}
         />
-      </Pressable>
-    </View>
+        <Pressable
+          style={styles.fullScreenButton}
+          onPress={onToggleFullScreen}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MaterialIcons
+            name={isFullScreen ? "fullscreen-exit" : "fullscreen"}
+            size={20}
+            color="#3d3a52"
+          />
+        </Pressable>
+      </View>
+    )}
     <ScrollView
       style={styles.memorizeBubbleScroll}
       contentContainerStyle={styles.memorizeBubbleScrollContent}
       showsVerticalScrollIndicator
     >
-      <FullSegmentTranscriptBubble
-        words={words}
-        blurredIndices={maskedIndices}
-        time={0}
-        playerIsPlaying={false}
-        showFullText
-        disableGuessModal={false}
-        onWordPress={onRevealWord}
-        relayHighlightedWords={onRelayHighlightedWords}
-        relayResetKey={highlightedWordsResetKey}
-      />
+      {resultsContent ?? (
+        <FullSegmentTranscriptBubble
+          words={words}
+          blurredIndices={maskedIndices}
+          time={0}
+          playerIsPlaying={false}
+          showFullText
+          disableGuessModal={false}
+          onWordPress={onRevealWord}
+          relayHighlightedWords={onRelayHighlightedWords}
+          relayResetKey={highlightedWordsResetKey}
+        />
+      )}
     </ScrollView>
   </View>
 );

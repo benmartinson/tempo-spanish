@@ -609,8 +609,12 @@ const ShadowTab: React.FC<ShadowTabProps> = ({
         setAudioUri(safeUri);
         saveShadowResult(spokenWords);
 
-        // Backend deducted 1 credit — update local count
-        dispatch(setUserCredits(userCredits - 1));
+        // Backend deducted credits — update local count
+        dispatch(
+          setUserCredits(
+            userCredits - (transcriptionResult.credits_charged ?? 1),
+          ),
+        );
       } catch (err) {
         console.error("Transcription error:", err);
         setError("Failed to process audio");

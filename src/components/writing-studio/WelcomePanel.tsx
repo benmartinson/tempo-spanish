@@ -10,7 +10,6 @@ const WelcomePanel: React.FC = () => (
         showsVerticalScrollIndicator
       >
         <View style={styles.header}>
-          <View style={styles.accentLine} />
           <Text style={styles.title}>
             A practical way to start speaking faster
           </Text>
@@ -35,6 +34,10 @@ const WelcomePanel: React.FC = () => (
             shadow it by recording yourself speaking the same words. Review your
             pronunciation and accuracy feedback, then try again.
           </Text>
+        </View>
+
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionTitle}>2. Memorize</Text>
           <Text style={styles.body}>
             Once the pronunciation feels comfortable, memorize the full segment.
             This is the most important step if you want to feel comfortable
@@ -42,7 +45,7 @@ const WelcomePanel: React.FC = () => (
           </Text>
         </View>
 
-        <View style={styles.sectionBlock}>
+        {/* <View style={styles.sectionBlock}>
           <Text style={styles.sectionTitle}>2. Then compose</Text>
           <Text style={styles.body}>
             After practicing with native examples, write your own short passage
@@ -58,6 +61,19 @@ const WelcomePanel: React.FC = () => (
             then use those patterns to express your own ideas with more
             confidence. You may be surprised how quickly it starts to come
             together!
+          </Text>
+        </View> */}
+
+        <View style={[styles.sectionBlock, styles.sectionBlock]}>
+          <Text style={styles.sectionTitle}>3. Repeat once per day</Text>
+          <Text style={styles.body}>
+            Build up a set of memorized passages that you can reference and be
+            able to recite throughout the day.
+          </Text>
+          <Text style={styles.body}>
+            Speaking a language with confidence requires memorizing many useful
+            phrases, so you can recall them naturally and adapt them when
+            expressing your own ideas.
           </Text>
         </View>
       </ScrollView>

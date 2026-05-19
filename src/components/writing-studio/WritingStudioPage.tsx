@@ -135,6 +135,8 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     targetLanguage,
     userId,
   });
+  const [generatedVideoMatchPreview, setGeneratedVideoMatchPreview] =
+    useState<TranscriptPhraseMatch | null>(null);
   const transcriptSourceVideo = useMemo(() => {
     if (!composition.transcriptSource) return null;
     return (
@@ -155,14 +157,28 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
       range?.end ?? composition.transcriptSource.endIndex,
     ].join(":");
   }, [composition.transcriptSource, composition.transcriptSourceSegmentRange]);
+  const generatedVideoMatchPreviewKey = generatedVideoMatchPreview
+    ? [
+        generatedVideoMatchPreview.videoRecordId,
+        generatedVideoMatchPreview.segmentId,
+        generatedVideoMatchPreview.start,
+        generatedVideoMatchPreview.end,
+      ].join(":")
+    : "none";
   const clipMatcherResetKey = useMemo(
     () =>
       [
         currentCompositionId ? String(currentCompositionId) : "none",
         currentVideoRecordId ? String(currentVideoRecordId) : "none",
         localTranscriptVideoKey,
+        generatedVideoMatchPreviewKey,
       ].join("|"),
-    [currentCompositionId, currentVideoRecordId, localTranscriptVideoKey],
+    [
+      currentCompositionId,
+      currentVideoRecordId,
+      generatedVideoMatchPreviewKey,
+      localTranscriptVideoKey,
+    ],
   );
   const clipMatcher = useClipMatcher({
     activeSearchPhrase: composition.activeSearchPhrase,
@@ -170,12 +186,15 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     targetLanguageVideos,
     transcriptSourceVideo,
     transcriptSourceSegmentRange: composition.transcriptSourceSegmentRange,
-    localClipMatch: composition.videoModeClipMatch,
+    localClipMatch:
+      composition.videoModeClipMatch ?? generatedVideoMatchPreview,
     resetKey: clipMatcherResetKey,
   });
   const shouldShowInitialWelcome =
     Boolean(targetLanguage) && !hasSeenWelcomeModals;
-  const showWelcomePanel = shouldShowInitialWelcome || isWelcomePanelRequested;
+  const showWelcomePanel =
+    !generatedVideoMatchPreview &&
+    (shouldShowInitialWelcome || isWelcomePanelRequested);
   const selectedMatchBelongsToCurrentVideo = Boolean(
     composition.isVideoMode &&
     clipMatcher.selectedMatch &&
@@ -217,12 +236,14 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
 
   const handleBlankCanvas = useCallback(() => {
     setIsWelcomePanelRequested(false);
+    setGeneratedVideoMatchPreview(null);
     clipMatcher.clearClipMatches();
     composition.handleBlankCanvas();
   }, [clipMatcher, composition]);
   const handleChooseTemplate = useCallback(
     (template: CompositionTemplate) => {
       setIsWelcomePanelRequested(false);
+      setGeneratedVideoMatchPreview(null);
       clipMatcher.clearClipMatches();
       composition.handleChooseTemplate(template);
     },
@@ -231,6 +252,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   const handleChooseSavedComposition = useCallback(
     async (compositionRecord: UserComposition) => {
       setIsWelcomePanelRequested(false);
+      setGeneratedVideoMatchPreview(null);
       clipMatcher.clearClipMatches();
       await composition.handleChooseSavedComposition(compositionRecord);
     },
@@ -239,6 +261,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   const handleQuickRefreshSavedComposition = useCallback(
     async (compositionRecord: UserComposition) => {
       setIsWelcomePanelRequested(false);
+      setGeneratedVideoMatchPreview(null);
       clipMatcher.clearClipMatches();
       await composition.handleChooseSavedComposition(compositionRecord);
       composition.setMemorizeDifficultyAndReset(4);
@@ -281,8 +304,29 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   const handleChooseVideoTranscript = useCallback(
     (result: VideoTranscriptSearchResult, segments: Segment[]) => {
       setIsWelcomePanelRequested(false);
+      setGeneratedVideoMatchPreview(null);
       clipMatcher.clearClipMatches();
       composition.handleChooseVideoTranscript(result, segments);
+      void setSelectedTranscriptVideoContext(result);
+    },
+    [clipMatcher, composition, setSelectedTranscriptVideoContext],
+  );
+  const handleChooseVideoTranscriptRange = useCallback(
+    (
+      result: VideoTranscriptSearchResult,
+      segments: Segment[],
+      startIndex: number,
+      endIndex: number,
+    ) => {
+      setIsWelcomePanelRequested(false);
+      setGeneratedVideoMatchPreview(null);
+      clipMatcher.clearClipMatches();
+      composition.handleChooseVideoTranscriptRange(
+        result,
+        segments,
+        startIndex,
+        endIndex,
+      );
       void setSelectedTranscriptVideoContext(result);
     },
     [clipMatcher, composition, setSelectedTranscriptVideoContext],
@@ -293,6 +337,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   }, [handleChooseVideoTranscript]);
   const handleNewComposition = useCallback(() => {
     setIsWelcomePanelRequested(false);
+    setGeneratedVideoMatchPreview(null);
     clipMatcher.clearClipMatches();
     setIsMemorizeFullScreen(false);
     composition.handleNewComposition();
@@ -304,11 +349,19 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
       });
     }
   }, [clipMatcher, composition, initialVideoRecordId, navigation]);
+  const handlePreviewVideoMatch = useCallback(
+    (match: TranscriptPhraseMatch | null) => {
+      setIsWelcomePanelRequested(false);
+      setGeneratedVideoMatchPreview(match);
+    },
+    [],
+  );
   const handleStartCanvasWithSelectedPhrase = useCallback(() => {
     const phrase = clipMatcher.selectedMatchPhrase.trim();
     if (!phrase) return;
 
     setIsWelcomePanelRequested(false);
+    setGeneratedVideoMatchPreview(null);
     clipMatcher.clearClipMatches();
     composition.handleBlankCanvas();
     composition.handleDraftChange(phrase);
@@ -374,6 +427,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
       };
 
       setIsWelcomePanelRequested(false);
+      setGeneratedVideoMatchPreview(null);
       clipMatcher.clearClipMatches();
       dispatch(setCurrentCompositionId(null));
       void persistCurrentComposition({
@@ -545,6 +599,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
       handleChooseSavedComposition,
       handleChooseTemplate,
       handleChooseVideoTranscript,
+      handleChooseVideoTranscriptRange,
       handleNewComposition,
     }),
     [
@@ -553,6 +608,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
       handleChooseSavedComposition,
       handleChooseTemplate,
       handleChooseVideoTranscript,
+      handleChooseVideoTranscriptRange,
       handleNewComposition,
     ],
   );
@@ -653,6 +709,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
           onToggleMemorizeFullScreen={toggleMemorizeFullScreen}
           onExitMemorizeFullScreen={exitMemorizeFullScreen}
           onQuickRefreshSavedComposition={handleQuickRefreshSavedComposition}
+          onPreviewVideoMatch={handlePreviewVideoMatch}
           allChannels={allChannels}
           publicSupabase={publicSupabase}
           targetLanguage={targetLanguage}

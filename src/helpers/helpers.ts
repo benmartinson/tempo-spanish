@@ -431,6 +431,13 @@ export const removeSpecialPunctuation = (text: string) => {
     .join(" ");
 };
 
+export const removeSpecialPunctuationFromPassage = (text: string) => {
+  return text
+    .split(/(\s+)/)
+    .map((part) => (part.trim() ? removeSpecialPunctuation(part) : part))
+    .join("");
+};
+
 // Multi-word phrases where the first word's trailing comma should be stripped
 const PHRASE_PAIRS: [string, string][] = [
   ["sin", "embargo"],

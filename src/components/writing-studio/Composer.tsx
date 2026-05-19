@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,13 +11,29 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import type { Channel, LanguageCode, Video } from "../../types";
+import { useAuth } from "@clerk/clerk-expo";
+import * as FileSystem from "expo-file-system/legacy";
+import { useDispatch, useSelector } from "react-redux";
+import type {
+  AccuracyResult,
+  Channel,
+  LanguageCode,
+  RootState,
+  Video,
+} from "../../types";
 import type { SegmentWord } from "../../types";
+import RecordingControls from "../common/RecordingControls";
 import SignInPromptModal from "../common/SignInPromptModal";
+import ShadowResults from "../shadow/ShadowResults";
+import { calculateAccuracy } from "../../helpers/calculate_accuracy";
+import { removeSpecialPunctuationFromPassage } from "../../helpers/helpers";
+import { sendAudioForTranscription } from "../../helpers/streaming_helpers";
+import { setUserCredits } from "../../store/actions/dataActions";
+import { useRecording } from "../../hooks/useRecording";
 import ChooseComposition from "./ChooseComposition";
 import Memorizer from "./Memorizer";
 import type { CompositionController } from "./useCompositionController";
-import type { UserComposition } from "../../requests";
+import type { TranscriptPhraseMatch, UserComposition } from "../../requests";
 
 export type StudioMode = "write" | "memorize";
 
@@ -29,6 +46,7 @@ interface ComposerProps {
   onQuickRefreshSavedComposition?: (
     composition: UserComposition,
   ) => Promise<void>;
+  onPreviewVideoMatch?: (match: TranscriptPhraseMatch | null) => void;
   allChannels: Channel[];
   publicSupabase: any;
   targetLanguage: LanguageCode | null;
@@ -43,21 +61,195 @@ const Composer: React.FC<ComposerProps> = (props) => {
     onToggleMemorizeFullScreen,
     onExitMemorizeFullScreen,
     onQuickRefreshSavedComposition,
+    onPreviewVideoMatch,
     allChannels,
     publicSupabase,
     targetLanguage,
     targetLanguageVideos,
   } = props;
+  const dispatch = useDispatch();
+  const { isSignedIn } = useAuth();
+  const userCredits = useSelector((state: RootState) => state.userCredits);
   const [showVideoWriteInfo, setShowVideoWriteInfo] = useState(false);
   const [draftSegmentStart, setDraftSegmentStart] = useState("");
   const [draftSegmentEnd, setDraftSegmentEnd] = useState("");
+  const [memorizeRecordingMessage, setMemorizeRecordingMessage] = useState<
+    string | null
+  >(null);
+  const [memorizeRecordingTranscript, setMemorizeRecordingTranscript] =
+    useState<string | null>(null);
+  const [memorizeAccuracyResult, setMemorizeAccuracyResult] =
+    useState<AccuracyResult | null>(null);
+  const [memorizeRecordingAudioUri, setMemorizeRecordingAudioUri] = useState<
+    string | null
+  >(null);
+  const [memorizeRecordingSeconds, setMemorizeRecordingSeconds] = useState(0);
+  const [showRecordingSignInPrompt, setShowRecordingSignInPrompt] =
+    useState(false);
+  const [isProcessingMemorizeRecording, setIsProcessingMemorizeRecording] =
+    useState(false);
   const hideComposerChrome = isMemorizeFullScreen && cps.mode === "memorize";
+  const memorizeTargetWords = useMemo(
+    () =>
+      removeSpecialPunctuationFromPassage(
+        cps.memorizeWords
+          .map((word) => word.word)
+          .join(" ")
+          .replace(/\s+/g, " "),
+      )
+        .split(/\s+/)
+        .filter(Boolean),
+    [cps.memorizeWords],
+  );
+  const memorizeRecordingCreditsUsed = Math.max(
+    1,
+    Math.ceil(Math.max(1, memorizeRecordingSeconds) / 30),
+  );
+
+  const submitMemorizeRecording = useCallback(
+    async (uri: string) => {
+      setIsProcessingMemorizeRecording(true);
+      setMemorizeRecordingMessage(null);
+      setMemorizeRecordingTranscript(null);
+      setMemorizeAccuracyResult(null);
+      setMemorizeRecordingAudioUri(null);
+
+      let safeUri = uri;
+      if (Platform.OS !== "web") {
+        const stableUri = `${FileSystem.cacheDirectory}composer_memorize_recording_${Date.now()}.wav`;
+        try {
+          await FileSystem.copyAsync({ from: uri, to: stableUri });
+          safeUri = (await FileSystem.getInfoAsync(stableUri)).exists
+            ? stableUri
+            : uri;
+        } catch {
+          console.warn("Could not copy recording, using original URI");
+        }
+      }
+
+      try {
+        const result = await sendAudioForTranscription(
+          safeUri,
+          targetLanguage ?? "es",
+          "duration",
+        );
+        const spokenWords = result.transcript.split(/\s+/).filter(Boolean);
+        const accuracy = calculateAccuracy(
+          spokenWords,
+          memorizeTargetWords,
+          [],
+        );
+        const creditsCharged = result.credits_charged ?? 1;
+        dispatch(setUserCredits(Math.max(0, userCredits - creditsCharged)));
+        setMemorizeAccuracyResult({
+          ...accuracy,
+          targetSentence: memorizeTargetWords.join(" "),
+        });
+        setMemorizeRecordingAudioUri(safeUri);
+        setMemorizeRecordingTranscript(result.transcript.trim());
+        setMemorizeRecordingMessage(
+          `Transcribed. ${creditsCharged} credit${
+            creditsCharged === 1 ? "" : "s"
+          } used.`,
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message.includes("403")
+            ? "Not enough credits for this recording. Shorten it or add credits."
+            : "Could not transcribe that recording.";
+        setMemorizeRecordingMessage(message);
+      } finally {
+        setIsProcessingMemorizeRecording(false);
+      }
+    },
+    [dispatch, memorizeTargetWords, targetLanguage, userCredits],
+  );
+
+  const {
+    isRecording: isMemorizeRecording,
+    hasPermission: hasMemorizeRecordingPermission,
+    startRecording: startMemorizeRecording,
+    stopRecording: stopMemorizeRecording,
+  } = useRecording({
+    onRecordingComplete: submitMemorizeRecording,
+    onError: setMemorizeRecordingMessage,
+  });
+
+  useEffect(() => {
+    if (!isMemorizeRecording) return;
+
+    const interval = setInterval(() => {
+      setMemorizeRecordingSeconds((seconds) => seconds + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isMemorizeRecording]);
+
+  const resetMemorizeRecordingResult = useCallback(() => {
+    setMemorizeAccuracyResult(null);
+    setMemorizeRecordingAudioUri(null);
+    setMemorizeRecordingTranscript(null);
+    setMemorizeRecordingMessage(null);
+    setMemorizeRecordingSeconds(0);
+  }, []);
+
+  const handleMemorizeRecordingMicPress = useCallback(async () => {
+    if (isProcessingMemorizeRecording) return;
+
+    if (isMemorizeRecording) {
+      await stopMemorizeRecording(false);
+      return;
+    }
+
+    if (!isSignedIn) {
+      setMemorizeRecordingTranscript(null);
+      setMemorizeAccuracyResult(null);
+      setMemorizeRecordingAudioUri(null);
+      setMemorizeRecordingMessage(null);
+      setShowRecordingSignInPrompt(true);
+      return;
+    }
+
+    if (userCredits <= 0) {
+      setMemorizeRecordingTranscript(null);
+      setMemorizeAccuracyResult(null);
+      setMemorizeRecordingAudioUri(null);
+      setMemorizeRecordingMessage(
+        "Add credits before transcribing recordings.",
+      );
+      return;
+    }
+
+    setMemorizeRecordingTranscript(null);
+    setMemorizeAccuracyResult(null);
+    setMemorizeRecordingAudioUri(null);
+    setMemorizeRecordingMessage(null);
+    setMemorizeRecordingSeconds(0);
+    await startMemorizeRecording();
+  }, [
+    isMemorizeRecording,
+    isProcessingMemorizeRecording,
+    isSignedIn,
+    startMemorizeRecording,
+    stopMemorizeRecording,
+    userCredits,
+  ]);
+
+  const handleMemorizeRecordingTrashPress = useCallback(async () => {
+    await stopMemorizeRecording(true);
+    resetMemorizeRecordingResult();
+  }, [resetMemorizeRecordingResult, stopMemorizeRecording]);
 
   const handleWriteModePress = () => {
+    resetMemorizeRecordingResult();
     if (cps.isVideoMode && cps.mode !== "write") {
       setShowVideoWriteInfo(true);
     }
     cps.setMode("write");
+  };
+  const handleMemorizeModePress = () => {
+    resetMemorizeRecordingResult();
+    cps.setMode("memorize");
   };
   const handleRelayHighlightedWords = useCallback(
     (words: SegmentWord[]) => {
@@ -91,12 +283,19 @@ const Composer: React.FC<ComposerProps> = (props) => {
 
   const commitSegmentStart = () => {
     if (!cps.transcriptRange) return;
+    resetMemorizeRecordingResult();
     cps.transcriptRange.onStartSegmentChange(draftSegmentStart);
   };
 
   const commitSegmentEnd = () => {
     if (!cps.transcriptRange) return;
+    resetMemorizeRecordingResult();
     cps.transcriptRange.onEndSegmentChange(draftSegmentEnd);
+  };
+
+  const handleNewCompositionPress = () => {
+    resetMemorizeRecordingResult();
+    cps.handleNewComposition();
   };
 
   return (
@@ -131,7 +330,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
                   styles.modeButton,
                   cps.mode === "memorize" && styles.modeButtonActive,
                 ]}
-                onPress={() => cps.setMode("memorize")}
+                onPress={handleMemorizeModePress}
               >
                 <MaterialIcons
                   name="psychology"
@@ -154,7 +353,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
               <>
                 <Pressable
                   style={styles.newButton}
-                  onPress={cps.handleNewComposition}
+                  onPress={handleNewCompositionPress}
                 >
                   <Ionicons name="add" size={16} color="#3d3a52" />
                   <Text style={styles.newButtonText}>New</Text>
@@ -219,7 +418,10 @@ const Composer: React.FC<ComposerProps> = (props) => {
                 !cps.transcriptRange.canGoPrevious &&
                   styles.segmentArrowDisabled,
               ]}
-              onPress={cps.transcriptRange.onPreviousRange}
+              onPress={() => {
+                resetMemorizeRecordingResult();
+                cps.transcriptRange?.onPreviousRange();
+              }}
               disabled={!cps.transcriptRange.canGoPrevious}
             >
               <Ionicons name="arrow-back" size={17} color="#3d3a52" />
@@ -251,7 +453,10 @@ const Composer: React.FC<ComposerProps> = (props) => {
                 styles.segmentArrow,
                 !cps.transcriptRange.canGoNext && styles.segmentArrowDisabled,
               ]}
-              onPress={cps.transcriptRange.onNextRange}
+              onPress={() => {
+                resetMemorizeRecordingResult();
+                cps.transcriptRange?.onNextRange();
+              }}
               disabled={!cps.transcriptRange.canGoNext}
             >
               <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
@@ -281,6 +486,8 @@ const Composer: React.FC<ComposerProps> = (props) => {
           onBlankCanvas={cps.handleBlankCanvas}
           onChooseTemplate={cps.handleChooseTemplate}
           onChooseVideoTranscript={cps.handleChooseVideoTranscript}
+          onChooseVideoTranscriptRange={cps.handleChooseVideoTranscriptRange}
+          onPreviewVideoMatch={onPreviewVideoMatch}
           onChooseSavedComposition={cps.handleChooseSavedComposition}
           onCopySavedComposition={cps.handleCopySavedComposition}
           onDeleteSavedComposition={cps.handleDeleteSavedComposition}
@@ -312,8 +519,69 @@ const Composer: React.FC<ComposerProps> = (props) => {
           highlightedWordsResetKey={cps.highlightedWordsResetKey}
           isFullScreen={isMemorizeFullScreen}
           onToggleFullScreen={onToggleMemorizeFullScreen}
+          resultsContent={
+            isProcessingMemorizeRecording ? (
+              <View style={styles.memorizeProcessingContainer}>
+                <ActivityIndicator size="large" color="#4ade80" />
+                <Text style={styles.memorizeProcessingText}>Analyzing...</Text>
+              </View>
+            ) : memorizeAccuracyResult ? (
+              <ShadowResults
+                accuracyResult={memorizeAccuracyResult}
+                handleNextSentence={() => {}}
+                handleRetry={resetMemorizeRecordingResult}
+                retryButtonLabel="Back"
+                retryBeforePlayback
+                hideNext
+                spokenLabel="Spoken: "
+                targetLabel="Target: "
+                audioUri={memorizeRecordingAudioUri}
+              />
+            ) : undefined
+          }
         />
       )}
+
+      {cps.hasChosenComposition &&
+        cps.mode === "memorize" &&
+        !isProcessingMemorizeRecording &&
+        !memorizeAccuracyResult && (
+          <View style={styles.memorizeRecordingPanel}>
+            <RecordingControls
+              isRecording={isMemorizeRecording}
+              onTrash={handleMemorizeRecordingTrashPress}
+              onMic={handleMemorizeRecordingMicPress}
+              disabled={
+                isProcessingMemorizeRecording ||
+                hasMemorizeRecordingPermission === false
+              }
+              showContainer={false}
+            />
+            {isMemorizeRecording && (
+              <Text style={styles.memorizeRecordingCreditText}>
+                1 credit per 30 seconds of recording. Credits used:{" "}
+                {memorizeRecordingCreditsUsed}
+              </Text>
+            )}
+            {(memorizeRecordingMessage || memorizeRecordingTranscript) && (
+              <View style={styles.memorizeRecordingTextGroup}>
+                {memorizeRecordingMessage && (
+                  <Text style={styles.memorizeRecordingMessage}>
+                    {memorizeRecordingMessage}
+                  </Text>
+                )}
+                {memorizeRecordingTranscript && (
+                  <Text
+                    style={styles.memorizeRecordingTranscript}
+                    numberOfLines={2}
+                  >
+                    {memorizeRecordingTranscript}
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
 
       {cps.hasChosenComposition && (
         <View style={styles.selectionBar}>
@@ -352,8 +620,14 @@ const Composer: React.FC<ComposerProps> = (props) => {
         </Pressable>
       </Modal> */}
       <SignInPromptModal
-        visible={cps.showSaveSignInPrompt}
-        onClose={cps.closeSaveSignInPrompt}
+        visible={cps.showSaveSignInPrompt || showRecordingSignInPrompt}
+        onClose={() => {
+          if (showRecordingSignInPrompt) setShowRecordingSignInPrompt(false);
+          if (cps.showSaveSignInPrompt) cps.closeSaveSignInPrompt();
+        }}
+        onSignIn={() => {
+          if (showRecordingSignInPrompt) setShowRecordingSignInPrompt(false);
+        }}
       />
     </View>
   );
@@ -548,6 +822,55 @@ const styles = StyleSheet.create({
     color: "#697187",
     fontSize: 13,
     fontWeight: "700",
+  },
+  memorizeRecordingPanel: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    borderTopColor: "rgba(74, 105, 189, 0.12)",
+    backgroundColor: "#ffffff",
+  },
+  memorizeRecordingTextGroup: {
+    width: "100%",
+    alignItems: "center",
+    gap: 3,
+  },
+  memorizeRecordingMessage: {
+    color: "#697187",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  memorizeRecordingCreditText: {
+    color: "#697187",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+    textAlign: "center",
+    opacity: 0.5,
+  },
+  memorizeRecordingTranscript: {
+    color: "#2f3140",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  memorizeProcessingContainer: {
+    minHeight: 200,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+  },
+  memorizeProcessingText: {
+    color: "#666",
+    fontSize: 14,
+    fontWeight: "600",
   },
   selectionBar: {
     minHeight: 44,

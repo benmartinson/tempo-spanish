@@ -431,9 +431,9 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
                 )}
               </View>
             ) : null}
-            {!hideSegmentTranscript && (
+            {/* {!hideSegmentTranscript && (
               <Text style={styles.segmentTranscript}>{segmentTranscript}</Text>
-            )}
+            )} */}
           </>
         ) : (
           <View style={styles.emptyVideoState}>

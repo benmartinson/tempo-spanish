@@ -26,6 +26,9 @@ interface ShadowResultsProps {
   spokenLabel?: string;
   targetLabel?: string;
   hideRetry?: boolean;
+  hideNext?: boolean;
+  retryButtonLabel?: string;
+  retryBeforePlayback?: boolean;
   alwaysShowNext?: boolean;
   nextButtonLabel?: string;
   variant?: "default" | "webPanel";
@@ -45,6 +48,9 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
   spokenLabel = "Spoken: ",
   targetLabel = "Target: ",
   hideRetry = false,
+  hideNext = false,
+  retryButtonLabel = "Re-Try",
+  retryBeforePlayback = false,
   nextButtonLabel = "Next Segment",
   variant = "default",
   audioUri = null,
@@ -232,12 +238,16 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
       style={[styles.actionButton, styles.tryAgainButton]}
       onPress={handleRetry}
     >
-      <MaterialIcons name="replay" size={20} color="#fff" />
-      <Text style={styles.actionButtonText}>Re-Try</Text>
+      <MaterialIcons
+        name={retryButtonLabel === "Back" ? "arrow-back" : "replay"}
+        size={20}
+        color="#fff"
+      />
+      <Text style={styles.actionButtonText}>{retryButtonLabel}</Text>
     </TouchableOpacity>
   );
 
-  const nextButton = (
+  const nextButton = !hideNext && (
     <TouchableOpacity
       style={[styles.actionButton, styles.nextButton]}
       onPress={handleNextPress}
@@ -284,8 +294,8 @@ const ShadowResults: React.FC<ShadowResultsProps> = ({
           </>
         ) : (
           <>
-            {playRecordingButton}
-            {retryButton}
+            {retryBeforePlayback ? retryButton : playRecordingButton}
+            {retryBeforePlayback ? playRecordingButton : retryButton}
             {nextButton}
           </>
         )}

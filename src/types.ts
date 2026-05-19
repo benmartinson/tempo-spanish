@@ -297,6 +297,8 @@ export interface TranscriptionResponse {
   transcript: string;
   confidence: number;
   words: { word: string; confidence: number }[];
+  credits_charged?: number;
+  duration_seconds?: number | null;
 }
 
 /**
