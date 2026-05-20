@@ -51,6 +51,8 @@ interface ComposerProps {
   publicSupabase: any;
   targetLanguage: LanguageCode | null;
   targetLanguageVideos: Video[];
+  memorizePlaybackTime?: number;
+  memorizePlayerIsPlaying?: boolean;
 }
 
 const Composer: React.FC<ComposerProps> = (props) => {
@@ -66,6 +68,8 @@ const Composer: React.FC<ComposerProps> = (props) => {
     publicSupabase,
     targetLanguage,
     targetLanguageVideos,
+    memorizePlaybackTime = 0,
+    memorizePlayerIsPlaying = false,
   } = props;
   const dispatch = useDispatch();
   const { isSignedIn } = useAuth();
@@ -86,6 +90,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
   const [memorizeRecordingSeconds, setMemorizeRecordingSeconds] = useState(0);
   const [showRecordingSignInPrompt, setShowRecordingSignInPrompt] =
     useState(false);
+  const [showWordSignInPrompt, setShowWordSignInPrompt] = useState(false);
   const [isProcessingMemorizeRecording, setIsProcessingMemorizeRecording] =
     useState(false);
   const hideComposerChrome = isMemorizeFullScreen && cps.mode === "memorize";
@@ -253,12 +258,17 @@ const Composer: React.FC<ComposerProps> = (props) => {
   };
   const handleRelayHighlightedWords = useCallback(
     (words: SegmentWord[]) => {
+      if (!isSignedIn) {
+        setShowWordSignInPrompt(true);
+        return false;
+      }
       if (isMemorizeFullScreen && words.length) {
         onExitMemorizeFullScreen?.();
       }
       cps.handleRelayHighlightedWords(words);
+      return true;
     },
-    [cps, isMemorizeFullScreen, onExitMemorizeFullScreen],
+    [cps, isMemorizeFullScreen, isSignedIn, onExitMemorizeFullScreen],
   );
 
   useEffect(() => {
@@ -519,6 +529,8 @@ const Composer: React.FC<ComposerProps> = (props) => {
           highlightedWordsResetKey={cps.highlightedWordsResetKey}
           isFullScreen={isMemorizeFullScreen}
           onToggleFullScreen={onToggleMemorizeFullScreen}
+          playbackTime={memorizePlaybackTime}
+          playerIsPlaying={memorizePlayerIsPlaying}
           resultsContent={
             isProcessingMemorizeRecording ? (
               <View style={styles.memorizeProcessingContainer}>
@@ -620,13 +632,19 @@ const Composer: React.FC<ComposerProps> = (props) => {
         </Pressable>
       </Modal> */}
       <SignInPromptModal
-        visible={cps.showSaveSignInPrompt || showRecordingSignInPrompt}
+        visible={
+          cps.showSaveSignInPrompt ||
+          showRecordingSignInPrompt ||
+          showWordSignInPrompt
+        }
         onClose={() => {
           if (showRecordingSignInPrompt) setShowRecordingSignInPrompt(false);
+          if (showWordSignInPrompt) setShowWordSignInPrompt(false);
           if (cps.showSaveSignInPrompt) cps.closeSaveSignInPrompt();
         }}
         onSignIn={() => {
           if (showRecordingSignInPrompt) setShowRecordingSignInPrompt(false);
+          if (showWordSignInPrompt) setShowWordSignInPrompt(false);
         }}
       />
     </View>

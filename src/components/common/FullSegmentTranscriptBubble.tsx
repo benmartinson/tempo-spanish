@@ -29,7 +29,6 @@ import { useAuth } from "@clerk/clerk-expo";
 import { vocabFormatWord, getDisplayWord } from "../../helpers/helpers";
 import { saveFocusVocabTranslation } from "../../requests";
 import { useInterpolatedTime } from "../../hooks/useInterpolatedTime";
-import { useStableChunkIdx } from "../../hooks/useStableChunkIdx";
 import { CHAR_WIDTHS, DEFAULT_CHAR_WIDTH, TEST_CHAR } from "../../constants";
 
 interface FullSegmentTranscriptBubbleProps {
@@ -54,7 +53,7 @@ interface FullSegmentTranscriptBubbleProps {
   reviewPresentation?: "modal" | "inline";
   onInlineReviewWord?: (word: SegmentWord) => void;
   footerContent?: ReactNode;
-  relayHighlightedWords?: (words: SegmentWord[]) => void;
+  relayHighlightedWords?: (words: SegmentWord[]) => boolean | void;
   relayResetKey?: number | string;
   showWordTimestamps?: boolean;
 }
@@ -224,8 +223,11 @@ const FullSegmentTranscriptBubble: React.FC<
       const start = Math.min(startIndex, endIndex);
       const end = Math.max(startIndex, endIndex);
 
+      const selectedWords = words.slice(start, end + 1);
+      const shouldRelay = relayHighlightedWords(selectedWords);
+      if (shouldRelay === false) return;
+
       setRelayRange({ start, end });
-      relayHighlightedWords(words.slice(start, end + 1));
     },
     [relayHighlightedWords, words],
   );
@@ -297,39 +299,21 @@ const FullSegmentTranscriptBubble: React.FC<
     };
   }, [relayBrowserSelection, relayHighlightedWords]);
 
-  // Compute raw word index from current playback time
-  const rawWordIdx = useMemo(() => {
+  const currentWordIndex = useMemo(() => {
     if (mode === "shadow") return currentTargetIndex;
     if (!words?.length) return -1;
     for (let i = 0; i < words.length; i++) {
       if (localTime >= words[i].start && localTime <= words[i].end) return i;
-      if (
-        localTime > words[i].end &&
-        (i === words.length - 1 || localTime < words[i + 1].start)
-      ) {
-        return i;
-      }
     }
-    return 0;
+    return -1;
   }, [words, localTime, mode, currentTargetIndex]);
-
-  const segmentStartTime = words?.[0]?.start ?? 0;
-  const { activeChunkStart, activeChunkEnd, displayWordIdx } =
-    useStableChunkIdx({
-      wordCount: words?.length ?? 0,
-      rawWordIdx,
-      isReplay: localTime <= segmentStartTime + 0.5,
-      resetKey: segmentIdentity,
-    });
-
-  const currentWordIndex = displayWordIdx;
 
   // Activate when we first hit a valid word (video mode) or immediately (shadow mode)
   useEffect(() => {
-    if (currentWordIndex >= 0 && !isActive) {
+    if ((showFullText || currentWordIndex >= 0) && !isActive) {
       setIsActive(true);
     }
-  }, [currentWordIndex, isActive, mode]);
+  }, [currentWordIndex, isActive, showFullText]);
 
   // Auto-scroll to current word
   useEffect(() => {
@@ -398,15 +382,9 @@ const FullSegmentTranscriptBubble: React.FC<
                 ? styles.currentWord
                 : styles.normalWord;
             }
-            // Video mode: highlight the chunk containing the current word
+            // Video mode: highlight only the word currently under the playhead.
             if (!playerIsPlaying) return styles.normalWord;
-            if (
-              activeChunkStart >= 0 &&
-              index >= activeChunkStart &&
-              index <= activeChunkEnd
-            ) {
-              return styles.activeWord;
-            }
+            if (index === currentWordIndex) return styles.activeWord;
             return styles.normalWord;
           };
 

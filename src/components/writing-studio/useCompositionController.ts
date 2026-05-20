@@ -707,7 +707,7 @@ export const useCompositionController = ({
           )
         : -1;
       const startIndex = matchedIndex >= 0 ? matchedIndex : 0;
-      const endIndex = Math.min(segments.length - 1, startIndex + 2);
+      const endIndex = Math.min(segments.length - 1, startIndex + 1);
 
       handleChooseVideoTranscriptRange(result, segments, startIndex, endIndex);
     },

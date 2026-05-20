@@ -668,6 +668,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 14,
     gap: 10,
+    cursor: "default" as any,
   },
   header: {
     gap: 3,
@@ -697,6 +698,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(74, 105, 189, 0.12)",
     overflow: "visible",
+    cursor: "pointer" as any,
   },
   rowWithOpenMenu: {
     zIndex: 20,
@@ -774,6 +776,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f6f7fa",
     borderWidth: 1,
     borderColor: "rgba(74, 105, 189, 0.12)",
+    cursor: "pointer" as any,
   },
   moreButtonActive: {
     backgroundColor: "#eef2f8",
@@ -804,6 +807,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 12,
+    cursor: "pointer" as any,
   },
   optionsMenuText: {
     color: "#3d3a52",

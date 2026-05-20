@@ -12,11 +12,13 @@ interface MemorizerProps {
   onDifficultyChange: (difficulty: number) => void;
   onResetRevealedWords: () => void;
   onRevealWord: (index: number) => void;
-  onRelayHighlightedWords: (words: SegmentWord[]) => void;
+  onRelayHighlightedWords: (words: SegmentWord[]) => boolean | void;
   highlightedWordsResetKey?: number;
   isFullScreen?: boolean;
   onToggleFullScreen?: () => void;
   resultsContent?: React.ReactNode;
+  playbackTime?: number;
+  playerIsPlaying?: boolean;
 }
 
 const Memorizer: React.FC<MemorizerProps> = ({
@@ -31,6 +33,8 @@ const Memorizer: React.FC<MemorizerProps> = ({
   isFullScreen = false,
   onToggleFullScreen,
   resultsContent,
+  playbackTime = 0,
+  playerIsPlaying = false,
 }) => (
   <View style={styles.composerMemorizeContent}>
     {!resultsContent && (
@@ -64,8 +68,8 @@ const Memorizer: React.FC<MemorizerProps> = ({
         <FullSegmentTranscriptBubble
           words={words}
           blurredIndices={maskedIndices}
-          time={0}
-          playerIsPlaying={false}
+          time={playbackTime}
+          playerIsPlaying={playerIsPlaying}
           showFullText
           disableGuessModal={false}
           onWordPress={onRevealWord}

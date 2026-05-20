@@ -211,6 +211,9 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   const canStartCompositionWithSelectedClip = Boolean(
     clipMatcher.selectedMatch && !selectedMatchBelongsToCurrentVideo,
   );
+  const shouldRelayClipPlaybackToMemorizer = !composition.activeSearchPhrase
+    .trim()
+    .length;
   const secondaryOpenOptionLabel = canStartCanvasWithSelectedPhrase
     ? "Start canvas with the highlighted word/phrase"
     : canStartCompositionWithSelectedClip
@@ -234,12 +237,24 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     userId,
   ]);
 
-  const handleBlankCanvas = useCallback(() => {
+  const markWelcomePanelSeen = useCallback(() => {
     setIsWelcomePanelRequested(false);
+    if (hasSeenWelcomeModals) return;
+
+    dispatch(setHasSeenWelcomeModals(true));
+    void persistHasSeenWelcomeModals({
+      supabase: clerkSupabase,
+      userId,
+      hasSeenWelcomeModals: true,
+    });
+  }, [clerkSupabase, dispatch, hasSeenWelcomeModals, userId]);
+
+  const handleBlankCanvas = useCallback(() => {
+    markWelcomePanelSeen();
     setGeneratedVideoMatchPreview(null);
     clipMatcher.clearClipMatches();
     composition.handleBlankCanvas();
-  }, [clipMatcher, composition]);
+  }, [clipMatcher, composition, markWelcomePanelSeen]);
   const handleChooseTemplate = useCallback(
     (template: CompositionTemplate) => {
       setIsWelcomePanelRequested(false);
@@ -714,6 +729,14 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
           publicSupabase={publicSupabase}
           targetLanguage={targetLanguage}
           targetLanguageVideos={targetLanguageVideos}
+          memorizePlaybackTime={
+            shouldRelayClipPlaybackToMemorizer ? clipMatcher.playerTime : 0
+          }
+          memorizePlayerIsPlaying={
+            shouldRelayClipPlaybackToMemorizer
+              ? clipMatcher.playerIsPlaying
+              : false
+          }
         />
       </View>
     </View>

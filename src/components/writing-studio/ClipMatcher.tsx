@@ -278,25 +278,6 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   return (
     <View style={styles.clipColumn}>
       <View style={styles.videoPane}>
-        <View
-          style={[
-            styles.paneHeader,
-            styles.videoPaneHeader,
-            showEmptyHelpButton && styles.emptyPaneHeader,
-          ]}
-        >
-          {showEmptyHelpButton && (
-            <TouchableOpacity
-              accessibilityLabel="Show getting started help"
-              style={styles.helpButton}
-              onPress={onShowWelcomeHelp}
-              activeOpacity={0.74}
-            >
-              <Ionicons name="help-circle-outline" size={18} color="#697187" />
-            </TouchableOpacity>
-          )}
-        </View>
-
         {cm.selectedMatch ? (
           <>
             <View style={styles.playerShell}>
@@ -438,10 +419,33 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
         ) : (
           <View style={styles.emptyVideoState}>
             <Ionicons name="film-outline" size={24} color="#5a5680" />
-            <Text style={styles.emptyText}>
-              {cm.phraseError ||
-                "Matched video clips will appear after you highlight text."}
-            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              <Text style={styles.emptyText}>
+                {cm.phraseError ||
+                  "Matched video clips will appear after you highlight text."}
+              </Text>
+              {showEmptyHelpButton && (
+                <TouchableOpacity
+                  accessibilityLabel="Show getting started help"
+                  style={styles.helpButton}
+                  onPress={onShowWelcomeHelp}
+                  activeOpacity={0.74}
+                >
+                  <Ionicons
+                    name="help-circle-outline"
+                    size={18}
+                    color="#697187"
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
       </View>
@@ -537,7 +541,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -14,
   },
   emptyPaneHeader: {
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
   },
   helpButton: {
     width: 30,
