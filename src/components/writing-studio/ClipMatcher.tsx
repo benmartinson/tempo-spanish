@@ -160,6 +160,9 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   const showEmptyHelpButton = Boolean(
     !cm.selectedMatch && !cm.phraseError && onShowWelcomeHelp,
   );
+  const showLoadingClips = Boolean(
+    cm.isSearchingPhrase && !hideClipNavigation && !cm.selectedMatch,
+  );
   const hasSecondaryOpenOption = Boolean(
     secondaryOpenOptionLabel && onSecondaryOpenOption,
   );
@@ -418,34 +421,36 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
           </>
         ) : (
           <View style={styles.emptyVideoState}>
-            <Ionicons name="film-outline" size={24} color="#5a5680" />
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              <Text style={styles.emptyText}>
-                {cm.phraseError ||
-                  "Matched video clips will appear after you highlight text."}
-              </Text>
-              {showEmptyHelpButton && (
-                <TouchableOpacity
-                  accessibilityLabel="Show getting started help"
-                  style={styles.helpButton}
-                  onPress={onShowWelcomeHelp}
-                  activeOpacity={0.74}
-                >
-                  <Ionicons
-                    name="help-circle-outline"
-                    size={18}
-                    color="#697187"
-                  />
-                </TouchableOpacity>
-              )}
-            </View>
+            {showLoadingClips ? (
+              <View style={styles.loadingClipsRow}>
+                <ActivityIndicator size="small" color="#5a5680" />
+                <Text style={styles.loadingClipsText}>Loading Clips</Text>
+              </View>
+            ) : (
+              <>
+                <Ionicons name="film-outline" size={24} color="#5a5680" />
+                <View style={styles.emptyHelpRow}>
+                  <Text style={styles.emptyText}>
+                    {cm.phraseError ||
+                      "Matched video clips will appear after you highlight text."}
+                  </Text>
+                  {showEmptyHelpButton && (
+                    <TouchableOpacity
+                      accessibilityLabel="Show getting started help"
+                      style={styles.helpButton}
+                      onPress={onShowWelcomeHelp}
+                      activeOpacity={0.74}
+                    >
+                      <Ionicons
+                        name="help-circle-outline"
+                        size={18}
+                        color="#697187"
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </>
+            )}
           </View>
         )}
       </View>
@@ -565,6 +570,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   playerShell: {
+    marginTop: 14,
     height: 320,
     borderRadius: 8,
     overflow: "hidden",
@@ -767,6 +773,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingHorizontal: 20,
+  },
+  emptyHelpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  loadingClipsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  loadingClipsText: {
+    color: "#5a5680",
+    fontSize: 13,
+    fontWeight: "800",
   },
   optionModalOverlay: {
     flex: 1,

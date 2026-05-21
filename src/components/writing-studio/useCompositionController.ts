@@ -263,6 +263,7 @@ export const useCompositionController = ({
     string | null
   >(null);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const [draftHighlightedPhrase, setDraftHighlightedPhrase] = useState("");
   const [relayedHighlightedPhrase, setRelayedHighlightedPhrase] = useState("");
   const [videoModeHighlightedWords, setVideoModeHighlightedWords] = useState<
     SegmentWord[]
@@ -318,11 +319,8 @@ export const useCompositionController = ({
     };
   }, [clerkSupabase, isSignedIn, userId]);
 
-  const selectedPhrase = useMemo(
-    () => getSelectedPhrase(draft, selection),
-    [draft, selection],
-  );
-  const activeSearchPhrase = selectedPhrase || relayedHighlightedPhrase;
+  const activeSearchPhrase =
+    draftHighlightedPhrase || relayedHighlightedPhrase;
   const activeSentence = useMemo(
     () => getActiveSentence(draft, selection.end),
     [draft, selection.end],
@@ -437,6 +435,7 @@ export const useCompositionController = ({
   const clearCompositionWorkspace = useCallback(() => {
     setMode("write");
     setSelection({ start: 0, end: 0 });
+    setDraftHighlightedPhrase("");
     setRelayedHighlightedPhrase("");
     setVideoModeHighlightedWords([]);
     setRevealedMemorizeIndices(new Set());
@@ -489,11 +488,23 @@ export const useCompositionController = ({
 
   const handleDraftChange = useCallback((nextDraft: string) => {
     setDraft(cleanCompositionText(nextDraft));
-    setRelayedHighlightedPhrase("");
-    setVideoModeHighlightedWords([]);
     setSaveCompositionError(null);
     setSaveCompositionMessage(null);
   }, []);
+
+  const handleDraftSelectionChange = useCallback(
+    (nextSelection: { start: number; end: number }) => {
+      setSelection(nextSelection);
+
+      const phrase = getSelectedPhrase(draft, nextSelection);
+      if (!phrase) return;
+
+      setDraftHighlightedPhrase(phrase);
+      setRelayedHighlightedPhrase("");
+      setVideoModeHighlightedWords([]);
+    },
+    [draft],
+  );
 
   const handleTitleChange = useCallback((nextTitle: string) => {
     setCompositionTitle(nextTitle);
@@ -937,6 +948,7 @@ export const useCompositionController = ({
           .join(" ")
           .replace(/\s+/g, " "),
       ).trim();
+      setDraftHighlightedPhrase("");
       setVideoModeHighlightedWords(isVideoMode ? [] : words);
       setRelayedHighlightedPhrase(phrase);
     },
@@ -944,6 +956,7 @@ export const useCompositionController = ({
   );
   const clearHighlightedWords = useCallback(() => {
     setSelection({ start: 0, end: 0 });
+    setDraftHighlightedPhrase("");
     setRelayedHighlightedPhrase("");
     setVideoModeHighlightedWords([]);
     setHighlightedWordsResetKey((key) => key + 1);
@@ -1129,6 +1142,7 @@ export const useCompositionController = ({
     handleCopySavedComposition,
     handleDeleteSavedComposition,
     handleDraftChange,
+    handleDraftSelectionChange,
     handleNewComposition,
     handleRelayHighlightedWords,
     handleTitleChange,
@@ -1156,7 +1170,6 @@ export const useCompositionController = ({
     selection,
     setMemorizeDifficultyAndReset,
     setMode,
-    setSelection,
     showSaveSignInPrompt,
     suggestionError,
     suggestions,

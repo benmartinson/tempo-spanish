@@ -509,7 +509,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
           onChangeText={cps.handleDraftChange}
           onSelectionChange={(event: any) => {
             const nextSelection = event.nativeEvent.selection;
-            if (nextSelection) cps.setSelection(nextSelection);
+            if (nextSelection) cps.handleDraftSelectionChange(nextSelection);
           }}
           multiline
           placeholder="Write a short passage... about anything..."

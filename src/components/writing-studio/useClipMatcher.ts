@@ -267,10 +267,8 @@ export const useClipMatcher = ({
             setMatches([]);
             setSelectedMatch(null);
             setSelectedMatchPhrase("");
-            setPhraseError("Transcript search is unavailable right now.");
-            setIsSearchingPhrase(false);
+            setPhraseError(null);
           }
-          return;
         }
 
         try {
@@ -297,7 +295,7 @@ export const useClipMatcher = ({
           if (!bestMatch) {
             setSelectedMatch(null);
             setSelectedMatchPhrase("");
-            setPhraseError("No transcript match found.");
+            setPhraseError("No results found.");
             return;
           }
 
@@ -310,7 +308,11 @@ export const useClipMatcher = ({
           }
         } catch {
           if (!cancelled) {
-            setPhraseError("Transcript search is unavailable right now.");
+            setPhraseError(
+              quickMatch
+                ? "Transcript search is unavailable right now."
+                : "No results found.",
+            );
           }
         } finally {
           if (!cancelled) setIsSearchingPhrase(false);
