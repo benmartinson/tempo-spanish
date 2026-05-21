@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  SentenceImprovementSuggestion,
   type TranscriptPhraseMatch,
   UserComposition,
-  WritingSuggestion,
   createUserComposition,
   deleteUserComposition,
   fetchUserCompositions,
-  fetchWritingSuggestions,
+  fetchSentenceImprovementSuggestion,
   persistCurrentComposition,
   updateUserComposition,
 } from "../../requests";
@@ -27,7 +27,6 @@ import type {
 import type { CompositionTemplate } from "./ChooseComposition";
 import type { VideoTranscriptSearchResult } from "./VideoTranscriptImport";
 import {
-  getActiveSentence,
   getSelectedPhrase,
   makeCompositionTitle,
   makeTranscriptRangeText,
@@ -160,6 +159,94 @@ const cleanCompositionText = (text: string): string =>
     .map((line) => removeSpecialPunctuation(line))
     .join("\n");
 
+interface CompletedSuggestionSentence {
+  sentence: string;
+  periodIndex: number;
+}
+
+const getCompletedSentenceAtPunctuation = (
+  text: string,
+  punctuationIndex: number,
+): CompletedSuggestionSentence | null => {
+  const punctuation = text[punctuationIndex];
+  if (!/[.!?]/.test(punctuation ?? "")) return null;
+
+  const sentenceStart =
+    Math.max(
+      text.lastIndexOf(".", punctuationIndex - 1),
+      text.lastIndexOf("!", punctuationIndex - 1),
+      text.lastIndexOf("?", punctuationIndex - 1),
+      text.lastIndexOf("\n", punctuationIndex - 1),
+    ) + 1;
+  const sentence = text.slice(sentenceStart, punctuationIndex + 1).trim();
+  const wordCount = sentence
+    .replace(/[.!?]+$/g, "")
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+  if (wordCount <= 4) return null;
+  return { sentence, periodIndex: punctuationIndex };
+};
+
+const getLatestCompletedSentence = (
+  text: string,
+): CompletedSuggestionSentence | null => {
+  const punctuationIndex = Math.max(
+    text.lastIndexOf("."),
+    text.lastIndexOf("!"),
+    text.lastIndexOf("?"),
+  );
+  if (punctuationIndex < 0) return null;
+  return getCompletedSentenceAtPunctuation(text, punctuationIndex);
+};
+
+const getInsertedPunctuationSentence = (
+  previousText: string,
+  nextText: string,
+): CompletedSuggestionSentence | null => {
+  if (nextText.length !== previousText.length + 1) return null;
+
+  let start = 0;
+  while (
+    start < previousText.length &&
+    previousText[start] === nextText[start]
+  ) {
+    start += 1;
+  }
+
+  let previousEnd = previousText.length - 1;
+  let nextEnd = nextText.length - 1;
+  while (
+    previousEnd >= start &&
+    nextEnd > start &&
+    previousText[previousEnd] === nextText[nextEnd]
+  ) {
+    previousEnd -= 1;
+    nextEnd -= 1;
+  }
+
+  if (nextEnd !== start || !/[.!?]/.test(nextText[start] ?? "")) return null;
+  return getCompletedSentenceAtPunctuation(nextText, start);
+};
+
+const makeSentenceSuggestionRequestKey = (
+  targetLanguage: LanguageCode | null,
+  completedSentence: CompletedSuggestionSentence | null,
+): string =>
+  targetLanguage && completedSentence
+    ? [
+        targetLanguage,
+        completedSentence.periodIndex,
+        completedSentence.sentence,
+      ].join("|")
+    : "";
+
+const makeFirstSaveCompositionTitle = (text: string): string => {
+  const words = text.trim().split(/\s+/).filter(Boolean).slice(0, 4);
+  if (!words.length) return "Untitled composition";
+  return `${words.join(" ")}...`;
+};
+
 const normalizeTranscriptText = (value: string): string =>
   value.trim().replace(/\s+/g, " ");
 
@@ -269,7 +356,13 @@ export const useCompositionController = ({
     SegmentWord[]
   >([]);
   const [highlightedWordsResetKey, setHighlightedWordsResetKey] = useState(0);
-  const [suggestions, setSuggestions] = useState<WritingSuggestion[]>([]);
+  const [sentenceImprovementSuggestions, setSentenceImprovementSuggestions] =
+    useState<SentenceImprovementSuggestion[]>([]);
+  const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
+  const [appliedSentenceSuggestionDraft, setAppliedSentenceSuggestionDraft] =
+    useState<string | null>(null);
+  const [sentenceSuggestionTrigger, setSentenceSuggestionTrigger] =
+    useState<CompletedSuggestionSentence | null>(null);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const [memorizeDifficulty, setMemorizeDifficulty] = useState(0);
@@ -282,6 +375,7 @@ export const useCompositionController = ({
   );
   const restoredCompositionIdRef = useRef<string | number | null>(null);
   const lastTargetLanguageRef = useRef(targetLanguage);
+  const lastSuggestionRequestKeyRef = useRef("");
 
   useEffect(() => {
     if (!isSignedIn || !userId) {
@@ -321,10 +415,6 @@ export const useCompositionController = ({
 
   const activeSearchPhrase =
     draftHighlightedPhrase || relayedHighlightedPhrase;
-  const activeSentence = useMemo(
-    () => getActiveSentence(draft, selection.end),
-    [draft, selection.end],
-  );
   const memorizeWords = useMemo<SegmentWord[]>(() => {
     return makeDraftMemorizeWords(draft);
   }, [draft]);
@@ -387,50 +477,57 @@ export const useCompositionController = ({
   }, [saveCompositionMessage]);
 
   useEffect(() => {
-    if (
-      !hasChosenComposition ||
-      !targetLanguage ||
-      !isSignedIn ||
-      activeSentence.length < 4
-    ) {
-      setSuggestions([]);
-      setSuggestionError(
-        !isSignedIn && activeSentence.length >= 4
-          ? "Sign in to use AI suggestions."
-          : null,
-      );
+    if (!hasChosenComposition || !targetLanguage || !isSignedIn) {
       setIsLoadingSuggestions(false);
+      setSuggestionError(null);
       return;
     }
 
+    if (!sentenceSuggestionTrigger) return;
+
+    const requestKey = makeSentenceSuggestionRequestKey(
+      targetLanguage,
+      sentenceSuggestionTrigger,
+    );
+    if (lastSuggestionRequestKeyRef.current === requestKey) return;
+
+    lastSuggestionRequestKeyRef.current = requestKey;
     let cancelled = false;
-    const timer = setTimeout(() => {
-      setIsLoadingSuggestions(true);
-      setSuggestionError(null);
-      fetchWritingSuggestions({
-        draftText: draft,
-        activeSentence,
-        targetLanguage,
+    setIsLoadingSuggestions(true);
+    setSuggestionError(null);
+
+    fetchSentenceImprovementSuggestion({
+      draftText: draft,
+      sentence: sentenceSuggestionTrigger.sentence,
+      targetLanguage,
+    })
+      .then((nextSuggestion) => {
+        if (cancelled) return;
+        setSentenceImprovementSuggestions((previousSuggestions) => [
+          nextSuggestion,
+          ...previousSuggestions,
+        ]);
+        setCurrentSuggestionIndex(0);
       })
-        .then((nextSuggestions) => {
-          if (!cancelled) setSuggestions(nextSuggestions);
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setSuggestions([]);
-            setSuggestionError("Suggestions are unavailable right now.");
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setIsLoadingSuggestions(false);
-        });
-    }, 450);
+      .catch(() => {
+        if (!cancelled) {
+          setSuggestionError("Suggestion is unavailable right now.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingSuggestions(false);
+      });
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
     };
-  }, [activeSentence, draft, hasChosenComposition, isSignedIn, targetLanguage]);
+  }, [
+    draft,
+    hasChosenComposition,
+    isSignedIn,
+    sentenceSuggestionTrigger,
+    targetLanguage,
+  ]);
 
   const clearCompositionWorkspace = useCallback(() => {
     setMode("write");
@@ -440,19 +537,30 @@ export const useCompositionController = ({
     setVideoModeHighlightedWords([]);
     setRevealedMemorizeIndices(new Set());
     setTranscriptSource(null);
+    setSentenceImprovementSuggestions([]);
+    setCurrentSuggestionIndex(0);
+    setAppliedSentenceSuggestionDraft(null);
+    setSentenceSuggestionTrigger(null);
+    lastSuggestionRequestKeyRef.current = "";
   }, []);
 
   const beginComposition = useCallback(
     (text: string, composition: UserComposition | null = null) => {
       clearCompositionWorkspace();
-      setDraft(cleanCompositionText(text));
+      const cleanedText = cleanCompositionText(text);
+      const latestCompletedSentence = getLatestCompletedSentence(cleanedText);
+      lastSuggestionRequestKeyRef.current = makeSentenceSuggestionRequestKey(
+        targetLanguage,
+        latestCompletedSentence,
+      );
+      setDraft(cleanedText);
       setCompositionTitle(composition?.title ?? "");
       setCurrentComposition(composition);
       setHasChosenComposition(true);
       setSaveCompositionError(null);
       setSaveCompositionMessage(null);
     },
-    [clearCompositionWorkspace],
+    [clearCompositionWorkspace, targetLanguage],
   );
 
   useEffect(() => {
@@ -481,16 +589,32 @@ export const useCompositionController = ({
     setIsRestoringCurrentComposition(false);
     setSaveCompositionError(null);
     setSaveCompositionMessage(null);
-    setSuggestions([]);
+    setSentenceImprovementSuggestions([]);
+    setCurrentSuggestionIndex(0);
+    setAppliedSentenceSuggestionDraft(null);
+    setSentenceSuggestionTrigger(null);
     setSuggestionError(null);
     setIsLoadingSuggestions(false);
   }, [clearCompositionWorkspace, targetLanguage]);
 
-  const handleDraftChange = useCallback((nextDraft: string) => {
-    setDraft(cleanCompositionText(nextDraft));
-    setSaveCompositionError(null);
-    setSaveCompositionMessage(null);
-  }, []);
+  const handleDraftChange = useCallback(
+    (nextDraft: string) => {
+      const cleanedDraft = cleanCompositionText(nextDraft);
+      const completedSentence = getInsertedPunctuationSentence(
+        draft,
+        cleanedDraft,
+      );
+
+      setDraft(cleanedDraft);
+      if (completedSentence) {
+        setSentenceSuggestionTrigger(completedSentence);
+      }
+      setAppliedSentenceSuggestionDraft(null);
+      setSaveCompositionError(null);
+      setSaveCompositionMessage(null);
+    },
+    [draft],
+  );
 
   const handleDraftSelectionChange = useCallback(
     (nextSelection: { start: number; end: number }) => {
@@ -887,7 +1011,12 @@ export const useCompositionController = ({
     setSaveCompositionMessage(null);
 
     try {
-      const title = compositionTitle.trim() || makeCompositionTitle(text);
+      const trimmedTitle = compositionTitle.trim();
+      const title =
+        trimmedTitle ||
+        (currentComposition
+          ? makeCompositionTitle(text)
+          : makeFirstSaveCompositionTitle(text));
       const savedComposition = currentComposition
         ? await updateUserComposition({
             supabase: clerkSupabase,
@@ -911,6 +1040,9 @@ export const useCompositionController = ({
           });
 
       setCurrentComposition(savedComposition);
+      if (!trimmedTitle) {
+        setCompositionTitle(title);
+      }
       mergeSavedComposition(savedComposition);
       dispatch(setCurrentCompositionId(savedComposition.id));
       await persistCurrentComposition({
@@ -1130,9 +1262,59 @@ export const useCompositionController = ({
         : null,
     [transcriptSource],
   );
+  const currentSentenceImprovementSuggestion =
+    sentenceImprovementSuggestions[currentSuggestionIndex] ?? null;
+  const showPreviousSentenceSuggestion = useCallback(() => {
+    setCurrentSuggestionIndex((index) =>
+      Math.min(sentenceImprovementSuggestions.length - 1, index + 1),
+    );
+  }, [sentenceImprovementSuggestions.length]);
+  const showNextSentenceSuggestion = useCallback(() => {
+    setCurrentSuggestionIndex((index) => Math.max(0, index - 1));
+  }, []);
+  const applySentenceImprovementSuggestion = useCallback(() => {
+    if (!currentSentenceImprovementSuggestion?.improvedSentence.trim()) return;
+
+    const sentenceIndex = draft.lastIndexOf(
+      currentSentenceImprovementSuggestion.sentence,
+    );
+    if (sentenceIndex < 0) {
+      setSuggestionError("Could not find that sentence in the draft.");
+      return;
+    }
+
+    const nextDraft = cleanCompositionText(
+      `${draft.slice(0, sentenceIndex)}${currentSentenceImprovementSuggestion.improvedSentence}${draft.slice(
+        sentenceIndex + currentSentenceImprovementSuggestion.sentence.length,
+      )}`,
+    );
+    setAppliedSentenceSuggestionDraft(draft);
+    setDraft(nextDraft);
+    lastSuggestionRequestKeyRef.current = makeSentenceSuggestionRequestKey(
+      targetLanguage,
+      getLatestCompletedSentence(nextDraft),
+    );
+    setSuggestionError(null);
+    setSaveCompositionError(null);
+    setSaveCompositionMessage(null);
+  }, [currentSentenceImprovementSuggestion, draft, targetLanguage]);
+  const undoSentenceImprovementSuggestion = useCallback(() => {
+    if (appliedSentenceSuggestionDraft === null) return;
+
+    setDraft(appliedSentenceSuggestionDraft);
+    lastSuggestionRequestKeyRef.current = makeSentenceSuggestionRequestKey(
+      targetLanguage,
+      getLatestCompletedSentence(appliedSentenceSuggestionDraft),
+    );
+    setAppliedSentenceSuggestionDraft(null);
+    setSuggestionError(null);
+    setSaveCompositionError(null);
+    setSaveCompositionMessage(null);
+  }, [appliedSentenceSuggestionDraft, targetLanguage]);
 
   return {
     activeSearchPhrase,
+    applySentenceImprovementSuggestion,
     draft,
     handleBlankCanvas,
     handleChooseSavedComposition,
@@ -1168,15 +1350,22 @@ export const useCompositionController = ({
     savedCompositionError,
     savedCompositions,
     selection,
+    sentenceImprovementSuggestion: currentSentenceImprovementSuggestion,
+    sentenceImprovementSuggestionApplied:
+      appliedSentenceSuggestionDraft !== null,
+    sentenceImprovementSuggestionCount: sentenceImprovementSuggestions.length,
+    sentenceImprovementSuggestionIndex: currentSuggestionIndex,
     setMemorizeDifficultyAndReset,
     setMode,
+    showNextSentenceSuggestion,
     showSaveSignInPrompt,
+    showPreviousSentenceSuggestion,
     suggestionError,
-    suggestions,
     title: compositionTitle,
     transcriptRange,
     transcriptSource,
     transcriptSourceSegmentRange,
+    undoSentenceImprovementSuggestion,
     videoModeClipMatch,
     videoModeWords,
   };

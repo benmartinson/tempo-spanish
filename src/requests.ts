@@ -355,6 +355,44 @@ export interface WritingSuggestion {
   insertText: string;
 }
 
+export interface SentenceImprovementSuggestion {
+  sentence: string;
+  improvedSentence: string;
+  suggestion: string;
+}
+
+export const fetchSentenceImprovementSuggestion = async ({
+  draftText,
+  sentence,
+  targetLanguage,
+}: {
+  draftText: string;
+  sentence: string;
+  targetLanguage: LanguageCode;
+}): Promise<SentenceImprovementSuggestion> => {
+  const response = await backendFetch("/sentence-improvement-suggestion", {
+    method: "POST",
+    body: JSON.stringify({
+      draft_text: draftText,
+      sentence,
+      target_language: targetLanguage,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Error fetching sentence improvement suggestion: ${response.status}`,
+    );
+  }
+
+  const data = await response.json();
+  return {
+    sentence: String(data.sentence ?? sentence),
+    improvedSentence: String(data.improved_sentence ?? ""),
+    suggestion: String(data.suggestion ?? ""),
+  };
+};
+
 export const fetchWritingSuggestions = async ({
   draftText,
   activeSentence,

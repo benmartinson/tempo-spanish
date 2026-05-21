@@ -4,6 +4,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -110,6 +111,11 @@ const Composer: React.FC<ComposerProps> = (props) => {
     1,
     Math.ceil(Math.max(1, memorizeRecordingSeconds) / 30),
   );
+  const showSentenceSuggestionPanel = Boolean(
+    cps.hasChosenComposition && cps.mode === "write",
+  );
+  const isLatestSentenceSuggestion =
+    cps.sentenceImprovementSuggestionIndex === 0;
 
   const submitMemorizeRecording = useCallback(
     async (uri: string) => {
@@ -595,6 +601,100 @@ const Composer: React.FC<ComposerProps> = (props) => {
           </View>
         )}
 
+      {showSentenceSuggestionPanel && (
+        <View style={styles.sentenceSuggestionPanel}>
+          <View style={styles.sentenceSuggestionHeader}>
+            <Ionicons name="sparkles-outline" size={15} color="#26705d" />
+            <Text style={styles.sentenceSuggestionTitle}>Suggestion</Text>
+            {isLatestSentenceSuggestion &&
+            cps.sentenceImprovementSuggestionApplied ? (
+              <Pressable
+                style={styles.sentenceSuggestionActionButton}
+                onPress={cps.undoSentenceImprovementSuggestion}
+              >
+                <Text style={styles.sentenceSuggestionActionText}>Undo</Text>
+              </Pressable>
+            ) : isLatestSentenceSuggestion &&
+              cps.sentenceImprovementSuggestion ? (
+              <Pressable
+                style={styles.sentenceSuggestionActionButton}
+                onPress={cps.applySentenceImprovementSuggestion}
+              >
+                <Text style={styles.sentenceSuggestionActionText}>Apply</Text>
+              </Pressable>
+            ) : null}
+            {cps.sentenceImprovementSuggestionCount > 1 && (
+              <View style={styles.sentenceSuggestionNav}>
+                <Pressable
+                  style={[
+                    styles.sentenceSuggestionNavButton,
+                    cps.sentenceImprovementSuggestionIndex >=
+                      cps.sentenceImprovementSuggestionCount - 1 &&
+                      styles.sentenceSuggestionNavButtonDisabled,
+                  ]}
+                  onPress={cps.showPreviousSentenceSuggestion}
+                  disabled={
+                    cps.sentenceImprovementSuggestionIndex >=
+                    cps.sentenceImprovementSuggestionCount - 1
+                  }
+                  accessibilityLabel="Previous suggestion"
+                >
+                  <Ionicons name="chevron-back" size={15} color="#3d3a52" />
+                </Pressable>
+                <Text style={styles.sentenceSuggestionCount}>
+                  {cps.sentenceImprovementSuggestionIndex + 1}/
+                  {cps.sentenceImprovementSuggestionCount}
+                </Text>
+                <Pressable
+                  style={[
+                    styles.sentenceSuggestionNavButton,
+                    cps.sentenceImprovementSuggestionIndex <= 0 &&
+                      styles.sentenceSuggestionNavButtonDisabled,
+                  ]}
+                  onPress={cps.showNextSentenceSuggestion}
+                  disabled={cps.sentenceImprovementSuggestionIndex <= 0}
+                  accessibilityLabel="Next suggestion"
+                >
+                  <Ionicons name="chevron-forward" size={15} color="#3d3a52" />
+                </Pressable>
+              </View>
+            )}
+          </View>
+          <ScrollView
+            style={styles.sentenceSuggestionScroll}
+            contentContainerStyle={styles.sentenceSuggestionScrollContent}
+            showsVerticalScrollIndicator
+          >
+            {cps.isLoadingSuggestions ? (
+              <View style={styles.sentenceSuggestionLoadingRow}>
+                <ActivityIndicator size="small" color="#26705d" />
+                <Text style={styles.sentenceSuggestionText}>
+                  Checking sentence...
+                </Text>
+              </View>
+            ) : cps.sentenceImprovementSuggestion ? (
+              <>
+                <Text style={styles.sentenceSuggestionText}>
+                  <Text style={styles.sentenceSuggestionStrong}>Try: </Text>
+                  {cps.sentenceImprovementSuggestion.improvedSentence}
+                </Text>
+                <Text style={styles.sentenceSuggestionNote}>
+                  {cps.sentenceImprovementSuggestion.suggestion}
+                </Text>
+              </>
+            ) : cps.suggestionError ? (
+              <Text style={styles.sentenceSuggestionNote}>
+                {cps.suggestionError}
+              </Text>
+            ) : (
+              <Text style={styles.sentenceSuggestionNote}>
+                Sentence suggestions will show up here
+              </Text>
+            )}
+          </ScrollView>
+        </View>
+      )}
+
       {cps.hasChosenComposition && (
         <View style={styles.selectionBar}>
           <Ionicons name="scan-outline" size={16} color="#5a5680" />
@@ -889,6 +989,97 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 14,
     fontWeight: "600",
+  },
+  sentenceSuggestionPanel: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 105, 189, 0.12)",
+    backgroundColor: "#fbfcff",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 5,
+  },
+  sentenceSuggestionHeader: {
+    minHeight: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  sentenceSuggestionTitle: {
+    flex: 1,
+    color: "#26705d",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  sentenceSuggestionNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  sentenceSuggestionActionButton: {
+    minHeight: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "#edf4f2",
+    borderWidth: 1,
+    borderColor: "rgba(38, 112, 93, 0.18)",
+  },
+  sentenceSuggestionActionText: {
+    color: "#26705d",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  sentenceSuggestionNavButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.16)",
+  },
+  sentenceSuggestionNavButtonDisabled: {
+    opacity: 0.35,
+  },
+  sentenceSuggestionCount: {
+    minWidth: 34,
+    color: "#697187",
+    fontSize: 11,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  sentenceSuggestionScroll: {
+    maxHeight: 58,
+  },
+  sentenceSuggestionScrollContent: {
+    gap: 2,
+    paddingBottom: 2,
+  },
+  sentenceSuggestionLoadingRow: {
+    minHeight: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sentenceSuggestionText: {
+    color: "#2f3140",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  sentenceSuggestionStrong: {
+    color: "#26705d",
+    fontWeight: "900",
+  },
+  sentenceSuggestionNote: {
+    color: "#697187",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
   },
   selectionBar: {
     minHeight: 44,

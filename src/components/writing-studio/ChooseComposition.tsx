@@ -387,7 +387,7 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator>
+    <View style={styles.container}>
       <Pressable
         style={styles.content}
         onPress={() => setOptionsCompositionId(null)}
@@ -435,106 +435,127 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
             <ActivityIndicator size="small" color="#5a5680" />
           )}
         </View>
-        {savedCompositionError ? (
-          <Text style={styles.emptyText}>{savedCompositionError}</Text>
-        ) : targetLanguageSavedCompositions.length ? (
-          <View style={styles.list}>
-            {targetLanguageSavedCompositions.map((composition) => {
-              const isDeleting =
-                String(deletingCompositionId) === String(composition.id);
-              const isCopying =
-                String(copyingCompositionId) === String(composition.id);
-              const isQuickRefreshing =
-                String(quickRefreshingCompositionId) === String(composition.id);
-              const isBusy = isDeleting || isCopying || isQuickRefreshing;
-              const isOptionsOpen =
-                String(optionsCompositionId) === String(composition.id);
-              const savedVideo = composition.video_id
-                ? targetLanguageVideos.find(
-                    (video) =>
-                      String(video.id) === String(composition.video_id),
-                  )
-                : null;
-              const thumbnailUrl = savedVideo?.thumbnail_url;
-              const savedClipTime =
-                savedClipTimesByCompositionId[String(composition.id)] ?? null;
+        <View style={styles.savedListContainer}>
+          {savedCompositionError ? (
+            <Text style={styles.emptyText}>{savedCompositionError}</Text>
+          ) : targetLanguageSavedCompositions.length ? (
+            <ScrollView
+              style={styles.savedListScroll}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.list}>
+                {targetLanguageSavedCompositions.map((composition) => {
+                  const isDeleting =
+                    String(deletingCompositionId) === String(composition.id);
+                  const isCopying =
+                    String(copyingCompositionId) === String(composition.id);
+                  const isQuickRefreshing =
+                    String(quickRefreshingCompositionId) ===
+                    String(composition.id);
+                  const isBusy = isDeleting || isCopying || isQuickRefreshing;
+                  const isOptionsOpen =
+                    String(optionsCompositionId) === String(composition.id);
+                  const savedVideo = composition.video_id
+                    ? targetLanguageVideos.find(
+                        (video) =>
+                          String(video.id) === String(composition.video_id),
+                      )
+                    : null;
+                  const thumbnailUrl = savedVideo?.thumbnail_url;
+                  const savedClipTime =
+                    savedClipTimesByCompositionId[String(composition.id)] ??
+                    null;
 
-              return (
-                <Pressable
-                  key={String(composition.id)}
-                  style={[styles.row, isOptionsOpen && styles.rowWithOpenMenu]}
-                  onPress={() => openSavedComposition(composition)}
-                  disabled={isBusy}
-                >
-                  {composition.video_id && (
-                    <View style={styles.savedVideoThumbnailShell}>
-                      {thumbnailUrl ? (
-                        <Image
-                          source={{ uri: thumbnailUrl }}
-                          style={styles.savedVideoThumbnail}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <Ionicons name="videocam" size={17} color="#000000" />
-                      )}
-                    </View>
-                  )}
-                  <View style={styles.rowTextGroup}>
-                    <Text style={styles.rowTitle} numberOfLines={1}>
-                      {composition.title || "Untitled composition"}
-                    </Text>
-                    <View style={styles.rowMetaLine}>
-                      <Text style={styles.rowMeta}>
-                        {formatDate(composition.updated_at)}
-                      </Text>
-                      {savedClipTime && (
-                        <>
-                          <View style={styles.rowMetaDot} />
-                          <Text style={styles.rowClipTime}>
-                            {savedClipTime}
-                          </Text>
-                        </>
-                      )}
-                    </View>
-                  </View>
-                  <View style={styles.rowActions}>
+                  return (
                     <Pressable
-                      ref={(ref) => {
-                        optionsButtonRefs.current[String(composition.id)] = ref;
-                      }}
+                      key={String(composition.id)}
                       style={[
-                        styles.moreButton,
-                        isOptionsOpen && styles.moreButtonActive,
+                        styles.row,
+                        isOptionsOpen && styles.rowWithOpenMenu,
                       ]}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        setDeleteError(null);
-                        toggleOptionsMenu(composition);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel="More composition options"
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => openSavedComposition(composition)}
                       disabled={isBusy}
                     >
-                      {isBusy ? (
-                        <ActivityIndicator size="small" color="#697187" />
-                      ) : (
-                        <Ionicons
-                          name="ellipsis-horizontal"
-                          size={17}
-                          color="#697187"
-                        />
+                      {composition.video_id && (
+                        <View style={styles.savedVideoThumbnailShell}>
+                          {thumbnailUrl ? (
+                            <Image
+                              source={{ uri: thumbnailUrl }}
+                              style={styles.savedVideoThumbnail}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <Ionicons
+                              name="videocam"
+                              size={17}
+                              color="#000000"
+                            />
+                          )}
+                        </View>
                       )}
+                      <View style={styles.rowTextGroup}>
+                        <Text style={styles.rowTitle} numberOfLines={1}>
+                          {composition.title || "Untitled composition"}
+                        </Text>
+                        <View style={styles.rowMetaLine}>
+                          <Text style={styles.rowMeta}>
+                            {formatDate(composition.updated_at)}
+                          </Text>
+                          {savedClipTime && (
+                            <>
+                              <View style={styles.rowMetaDot} />
+                              <Text style={styles.rowClipTime}>
+                                {savedClipTime}
+                              </Text>
+                            </>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.rowActions}>
+                        <Pressable
+                          ref={(ref) => {
+                            optionsButtonRefs.current[String(composition.id)] =
+                              ref;
+                          }}
+                          style={[
+                            styles.moreButton,
+                            isOptionsOpen && styles.moreButtonActive,
+                          ]}
+                          onPress={(event) => {
+                            event.stopPropagation();
+                            setDeleteError(null);
+                            toggleOptionsMenu(composition);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel="More composition options"
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          disabled={isBusy}
+                        >
+                          {isBusy ? (
+                            <ActivityIndicator size="small" color="#697187" />
+                          ) : (
+                            <Ionicons
+                              name="ellipsis-horizontal"
+                              size={17}
+                              color="#697187"
+                            />
+                          )}
+                        </Pressable>
+                        <Ionicons
+                          name="arrow-forward"
+                          size={17}
+                          color="#3d3a52"
+                        />
+                      </View>
                     </Pressable>
-                    <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : (
-          <Text style={styles.emptyText}>{savedEmptyLabel}</Text>
-        )}
+                  );
+                })}
+              </View>
+            </ScrollView>
+          ) : (
+            <Text style={styles.emptyText}>{savedEmptyLabel}</Text>
+          )}
+        </View>
       </Pressable>
       <Modal
         visible={Boolean(optionsComposition)}
@@ -654,7 +675,7 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
           </Pressable>
         </Pressable>
       </Modal>
-    </ScrollView>
+    </View>
   );
 };
 
@@ -663,7 +684,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    flexGrow: 1,
+    flex: 1,
     paddingHorizontal: 14,
     paddingTop: 8,
     paddingBottom: 14,
@@ -842,6 +863,14 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: 0.6,
+  },
+  savedListContainer: {
+    flex: 1,
+    minHeight: 0,
+  },
+  savedListScroll: {
+    flex: 1,
+    minHeight: 0,
   },
   emptyText: {
     color: "#697187",

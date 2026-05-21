@@ -110,6 +110,15 @@ Rules:
 - Match the target language, tone, and topic of the draft.
 - Do not explain the suggestions."""
 
+SENTENCE_IMPROVEMENT_SYSTEM_PROMPT = """You are a concise language tutor helping a learner improve one completed sentence.
+
+Rules:
+- Focus on the target language.
+- Preserve the learner's intended meaning.
+- Return one improved version of the sentence and one short explanation.
+- If the sentence is already natural, make a small style or fluency improvement.
+- Keep the explanation brief and practical."""
+
 # System prompt for autocorrecting transcript errors
 AUTOCORRECT_SYSTEM_PROMPT = """You are a transcript correction assistant for Spanish speech.
 Fix only clear errors in the transcript:
@@ -242,6 +251,12 @@ class SuggestionRequest(BaseModel):
 class WritingSuggestionsRequest(BaseModel):
     draft_text: str = ""
     active_sentence: str = ""
+    target_language: str = "es"
+
+
+class SentenceImprovementSuggestionRequest(BaseModel):
+    draft_text: str = ""
+    sentence: str
     target_language: str = "es"
 
 
@@ -411,6 +426,85 @@ Return three distinct continuations the user could insert next."""
     except Exception as e:
         print(f"Error generating writing suggestions: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate suggestions")
+
+
+@app.post("/sentence-improvement-suggestion")
+async def sentence_improvement_suggestion(
+    request: SentenceImprovementSuggestionRequest,
+    user_id: str = Depends(verify_jwt),
+):
+    """Suggest one improvement for the latest completed compose sentence."""
+    if not openai_client:
+        raise HTTPException(status_code=503, detail="OpenAI API key not configured")
+
+    sentence = request.sentence.strip()
+    if not sentence:
+        raise HTTPException(status_code=400, detail="Sentence is required")
+
+    language_names = {
+        "es": "Spanish",
+        "en": "English",
+        "pt": "Portuguese",
+        "de": "German",
+        "fr": "French",
+    }
+    target_language = language_names.get(
+        request.target_language.lower(), request.target_language
+    )
+
+    user_prompt = f"""Target language: {target_language}
+
+Full draft for context:
+{request.draft_text.strip() or "(empty)"}
+
+Sentence to improve:
+{sentence}
+
+Return one practical improvement for this sentence."""
+
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": SENTENCE_IMPROVEMENT_SYSTEM_PROMPT,
+                },
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=220,
+            temperature=0.35,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "sentence_improvement_suggestion_data",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "required": ["improved_sentence", "suggestion"],
+                        "properties": {
+                            "improved_sentence": {"type": "string"},
+                            "suggestion": {"type": "string"},
+                        },
+                        "additionalProperties": False,
+                    },
+                },
+            },
+        )
+
+        result = json.loads(response.choices[0].message.content.strip())
+        return {
+            "sentence": sentence,
+            "improved_sentence": result.get("improved_sentence", "").strip(),
+            "suggestion": result.get("suggestion", "").strip(),
+            "status": "complete",
+        }
+    except Exception as e:
+        print(f"Error generating sentence improvement suggestion: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate sentence improvement suggestion",
+        )
 
 
 # System prompt for evaluating review answers (comprehension questions)
