@@ -117,8 +117,6 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   }, [cm.selectedMatch]);
   const [translation, setTranslation] = useState<string | null>(null);
   const [alternateMeanings, setAlternateMeanings] = useState<string[]>([]);
-  const [isLoadingTranslation, setIsLoadingTranslation] = useState(false);
-  const [translationError, setTranslationError] = useState<string | null>(null);
   const [openOptionsVisible, setOpenOptionsVisible] = useState(false);
   const translationCacheRef = useRef<
     Record<
@@ -166,6 +164,16 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
   const hasSecondaryOpenOption = Boolean(
     secondaryOpenOptionLabel && onSecondaryOpenOption,
   );
+  const hasTranslationResult = Boolean(
+    translation || alternateMeanings.length > 0,
+  );
+  const shouldShowTranslationContent = Boolean(
+    selectedTranslationText &&
+      hasTranslationResult &&
+      (cm.selectedMatch ||
+        (!cm.isSearchingPhrase &&
+          cm.phraseError?.startsWith("No matching clips found"))),
+  );
 
   const chooseOpenSelectedVideo = () => {
     setOpenOptionsVisible(false);
@@ -197,8 +205,6 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
     translationCacheRef.current = {};
     setTranslation(null);
     setAlternateMeanings([]);
-    setIsLoadingTranslation(false);
-    setTranslationError(null);
   }, [resetKey]);
 
   useEffect(() => {
@@ -223,30 +229,25 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
 
   useEffect(() => {
     const selectedMatch = selectedMatchRef.current;
-    if (!selectedMatch || !translationLookupText) {
+    if (!translationLookupText) {
       setTranslation(null);
       setAlternateMeanings([]);
-      setIsLoadingTranslation(false);
-      setTranslationError(null);
       return;
     }
 
-    const selectedSegmentText = selectedMatch.segmentText;
+    const selectedSegmentText =
+      selectedMatch?.segmentText ?? selectedTranslationText;
     const cacheKey = translationLookupText.toLocaleLowerCase();
     const cached = translationCacheRef.current[cacheKey];
     if (cached) {
       setTranslation(cached.translation);
       setAlternateMeanings(cached.alternateMeanings);
-      setIsLoadingTranslation(false);
-      setTranslationError(null);
       return;
     }
 
     let cancelled = false;
     setTranslation(null);
     setAlternateMeanings([]);
-    setTranslationError(null);
-    setIsLoadingTranslation(true);
 
     fetchVocabTranslation({
       vocabWord: translationLookupText,
@@ -265,18 +266,48 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
         };
       })
       .catch(() => {
-        if (!cancelled) {
-          setTranslationError("Translation is unavailable.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingTranslation(false);
+        if (!cancelled) setTranslation(null);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [hasSelectedMatch, translationLookupText]);
+  }, [hasSelectedMatch, selectedTranslationText, translationLookupText]);
+
+  const translationContent = shouldShowTranslationContent ? (
+    <View style={styles.translationPanel}>
+      <View style={styles.translationHeader}>
+        <Text style={styles.vocabText}>{selectedTranslationLabel}</Text>
+        <TouchableOpacity
+          accessibilityLabel="Close translation"
+          style={styles.translationCloseButton}
+          onPress={onClearHighlightedWords}
+          disabled={!onClearHighlightedWords}
+          activeOpacity={0.72}
+        >
+          <Ionicons name="close" size={16} color="#5a5680" />
+        </TouchableOpacity>
+      </View>
+      {translation ? (
+        <View style={styles.translationContainer}>
+          <Text style={styles.translationLabel}>Translation</Text>
+          <Text style={styles.translationText}>{capitalize(translation)}</Text>
+        </View>
+      ) : null}
+      {alternateMeanings.length > 0 && (
+        <View style={styles.altMeaningsContainer}>
+          <Text style={styles.altMeaningsLabel}>Other meanings</Text>
+          {alternateMeanings
+            .sort((a, b) => a.length - b.length)
+            .map((meaning, index) => (
+              <Text key={`${meaning}-${index}`} style={styles.altMeaningText}>
+                {capitalize(meaning)}
+              </Text>
+            ))}
+        </View>
+      )}
+    </View>
+  ) : null;
 
   return (
     <View style={styles.clipColumn}>
@@ -368,53 +399,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
                 </View>
               ) : null}
             </View>
-            {selectedTranslationText ? (
-              <View style={styles.translationPanel}>
-                <View style={styles.translationHeader}>
-                  <Text style={styles.vocabText}>
-                    {selectedTranslationLabel}
-                  </Text>
-                  <TouchableOpacity
-                    accessibilityLabel="Close translation"
-                    style={styles.translationCloseButton}
-                    onPress={onClearHighlightedWords}
-                    disabled={!onClearHighlightedWords}
-                    activeOpacity={0.72}
-                  >
-                    <Ionicons name="close" size={16} color="#5a5680" />
-                  </TouchableOpacity>
-                </View>
-                {isLoadingTranslation ? (
-                  <ActivityIndicator size="small" color="#4a69bd" />
-                ) : translation ? (
-                  <View style={styles.translationContainer}>
-                    <Text style={styles.translationLabel}>Translation</Text>
-                    <Text style={styles.translationText}>
-                      {capitalize(translation)}
-                    </Text>
-                  </View>
-                ) : translationError ? (
-                  <Text style={styles.translationError}>
-                    {translationError}
-                  </Text>
-                ) : null}
-                {!isLoadingTranslation && alternateMeanings.length > 0 && (
-                  <View style={styles.altMeaningsContainer}>
-                    <Text style={styles.altMeaningsLabel}>Other meanings</Text>
-                    {alternateMeanings
-                      .sort((a, b) => a.length - b.length)
-                      .map((meaning, index) => (
-                        <Text
-                          key={`${meaning}-${index}`}
-                          style={styles.altMeaningText}
-                        >
-                          {capitalize(meaning)}
-                        </Text>
-                      ))}
-                  </View>
-                )}
-              </View>
-            ) : null}
+            {translationContent}
             {/* {!hideSegmentTranscript && (
               <Text style={styles.segmentTranscript}>{segmentTranscript}</Text>
             )} */}
@@ -451,6 +436,7 @@ const ClipMatcher: React.FC<ClipMatcherProps> = (props) => {
                 </View>
               </>
             )}
+            {translationContent}
           </View>
         )}
       </View>
@@ -715,11 +701,6 @@ const styles = StyleSheet.create({
   altMeaningText: {
     color: "#555",
     fontSize: 14,
-  },
-  translationError: {
-    color: "#a03a3a",
-    fontSize: 12,
-    fontWeight: "700",
   },
   segmentTranscript: {
     marginTop: 12,

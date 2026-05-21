@@ -294,8 +294,8 @@ export const useClipMatcher = ({
           const bestMatch = mergedMatches[0];
           if (!bestMatch) {
             setSelectedMatch(null);
-            setSelectedMatchPhrase("");
-            setPhraseError("No results found.");
+            setSelectedMatchPhrase(requestedPhrase);
+            setPhraseError(`No matching clips found for "${requestedPhrase}"`);
             return;
           }
 
@@ -311,7 +311,7 @@ export const useClipMatcher = ({
             setPhraseError(
               quickMatch
                 ? "Transcript search is unavailable right now."
-                : "No results found.",
+                : `No matching clips found for "${requestedPhrase}"`,
             );
           }
         } finally {
