@@ -486,7 +486,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
           <Text style={styles.openingVideoText}>
             {isOpeningVideoComposition
               ? "Opening video transcript..."
-              : "Opening composition..."}
+              : "Opening..."}
           </Text>
         </View>
       ) : !cps.hasChosenComposition ? (

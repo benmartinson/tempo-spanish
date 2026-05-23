@@ -378,6 +378,7 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
       <FindVideoMatch
         allChannels={allChannels}
         publicSupabase={publicSupabase}
+        targetLanguage={targetLanguage}
         targetLanguageVideos={targetLanguageVideos}
         onBack={() => setView("videoTranscript")}
         onPreviewVideoMatch={onPreviewVideoMatch}

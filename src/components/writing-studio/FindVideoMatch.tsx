@@ -15,19 +15,32 @@ import {
   formatTimestamp,
   removeSpecialPunctuationFromPassage,
 } from "../../helpers/helpers";
-import type { Channel, ChannelTopic, Segment, Topic, Video } from "../../types";
+import type {
+  Channel,
+  ChannelTopic,
+  LanguageCode,
+  Segment,
+  Topic,
+  Video,
+} from "../../types";
 import {
   escapeIlikePattern,
   formatTranscriptSearchText,
   makeTranscriptRangeText,
 } from "./helpers";
 import type { VideoTranscriptSearchResult } from "./VideoTranscriptImport";
+import {
+  SPANISH_VERB_CONJUGATIONS,
+  type SpanishVerbMatchKey,
+} from "./verbs";
 
 type PracticeType = "any" | "vocab" | "conjugation";
+type SearchOptionType = "difficulty" | "practice" | "topic";
 
 interface FindVideoMatchProps {
   allChannels: Channel[];
   publicSupabase: any;
+  targetLanguage: LanguageCode | null;
   targetLanguageVideos: Video[];
   onBack: () => void;
   onPreviewVideoMatch?: (match: TranscriptPhraseMatch | null) => void;
@@ -39,12 +52,43 @@ interface FindVideoMatchProps {
   ) => void;
 }
 
+interface VerbSuggestionQueue {
+  key: string;
+  suggestions: SuggestedMatch[];
+  index: number;
+}
+
+interface VerbOption {
+  id: string | number | null;
+  name: string;
+}
+
+interface TopVerbVideoRecord {
+  id: number;
+  video_id: string | number | null;
+  verb_id: string | number | null;
+  count: number | null;
+  difficulty: string | null;
+  start: number | null;
+  end: number | null;
+}
+
+interface ScoredVerbSuggestion {
+  suggestion: SuggestedMatch;
+  score: number;
+  difficulty: string;
+  startSegmentId: number;
+  endSegmentId: number;
+  videoRecordId: string;
+}
+
 interface SuggestedMatch {
   result: VideoTranscriptSearchResult;
   segments: Segment[];
   startIndex: number;
   endIndex: number;
   excerptText: string;
+  verbHighlightForms?: string[];
   difficultyLabel: string;
   topicLabel: string;
   startTime: number;
@@ -57,6 +101,11 @@ const PRACTICE_OPTIONS: { label: string; value: PracticeType }[] = [
   { label: "Vocab", value: "vocab" },
   { label: "Verb forms", value: "conjugation" },
 ];
+const SEARCH_OPTION_TABS: { label: string; value: SearchOptionType }[] = [
+  { label: "Difficulty", value: "difficulty" },
+  { label: "Practice Focus", value: "practice" },
+  { label: "Topic", value: "topic" },
+];
 
 const PARAGRAPH_OPTIONS = [1, 2, 3, 4, 5];
 const BASE_DIFFICULTY_OPTIONS = [
@@ -66,6 +115,42 @@ const BASE_DIFFICULTY_OPTIONS = [
   "upper intermediate",
   "advanced",
 ];
+const FALLBACK_SPANISH_VERB_OPTIONS: VerbOption[] = Object.keys(
+  SPANISH_VERB_CONJUGATIONS,
+).map((verbName) => ({
+  id: null,
+  name: verbName[0].toUpperCase() + verbName.slice(1),
+}));
+
+const normalizeVerbSearchText = (value: string): string =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zñü]+/g, " ")
+    .trim();
+
+const getVerbForms = (verbName: string): Set<string> => {
+  const normalizedVerbName = normalizeVerbSearchText(verbName);
+  const source =
+    SPANISH_VERB_CONJUGATIONS[normalizedVerbName as SpanishVerbMatchKey] ?? [
+      normalizedVerbName,
+    ];
+
+  return new Set(source.map(normalizeVerbSearchText).filter(Boolean));
+};
+
+const countUniqueVerbForms = (text: string, verbForms: Set<string>): number =>
+  new Set(
+    normalizeVerbSearchText(text)
+      .split(/\s+/)
+      .filter((token) => verbForms.has(token)),
+  ).size;
+
+const getVerbOptionKey = (verb: VerbOption): string =>
+  verb.id === null
+    ? `local:${normalizeVerbSearchText(verb.name)}`
+    : String(verb.id);
 
 const titleCase = (value: string): string =>
   value
@@ -87,15 +172,23 @@ const shuffle = <T,>(items: T[]): T[] => {
 const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
   allChannels,
   publicSupabase,
+  targetLanguage,
   targetLanguageVideos,
   onBack,
   onPreviewVideoMatch,
   onChooseVideoTranscriptRange,
 }) => {
+  const [searchOption, setSearchOption] =
+    useState<SearchOptionType>("difficulty");
   const [difficulty, setDifficulty] = useState<string>("any");
   const [difficultyDropdownOpen, setDifficultyDropdownOpen] = useState(false);
   const [practiceType, setPracticeType] = useState<PracticeType>("any");
   const [focusQuery, setFocusQuery] = useState("");
+  const [verbs, setVerbs] = useState<VerbOption[]>([]);
+  const [selectedVerbKey, setSelectedVerbKey] = useState<string | null>(null);
+  const [verbDropdownOpen, setVerbDropdownOpen] = useState(false);
+  const [isLoadingVerbs, setIsLoadingVerbs] = useState(false);
+  const [verbError, setVerbError] = useState<string | null>(null);
   const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [channelTopics, setChannelTopics] = useState<ChannelTopic[]>([]);
@@ -106,11 +199,76 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
   const [suggestion, setSuggestion] = useState<SuggestedMatch | null>(null);
   const [isFindingMatch, setIsFindingMatch] = useState(false);
   const [matchError, setMatchError] = useState<string | null>(null);
+  const [verbSuggestionQueue, setVerbSuggestionQueue] =
+    useState<VerbSuggestionQueue | null>(null);
   const searchRunIdRef = useRef(0);
+  const isSpanishTarget = targetLanguage === "es";
 
   useEffect(() => {
     return () => onPreviewVideoMatch?.(null);
   }, [onPreviewVideoMatch]);
+
+  useEffect(() => {
+    if (isSpanishTarget) return;
+    setSearchOption("difficulty");
+    setPracticeType("any");
+    setFocusQuery("");
+    setVerbDropdownOpen(false);
+    setVerbSuggestionQueue(null);
+  }, [isSpanishTarget]);
+
+  useEffect(() => {
+    if (!isSpanishTarget) return;
+
+    let cancelled = false;
+
+    const loadVerbs = async () => {
+      setIsLoadingVerbs(true);
+      setVerbError(null);
+
+      try {
+        const { data, error } = await publicSupabase
+          .from("verb")
+          .select("id,name")
+          .order("name");
+
+        if (error) {
+          console.error(error);
+          throw new Error("Failed to load verbs");
+        }
+
+        if (!cancelled) {
+          const dbVerbs = ((data ?? []) as VerbOption[]).filter(
+            (verb) => verb.id !== null && Boolean(verb.name?.trim()),
+          );
+          const nextVerbs = dbVerbs.length
+            ? dbVerbs
+            : FALLBACK_SPANISH_VERB_OPTIONS;
+          setVerbs(nextVerbs);
+          setSelectedVerbKey((currentVerbKey) =>
+            currentVerbKey &&
+            nextVerbs.some((verb) => getVerbOptionKey(verb) === currentVerbKey)
+              ? currentVerbKey
+              : nextVerbs[0] ? getVerbOptionKey(nextVerbs[0]) : null,
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setVerbs(FALLBACK_SPANISH_VERB_OPTIONS);
+          setSelectedVerbKey(getVerbOptionKey(FALLBACK_SPANISH_VERB_OPTIONS[0]));
+          setVerbError("Using built-in verbs until the verb table is available.");
+        }
+      } finally {
+        if (!cancelled) setIsLoadingVerbs(false);
+      }
+    };
+
+    void loadVerbs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSpanishTarget, publicSupabase]);
 
   useEffect(() => {
     let cancelled = false;
@@ -168,6 +326,11 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
     () => topics.find((topic) => topic.id === selectedTopicId) ?? null,
     [selectedTopicId, topics],
   );
+  const selectedVerb = useMemo(
+    () =>
+      verbs.find((verb) => getVerbOptionKey(verb) === selectedVerbKey) ?? null,
+    [selectedVerbKey, verbs],
+  );
   const topicChannelIds = useMemo(() => {
     if (selectedTopicId === null) return null;
 
@@ -183,6 +346,28 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
         .map((channel) => channel.channel_id),
     );
   }, [allChannels, channelTopics, selectedTopicId]);
+
+  const getVideoDifficulty = (video: Video): string => {
+    const channel = channelById.get(video.channel_id);
+    return channel?.difficulty || video.difficulty || "unknown";
+  };
+
+  const getCandidateVideos = (): Video[] =>
+    targetLanguageVideos.filter((video) => {
+      if (searchOption === "difficulty") {
+        const videoDifficulty = getVideoDifficulty(video).toLowerCase();
+        return (
+          difficulty === "any" ||
+          videoDifficulty === difficulty.toLowerCase()
+        );
+      }
+
+      if (searchOption === "topic") {
+        return !topicChannelIds || topicChannelIds.has(video.channel_id);
+      }
+
+      return true;
+    });
 
   const findStartIndex = (
     segments: Segment[],
@@ -238,21 +423,29 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
     video: Video,
     segments: Segment[],
     matchedSegmentId: number | null,
+    forcedStartIndex?: number,
+    forcedEndIndex?: number,
+    verbName?: string,
   ): SuggestedMatch | null => {
     if (!segments.length) return null;
 
-    const startIndex = findStartIndex(segments, matchedSegmentId);
-    const endIndex = Math.min(
-      segments.length - 1,
-      startIndex + paragraphCount - 1,
-    );
+    const maxStart =
+      typeof forcedEndIndex === "number"
+        ? segments.length - 1
+        : Math.max(0, segments.length - paragraphCount);
+    const startIndex =
+      typeof forcedStartIndex === "number"
+        ? Math.max(0, Math.min(forcedStartIndex, maxStart))
+        : findStartIndex(segments, matchedSegmentId);
+    const endIndex =
+      typeof forcedEndIndex === "number"
+        ? Math.max(startIndex, Math.min(forcedEndIndex, segments.length - 1))
+        : Math.min(segments.length - 1, startIndex + paragraphCount - 1);
     const result = toSearchResult(
       video,
       segments[startIndex]?.segment_id ?? null,
     );
-    const channel = channelById.get(video.channel_id);
-    const difficultyLabel =
-      channel?.difficulty || video.difficulty || "Any difficulty";
+    const difficultyLabel = getVideoDifficulty(video);
     const topicLabel =
       selectedTopic?.description || video.topic || "Open topic";
 
@@ -273,6 +466,9 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
       startIndex,
       endIndex,
       excerptText,
+      verbHighlightForms: verbName
+        ? Array.from(getVerbForms(verbName))
+        : undefined,
       difficultyLabel,
       topicLabel,
       startTime: segments[startIndex]?.start ?? 0,
@@ -299,6 +495,211 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
     };
   };
 
+  const makeVerbSearchKey = (): string =>
+    [
+      paragraphCount,
+      selectedVerbKey ?? selectedVerb?.name ?? "no-verb",
+      targetLanguage ?? "none",
+    ].join("|");
+
+  const buildCachedVerbSuggestion = async (
+    verb: VerbOption,
+    record: TopVerbVideoRecord,
+    videoByRecordId: Map<string, Video>,
+  ): Promise<ScoredVerbSuggestion | null> => {
+    if (record.video_id === null || record.start === null) return null;
+
+    const video = videoByRecordId.get(String(record.video_id));
+    if (!video) return null;
+
+    const segments = await loadSegments(video.id);
+    const startIndex = segments.findIndex(
+      (segment) => Number(segment.segment_id) === Number(record.start),
+    );
+    const endIndex =
+      record.end === null
+        ? startIndex
+        : segments.findIndex(
+            (segment) => Number(segment.segment_id) === Number(record.end),
+          );
+    if (startIndex < 0) return null;
+
+    const suggestion = buildSuggestion(
+      video,
+      segments,
+      segments[startIndex]?.segment_id ?? null,
+      startIndex,
+      endIndex >= startIndex ? endIndex : undefined,
+      verb.name,
+    );
+    if (!suggestion) return null;
+
+    return {
+      suggestion,
+      score: Number(record.count ?? 0),
+      difficulty: record.difficulty || getVideoDifficulty(video),
+      startSegmentId: segments[startIndex]?.segment_id ?? 0,
+      endSegmentId:
+        segments[endIndex >= startIndex ? endIndex : startIndex]?.segment_id ??
+        segments[startIndex]?.segment_id ??
+        0,
+      videoRecordId: video.id,
+    };
+  };
+
+  const loadCachedVerbSuggestions = async (
+    verb: VerbOption,
+    candidateVideos: Video[],
+  ): Promise<ScoredVerbSuggestion[]> => {
+    if (verb.id === null) return [];
+
+    const { data, error } = await publicSupabase
+      .from("top_verb_video")
+      .select("id,video_id,verb_id,count,difficulty,start,end")
+      .eq("verb_id", verb.id)
+      .order("count", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      throw new Error("Failed to load cached verb matches");
+    }
+
+    const records = (data ?? []) as TopVerbVideoRecord[];
+    if (!records.length) return [];
+
+    const videoByRecordId = new Map(
+      candidateVideos.map((video) => [String(video.id), video]),
+    );
+    const suggestions = await Promise.all(
+      records.map((record) =>
+        buildCachedVerbSuggestion(verb, record, videoByRecordId),
+      ),
+    );
+
+    return suggestions.filter(
+      (item): item is ScoredVerbSuggestion => item !== null,
+    );
+  };
+
+  const cacheVerbSuggestions = async (
+    verb: VerbOption,
+    matches: ScoredVerbSuggestion[],
+  ) => {
+    if (verb.id === null) return;
+
+    const rows = matches.map((match) => ({
+      video_id: match.videoRecordId,
+      verb_id: verb.id,
+      count: match.score,
+      difficulty: match.difficulty,
+      start: match.startSegmentId,
+      end: match.endSegmentId,
+    }));
+
+    if (!rows.length) return;
+
+    const { error } = await publicSupabase.from("top_verb_video").insert(rows);
+    if (error) {
+      console.error(error);
+    }
+  };
+
+  const limitVerbSuggestionsByDifficulty = (
+    matches: ScoredVerbSuggestion[],
+  ): ScoredVerbSuggestion[] => {
+    const bestMatchByVideoId = new Map<string, ScoredVerbSuggestion>();
+    matches
+      .sort((a, b) => b.score - a.score)
+      .forEach((match) => {
+        if (!bestMatchByVideoId.has(match.videoRecordId)) {
+          bestMatchByVideoId.set(match.videoRecordId, match);
+        }
+      });
+
+    const topMatches = Array.from(
+      Array.from(bestMatchByVideoId.values())
+        .sort((a, b) => b.score - a.score)
+        .reduce((groups, match) => {
+          const difficultyKey = match.difficulty.toLowerCase();
+          const group = groups.get(difficultyKey) ?? [];
+          if (group.length < 10) {
+            group.push(match);
+            groups.set(difficultyKey, group);
+          }
+          return groups;
+        }, new Map<string, ScoredVerbSuggestion[]>())
+        .values(),
+    ).flat();
+
+    return shuffle(topMatches);
+  };
+
+  const findVerbSuggestions = async (
+    verb: VerbOption,
+    candidateVideos: Video[],
+  ): Promise<ScoredVerbSuggestion[]> => {
+    const cachedSuggestions = await loadCachedVerbSuggestions(
+      verb,
+      candidateVideos,
+    );
+    if (cachedSuggestions.length) {
+      return limitVerbSuggestionsByDifficulty(cachedSuggestions);
+    }
+
+    const verbForms = getVerbForms(verb.name);
+    const matches: ScoredVerbSuggestion[] = [];
+
+    for (const video of candidateVideos) {
+      const segments = await loadSegments(video.id);
+      if (!segments.length) continue;
+
+      let bestVideoMatch: ScoredVerbSuggestion | null = null;
+      const maxStart = Math.max(0, segments.length - paragraphCount);
+      for (let startIndex = 0; startIndex <= maxStart; startIndex += 1) {
+        const endIndex = Math.min(
+          segments.length - 1,
+          startIndex + paragraphCount - 1,
+        );
+        const passageText = segments
+          .slice(startIndex, endIndex + 1)
+          .map((segment) => segment.text)
+          .join(" ");
+        const score = countUniqueVerbForms(passageText, verbForms);
+        if (score <= 0) continue;
+
+        const suggestion = buildSuggestion(
+          video,
+          segments,
+          segments[startIndex]?.segment_id ?? null,
+          startIndex,
+          undefined,
+          verb.name,
+        );
+        if (
+          suggestion &&
+          (!bestVideoMatch || score > bestVideoMatch.score)
+        ) {
+          bestVideoMatch = {
+            suggestion,
+            score,
+            difficulty: getVideoDifficulty(video),
+            startSegmentId: segments[startIndex]?.segment_id ?? 0,
+            endSegmentId: segments[endIndex]?.segment_id ?? 0,
+            videoRecordId: video.id,
+          };
+        }
+      }
+
+      if (bestVideoMatch) matches.push(bestVideoMatch);
+    }
+
+    const topMatchesByDifficulty = limitVerbSuggestionsByDifficulty(matches);
+
+    await cacheVerbSuggestions(verb, topMatchesByDifficulty);
+
+    return topMatchesByDifficulty;
+  };
+
   const runMatchSearch = async () => {
     if (isFindingMatch) return;
 
@@ -308,28 +709,77 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
     setMatchError(null);
     setDifficultyDropdownOpen(false);
     setTopicDropdownOpen(false);
+    setVerbDropdownOpen(false);
 
     try {
-      const focus = formatTranscriptSearchText(focusQuery);
-      let candidateVideos = targetLanguageVideos.filter((video) => {
-        const channel = channelById.get(video.channel_id);
-        const videoDifficulty = (
-          channel?.difficulty ||
-          video.difficulty ||
-          ""
-        ).toLowerCase();
-        const difficultyMatches =
-          difficulty === "any" || videoDifficulty === difficulty.toLowerCase();
-        const topicMatches =
-          !topicChannelIds || topicChannelIds.has(video.channel_id);
-
-        return difficultyMatches && topicMatches;
-      });
+      const focus =
+        isSpanishTarget &&
+        searchOption === "practice" &&
+        practiceType === "vocab"
+          ? formatTranscriptSearchText(focusQuery)
+          : "";
+      let candidateVideos = getCandidateVideos();
 
       if (!candidateVideos.length) {
         throw new Error("No videos match those choices.");
       }
 
+      if (
+        isSpanishTarget &&
+        searchOption === "practice" &&
+        practiceType === "conjugation"
+      ) {
+        if (!selectedVerb) {
+          throw new Error("Choose a verb to practice.");
+        }
+        const searchKey = makeVerbSearchKey();
+        if (
+          verbSuggestionQueue?.key === searchKey &&
+          verbSuggestionQueue.suggestions.length
+        ) {
+          const nextIndex = suggestion
+            ? (verbSuggestionQueue.index + 1) %
+              verbSuggestionQueue.suggestions.length
+            : 0;
+          const nextSuggestion = verbSuggestionQueue.suggestions[nextIndex];
+
+          if (searchRunIdRef.current === searchRunId && nextSuggestion) {
+            setVerbSuggestionQueue({
+              ...verbSuggestionQueue,
+              index: nextIndex,
+            });
+            setSuggestion(nextSuggestion);
+            onPreviewVideoMatch?.(nextSuggestion.clipMatch);
+          }
+          return;
+        }
+
+        const rankedMatches = await findVerbSuggestions(
+          selectedVerb,
+          candidateVideos,
+        );
+        const rankedSuggestions = rankedMatches.map(
+          (match) => match.suggestion,
+        );
+        const nextSuggestion = rankedSuggestions[0] ?? null;
+
+        if (!nextSuggestion) {
+          throw new Error("No transcript excerpts match that verb focus.");
+        }
+
+        if (searchRunIdRef.current === searchRunId) {
+          setVerbSuggestionQueue({
+            key: searchKey,
+            suggestions: rankedSuggestions,
+            index: 0,
+          });
+          setSuggestion(nextSuggestion);
+          onPreviewVideoMatch?.(nextSuggestion.clipMatch);
+        }
+        return;
+      }
+
+      setVerbSuggestionQueue(null);
       let selectedVideo: Video | null = null;
       let matchedSegmentId: number | null = null;
 
@@ -424,6 +874,32 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
     setMatchError(null);
   };
 
+  const renderExcerptText = (match: SuggestedMatch) => {
+    const verbForms = new Set(match.verbHighlightForms ?? []);
+    if (!verbForms.size) {
+      return <Text style={styles.excerptText}>{match.excerptText}</Text>;
+    }
+
+    return (
+      <Text style={styles.excerptText}>
+        {match.excerptText.split(/(\s+)/).map((part, index) => {
+          const isHighlighted = normalizeVerbSearchText(part)
+            .split(/\s+/)
+            .some((token) => verbForms.has(token));
+
+          return (
+            <Text
+              key={`${part}-${index}`}
+              style={isHighlighted && styles.verbHighlightText}
+            >
+              {part}
+            </Text>
+          );
+        })}
+      </Text>
+    );
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -438,166 +914,82 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Find a Good Match</Text>
         <Text style={styles.headerSubtitle}>
-          Choose a level, focus, topic, and passage length.
+          Choose one search option and passage length.
         </Text>
       </View>
 
       {!suggestion && (
         <>
-          <View style={styles.formSection}>
-            <Text style={styles.fieldLabel}>Difficulty</Text>
-            <View style={styles.dropdown}>
-              <Pressable
-                style={styles.dropdownButton}
-                onPress={() => {
-                  setDifficultyDropdownOpen((isOpen) => !isOpen);
-                  setTopicDropdownOpen(false);
-                }}
-              >
-                <Text style={styles.dropdownButtonText}>
-                  {difficulty === "any" ? "Any" : titleCase(difficulty)}
-                </Text>
-                <Ionicons
-                  name={difficultyDropdownOpen ? "chevron-up" : "chevron-down"}
-                  size={16}
-                  color="#3d3a52"
-                />
-              </Pressable>
-              {difficultyDropdownOpen && (
-                <View style={styles.dropdownMenu}>
-                  {BASE_DIFFICULTY_OPTIONS.map((option) => {
-                    const isSelected = difficulty === option;
-                    return (
-                      <Pressable
-                        key={option}
-                        style={[
-                          styles.dropdownItem,
-                          isSelected && styles.dropdownItemSelected,
-                        ]}
-                        onPress={() => {
-                          setDifficulty(option);
-                          setDifficultyDropdownOpen(false);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.dropdownItemText,
-                            isSelected && styles.dropdownItemTextSelected,
-                          ]}
-                        >
-                          {option === "any" ? "Any" : titleCase(option)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.formSection}>
-            <Text style={styles.fieldLabel}>Practice focus</Text>
-            <View style={styles.chipRow}>
-              {PRACTICE_OPTIONS.map((option) => {
-                const isSelected = practiceType === option.value;
-                return (
-                  <Pressable
-                    key={option.value}
-                    style={[styles.chip, isSelected && styles.chipSelected]}
-                    onPress={() => setPracticeType(option.value)}
+          <View style={styles.optionTabs}>
+            {SEARCH_OPTION_TABS.filter(
+              (option) => option.value !== "practice" || isSpanishTarget,
+            ).map((option) => {
+              const isSelected = searchOption === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.optionTab,
+                    isSelected && styles.optionTabSelected,
+                  ]}
+                  onPress={() => {
+                    setSearchOption(option.value);
+                    setDifficultyDropdownOpen(false);
+                    setTopicDropdownOpen(false);
+                    setVerbDropdownOpen(false);
+                    setVerbSuggestionQueue(null);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.optionTabText,
+                      isSelected && styles.optionTabTextSelected,
+                    ]}
                   >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        isSelected && styles.chipTextSelected,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <TextInput
-              value={focusQuery}
-              onChangeText={setFocusQuery}
-              placeholder={
-                practiceType === "conjugation"
-                  ? "Verb or form to practice"
-                  : "Vocabulary or phrase"
-              }
-              placeholderTextColor="#8a91a3"
-              style={styles.input}
-              returnKeyType="search"
-              onSubmitEditing={runMatchSearch}
-            />
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
-          <View style={styles.formSection}>
-            <Text style={styles.fieldLabel}>Topic</Text>
-            <View style={styles.dropdown}>
-              <Pressable
-                style={styles.dropdownButton}
-                onPress={() => {
-                  setTopicDropdownOpen((isOpen) => !isOpen);
-                  setDifficultyDropdownOpen(false);
-                }}
-                disabled={isLoadingTopics}
-              >
-                <Text style={styles.dropdownButtonText} numberOfLines={1}>
-                  {isLoadingTopics
-                    ? "Loading topics..."
-                    : selectedTopic?.description || "Any topic"}
-                </Text>
-                {isLoadingTopics ? (
-                  <ActivityIndicator size="small" color="#5a5680" />
-                ) : (
+          {searchOption === "difficulty" && (
+            <View style={styles.formSection}>
+              <Text style={styles.fieldLabel}>Difficulty</Text>
+              <View style={styles.dropdown}>
+                <Pressable
+                  style={styles.dropdownButton}
+                  onPress={() => {
+                    setDifficultyDropdownOpen((isOpen) => !isOpen);
+                    setTopicDropdownOpen(false);
+                    setVerbDropdownOpen(false);
+                  }}
+                >
+                  <Text style={styles.dropdownButtonText}>
+                    {difficulty === "any" ? "Any" : titleCase(difficulty)}
+                  </Text>
                   <Ionicons
-                    name={topicDropdownOpen ? "chevron-up" : "chevron-down"}
+                    name={
+                      difficultyDropdownOpen ? "chevron-up" : "chevron-down"
+                    }
                     size={16}
                     color="#3d3a52"
                   />
-                )}
-              </Pressable>
-              {topicDropdownOpen && !isLoadingTopics && (
-                <View style={styles.dropdownMenu}>
-                  <ScrollView
-                    style={styles.topicMenuScroll}
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator
-                  >
-                    <Pressable
-                      style={[
-                        styles.dropdownItem,
-                        selectedTopicId === null && styles.dropdownItemSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedTopicId(null);
-                        setTopicDropdownOpen(false);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.dropdownItemText,
-                          selectedTopicId === null &&
-                            styles.dropdownItemTextSelected,
-                        ]}
-                      >
-                        Any topic
-                      </Text>
-                    </Pressable>
-                    {topics.map((topic) => {
-                      const isSelected = selectedTopicId === topic.id;
+                </Pressable>
+                {difficultyDropdownOpen && (
+                  <View style={styles.dropdownMenu}>
+                    {BASE_DIFFICULTY_OPTIONS.map((option) => {
+                      const isSelected = difficulty === option;
                       return (
                         <Pressable
-                          key={topic.id}
+                          key={option}
                           style={[
                             styles.dropdownItem,
                             isSelected && styles.dropdownItemSelected,
                           ]}
                           onPress={() => {
-                            setSelectedTopicId(topic.id);
-                            setTopicDropdownOpen(false);
+                            setDifficulty(option);
+                            setDifficultyDropdownOpen(false);
                           }}
                         >
                           <Text
@@ -606,19 +998,211 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
                               isSelected && styles.dropdownItemTextSelected,
                             ]}
                           >
-                            {topic.description}
+                            {option === "any" ? "Any" : titleCase(option)}
                           </Text>
                         </Pressable>
                       );
                     })}
-                  </ScrollView>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {isSpanishTarget && searchOption === "practice" && (
+            <View style={styles.formSection}>
+              <Text style={styles.fieldLabel}>Practice focus</Text>
+              <View style={styles.chipRow}>
+                {PRACTICE_OPTIONS.map((option) => {
+                  const isSelected = practiceType === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      style={[styles.chip, isSelected && styles.chipSelected]}
+                      onPress={() => {
+                        setPracticeType(option.value);
+                        setVerbDropdownOpen(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          isSelected && styles.chipTextSelected,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {practiceType === "vocab" && (
+                <TextInput
+                  value={focusQuery}
+                  onChangeText={setFocusQuery}
+                  placeholder="Word to find"
+                  placeholderTextColor="#8a91a3"
+                  style={styles.input}
+                  returnKeyType="search"
+                  onSubmitEditing={runMatchSearch}
+                />
+              )}
+              {practiceType === "conjugation" && (
+                <View style={styles.dropdown}>
+                  <Pressable
+                    style={styles.dropdownButton}
+                    onPress={() => {
+                      setVerbDropdownOpen((isOpen) => !isOpen);
+                      setDifficultyDropdownOpen(false);
+                      setTopicDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownButtonText} numberOfLines={1}>
+                      {isLoadingVerbs
+                        ? "Loading verbs..."
+                        : selectedVerb?.name || "Choose a verb"}
+                    </Text>
+                    {isLoadingVerbs ? (
+                      <ActivityIndicator size="small" color="#5a5680" />
+                    ) : (
+                      <Ionicons
+                        name={
+                          verbDropdownOpen ? "chevron-up" : "chevron-down"
+                        }
+                        size={16}
+                        color="#3d3a52"
+                      />
+                    )}
+                  </Pressable>
+                  {verbDropdownOpen && !isLoadingVerbs && (
+                    <View style={styles.dropdownMenu}>
+                      {verbs.map((verb) => {
+                        const verbKey = getVerbOptionKey(verb);
+                        const isSelected = selectedVerbKey === verbKey;
+                        return (
+                          <Pressable
+                            key={verbKey}
+                            style={[
+                              styles.dropdownItem,
+                              isSelected && styles.dropdownItemSelected,
+                            ]}
+                            onPress={() => {
+                              setSelectedVerbKey(verbKey);
+                              setVerbDropdownOpen(false);
+                              setVerbSuggestionQueue(null);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.dropdownItemText,
+                                isSelected && styles.dropdownItemTextSelected,
+                              ]}
+                            >
+                              {verb.name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                  {verbError && (
+                    <Text style={styles.fieldError}>{verbError}</Text>
+                  )}
                 </View>
               )}
-              {topicError && (
-                <Text style={styles.fieldError}>{topicError}</Text>
-              )}
             </View>
-          </View>
+          )}
+
+          {searchOption === "topic" && (
+            <View style={styles.formSection}>
+              <Text style={styles.fieldLabel}>Topic</Text>
+              <View style={styles.dropdown}>
+                <Pressable
+                  style={styles.dropdownButton}
+                  onPress={() => {
+                    setTopicDropdownOpen((isOpen) => !isOpen);
+                    setDifficultyDropdownOpen(false);
+                    setVerbDropdownOpen(false);
+                  }}
+                  disabled={isLoadingTopics}
+                >
+                  <Text style={styles.dropdownButtonText} numberOfLines={1}>
+                    {isLoadingTopics
+                      ? "Loading topics..."
+                      : selectedTopic?.description || "Any topic"}
+                  </Text>
+                  {isLoadingTopics ? (
+                    <ActivityIndicator size="small" color="#5a5680" />
+                  ) : (
+                    <Ionicons
+                      name={topicDropdownOpen ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color="#3d3a52"
+                    />
+                  )}
+                </Pressable>
+                {topicDropdownOpen && !isLoadingTopics && (
+                  <View style={styles.dropdownMenu}>
+                    <ScrollView
+                      style={styles.topicMenuScroll}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator
+                    >
+                      <Pressable
+                        style={[
+                          styles.dropdownItem,
+                          selectedTopicId === null &&
+                            styles.dropdownItemSelected,
+                        ]}
+                        onPress={() => {
+                          setSelectedTopicId(null);
+                          setTopicDropdownOpen(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownItemText,
+                            selectedTopicId === null &&
+                              styles.dropdownItemTextSelected,
+                          ]}
+                        >
+                          Any topic
+                        </Text>
+                      </Pressable>
+                      {topics.map((topic) => {
+                        const isSelected = selectedTopicId === topic.id;
+                        return (
+                          <Pressable
+                            key={topic.id}
+                            style={[
+                              styles.dropdownItem,
+                              isSelected && styles.dropdownItemSelected,
+                            ]}
+                            onPress={() => {
+                              setSelectedTopicId(topic.id);
+                              setTopicDropdownOpen(false);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.dropdownItemText,
+                                isSelected && styles.dropdownItemTextSelected,
+                              ]}
+                            >
+                              {topic.description}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                )}
+                {topicError && (
+                  <Text style={styles.fieldError}>{topicError}</Text>
+                )}
+              </View>
+            </View>
+          )}
 
           <View style={styles.formSection}>
             <Text style={styles.fieldLabel}>Paragraphs</Text>
@@ -701,7 +1285,7 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
             </View>
           </View>
 
-          <Text style={styles.excerptText}>{suggestion.excerptText}</Text>
+          {renderExcerptText(suggestion)}
 
           <View style={styles.resultActions}>
             <Pressable
@@ -717,8 +1301,8 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
               onPress={runMatchSearch}
               disabled={isFindingMatch}
             >
-              <Ionicons name="refresh" size={15} color="#3d3a52" />
-              <Text style={styles.secondaryButtonText}>Regenerate</Text>
+              <Ionicons name="arrow-forward" size={15} color="#3d3a52" />
+              <Text style={styles.secondaryButtonText}>Next</Text>
             </Pressable>
             <Pressable
               style={[styles.resultButton, styles.primaryButton]}
@@ -781,6 +1365,32 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: 0.6,
+  },
+  optionTabs: {
+    flexDirection: "row",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.14)",
+    overflow: "hidden",
+    backgroundColor: "#f7f8fb",
+  },
+  optionTab: {
+    flex: 1,
+    minHeight: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  optionTabSelected: {
+    backgroundColor: "#edf4f2",
+  },
+  optionTabText: {
+    color: "#697187",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  optionTabTextSelected: {
+    color: "#26705d",
   },
   chipRow: {
     flexDirection: "row",
@@ -974,6 +1584,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     fontWeight: "600",
+  },
+  verbHighlightText: {
+    color: "#26705d",
+    fontWeight: "900",
+    backgroundColor: "#e1f3ed",
   },
   resultActions: {
     flexDirection: "row",
