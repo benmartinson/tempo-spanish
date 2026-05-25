@@ -34,7 +34,7 @@ import {
   type SpanishVerbMatchKey,
 } from "./verbs";
 
-type PracticeType = "any" | "vocab" | "conjugation";
+type PracticeType = "vocab" | "conjugation";
 type SearchOptionType = "difficulty" | "practice" | "topic";
 
 interface FindVideoMatchProps {
@@ -97,13 +97,12 @@ interface SuggestedMatch {
 }
 
 const PRACTICE_OPTIONS: { label: string; value: PracticeType }[] = [
-  { label: "Any", value: "any" },
-  { label: "Vocab", value: "vocab" },
   { label: "Verb forms", value: "conjugation" },
+  { label: "Vocab", value: "vocab" },
 ];
 const SEARCH_OPTION_TABS: { label: string; value: SearchOptionType }[] = [
-  { label: "Difficulty", value: "difficulty" },
   { label: "Practice Focus", value: "practice" },
+  { label: "Difficulty", value: "difficulty" },
   { label: "Topic", value: "topic" },
 ];
 
@@ -160,6 +159,9 @@ const titleCase = (value: string): string =>
     )
     .join(" ");
 
+const formatVerbLabel = (value: string): string =>
+  value.length ? value[0].toUpperCase() + value.slice(1) : value;
+
 const shuffle = <T,>(items: T[]): T[] => {
   const next = [...items];
   for (let index = next.length - 1; index > 0; index -= 1) {
@@ -178,15 +180,18 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
   onPreviewVideoMatch,
   onChooseVideoTranscriptRange,
 }) => {
-  const [searchOption, setSearchOption] =
-    useState<SearchOptionType>("difficulty");
+  const [searchOption, setSearchOption] = useState<SearchOptionType>(
+    targetLanguage === "es" ? "practice" : "difficulty",
+  );
   const [difficulty, setDifficulty] = useState<string>("any");
   const [difficultyDropdownOpen, setDifficultyDropdownOpen] = useState(false);
-  const [practiceType, setPracticeType] = useState<PracticeType>("any");
+  const [practiceType, setPracticeType] =
+    useState<PracticeType>("conjugation");
   const [focusQuery, setFocusQuery] = useState("");
   const [verbs, setVerbs] = useState<VerbOption[]>([]);
   const [selectedVerbKey, setSelectedVerbKey] = useState<string | null>(null);
   const [verbDropdownOpen, setVerbDropdownOpen] = useState(false);
+  const [verbSearchQuery, setVerbSearchQuery] = useState("");
   const [isLoadingVerbs, setIsLoadingVerbs] = useState(false);
   const [verbError, setVerbError] = useState<string | null>(null);
   const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
@@ -211,10 +216,16 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
   useEffect(() => {
     if (isSpanishTarget) return;
     setSearchOption("difficulty");
-    setPracticeType("any");
+    setPracticeType("conjugation");
     setFocusQuery("");
     setVerbDropdownOpen(false);
     setVerbSuggestionQueue(null);
+  }, [isSpanishTarget]);
+
+  useEffect(() => {
+    if (!isSpanishTarget) return;
+    setSearchOption("practice");
+    setPracticeType("conjugation");
   }, [isSpanishTarget]);
 
   useEffect(() => {
@@ -331,6 +342,14 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
       verbs.find((verb) => getVerbOptionKey(verb) === selectedVerbKey) ?? null,
     [selectedVerbKey, verbs],
   );
+  const filteredVerbs = useMemo(() => {
+    const normalizedQuery = normalizeVerbSearchText(verbSearchQuery);
+    if (!normalizedQuery) return verbs;
+
+    return verbs.filter((verb) =>
+      normalizeVerbSearchText(verb.name).includes(normalizedQuery),
+    );
+  }, [verbSearchQuery, verbs]);
   const topicChannelIds = useMemo(() => {
     if (selectedTopicId === null) return null;
 
@@ -1055,12 +1074,15 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
                       setVerbDropdownOpen((isOpen) => !isOpen);
                       setDifficultyDropdownOpen(false);
                       setTopicDropdownOpen(false);
+                      setVerbSearchQuery("");
                     }}
                   >
                     <Text style={styles.dropdownButtonText} numberOfLines={1}>
                       {isLoadingVerbs
                         ? "Loading verbs..."
-                        : selectedVerb?.name || "Choose a verb"}
+                        : selectedVerb
+                          ? formatVerbLabel(selectedVerb.name)
+                          : "Choose a verb"}
                     </Text>
                     {isLoadingVerbs ? (
                       <ActivityIndicator size="small" color="#5a5680" />
@@ -1075,34 +1097,64 @@ const FindVideoMatch: React.FC<FindVideoMatchProps> = ({
                     )}
                   </Pressable>
                   {verbDropdownOpen && !isLoadingVerbs && (
-                    <View style={styles.dropdownMenu}>
-                      {verbs.map((verb) => {
-                        const verbKey = getVerbOptionKey(verb);
-                        const isSelected = selectedVerbKey === verbKey;
-                        return (
-                          <Pressable
-                            key={verbKey}
-                            style={[
-                              styles.dropdownItem,
-                              isSelected && styles.dropdownItemSelected,
-                            ]}
-                            onPress={() => {
-                              setSelectedVerbKey(verbKey);
-                              setVerbDropdownOpen(false);
-                              setVerbSuggestionQueue(null);
-                            }}
-                          >
+                    <View style={[styles.dropdownMenu, styles.verbDropdownMenu]}>
+                      <TextInput
+                        value={verbSearchQuery}
+                        onChangeText={setVerbSearchQuery}
+                        placeholder="Search verbs"
+                        placeholderTextColor="#8a91a3"
+                        style={styles.verbSearchInput}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      <ScrollView
+                        style={styles.verbMenuScroll}
+                        nestedScrollEnabled
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        {filteredVerbs.length ? (
+                          filteredVerbs.map((verb) => {
+                            const verbKey = getVerbOptionKey(verb);
+                            const isSelected = selectedVerbKey === verbKey;
+                            return (
+                              <Pressable
+                                key={verbKey}
+                                style={[
+                                  styles.dropdownItem,
+                                  isSelected && styles.dropdownItemSelected,
+                                ]}
+                                onPress={() => {
+                                  setSelectedVerbKey(verbKey);
+                                  setVerbDropdownOpen(false);
+                                  setVerbSearchQuery("");
+                                  setVerbSuggestionQueue(null);
+                                }}
+                              >
+                                <Text
+                                  style={[
+                                    styles.dropdownItemText,
+                                    isSelected &&
+                                      styles.dropdownItemTextSelected,
+                                  ]}
+                                >
+                                  {formatVerbLabel(verb.name)}
+                                </Text>
+                              </Pressable>
+                            );
+                          })
+                        ) : (
+                          <View style={styles.emptyDropdownItem}>
                             <Text
                               style={[
                                 styles.dropdownItemText,
-                                isSelected && styles.dropdownItemTextSelected,
+                                styles.emptyDropdownItemText,
                               ]}
                             >
-                              {verb.name}
+                              No verbs found
                             </Text>
-                          </Pressable>
-                        );
-                      })}
+                          </View>
+                        )}
+                      </ScrollView>
                     </View>
                   )}
                   {verbError && (
@@ -1474,6 +1526,22 @@ const styles = StyleSheet.create({
   topicMenuScroll: {
     maxHeight: 190,
   },
+  verbDropdownMenu: {
+    maxHeight: 248,
+  },
+  verbSearchInput: {
+    minHeight: 40,
+    paddingHorizontal: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74, 105, 189, 0.12)",
+    color: "#2f3140",
+    fontSize: 14,
+    fontWeight: "700",
+    outlineStyle: "none" as any,
+  },
+  verbMenuScroll: {
+    maxHeight: 208,
+  },
   dropdownItem: {
     minHeight: 38,
     justifyContent: "center",
@@ -1492,6 +1560,14 @@ const styles = StyleSheet.create({
   dropdownItemTextSelected: {
     color: "#26705d",
     fontWeight: "900",
+  },
+  emptyDropdownItem: {
+    minHeight: 38,
+    justifyContent: "center",
+    paddingHorizontal: 11,
+  },
+  emptyDropdownItemText: {
+    color: "#8a91a3",
   },
   fieldError: {
     marginTop: 6,

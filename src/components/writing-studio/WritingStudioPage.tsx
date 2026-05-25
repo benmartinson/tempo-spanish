@@ -327,7 +327,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     [clipMatcher, composition, setSelectedTranscriptVideoContext],
   );
   const handleChooseVideoTranscriptRange = useCallback(
-    (
+    async (
       result: VideoTranscriptSearchResult,
       segments: Segment[],
       startIndex: number,
@@ -336,7 +336,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
       setIsWelcomePanelRequested(false);
       setGeneratedVideoMatchPreview(null);
       clipMatcher.clearClipMatches();
-      composition.handleChooseVideoTranscriptRange(
+      await composition.handleChooseVideoTranscriptRange(
         result,
         segments,
         startIndex,

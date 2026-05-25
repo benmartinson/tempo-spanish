@@ -791,7 +791,7 @@ export const useCompositionController = ({
   ]);
 
   const handleChooseVideoTranscriptRange = useCallback(
-    (
+    async (
       result: VideoTranscriptSearchResult,
       segments: Segment[],
       startIndex: number,
@@ -809,6 +809,9 @@ export const useCompositionController = ({
       );
       const rangeStart = Math.min(normalizedStart, normalizedEnd);
       const rangeEnd = Math.max(normalizedStart, normalizedEnd);
+      const text = cleanCompositionText(
+        makeTranscriptRangeText(segments, rangeStart, rangeEnd),
+      );
 
       clearCompositionWorkspace();
       setMode("memorize");
@@ -818,18 +821,56 @@ export const useCompositionController = ({
         startIndex: rangeStart,
         endIndex: rangeEnd,
       });
-      setDraft(
-        cleanCompositionText(
-          makeTranscriptRangeText(segments, rangeStart, rangeEnd),
-        ),
-      );
+      setDraft(text);
       setCompositionTitle(result.title);
       setCurrentComposition(null);
       setHasChosenComposition(true);
       setSaveCompositionError(null);
       setSaveCompositionMessage(null);
+
+      if (!isSignedIn || !userId || !clerkSupabase || !text.trim()) return;
+
+      setIsSavingComposition(true);
+
+      try {
+        const savedComposition = await createUserComposition({
+          supabase: clerkSupabase,
+          userId,
+          title: result.title || makeFirstSaveCompositionTitle(text),
+          text,
+          language: targetLanguage,
+          videoId: result.videoRecordId ?? null,
+          segmentStart: rangeStart,
+          segmentEnd: rangeEnd,
+        });
+
+        setCurrentComposition(savedComposition);
+        setSavedCompositions((prev) => [
+          savedComposition,
+          ...prev.filter((item) => item.id !== savedComposition.id),
+        ]);
+        dispatch(setCurrentCompositionId(savedComposition.id));
+        await persistCurrentComposition({
+          supabase: clerkSupabase,
+          userId,
+          compositionId: savedComposition.id,
+        });
+        setSaveCompositionMessage("Saved!");
+      } catch (error) {
+        console.error("Error saving transcript composition:", error);
+        setSaveCompositionError("Could not save this composition.");
+      } finally {
+        setIsSavingComposition(false);
+      }
     },
-    [clearCompositionWorkspace],
+    [
+      clearCompositionWorkspace,
+      clerkSupabase,
+      dispatch,
+      isSignedIn,
+      targetLanguage,
+      userId,
+    ],
   );
 
   const handleChooseVideoTranscript = useCallback(
