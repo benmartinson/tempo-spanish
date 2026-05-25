@@ -15,6 +15,8 @@ import type { TranscriptPhraseMatch, UserComposition } from "../../requests";
 import { formatTimestamp } from "../../helpers/helpers";
 import type { Channel, LanguageCode, Segment, Video } from "../../types";
 import FindVideoMatch from "./FindVideoMatch";
+import GuidedLearningPath from "./GuidedLearningPath";
+import LanguageLevelAssessment from "./LanguageLevelAssessment";
 import VideoTranscriptImport, {
   type VideoTranscriptSearchResult,
 } from "./VideoTranscriptImport";
@@ -76,6 +78,7 @@ interface ChooseCompositionProps {
   publicSupabase: any;
   targetLanguage: LanguageCode | null;
   targetLanguageVideos: Video[];
+  userId?: string | null;
   onBlankCanvas: () => void;
   onChooseTemplate: (template: CompositionTemplate) => void;
   onChooseVideoTranscript: (
@@ -115,6 +118,7 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   publicSupabase,
   targetLanguage,
   targetLanguageVideos,
+  userId,
   onBlankCanvas,
   onChooseTemplate,
   onChooseVideoTranscript,
@@ -128,7 +132,12 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   const { width: windowWidth } = useWindowDimensions();
   const optionsButtonRefs = useRef<Record<string, any>>({});
   const [view, setView] = useState<
-    "main" | "templates" | "videoTranscript" | "findVideoMatch"
+    | "main"
+    | "templates"
+    | "videoTranscript"
+    | "findVideoMatch"
+    | "guidedLearning"
+    | "levelAssessment"
   >("main");
   const [compositionToDelete, setCompositionToDelete] =
     useState<UserComposition | null>(null);
@@ -387,6 +396,30 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
     );
   }
 
+  if (view === "levelAssessment") {
+    return (
+      <LanguageLevelAssessment
+        publicSupabase={publicSupabase}
+        targetLanguage={targetLanguage}
+        userId={userId}
+        onBack={() => setView("main")}
+      />
+    );
+  }
+
+  if (view === "guidedLearning") {
+    return (
+      <GuidedLearningPath
+        allChannels={allChannels}
+        publicSupabase={publicSupabase}
+        targetLanguage={targetLanguage}
+        targetLanguageVideos={targetLanguageVideos}
+        onBack={() => setView("main")}
+        onChooseVideoTranscriptRange={onChooseVideoTranscriptRange}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Pressable
@@ -399,6 +432,26 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
           </Text>
         </View>
         <View style={styles.list}>
+          {targetLanguage === "es" && (
+            <Pressable
+              style={styles.row}
+              onPress={() => setView("guidedLearning")}
+            >
+              <View style={styles.rowIcon}>
+                <Ionicons name="map-outline" size={18} color="#26705d" />
+              </View>
+              <View style={styles.rowTextGroup}>
+                <Text style={styles.rowTitle} numberOfLines={1}>
+                  Guided Practice
+                </Text>
+                <Text style={styles.rowMeta} numberOfLines={1}>
+                  Next passage
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
+            </Pressable>
+          )}
+
           <Pressable
             style={styles.row}
             onPress={() => setView("videoTranscript")}
@@ -421,6 +474,24 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
             <Text style={styles.rowTitle}>Blank Canvas</Text>
             <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
           </Pressable>
+
+          {targetLanguage === "es" && (
+            <Pressable
+              style={styles.row}
+              onPress={() => setView("levelAssessment")}
+            >
+              <View style={styles.rowIcon}>
+                <Ionicons name="analytics-outline" size={18} color="#26705d" />
+              </View>
+              <View style={styles.rowTextGroup}>
+                <Text style={styles.rowTitle}>Spanish Level Check</Text>
+                <Text style={styles.rowMeta} numberOfLines={1}>
+                  Estimate a starting difficulty
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={17} color="#3d3a52" />
+            </Pressable>
+          )}
 
           {/* <Pressable style={styles.row} onPress={() => setView("templates")}>
             <View style={styles.rowIcon}>

@@ -73,7 +73,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
     memorizePlayerIsPlaying = false,
   } = props;
   const dispatch = useDispatch();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId } = useAuth();
   const userCredits = useSelector((state: RootState) => state.userCredits);
   const [showVideoWriteInfo, setShowVideoWriteInfo] = useState(false);
   const [draftSegmentStart, setDraftSegmentStart] = useState("");
@@ -499,6 +499,7 @@ const Composer: React.FC<ComposerProps> = (props) => {
           publicSupabase={publicSupabase}
           targetLanguage={targetLanguage}
           targetLanguageVideos={targetLanguageVideos}
+          userId={userId}
           onBlankCanvas={cps.handleBlankCanvas}
           onChooseTemplate={cps.handleChooseTemplate}
           onChooseVideoTranscript={cps.handleChooseVideoTranscript}

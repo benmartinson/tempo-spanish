@@ -132,10 +132,12 @@ const normalizeVerbSearchText = (value: string): string =>
 
 const getVerbForms = (verbName: string): Set<string> => {
   const normalizedVerbName = normalizeVerbSearchText(verbName);
-  const source =
-    SPANISH_VERB_CONJUGATIONS[normalizedVerbName as SpanishVerbMatchKey] ?? [
-      normalizedVerbName,
-    ];
+  const verbMatchKey = Object.keys(SPANISH_VERB_CONJUGATIONS).find(
+    (key) => normalizeVerbSearchText(key) === normalizedVerbName,
+  ) as SpanishVerbMatchKey | undefined;
+  const source = (verbMatchKey && SPANISH_VERB_CONJUGATIONS[verbMatchKey]) ?? [
+    normalizedVerbName,
+  ];
 
   return new Set(source.map(normalizeVerbSearchText).filter(Boolean));
 };
