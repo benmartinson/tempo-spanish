@@ -1215,6 +1215,58 @@ export const persistHasSeenWelcomeModals = async ({
   if (error) console.error("Error persisting welcome modal state:", error);
 };
 
+export interface LanguageLevelAssessmentResponse {
+  passageId: string;
+  difficulty: string;
+  cefr: string;
+  response: "comfortable" | "gaps" | "too-hard";
+}
+
+export interface LanguageLevelAssessmentSignal {
+  language: LanguageCode;
+  estimatedLevel: string;
+  estimatedCefr: string;
+  difficultyBand: string;
+  confidence: "early" | "moderate" | "good";
+  responses: LanguageLevelAssessmentResponse[];
+}
+
+export const persistLanguageLevelAssessment = async ({
+  supabase,
+  userId,
+  signal,
+}: {
+  supabase: any;
+  userId: string | null | undefined;
+  signal: LanguageLevelAssessmentSignal;
+}): Promise<boolean> => {
+  if (!supabase || !userId) return false;
+
+  const { error } = await supabase
+    .from("user_language_level_assessments")
+    .upsert(
+      {
+        user_id: userId,
+        language: signal.language,
+        estimated_level: signal.estimatedLevel,
+        estimated_cefr: signal.estimatedCefr,
+        difficulty_band: signal.difficultyBand,
+        confidence: signal.confidence,
+        responses: signal.responses,
+        assessed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,language" },
+    );
+
+  if (error) {
+    console.warn("Language level assessment was not persisted:", error);
+    return false;
+  }
+
+  return true;
+};
+
 export const persistMemorizeDifficulty = async ({
   supabase,
   userId,
