@@ -129,7 +129,7 @@ const ChooseComposition: React.FC<ChooseCompositionProps> = ({
   const optionsButtonRefs = useRef<Record<string, any>>({});
   const [view, setView] = useState<
     "main" | "templates" | "videoTranscript" | "findVideoMatch"
-  >("main");
+  >("videoTranscript");
   const [compositionToDelete, setCompositionToDelete] =
     useState<UserComposition | null>(null);
   const [deletingCompositionId, setDeletingCompositionId] = useState<

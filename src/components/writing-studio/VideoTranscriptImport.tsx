@@ -230,7 +230,7 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
       <View style={styles.content}>
         <Pressable style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={16} color="#3d3a52" />
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backButtonText}>More Options</Text>
         </Pressable>
 
         <View style={styles.header}>
