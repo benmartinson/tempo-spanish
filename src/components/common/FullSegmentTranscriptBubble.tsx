@@ -56,6 +56,8 @@ interface FullSegmentTranscriptBubbleProps {
   relayHighlightedWords?: (words: SegmentWord[]) => boolean | void;
   relayResetKey?: number | string;
   showWordTimestamps?: boolean;
+  allBlurred?: boolean;
+  completedWords?: number[];
 }
 
 const LINE_HEIGHT = 28;
@@ -117,6 +119,8 @@ const FullSegmentTranscriptBubble: React.FC<
   relayHighlightedWords,
   relayResetKey = 0,
   showWordTimestamps = false,
+  allBlurred = false,
+  completedWords = [],
 }) => {
   const dispatch = useDispatch();
   const supabase = useSupabaseWithClerk();
@@ -125,6 +129,7 @@ const FullSegmentTranscriptBubble: React.FC<
 
   const [guessWord, setGuessWord] = useState<string | null>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [pressedIndices, setPressedIndices] = useState<Number[]>([]);
   const [relayRange, setRelayRange] = useState<{
     start: number;
     end: number;
@@ -339,6 +344,10 @@ const FullSegmentTranscriptBubble: React.FC<
     });
   };
 
+  const handleWordPress = (index) => {
+    setPressedIndices((prev) => [...prev, index]);
+  };
+
   // Show blank when not active (before first word or after words change)
   if (!isActive) {
     return (
@@ -373,8 +382,8 @@ const FullSegmentTranscriptBubble: React.FC<
         showsVerticalScrollIndicator={false}
         scrollEnabled={false}
       >
-        {!words.length && <Text style={styles.word}></Text>}
-        {words.map((word, index) => {
+        {!words?.length && <Text style={styles.word}></Text>}
+        {(words || []).map((word, index) => {
           // Determine word style based on mode
           const getWordStyle = () => {
             if (mode === "shadow") {
@@ -388,7 +397,11 @@ const FullSegmentTranscriptBubble: React.FC<
             return styles.normalWord;
           };
 
-          const isBlurred = blurredIndices?.has(index);
+          const isBlurred =
+            (allBlurred &&
+              !completedWords.includes(index) &&
+              !pressedIndices.includes(index)) ||
+            blurredIndices?.has(index);
           const wordStyle = getWordStyle();
           const isActive = wordStyle === styles.activeWord;
           const displayWord = getDisplayWord(words, index);
@@ -414,7 +427,7 @@ const FullSegmentTranscriptBubble: React.FC<
                     return;
                   }
                   if (isBlurred && onWordPress) {
-                    onWordPress(index);
+                    handleWordPress(index);
                   } else if (!isBlurred && relayHighlightedWords) {
                     relayWordRange(index, index);
                   } else if (!isBlurred && !disableGuessModal) {

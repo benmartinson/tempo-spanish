@@ -273,30 +273,30 @@ const findTranscriptRangeForText = (
   return { startIndex: 0, endIndex: Math.min(segments.length - 1, 2) };
 };
 
-const resolveSavedTranscriptRange = (
+const resolveSavedTranscriptIndex = (
   composition: UserComposition,
   segments: Segment[],
-): { startIndex: number; endIndex: number } => {
+): number => {
   const savedStart =
     typeof composition.segment_start === "number"
       ? composition.segment_start
       : null;
-  const savedEnd =
-    typeof composition.segment_end === "number"
-      ? composition.segment_end
-      : null;
+  // const savedEnd =
+  //   typeof composition.segment_end === "number"
+  //     ? composition.segment_end
+  //     : null;
 
   if (
     savedStart !== null &&
-    savedEnd !== null &&
-    savedStart >= 0 &&
-    savedEnd >= savedStart &&
-    savedEnd < segments.length
+    // savedEnd !== null &&
+    savedStart >= 0
+    // savedEnd >= savedStart &&
+    // savedEnd < segments.length
   ) {
-    return { startIndex: savedStart, endIndex: savedEnd };
+    return savedStart;
   }
 
-  return findTranscriptRangeForText(segments, composition.text);
+  return 0;
 };
 
 interface TranscriptCompositionSource {
@@ -413,8 +413,7 @@ export const useCompositionController = ({
     };
   }, [clerkSupabase, isSignedIn, userId]);
 
-  const activeSearchPhrase =
-    draftHighlightedPhrase || relayedHighlightedPhrase;
+  const activeSearchPhrase = draftHighlightedPhrase || relayedHighlightedPhrase;
   const memorizeWords = useMemo<SegmentWord[]>(() => {
     return makeDraftMemorizeWords(draft);
   }, [draft]);
@@ -700,7 +699,7 @@ export const useCompositionController = ({
         return;
       }
 
-      const restoredRange = resolveSavedTranscriptRange(composition, segments);
+      const restoredIndex = resolveSavedTranscriptIndex(composition, segments);
       const result: VideoTranscriptSearchResult = {
         videoId: video.video_id,
         videoRecordId: video.id,
@@ -708,8 +707,7 @@ export const useCompositionController = ({
         title: video.title,
         channelTitle: channel?.title ?? "Tempo channel",
         thumbnailUrl: video.thumbnail_url,
-        matchedSegmentId:
-          segments[restoredRange.startIndex]?.segment_id ?? null,
+        matchedSegmentId: segments[restoredIndex]?.segment_id ?? null,
       };
 
       clearCompositionWorkspace();
@@ -717,8 +715,8 @@ export const useCompositionController = ({
       setTranscriptSource({
         result,
         segments,
-        startIndex: restoredRange.startIndex,
-        endIndex: restoredRange.endIndex,
+        startIndex: restoredIndex,
+        endIndex: restoredIndex,
       });
       setDraft(savedText);
       setCompositionTitle(composition.title ?? "");

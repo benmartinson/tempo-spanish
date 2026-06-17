@@ -228,22 +228,22 @@ const VideoTranscriptImport: React.FC<VideoTranscriptImportProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Pressable style={styles.backButton} onPress={onBack}>
+        {/* <Pressable style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={16} color="#3d3a52" />
           <Text style={styles.backButtonText}>More Options</Text>
-        </Pressable>
+        </Pressable> */}
 
         <View style={styles.header}>
           <View style={styles.headerTitleRow}>
             <Text style={styles.headerTitle}>Video Transcript Library</Text>
-            <Pressable
+            {/* <Pressable
               style={styles.matchButton}
               onPress={onFindGoodMatch}
               accessibilityRole="button"
             >
               <Ionicons name="sparkles-outline" size={15} color="#26705d" />
               <Text style={styles.matchButtonText}>Find a Good Match</Text>
-            </Pressable>
+            </Pressable> */}
           </View>
           <Text style={styles.headerSubtitle}>
             Search directly, or browse the library below.

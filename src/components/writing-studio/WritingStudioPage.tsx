@@ -27,7 +27,7 @@ import {
   setCurrentVideo,
 } from "../../store/actions/dataActions";
 import { isWebScreenWidth } from "../../helpers/helpers";
-import type { RootState, Segment } from "../../types";
+import type { RootState, Segment, Video } from "../../types";
 import ClipMatcher from "./ClipMatcher";
 import Composer from "./Composer";
 import type { CompositionTemplate } from "./ChooseComposition";
@@ -36,6 +36,8 @@ import type { VideoTranscriptSearchResult } from "./VideoTranscriptImport";
 import WelcomePanel from "./WelcomePanel";
 import { useClipMatcher } from "./useClipMatcher";
 import { useCompositionController } from "./useCompositionController";
+import Memorizer from "./Memorizer";
+import VideoTranscriptImport from "./VideoTranscriptImport";
 
 interface WritingStudioPageProps {
   initialVideoRecordId?: string | null;
@@ -135,6 +137,8 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
     targetLanguage,
     userId,
   });
+  const [selectedVideo, setSelectedVideo] =
+    useState<VideoTranscriptSearchResult | null>(null);
   const [generatedVideoMatchPreview, setGeneratedVideoMatchPreview] =
     useState<TranscriptPhraseMatch | null>(null);
   const transcriptSourceVideo = useMemo(() => {
@@ -211,14 +215,18 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
   const canStartCompositionWithSelectedClip = Boolean(
     clipMatcher.selectedMatch && !selectedMatchBelongsToCurrentVideo,
   );
-  const shouldRelayClipPlaybackToMemorizer = !composition.activeSearchPhrase
-    .trim()
-    .length;
+  const shouldRelayClipPlaybackToMemorizer =
+    !composition.activeSearchPhrase.trim().length;
   const secondaryOpenOptionLabel = canStartCanvasWithSelectedPhrase
     ? "Start canvas with the highlighted word/phrase"
     : canStartCompositionWithSelectedClip
       ? "Start a composition with this video segment"
       : undefined;
+
+  const handleSelectVideo = (video: VideoTranscriptSearchResult) => {
+    console.log({ video });
+    setSelectedVideo(video);
+  };
 
   useEffect(() => {
     if (!shouldShowInitialWelcome || !clipMatcher.selectedMatch) return;
@@ -691,7 +699,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
           isMemorizeFullScreen && styles.writeLayoutFullScreen,
         ]}
       >
-        {!isMemorizeFullScreen && (
+        {!isMemorizeFullScreen && selectedVideo && (
           <>
             {showWelcomePanel ? (
               <WelcomePanel />
@@ -715,7 +723,37 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
             )}
           </>
         )}
-        <Composer
+
+        {selectedVideo ? (
+          <Memorizer
+            words={composition.memorizeWords}
+            maskedIndices={composition.memorizeMaskedIndices}
+            difficulty={composition.memorizeDifficulty}
+            onDifficultyChange={composition.setMemorizeDifficultyAndReset}
+            onResetRevealedWords={composition.resetRevealedMemorizeWords}
+            onRevealWord={composition.revealMemorizeWord}
+            onRelayHighlightedWords={composition.handleRelayHighlightedWords}
+            highlightedWordsResetKey={composition.highlightedWordsResetKey}
+            isFullScreen={false}
+            // onToggleFullScreen={onToggleMemorizeFullScreen}
+            playbackTime={clipMatcher.playerTime}
+            playerIsPlaying={clipMatcher.playerIsPlaying}
+            resultsContent={undefined}
+          />
+        ) : (
+          <VideoTranscriptImport
+            allChannels={allChannels}
+            publicSupabase={publicSupabase}
+            targetLanguageVideos={targetLanguageVideos}
+            onBack={() => {}}
+            onFindGoodMatch={() => {}}
+            onChooseVideoTranscript={(result, segments) => {
+              handleSelectVideo(result);
+              composition.handleChooseVideoTranscript(result, segments);
+            }}
+          />
+        )}
+        {/* <Composer
           composition={composerComposition}
           isOpeningVideoComposition={
             shouldBypassCompositionChooser || isLoadingInitialVideoComposition
@@ -737,7 +775,7 @@ const WritingStudioPage: React.FC<WritingStudioPageProps> = ({
               ? clipMatcher.playerIsPlaying
               : false
           }
-        />
+        /> */}
       </View>
     </View>
   );

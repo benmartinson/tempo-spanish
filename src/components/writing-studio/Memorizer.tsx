@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import DifficultySlider from "../common/DifficultySlider";
 import FullSegmentTranscriptBubble from "../common/FullSegmentTranscriptBubble";
 import { SegmentWord } from "../../types";
+import Editor from "./Editor";
 
 interface MemorizerProps {
   words: SegmentWord[];
@@ -35,9 +36,17 @@ const Memorizer: React.FC<MemorizerProps> = ({
   resultsContent,
   playbackTime = 0,
   playerIsPlaying = false,
-}) => (
-  <View style={styles.composerMemorizeContent}>
-    {!resultsContent && (
+}) => {
+  const [completedWords, setCompletedWords] = useState<number[]>([]);
+
+  const handleWordsCompleted = (completed: number[], allComplete: boolean) => {
+    setCompletedWords([...completed]);
+  };
+
+  return (
+    <View style={styles.editorPane}>
+      <View style={styles.composerMemorizeContent}>
+        {/* {!resultsContent && (
       <View style={styles.controlsRow}>
         <DifficultySlider
           difficulty={difficulty}
@@ -58,30 +67,45 @@ const Memorizer: React.FC<MemorizerProps> = ({
           />
         </Pressable>
       </View>
-    )}
-    <ScrollView
-      style={styles.memorizeBubbleScroll}
-      contentContainerStyle={styles.memorizeBubbleScrollContent}
-      showsVerticalScrollIndicator
-    >
-      {resultsContent ?? (
-        <FullSegmentTranscriptBubble
-          words={words}
-          blurredIndices={maskedIndices}
-          time={playbackTime}
-          playerIsPlaying={playerIsPlaying}
-          showFullText
-          disableGuessModal={false}
-          onWordPress={onRevealWord}
-          relayHighlightedWords={onRelayHighlightedWords}
-          relayResetKey={highlightedWordsResetKey}
-        />
-      )}
-    </ScrollView>
-  </View>
-);
+    )} */}
+        <ScrollView
+          style={styles.memorizeBubbleScroll}
+          contentContainerStyle={styles.memorizeBubbleScrollContent}
+          showsVerticalScrollIndicator
+        >
+          {resultsContent ?? (
+            <FullSegmentTranscriptBubble
+              words={words}
+              blurredIndices={maskedIndices}
+              allBlurred={true}
+              completedWords={completedWords}
+              time={playbackTime}
+              playerIsPlaying={playerIsPlaying}
+              showFullText
+              disableGuessModal={false}
+              onWordPress={onRevealWord}
+              relayHighlightedWords={onRelayHighlightedWords}
+              relayResetKey={highlightedWordsResetKey}
+            />
+          )}
+
+          <Editor words={words} onWordsComplete={handleWordsCompleted} />
+        </ScrollView>
+      </View>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
+  editorPane: {
+    flex: 1,
+    minHeight: 460,
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(74, 105, 189, 0.14)",
+    overflow: "hidden",
+  },
   composerMemorizeContent: {
     flex: 1,
     width: "100%",
